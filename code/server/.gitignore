@@ -1,0 +1,9 @@
+# 本地环境与生成文件不进入版本管理。
+.venv/
+.env
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+var/
+out/
