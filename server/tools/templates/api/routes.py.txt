@@ -1,0 +1,40 @@
+"""
+$title 的 HTTP 接口（第 1 版）。路由只做参数转换，业务都在 $name 模块的流程中。
+"""
+
+from typing import Annotated
+
+from fastapi import APIRouter, Path
+
+from app.api.replies import responses_for
+from app.api.runner import RunDep
+from service.$name import public as $name
+
+router = APIRouter(prefix="/api/v1/$path", tags=["$title"])
+
+
+# 新建一条记录。
+@router.post(
+    "",
+    status_code=201,
+    summary="新建记录",
+    operation_id="${name}_create_record",
+    response_model=$name.${Camel}View,
+    responses=responses_for($name.create_record),
+)
+async def create_record(body: $name.${Camel}Input, run: RunDep) -> $name.${Camel}View:
+    return await run($name.create_record, body)
+
+
+# 按编号读取记录。
+@router.get(
+    "/{record_id}",
+    summary="读取记录",
+    operation_id="${name}_get_record",
+    response_model=$name.${Camel}View,
+    responses=responses_for($name.get_record),
+)
+async def get_record(
+    record_id: Annotated[int, Path(gt=0, description="记录编号")], run: RunDep
+) -> $name.${Camel}View:
+    return await run($name.get_record, $name.${Camel}Id(record_id=record_id))

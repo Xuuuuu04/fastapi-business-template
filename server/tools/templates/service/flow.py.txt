@@ -1,0 +1,12 @@
+"""
+$title 的流程：每个公开操作对应一个流程，按顺序列出步骤。
+"""
+
+from service.$name.data import CreateWork, ReadWork
+from service.$name.steps.check_record import clean_title
+from service.$name.steps.store_records import read_record, save_record
+from shared.public import Flow
+
+create_flow = Flow("新建记录", work=CreateWork, result="record", steps=[clean_title, save_record])
+
+read_flow = Flow("读取记录", work=ReadWork, result="record", steps=[read_record])

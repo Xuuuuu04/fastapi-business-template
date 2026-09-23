@@ -1,0 +1,62 @@
+# 单机部署的组合配置：PostgreSQL、迁移、接口、worker，四者使用同一个镜像和同一份配置。
+# 在 server/ 目录执行：docker compose -f deploy/compose.yaml --env-file .env up -d --build
+# .env 中需要设置 DATABASE_PASSWORD，以及 APP_API_KEYS、APP_CODE_VERSION 等生产配置（见 .env.example）。
+x-app: &app
+  image: template-server:latest
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  env_file: [../.env]
+  environment:
+    APP_ENV: production
+    APP_DATABASE_URL: postgresql+psycopg://app:${DATABASE_PASSWORD:?请在 .env 中设置 DATABASE_PASSWORD}@database:5432/app
+    APP_RUN_RECORDS: database
+  depends_on:
+    database:
+      condition: service_healthy
+
+services:
+  database:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?请在 .env 中设置 DATABASE_PASSWORD}
+    volumes: [database:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    healthcheck:
+      disable: true
+    restart: "no"
+
+  api:
+    <<: *app
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    mem_limit: 512m
+    restart: unless-stopped
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "app.setup.worker"]
+    # worker 不提供 HTTP 服务，关闭镜像中针对 8000 端口的健康检查；是否在工作看任务表和运行记录
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    mem_limit: 512m
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+volumes:
+  database: {}

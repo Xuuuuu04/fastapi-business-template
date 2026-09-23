@@ -1,0 +1,56 @@
+# 项目依赖与统一检查配置。框架检查规则的阈值写在 tools/quality/rules.py。
+[project]
+name = "fastapi-server-template"
+version = "0.3.0"
+description = "便于人审查、便于 AI 按固定结构开发的 FastAPI 单体后端模板"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
+  "pydantic>=2.9,<3",
+  "pydantic-settings>=2.6,<3",
+  "sqlalchemy[asyncio]>=2.0.36,<2.1",
+  "aiosqlite>=0.20,<1",
+  "psycopg[binary]>=3.2,<4",
+  "alembic>=1.14,<2",
+  "httpx2>=2,<3",
+  "psutil>=6,<8",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.9,<1", "mypy>=1.13,<2", "types-psutil>=6"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = [
+  "tests/framework", "tests/modules", "tests/integration", "tests/contracts",
+  "tests/architecture", "tests/quality", "tests/security", "tests/recovery",
+]
+addopts = "--strict-markers --strict-config --import-mode=importlib -p no:cacheprovider"
+pythonpath = ["."]
+markers = ["postgres_only: 只在 PostgreSQL 上有意义的检查，SQLite 下自动跳过"]
+filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C90", "SIM", "RUF100"]
+ignore = ["SIM108"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+python_version = "3.12"
+explicit_package_bases = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+plugins = ["pydantic.mypy"]

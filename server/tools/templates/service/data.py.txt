@@ -1,0 +1,38 @@
+"""
+$title 的公开数据、流程数据和业务错误。字段含义和规则见 doc/$name/rules.md。
+"""
+
+from datetime import datetime
+
+from shared.public import BusinessError, Data, Kind, WorkData, meaning
+
+
+class ${Camel}Input(Data):
+    title: str = meaning("标题，保存前去掉首尾空白", rule="R-01", min_length=1, max_length=80)
+
+
+class ${Camel}Id(Data):
+    record_id: int = meaning("记录编号", gt=0)
+
+
+class ${Camel}View(Data):
+    id: int = meaning("记录编号")
+    title: str = meaning("标题", rule="R-01")
+    created_at: datetime = meaning("创建时间（UTC）")
+
+
+class ${Camel}Missing(BusinessError):
+    code = "${name}_missing"
+    kind = Kind.NOT_FOUND
+    message = "记录不存在"
+
+
+class CreateWork(WorkData):
+    title: str = meaning("调用方填写的标题")
+    clean_title: str = meaning("整理后的标题", rule="R-01")
+    record: ${Camel}View = meaning("保存后的记录")
+
+
+class ReadWork(WorkData):
+    record_id: int = meaning("记录编号")
+    record: ${Camel}View = meaning("读取到的记录")

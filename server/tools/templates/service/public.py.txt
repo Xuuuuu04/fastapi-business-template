@@ -1,0 +1,32 @@
+"""
+$title 对外提供的操作约定和公开数据。其他模块和接口层只能导入本文件。
+"""
+
+from service.$name.data import ${Camel}Id, ${Camel}Input, ${Camel}Missing, ${Camel}View
+from shared.public import contract
+
+create_record = contract(
+    "$name.create_record",
+    "新建记录",
+    input=${Camel}Input,
+    output=${Camel}View,
+    access="$name.write",
+)
+
+get_record = contract(
+    "$name.get_record",
+    "读取记录",
+    input=${Camel}Id,
+    output=${Camel}View,
+    access="$name.read",
+    errors=(${Camel}Missing,),
+)
+
+__all__ = [
+    "${Camel}Id",
+    "${Camel}Input",
+    "${Camel}Missing",
+    "${Camel}View",
+    "create_record",
+    "get_record",
+]

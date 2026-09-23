@@ -1,0 +1,20 @@
+"""
+$title 的模块声明：操作与流程的对应、数据访问实现和表。已在 app/setup/catalog.py 中登记。
+"""
+
+from service.$name import flow, public
+from service.$name.store.sql import Sql${Camel}Store
+from service.$name.store.tables import records
+from shared.public import Module
+
+module = Module(
+    name="$name",
+    title="$title",
+    version="1",
+    provides={
+        public.create_record: flow.create_flow,
+        public.get_record: flow.read_flow,
+    },
+    store=Sql${Camel}Store,
+    tables=(records,),
+)

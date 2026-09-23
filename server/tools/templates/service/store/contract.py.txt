@@ -1,0 +1,15 @@
+"""
+$title 的步骤需要的数据访问操作。数据库实现见 sql.py。
+"""
+
+from typing import Protocol
+
+from service.$name.data import ${Camel}View
+
+
+class ${Camel}Store(Protocol):
+    # 保存一条新记录并返回它。
+    async def add(self, title: str) -> ${Camel}View: ...
+
+    # 按编号读取记录，不存在时返回 None。
+    async def find(self, record_id: int) -> ${Camel}View | None: ...

@@ -1,0 +1,28 @@
+"""
+运行记录表：一行对应一次操作的运行，步骤详情以 JSON 保存在 body 列。
+只供诊断查询使用；业务结果以业务表和任务表为准，这里的记录允许缺失和过期清理。
+"""
+
+from sqlalchemy import Column, Float, Index, String, Table, Text
+
+from shared.db.tables import metadata
+
+run_records = Table(
+    "system_run_records",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("root_id", String(32), nullable=False),
+    Column("parent_id", String(32), nullable=False, default=""),
+    Column("contract", String(120), nullable=False),
+    Column("module", String(60), nullable=False),
+    Column("status", String(20), nullable=False),
+    Column("request_id", String(64), nullable=False, default=""),
+    Column("job_id", String(32), nullable=False, default=""),
+    Column("started_at", Float, nullable=False),
+    Column("elapsed_ms", Float, nullable=False),
+    Column("summary", Text, nullable=False),
+    Column("body", Text, nullable=False),
+    Index("ix_system_run_records_started", "started_at"),
+    Index("ix_system_run_records_root", "root_id"),
+    Index("ix_system_run_records_module", "module", "started_at"),
+)
