@@ -12,6 +12,7 @@ STEP_KIND_TEXT = {
     "save": "保存",
     "call": "调用",
     "model": "大模型",
+    "remote": "外部接口",
 }
 
 RUN_STATUS_TEXT = {
@@ -55,6 +56,19 @@ class ModelCallRecord:
 
 
 @dataclass
+class RemoteCallRecord:
+    remote: str
+    method: str
+    path: str
+    status: int
+    elapsed_ms: float
+    bytes_out: int = 0
+    bytes_in: int = 0
+    retries: int = 0
+    error: str = ""
+
+
+@dataclass
 class StepRecord:
     id: str
     name: str
@@ -72,6 +86,10 @@ class StepRecord:
     notes: list[str] = field(default_factory=list)
     children: list[str] = field(default_factory=list)
     models: list[ModelCallRecord] = field(default_factory=list)
+    remotes: list[RemoteCallRecord] = field(default_factory=list)
+    cache_hits: int = 0
+    cache_misses: int = 0
+    emitted: int = 0
     error_code: str = ""
     error_message: str = ""
     error_place: str = ""
@@ -116,5 +134,6 @@ def run_from_dict(data: dict[str, Any]) -> RunRecord:
     steps = []
     for raw in data.get("steps", []):
         models = [ModelCallRecord(**item) for item in raw.get("models", [])]
-        steps.append(StepRecord(**{**raw, "models": models}))
+        remotes = [RemoteCallRecord(**item) for item in raw.get("remotes", [])]
+        steps.append(StepRecord(**{**raw, "models": models, "remotes": remotes}))
     return RunRecord(**{**data, "steps": steps})

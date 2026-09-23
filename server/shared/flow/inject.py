@@ -1,8 +1,9 @@
 """
-按步骤的参数名准备工具：store、call、model、later、caller、note。
+按步骤的参数名准备 store、call、model、remote、cache、emit、later、caller、note。
 每个工具只允许步骤声明过的范围，例如 call 只能调用 uses 中的操作，只读步骤的 store 不能写入。
 """
 
+import inspect
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, Protocol
@@ -10,14 +11,18 @@ from typing import Any, Protocol
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from shared.access.caller import Caller
+from shared.cache.gate import ModuleCache
 from shared.data.models import Data
 from shared.db.access import Db
 from shared.errors.framework import StepRuleBroken
+from shared.files.gate import ModuleFiles
 from shared.flow.scope import Scope
 from shared.flow.step import Step
 from shared.model_calls.gate import ModelGate
 from shared.modules.contract import Contract
+from shared.modules.module import Module
 from shared.records.models import RunRecord, StepRecord
+from shared.remote_calls.gate import RemoteGate
 
 MAX_NOTES = 20
 MAX_NOTE_TEXT = 200
@@ -91,30 +96,102 @@ class NoteWriter:
             self._record.notes.append(text[:MAX_NOTE_TEXT])
 
 
+class Emitter:
+    # 把一段文本交给流式响应；等待消费方接收，避免无限积压。
+    def __init__(self, scope: Scope, record: StepRecord) -> None:
+        self._scope, self._record = scope, record
+
+    # 每段最多 64 KiB；客户端断开后上层任务取消并回滚事务。
+    async def __call__(self, text: str) -> None:
+        if self._scope.emitter is None:
+            raise StepRuleBroken("这个操作没有以流式接口执行")
+        if len(text.encode("utf-8")) > 64 * 1024:
+            raise StepRuleBroken("流式输出的单段文字超过 64 KiB")
+        await self._scope.emitter(text)
+        self._record.emitted += 1
+
+
 # 按步骤参数准备工具，步骤结束后释放只读连接。
 @asynccontextmanager
 async def tools_for(
-    part: Step, scope: Scope, run: RunRecord, record: StepRecord, store: Any
+    part: Step, scope: Scope, run: RunRecord, record: StepRecord, module: Module
 ) -> AsyncIterator[dict[str, Any]]:
     tools: dict[str, Any] = {}
     params = set(part.params)
     async with AsyncExitStack() as stack:
         if "store" in params:
-            connection = await store_connection(part, scope, stack)
-            tools["store"] = store(Db(connection, read_only=not part.saves, place=part.title))
+            tools["store"] = await build_store(part, scope, record, module, stack)
         if "call" in params:
             tools["call"] = Call(scope, run, record, part)
         if "model" in params:
             tools["model"] = ModelGate(
                 scope.runtime.models, part.prompts, record.models, part.title
             )
+        if "remote" in params:
+            tools["remote"] = remote_gate(part, scope, record, part.remotes)
+        if "cache" in params:
+            tools["cache"] = module_cache(scope, module.name, record)
         if "later" in params:
             tools["later"] = Later(scope, record, part)
         if "caller" in params:
             tools["caller"] = scope.caller
         if "note" in params:
             tools["note"] = NoteWriter(record)
+        if "emit" in params:
+            tools["emit"] = Emitter(scope, record)
         yield tools
+
+
+# 按构造参数名准备存储实现所需的依赖；旧库始终使用独立的只读连接。
+async def build_store(
+    part: Step, scope: Scope, record: StepRecord, module: Module, stack: AsyncExitStack
+) -> object:
+    factory = module.store
+    if factory is None:
+        raise StepRuleBroken(f"模块 {module.name} 没有存储实现")
+    available: dict[str, Any] = {
+        "caller": scope.caller,
+        "remote": remote_gate(part, scope, record, module.remotes),
+        "cache": module_cache(scope, module.name, record),
+    }
+    if scope.runtime.files is not None and scope.runtime.uploads is not None:
+        available["files"] = ModuleFiles(scope.runtime.files, scope.runtime.uploads, module.name)
+    names = set(inspect.signature(factory).parameters)
+    if "db" in names:
+        connection = await store_connection(part, scope, stack)
+        available["db"] = Db(
+            connection, read_only=not part.saves, place=part.title, caller=scope.caller
+        )
+    if "legacy" in names:
+        if scope.runtime.legacy is None:
+            raise StepRuleBroken("旧系统数据库没有配置 APP_LEGACY_DATABASE_URL")
+        old = await stack.enter_async_context(scope.runtime.legacy.read())
+        available["legacy"] = Db(old, read_only=True, place="旧系统只读库")
+    missing = names - set(available)
+    if missing:
+        raise StepRuleBroken(f"存储实现 {factory.__name__} 有不认识的构造参数 {sorted(missing)}")
+    return factory(**{name: available[name] for name in names})
+
+
+# 限制外部系统在写入事务开始后调用，并记录请求概要。
+def remote_gate(
+    part: Step, scope: Scope, record: StepRecord, allowed: tuple[Any, ...]
+) -> RemoteGate:
+    return RemoteGate(
+        scope.runtime.remotes,
+        allowed,
+        record.remotes,
+        part.title,
+        lambda: scope.tx.connection is not None,
+    )
+
+
+# 缓存键按模块隔离，记录当前步骤的命中和未命中次数。
+def module_cache(scope: Scope, name: str, record: StepRecord) -> ModuleCache:
+    cache = scope.runtime.cache
+    if cache is None:
+        raise StepRuleBroken("没有启用缓存")
+    return ModuleCache(cache, name, record)
 
 
 # 保存步骤使用写入事务；读取步骤在事务开始前用只读连接，之后沿用事务连接以读到本次写入。

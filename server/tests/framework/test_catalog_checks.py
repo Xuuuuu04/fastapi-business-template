@@ -115,6 +115,19 @@ def test_table_prefix() -> None:
     assert any("必须以 sample_table_ 开头" in item for item in problems_of(module))
 
 
+# 存储实现的构造参数写错名称，或者使用 remote 却没有声明外部系统。
+def test_store_params() -> None:
+    class WrongStore:
+        # 参数名 database 和 remote 都不能直接使用。
+        def __init__(self, database: object, remote: object) -> None:
+            self.database, self.remote = database, remote
+
+    module = Module("sample_store", "存储", "1", provides={}, store=WrongStore)
+    problems = problems_of(module)
+    assert any("不认识的构造参数 database" in item for item in problems)
+    assert any("没有在 remotes 中声明外部系统" in item for item in problems)
+
+
 # 任务声明了其他模块的操作；定时计划没有对应的任务声明、时间写法不对。
 def test_jobs_and_schedules() -> None:
     plan = JobPlan(calc)

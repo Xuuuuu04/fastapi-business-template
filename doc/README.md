@@ -8,6 +8,8 @@
 | --- | --- | --- |
 | product_catalog | 商品目录 | [需求](product_catalog/needs.md) · [规则](product_catalog/rules.md) · [变化](product_catalog/changes.md) · [流程](product_catalog/flows.md) |
 | order_quote | 订单报价 | [需求](order_quote/needs.md) · [规则](order_quote/rules.md) · [变化](order_quote/changes.md) · [流程](order_quote/flows.md) |
+| user_access | 用户权限 | [需求](user_access/needs.md) · [规则](user_access/rules.md) · [变化](user_access/changes.md) · [流程](user_access/flows.md) |
+| file_library | 文件管理 | [需求](file_library/needs.md) · [规则](file_library/rules.md) · [变化](file_library/changes.md) · [流程](file_library/flows.md) |
 
 模块之间的关系见 [modules.md](modules.md)（自动生成）。
 

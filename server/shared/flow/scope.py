@@ -4,6 +4,7 @@
 事务在第一个 saves=True 的步骤开始，由最外层操作提交或回滚。
 """
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -55,3 +56,4 @@ class Scope:
     depth: int = 0
     root_id: str = ""
     tx: Transaction = field(default_factory=Transaction)
+    emitter: Callable[[str], Awaitable[None]] | None = None

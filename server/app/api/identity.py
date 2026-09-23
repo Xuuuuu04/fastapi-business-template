@@ -1,7 +1,7 @@
 """
-识别调用者身份：请求头 X-API-Key 带服务密钥时按密钥识别；本地开发可以开启开发者身份；其余为匿名。
+识别调用者身份：支持 X-API-Key 服务密钥、Bearer 用户令牌与本地开发者身份；其余为匿名。
+按调用者或匿名来源限流，多实例时使用共享缓存。
 身份只来自已验证的凭据，请求正文里自报的身份一律不采用。
-接入用户登录（例如 JWT）时，在这里增加一种识别方式，业务模块不需要改动。
 """
 
 from typing import Annotated
@@ -11,7 +11,8 @@ from fastapi.security import APIKeyHeader
 
 from shared.access.caller import ANONYMOUS, DEVELOPER, Caller
 from shared.access.keys import find_caller
-from shared.errors.framework import NotAllowed, NotSignedIn
+from shared.access.tokens import verify_token
+from shared.errors.framework import NotAllowed, NotSignedIn, TooManyRequests
 
 key_header = APIKeyHeader(
     name="X-API-Key",
@@ -28,10 +29,24 @@ async def get_caller(request: Request, key: Annotated[str | None, Security(key_h
         caller = find_caller(key, settings.api_keys)
         if caller is None:
             raise NotSignedIn("服务密钥无效")
-        return caller
-    if settings.dev_caller and settings.env == "local":
-        return DEVELOPER
-    return ANONYMOUS
+    elif request.headers.get("Authorization", "").startswith("Bearer "):
+        token = request.headers["Authorization"].removeprefix("Bearer ")
+        caller = verify_token(
+            token,
+            settings.jwt_secret.get_secret_value(),
+            settings.jwt_issuer,
+            settings.jwt_audience,
+        )
+    elif settings.dev_caller and settings.env == "local":
+        caller = DEVELOPER
+    else:
+        caller = ANONYMOUS
+    source = request.client.host if request.client else "unknown"
+    bucket = caller.id if caller.kind != "anonymous" else f"anonymous:{source}"
+    count = await request.app.state.services.cache.incr(f"rate:{bucket}", 60)
+    if count > settings.request_rate_per_minute:
+        raise TooManyRequests("请求过于频繁，请一分钟后再试")
+    return caller
 
 
 CallerDep = Annotated[Caller, Depends(get_caller)]

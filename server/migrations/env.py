@@ -9,6 +9,7 @@ from alembic import context
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
+import shared.access.audit
 import shared.jobs.tables
 import shared.records.tables
 from app.setup.catalog import MODULES
@@ -17,7 +18,7 @@ from shared.db.database import engine_options
 from shared.db.tables import metadata
 
 config = context.config
-LOADED = (MODULES, shared.jobs.tables, shared.records.tables)
+LOADED = (MODULES, shared.jobs.tables, shared.records.tables, shared.access.audit)
 
 
 # 取得连接地址：命令行 -x url=... 优先，否则读取服务配置。

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>运行诊断</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.6 system-ui, sans-serif; }
+    body { max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #17212b; }
+    h1 { margin-bottom: .25rem; } p { color: #425466; }
+    form, nav { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1rem 0; }
+    input, select, button { font: inherit; padding: .5rem .7rem; }
+    input { flex: 1; min-width: 16rem; } button { cursor: pointer; }
+    #notice { min-height: 1.5rem; } table { width: 100%; border-collapse: collapse; }
+    th, td { padding: .55rem; border-bottom: 1px solid #d8e0e7; text-align: left; }
+    pre { overflow: auto; background: #f3f6f8; padding: 1rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>运行诊断</h1>
+  <p>输入具有系统诊断权限的服务密钥或登录令牌。凭据只用于当前页面请求，不保存到浏览器存储。</p>
+  <form id="access">
+    <select id="kind" aria-label="凭据类型"><option value="X-API-Key">服务密钥</option><option value="Authorization">登录令牌</option></select>
+    <input id="secret" type="password" autocomplete="off" aria-label="凭据">
+  </form>
+  <form id="report">
+    <input id="run" autocomplete="off" placeholder="错误响应中的 run_id" aria-label="运行编号">
+    <button type="submit">查看诊断报告</button>
+  </form>
+  <nav>
+    <button data-url="/api/system/runs">最近运行</button>
+    <button data-url="/api/system/stats">运行统计</button>
+    <button data-url="/api/system/runtime">进程状态</button>
+    <button data-url="/api/system/audit">审计记录</button>
+  </nav>
+  <p id="notice" role="status"></p>
+  <section id="results" aria-live="polite"></section>
+  <script>
+    const notice = document.querySelector('#notice');
+    const results = document.querySelector('#results');
+    // 读取一个系统接口；报告是 Markdown 文本，其他接口是 JSON。结果只用 textContent 显示。
+    async function show(url, asText) {
+      const secret = document.querySelector('#secret').value.trim();
+      if (!secret) { notice.textContent = '请先输入凭据。'; return; }
+      const kind = document.querySelector('#kind').value;
+      const headers = { [kind]: kind === 'Authorization' ? `Bearer ${secret}` : secret };
+      notice.textContent = '正在读取…';
+      results.replaceChildren();
+      try {
+        const response = await fetch(url, { headers, cache: 'no-store' });
+        if (!response.ok) {
+          const problem = await response.json().catch(() => ({}));
+          notice.textContent = problem.message || `请求失败（${response.status}）`;
+          return;
+        }
+        const pre = document.createElement('pre');
+        pre.textContent = asText ? await response.text() : JSON.stringify(await response.json(), null, 2);
+        notice.textContent = '查询完成。';
+        results.append(pre);
+      } catch (error) { notice.textContent = `无法读取：${error.message}`; }
+    }
+    document.querySelector('#report').addEventListener('submit', event => {
+      event.preventDefault();
+      const run = document.querySelector('#run').value.trim();
+      if (!/^[0-9a-f]{8,64}$/.test(run)) { notice.textContent = '运行编号只包含数字和小写字母 a 到 f。'; return; }
+      show(`/api/system/runs/${run}/report`, true);
+    });
+    document.querySelectorAll('button[data-url]').forEach(button => {
+      button.addEventListener('click', () => show(button.dataset.url, false));
+    });
+  </script>
+</body>
+</html>

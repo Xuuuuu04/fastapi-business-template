@@ -117,6 +117,10 @@ class Recorder:
             stored_dropped=self.store.dropped,
         )
 
+    # 查询已保存的运行统计；等待写入的记录仍由 state() 单独报告。
+    async def stats(self, since: float, module: str = "") -> list[dict[str, object]]:
+        return await self.store.stats(since, module)
+
 
 # 返回运行记录的查询副本：更新已用时间，长时间没有进展的标为“失去联系”。
 def mark_lost(run: RunRecord) -> RunRecord:

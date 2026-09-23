@@ -10,13 +10,13 @@
 ## 单机部署步骤
 
 ```bash
-cp .env.example .env              # 按注释填写生产配置，设置 DATABASE_PASSWORD
-uv run python -m tools.make_key --name admin --permissions "*"   # 生成服务密钥，写入 APP_API_KEYS
+cp .env.example .env              # 按注释填写生产配置，设置 DATABASE_PASSWORD 和独立的 APP_JWT_SECRET
+uv run python -m tools.make_key --name admin --org-id "*" --permissions "*"   # 生成服务密钥，写入 APP_API_KEYS
 docker compose -f deploy/compose.yaml --env-file .env up -d --build
 curl http://127.0.0.1:8000/health/ready
 ```
 
-迁移由 `migrate` 服务在接口和 worker 启动前执行一次；接口和 worker 不会自己改表结构。
+迁移由 `migrate` 服务在接口和 worker 启动前执行一次；接口和 worker 不会自己改表结构。本地文件和上传临时区挂载在共用的 `files` 卷上，重新创建容器后仍可读取；选用 S3 时正式文件保存在对象存储中。
 
 ## 运行方式与不能承诺的事
 
@@ -28,5 +28,6 @@ curl http://127.0.0.1:8000/health/ready
 
 - 同一台机器的连接总数 = 每个进程的 `APP_DATABASE_POOL_SIZE` × 进程数，要小于 PostgreSQL 的 `max_connections`，并留出迁移和运维的余量。
 - `mem_limit` 等资源限制是示例值，按实测调整。
-- 生产环境要求：PostgreSQL、运行记录保存到数据库、至少一把服务密钥、写入代码版本；不满足时服务拒绝启动。
+- 生产环境要求：PostgreSQL、运行记录保存到数据库、至少一把服务密钥、独立的 JWT 密钥、写入代码版本；不满足时服务拒绝启动。
+- 多个接口实例必须共用 Redis 缓存，才能共享限流计数；本地文件存储也必须共用文件卷，或改用 S3 兼容存储。
 - 前端还没有开发，所以这里没有前端部署脚本；有前端时在这里增加。

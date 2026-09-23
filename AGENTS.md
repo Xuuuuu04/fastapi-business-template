@@ -25,7 +25,7 @@
 2. **新模块用命令生成**：`uv run python -m tools.new_module 模块名 --title 中文名`，不要手工复制目录。
 3. **按固定结构写**：字段写在 `data.py` 并用 `meaning()` 写含义；计算写成步骤，声明读写的字段；步骤在 `flow.py` 中连成流程；数据库访问写在 `store/`。
 4. **写测试**：规则测试的预期值来自 `rules.md` 的确认样例；接口测试从 HTTP 入口进入。
-5. **生成迁移和文档**：`uv run alembic revision --autogenerate -m "说明"`（检查生成结果），`uv run python -m tools.export_docs`。
+5. **生成迁移和文档**：先 `uv run alembic upgrade head` 把本地数据库升到最新，再 `uv run alembic revision --autogenerate -m "说明"`（检查生成结果），最后 `uv run python -m tools.export_docs`。
 6. **全量检查**：在 `server/` 运行 `uv run python -m tools.check`，全部通过才算完成。
 
 ## 4. 不能做的事

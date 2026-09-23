@@ -72,6 +72,60 @@ class ModelRejected(BusinessError):
     message = "大模型服务拒绝了请求，请检查模型配置和提示词"
 
 
+class RemoteUnavailable(BusinessError):
+    code = "remote_unavailable"
+    kind = Kind.TEMPORARY
+    message = "外部系统暂时不可用"
+
+
+class RemoteResultUnknown(BusinessError):
+    code = "remote_result_unknown"
+    kind = Kind.UNKNOWN_RESULT
+    message = "写入外部系统时没有得到结果，对方可能已经处理，请核对后再决定是否重试"
+
+
+class RemoteRejected(BusinessError):
+    code = "remote_rejected"
+    kind = Kind.INVALID
+    message = "外部系统拒绝了请求"
+
+
+class RemoteNotFound(BusinessError):
+    code = "remote_not_found"
+    kind = Kind.NOT_FOUND
+    message = "外部系统中没有找到请求的数据"
+
+
+class RemoteAuthFailed(BusinessError):
+    code = "remote_auth_failed"
+    kind = Kind.BROKEN
+    message = "外部系统拒绝访问，请检查密钥配置"
+
+
+class RemoteNotConfigured(BusinessError):
+    code = "remote_not_configured"
+    kind = Kind.BROKEN
+    message = "外部系统没有配置"
+
+
+class TooManyRequests(BusinessError):
+    code = "too_many_requests"
+    kind = Kind.TOO_MANY
+    message = "请求过于频繁，请稍后再试"
+
+
+class FileTooLarge(BusinessError):
+    code = "file_too_large"
+    kind = Kind.INVALID
+    message = "文件超过大小限制"
+
+
+class FileTypeNotAllowed(BusinessError):
+    code = "file_type_not_allowed"
+    kind = Kind.INVALID
+    message = "文件类型不允许或文件已过期"
+
+
 class StepRuleBroken(BusinessError):
     code = "step_rule_broken"
     kind = Kind.BROKEN

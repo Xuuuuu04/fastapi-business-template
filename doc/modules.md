@@ -6,10 +6,14 @@
 | --- | --- | --- | --- |
 | product_catalog | 商品目录 | 1 | [product_catalog/](product_catalog/) |
 | order_quote | 订单报价 | 1 | [order_quote/](order_quote/) |
+| user_access | 用户权限 | 1 | [user_access/](user_access/) |
+| file_library | 文件管理 | 1 | [file_library/](file_library/) |
 
 ```mermaid
 flowchart LR
     m_product_catalog["商品目录（product_catalog，版本 1）"]
     m_order_quote["订单报价（order_quote，版本 1）"]
+    m_user_access["用户权限（user_access，版本 1）"]
+    m_file_library["文件管理（file_library，版本 1）"]
     m_order_quote -->|"查询可报价的单价"| m_product_catalog
 ```

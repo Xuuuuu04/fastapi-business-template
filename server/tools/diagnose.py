@@ -9,6 +9,7 @@
 
 import argparse
 import asyncio
+import time
 
 from app.setup.catalog import MODULES
 from shared.config.settings import Settings
@@ -33,6 +34,18 @@ async def show_run(store: SqlRunStore, run_id: str) -> None:
         print(f"没有找到运行 {run_id} 的记录：可能已过期清理，或者运行记录保存在服务进程内存中")
         return
     print(run_report(await store.tree(found.root_id), run_id))
+
+
+# 打印数据库中已结束的运行统计。
+async def show_stats(store: SqlRunStore, hours: int, module: str) -> None:
+    rows = await store.stats(time.time() - hours * 3600, module)
+    for row in rows:
+        print(
+            f"{row['contract']}  {row['status']}  {row['count']} 次  "
+            f"平均 {row['average_ms']} 毫秒  最长 {row['max_ms']} 毫秒"
+        )
+    if not rows:
+        print("这个时段没有已保存的运行记录")
 
 
 # 打印操作的流程图和字段来源。
@@ -73,6 +86,8 @@ async def run(args: argparse.Namespace) -> None:
         store = SqlRunStore(database)
         if args.command == "runs":
             await show_runs(store, args.status, args.module, args.limit)
+        elif args.command == "stats":
+            await show_stats(store, args.hours, args.module)
         else:
             await show_run(store, args.run_id)
     finally:
@@ -87,6 +102,9 @@ def main() -> None:
     runs.add_argument("--status", default="")
     runs.add_argument("--module", default="")
     runs.add_argument("--limit", type=int, default=20)
+    stats = commands.add_parser("stats", help="按操作统计已结束的运行")
+    stats.add_argument("--hours", type=int, default=24)
+    stats.add_argument("--module", default="")
     commands.add_parser("run", help="一次运行的报告").add_argument("run_id")
     commands.add_parser("flow", help="操作的流程").add_argument("name")
     field = commands.add_parser("field", help="字段来源")

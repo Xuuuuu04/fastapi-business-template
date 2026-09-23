@@ -18,6 +18,9 @@ from app.setup.build import Services, build
 from shared.config.settings import Settings
 from shared.logs.setup import setup_logs
 
+# 上传请求中 multipart 分隔符和字段头占用的余量。
+MULTIPART_ALLOWANCE = 64 * 1024
+
 log = logging.getLogger("server.setup")
 
 
@@ -37,9 +40,16 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     )
     app.state.settings = settings
     app.state.services = services
-    app.state.limits = RequestLimits(settings.max_body_bytes, settings.max_inflight)
+    app.state.limits = RequestLimits(
+        settings.max_body_bytes,
+        settings.max_inflight,
+        settings.upload_max_bytes + MULTIPART_ALLOWANCE,
+        tuple(settings.upload_paths),
+    )
     add_error_handlers(app)
-    app.add_middleware(RequestMiddleware, limits=app.state.limits)
+    app.add_middleware(
+        RequestMiddleware, limits=app.state.limits, hsts_seconds=settings.hsts_seconds
+    )
     if settings.cors:
         app.add_middleware(
             CORSMiddleware,

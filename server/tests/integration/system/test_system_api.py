@@ -78,6 +78,31 @@ def test_runtime(sample_client: TestClient) -> None:
     assert body["memory_mb"] > 0 and "Pool size" in body["database_pool"] and body["jobs"] == {}
 
 
+# 运行统计按操作和状态汇总，诊断网页只读取受权限保护的系统接口。
+def test_stats_and_console(sample_client: TestClient) -> None:
+    assert sample_client.post("/test/calc", json={"amount": "5"}, headers=KEY).status_code == 200
+    failed = sample_client.post("/test/calc", json={"amount": "5", "fail_at": "busy"}, headers=KEY)
+    assert failed.status_code == 503
+    rows = sample_client.get("/api/system/stats?module=sample_calc", headers=KEY).json()["items"]
+    assert {(row["status"], row["count"]) for row in rows} == {("ok", 1), ("failed", 1)}
+    page = sample_client.get("/system/console")
+    assert page.status_code == 200 and "运行诊断" in page.text
+    assert sample_client.get("/api/system/stats").status_code == 401
+
+
+# 所有响应带浏览器安全头，调用者超出每分钟次数后收到限流错误。
+def test_security_headers_and_rate_limit(sample_client: TestClient) -> None:
+    sample_client.app.state.settings.request_rate_per_minute = 2
+    for _ in range(2):
+        reply = sample_client.get("/api/system/modules", headers=KEY)
+        assert reply.status_code == 200
+        assert reply.headers["x-content-type-options"] == "nosniff"
+        assert reply.headers["x-frame-options"] == "DENY"
+        assert reply.headers["cache-control"] == "no-store"
+    limited = sample_client.get("/api/system/modules", headers=KEY)
+    assert limited.status_code == 429
+
+
 # 诊断接口需要 system.diagnostics 权限。
 def test_diagnostics_need_permission(sample_client: TestClient) -> None:
     assert sample_client.get("/api/system/modules").status_code == 401

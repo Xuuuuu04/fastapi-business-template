@@ -18,6 +18,7 @@ class Caller:
     kind: CallerKind
     name: str
     permissions: frozenset[str] = field(default_factory=frozenset)
+    org_id: str = ""
 
     # 判断调用者是否拥有某项权限；PUBLIC 对所有调用者开放。
     def can(self, permission: str) -> bool:
@@ -33,12 +34,13 @@ class Caller:
             "kind": self.kind,
             "name": self.name,
             "permissions": sorted(self.permissions),
+            "org_id": self.org_id,
         }
 
 
 ANONYMOUS = Caller("anonymous", "anonymous", "匿名访问")
-SYSTEM = Caller("system", "system", "系统定时任务", frozenset({"*"}))
-DEVELOPER = Caller("developer", "developer", "本地开发者", frozenset({"*"}))
+SYSTEM = Caller("system", "system", "系统定时任务", frozenset({"*"}), "*")
+DEVELOPER = Caller("developer", "developer", "本地开发者", frozenset({"*"}), "*")
 
 
 # 从任务表保存的身份信息恢复调用者。
@@ -52,4 +54,5 @@ def caller_from_record(record: dict[str, object]) -> Caller:
         kind=kind if kind in allowed else "anonymous",
         name=str(record.get("name", "")),
         permissions=frozenset(str(name) for name in names),
+        org_id=str(record.get("org_id", "")),
     )

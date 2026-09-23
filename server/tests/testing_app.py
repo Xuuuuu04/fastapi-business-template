@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+import shared.access.audit
 import shared.jobs.tables
 import shared.records.tables
 from app.setup.catalog import MODULES
@@ -19,13 +20,15 @@ from shared.config.settings import Settings
 from shared.db.schema import head_revision
 from shared.db.tables import metadata
 
-LOADED = (MODULES, shared.jobs.tables, shared.records.tables)
+LOADED = (MODULES, shared.jobs.tables, shared.records.tables, shared.access.audit)
 
 KEY = {"X-API-Key": "test-full-key"}
 READER = {"X-API-Key": "test-reader-key"}
 
 KEYS = [
-    ApiKeyConfig(name="tester", key_sha256=hash_key("test-full-key"), permissions=["*"]),
+    ApiKeyConfig(
+        name="tester", key_sha256=hash_key("test-full-key"), permissions=["*"], org_id="*"
+    ),
     ApiKeyConfig(
         name="reader",
         key_sha256=hash_key("test-reader-key"),
@@ -50,6 +53,8 @@ def make_settings(folder: Path, **changes: Any) -> Settings:
         "env": "test",
         "database_url": database_url(folder),
         "api_keys": KEYS,
+        "file_root": str(folder / "files"),
+        "upload_root": str(folder / "uploads"),
         "docs": True,
         "step_checks": True,
     }

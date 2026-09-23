@@ -11,6 +11,9 @@ x-app: &app
     APP_ENV: production
     APP_DATABASE_URL: postgresql+psycopg://app:${DATABASE_PASSWORD:?请在 .env 中设置 DATABASE_PASSWORD}@database:5432/app
     APP_RUN_RECORDS: database
+    APP_FILE_ROOT: /app/var/files
+    APP_UPLOAD_ROOT: /app/var/uploads
+  volumes: [files:/app/var]
   depends_on:
     database:
       condition: service_healthy
@@ -60,3 +63,4 @@ services:
 
 volumes:
   database: {}
+  files: {}

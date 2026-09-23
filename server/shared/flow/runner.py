@@ -12,6 +12,8 @@ import time
 import traceback
 from typing import Any
 
+from opentelemetry import context as otel_context
+from opentelemetry import trace
 from pydantic_core import to_jsonable_python
 
 from shared.data.models import Data
@@ -70,6 +72,13 @@ async def run_part(
         started_at=time.time(),
     )
     run.steps.append(record)
+    tracer = scope.runtime.telemetry
+    span = (
+        tracer.tracer.start_span("step", attributes={"run.id": run.id, "step.name": part.name})
+        if tracer is not None
+        else None
+    )
+    token = otel_context.attach(trace.set_span_in_context(span)) if span else None
     run.updated_at = record.started_at
     started = time.perf_counter()
     try:
@@ -87,6 +96,11 @@ async def run_part(
     finally:
         record.elapsed_ms = (time.perf_counter() - started) * 1000
         run.updated_at = time.time()
+        if span is not None and token is not None:
+            span.set_attribute("step.status", record.status)
+            span.set_attribute("step.elapsed_ms", record.elapsed_ms)
+            otel_context.detach(token)
+            span.end()
 
 
 # 计算条件的结果；条件只能读取声明的字段，必须返回 True 或 False。
@@ -109,7 +123,7 @@ async def run_step(
 ) -> None:
     view = StepView(values, part.reads, part.writes, binding.types, part.title)
     before = fingerprints(values, part.reads) if scope.runtime.step_checks else None
-    async with tools_for(part, scope, run, record, binding.module.store) as tools:
+    async with tools_for(part, scope, run, record, binding.module) as tools:
         if part.is_async:
             returned = await part.func(view, **tools)
         elif part.heavy:

@@ -1,9 +1,10 @@
 """
 启动时检查全部模块声明，返回全部问题。
 覆盖：名称格式与重复、操作归属与权限命名、流程声明、字段说明、表名归属、提示词文件、
-任务与定时计划、跨模块调用是否已登记、操作之间和模块之间有没有循环调用。
+存储实现的构造参数、任务与定时计划、跨模块调用是否已登记、操作之间和模块之间有没有循环调用。
 """
 
+import inspect
 import re
 from collections.abc import Sequence
 from typing import Any
@@ -17,7 +18,7 @@ from shared.flow.flow import Flow
 from shared.flow.step import Step
 from shared.model_calls.prompt import load_prompt
 from shared.modules.contract import Contract
-from shared.modules.module import Module
+from shared.modules.module import STORE_PARAMS, Module
 
 NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
 Provided = dict[Contract[Any, Any], Module]
@@ -68,8 +69,25 @@ def check_module(module: Module) -> list[str]:
     for table in module.tables:
         if not table.name.startswith(f"{module.name}_"):
             problems.append(f"模块 {module.name} 的表 {table.name} 必须以 {module.name}_ 开头")
+    problems += check_store(module)
     problems += check_prompts(module)
     problems += check_jobs(module)
+    return problems
+
+
+# 存储实现的构造参数名决定框架注入什么，只能使用约定的名称。
+def check_store(module: Module) -> list[str]:
+    if module.store is None:
+        return []
+    names = list(inspect.signature(module.store).parameters)
+    place = f"模块 {module.name} 的存储实现 {getattr(module.store, '__name__', module.store)}"
+    problems = [
+        f"{place} 有不认识的构造参数 {name}，可用的参数名：{'、'.join(STORE_PARAMS)}"
+        for name in names
+        if name not in STORE_PARAMS
+    ]
+    if "remote" in names and not module.remotes:
+        problems.append(f"{place} 使用 remote 参数，但模块没有在 remotes 中声明外部系统")
     return problems
 
 
@@ -86,7 +104,7 @@ def check_contract(module: Module, item: Contract[Any, Any], flow: Flow) -> list
         )
     if not isinstance(flow, Flow):
         return [*problems, f"操作 {item.name} 对应的实现必须是 Flow"]
-    problems += check_flow(flow, item, module.store is not None, module.prompts)
+    problems += check_flow(flow, item, module.store is not None, module.prompts, module.remotes)
     problems += check_notes(item.input, f"操作 {item.name} 的输入")
     problems += check_notes(item.output, f"操作 {item.name} 的输出")
     for error in item.errors:

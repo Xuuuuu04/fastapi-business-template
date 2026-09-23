@@ -10,6 +10,9 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from shared.access.keys import ApiKeyConfig
+from shared.remote_calls.remote import RemoteConfig
+
+LOCAL_JWT_SECRET = "local-development-only-secret-change-me"
 
 
 class Settings(BaseSettings):
@@ -49,6 +52,31 @@ class Settings(BaseSettings):
     job_concurrency: int = Field(default=4, ge=1)
     job_shutdown_seconds: float = Field(default=20, ge=0)
 
+    remotes: dict[str, RemoteConfig] = {}
+    legacy_database_url: str = ""
+    cache_url: str = ""
+    file_storage: Literal["local", "s3"] = "local"
+    file_root: str = "var/files"
+    upload_root: str = "var/uploads"
+    upload_max_bytes: int = Field(default=10_000_000, ge=1)
+    upload_suffixes: list[str] = [".txt", ".pdf", ".png", ".jpg", ".jpeg", ".csv"]
+    upload_paths: list[str] = ["/api/v1/files/"]
+    s3_bucket: str = ""
+    s3_endpoint: str = ""
+    s3_region: str = ""
+    s3_access_key: str = ""
+    s3_secret_key: SecretStr | None = None
+
+    jwt_secret: SecretStr = SecretStr(LOCAL_JWT_SECRET)
+    jwt_issuer: str = "backend-template"
+    jwt_audience: str = "backend-template-api"
+    token_minutes: int = Field(default=60, ge=1, le=1440)
+    request_rate_per_minute: int = Field(default=120, ge=1)
+    login_failure_limit: int = Field(default=5, ge=1)
+    hsts_seconds: int = Field(default=0, ge=0)
+    otel_endpoint: str = ""
+    console: bool | None = None
+
     # 开发和测试环境默认开启额外的步骤检查，生产环境默认关闭以节省开销。
     def extra_step_checks(self) -> bool:
         if self.step_checks is not None:
@@ -58,6 +86,10 @@ class Settings(BaseSettings):
     # 判断是否配置了真实的大模型服务。
     def has_model(self) -> bool:
         return bool(self.model_base_url and self.model_name and self.model_api_key)
+
+    # 本地与测试默认显示诊断页，生产环境默认关闭。
+    def console_enabled(self) -> bool:
+        return self.console if self.console is not None else self.env != "production"
 
 
 # 列出生产环境配置中不允许的地方。
@@ -75,4 +107,7 @@ def check_production(settings: Settings) -> list[str]:
         problems.append("生产环境至少需要配置一把服务密钥（APP_API_KEYS）")
     if settings.code_version == "dev":
         problems.append("生产环境需要写入部署的代码版本（APP_CODE_VERSION，一般是 git 提交号）")
+    secret = settings.jwt_secret.get_secret_value()
+    if secret == LOCAL_JWT_SECRET or len(secret) < 32:
+        problems.append("生产环境必须设置独立的 APP_JWT_SECRET，至少 32 个字符")
     return problems

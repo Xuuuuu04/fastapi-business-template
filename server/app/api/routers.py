@@ -4,14 +4,19 @@
 
 from fastapi import APIRouter
 
-from app.api.system import health, jobs, runs, structure
-from app.api.v1 import order_quote, product_catalog
+from app.api.system import audit, console, health, jobs, runs, structure
+from app.api.v1 import file_library, order_quote, product_catalog, stream, user_access
 
 ROUTERS: list[APIRouter] = [
     health.router,
     structure.router,
     runs.router,
     jobs.router,
+    audit.router,
+    console.router,
     product_catalog.router,
     order_quote.router,
+    user_access.router,
+    file_library.router,
+    stream.router,
 ]

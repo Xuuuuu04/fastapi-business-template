@@ -2,14 +2,14 @@
 
 | 位置 | 内容 |
 | --- | --- |
-| [middleware.py](middleware.py) | 请求编号、正文大小和并发限制、请求日志；响应头带 X-Request-ID、X-Run-ID |
+| [middleware.py](middleware.py) | 请求编号、正文大小和并发限制、请求日志、安全响应头；响应头带 X-Request-ID、X-Run-ID |
 | [errors.py](errors.py) | 把异常统一转成错误响应，内部细节不外露 |
 | [replies.py](replies.py) | 统一错误格式、任务受理格式、按操作生成接口文档的错误说明 |
-| [identity.py](identity.py) | 识别调用者：服务密钥、本地开发身份、匿名 |
+| [identity.py](identity.py) | 识别调用者：服务密钥、Bearer 令牌、本地开发身份、匿名；按调用者限流 |
 | [runner.py](runner.py) | 路由使用的执行入口 `RunDep`：只能执行登记过的操作或登记任务 |
 | [routers.py](routers.py) | 全部路由的清单 |
 | [v1](v1/) | 业务接口第 1 版 |
-| [system](system/) | 健康检查、运行诊断、任务查询 |
+| [system](system/) | 健康检查、运行诊断、运行统计、审计查询、诊断网页、任务查询 |
 
 ## 返回格式
 

@@ -12,6 +12,7 @@ FROM python:3.12-slim
 RUN useradd --create-home --uid 10001 app
 WORKDIR /app
 COPY --from=build --chown=app:app /app /app
+RUN mkdir -p /app/var/files /app/var/uploads && chown -R app:app /app/var
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 APP_ENV=production
 USER app
 EXPOSE 8000

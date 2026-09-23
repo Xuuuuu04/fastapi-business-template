@@ -4,14 +4,18 @@
 """
 
 from shared.access.caller import PUBLIC, Caller
+from shared.cache.gate import ModuleCache
 from shared.data.fields import meaning
 from shared.data.models import Data, Nothing, Page, WorkData
 from shared.db.access import Db
+from shared.db.org import org_column
 from shared.db.tables import metadata
 from shared.db.types import ExactNumber, UtcTime
+from shared.errors.framework import NotAllowed
 from shared.errors.kinds import BusinessError, Kind
+from shared.files.gate import ModuleFiles
 from shared.flow.flow import Flow
-from shared.flow.inject import Call, Later
+from shared.flow.inject import Call, Emitter, Later
 from shared.flow.inject import NoteWriter as Note
 from shared.flow.step import condition, step
 from shared.jobs.plan import JobPlan, Retry, Schedule
@@ -19,6 +23,8 @@ from shared.model_calls.gate import ModelGate as Model
 from shared.model_calls.prompt import prompt
 from shared.modules.contract import contract
 from shared.modules.module import Module
+from shared.remote_calls.gate import RemoteGate as RemoteClient
+from shared.remote_calls.remote import remote
 
 __all__ = [
     "PUBLIC",
@@ -27,6 +33,10 @@ __all__ = [
     "Caller",
     "Data",
     "Db",
+    "Emitter",
+    "ModuleCache",
+    "ModuleFiles",
+    "RemoteClient",
     "ExactNumber",
     "Flow",
     "JobPlan",
@@ -36,6 +46,7 @@ __all__ = [
     "Module",
     "Note",
     "Nothing",
+    "NotAllowed",
     "Page",
     "Retry",
     "Schedule",
@@ -45,6 +56,8 @@ __all__ = [
     "contract",
     "meaning",
     "metadata",
+    "org_column",
     "prompt",
+    "remote",
     "step",
 ]

@@ -70,19 +70,34 @@ def write_files(name: str, title: str) -> list[Path]:
 # 在模块总目录、路由清单和业务文档目录中登记新模块。
 def register(name: str, title: str) -> list[Path]:
     catalog = ROOT / "app" / "setup" / "catalog.py"
-    text = catalog.read_text(encoding="utf-8")
-    anchor = "from shared.modules.module import Module"
-    text = text.replace(anchor, f"from service.{name}.module import module as {name}\n{anchor}")
-    catalog.write_text(append_item(text, "MODULES: list[Module]", name), encoding="utf-8")
+    catalog.write_text(add_module(catalog.read_text(encoding="utf-8"), name), encoding="utf-8")
     routers = ROOT / "app" / "api" / "routers.py"
-    text = routers.read_text(encoding="utf-8")
-    anchor = "from app.api.system import health, jobs, runs, structure"
-    text = text.replace(anchor, f"{anchor}\nfrom app.api.v1 import {name}", 1)
-    routers.write_text(
-        append_item(text, "ROUTERS: list[APIRouter]", f"{name}.router"), encoding="utf-8"
-    )
+    routers.write_text(add_route(routers.read_text(encoding="utf-8"), name), encoding="utf-8")
     add_doc_row(name, title)
     return [catalog, routers]
+
+
+# 在模块总目录中导入并启用新模块。
+def add_module(text: str, name: str) -> str:
+    head = "MODULES: list[Module]"
+    text = add_import(text, head, f"from service.{name}.module import module as {name}")
+    return append_item(text, head, name)
+
+
+# 在路由清单中导入并登记新模块的接口。
+def add_route(text: str, name: str) -> str:
+    head = "ROUTERS: list[APIRouter]"
+    return append_item(
+        add_import(text, head, f"from app.api.v1 import {name}"), head, f"{name}.router"
+    )
+
+
+# 把导入放在列表定义之前，之后由 ruff 并入导入区；不依赖已有导入行的写法。
+def add_import(text: str, head: str, line: str) -> str:
+    position = text.find(f"{head} = [")
+    if position < 0:
+        raise SystemExit(f"找不到 {head}，请手工加入：{line}")
+    return text[:position] + f"{line}\n\n" + text[position:]
 
 
 # 在“名称 = [...]”形式的列表末尾加一项，不依赖列表写成一行还是多行。
@@ -143,7 +158,8 @@ def main() -> None:
     print(
         f"1. 在 doc/{args.name}/needs.md 和 rules.md 写清真实业务，再按业务修改 service/{args.name}"
     )
-    print(f'2. uv run alembic revision --autogenerate -m "add {args.name} tables"，检查生成的迁移')
+    print("2. uv run alembic upgrade head（本地数据库需要先到最新版本才能比较出新表）")
+    print(f'   uv run alembic revision --autogenerate -m "add {args.name} tables"，检查生成的迁移')
     print("3. uv run python -m tools.export_docs")
     print("4. uv run python -m tools.check")
 

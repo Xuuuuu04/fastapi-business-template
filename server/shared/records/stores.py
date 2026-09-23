@@ -9,7 +9,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Protocol
 
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, func, insert, select
 
 from shared.db.database import Database
 from shared.records.models import RunRecord, run_from_dict
@@ -45,6 +45,9 @@ class RunStore(Protocol):
 
     # 删除早于指定时间的记录，返回删除条数。
     async def clean(self, older_than: float) -> int: ...
+
+    # 按操作和状态汇总指定时段内已完成的最外层运行。
+    async def stats(self, since: float, module: str = "") -> list[dict[str, object]]: ...
 
 
 class MemoryRunStore:
@@ -83,6 +86,29 @@ class MemoryRunStore:
         for key in old:
             del self.rows[key]
         return len(old)
+
+    # 从当前保留的内存记录汇总；容量限制之外的历史不计入。
+    async def stats(self, since: float, module: str = "") -> list[dict[str, object]]:
+        selected = [
+            run
+            for run in self.rows.values()
+            if run.started_at >= since
+            and not run.parent_id
+            and (not module or run.module == module)
+        ]
+        groups: dict[tuple[str, str], list[float]] = {}
+        for run in selected:
+            groups.setdefault((run.contract, run.status), []).append(run.elapsed_ms)
+        return [
+            {
+                "contract": name,
+                "status": status,
+                "count": len(times),
+                "average_ms": round(sum(times) / len(times), 1),
+                "max_ms": round(max(times), 1),
+            }
+            for (name, status), times in sorted(groups.items())
+        ]
 
 
 # 判断一条内存记录是否符合查询条件。
@@ -156,6 +182,35 @@ class SqlRunStore:
         async with self.database.write() as connection:
             result = await connection.execute(query)
         return int(result.rowcount or 0)
+
+    # 在数据库中聚合，避免把大量运行记录正文搬到接口进程。
+    async def stats(self, since: float, module: str = "") -> list[dict[str, object]]:
+        query = (
+            select(
+                run_records.c.contract,
+                run_records.c.status,
+                func.count().label("count"),
+                func.avg(run_records.c.elapsed_ms).label("average_ms"),
+                func.max(run_records.c.elapsed_ms).label("max_ms"),
+            )
+            .where(run_records.c.started_at >= since, run_records.c.parent_id == "")
+            .group_by(run_records.c.contract, run_records.c.status)
+            .order_by(run_records.c.contract, run_records.c.status)
+        )
+        if module:
+            query = query.where(run_records.c.module == module)
+        async with self.database.read() as connection:
+            rows = (await connection.execute(query)).mappings().all()
+        return [
+            {
+                "contract": row["contract"],
+                "status": row["status"],
+                "count": row["count"],
+                "average_ms": round(row["average_ms"], 1),
+                "max_ms": round(row["max_ms"], 1),
+            }
+            for row in rows
+        ]
 
 
 # 把运行记录转成数据库行；步骤详情整体保存为 JSON。

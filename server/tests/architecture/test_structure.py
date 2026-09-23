@@ -1,7 +1,9 @@
 """
-架构测试：依赖方向、模块登记与接线、迁移与表定义一致、框架文件摘要、删除全部示例后框架仍能启动。
+架构测试：依赖方向、模块登记与接线、迁移与表定义一致、框架文件摘要、删除全部示例后框架仍能启动、
+新模块命令能在当前的登记文件中登记。
 """
 
+import ast
 import asyncio
 from pathlib import Path
 
@@ -22,6 +24,7 @@ from shared.modules.catalog import Catalog
 from tests.framework.sample_modules import sample_metadata
 from tests.testing_app import KEY, database_url, make_settings
 from tools.framework_lock import differences
+from tools.new_module import add_module, add_route
 from tools.quality.imports import check_imports
 from tools.quality.registry import check_registry
 from tools.quality.rules import ROOT
@@ -88,3 +91,27 @@ def test_framework_runs_without_modules(tmp_path: Path) -> None:
         assert client.get("/health/live").status_code == 200
         body = client.get("/api/system/modules", headers=KEY).json()
         assert body["modules"] == [] and client.get("/openapi.json").status_code == 200
+
+
+# 新模块命令按当前的模块总目录和路由清单登记：新模块被导入，并加进列表。
+def test_scaffold_registers_in_current_files() -> None:
+    changes = (
+        (ROOT / "app" / "setup" / "catalog.py", add_module, "sample_new"),
+        (ROOT / "app" / "api" / "routers.py", add_route, "sample_new.router"),
+    )
+    for path, change, item in changes:
+        tree = ast.parse(change(path.read_text(encoding="utf-8"), "sample_new"))
+        imported = {
+            alias.asname or alias.name
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        assert "sample_new" in imported, path.name
+        listed = [
+            ast.unparse(element)
+            for node in tree.body
+            if isinstance(node, ast.AnnAssign) and isinstance(node.value, ast.List)
+            for element in node.value.elts
+        ]
+        assert listed[-1] == item, path.name

@@ -8,35 +8,37 @@ import asyncio
 import logging
 import secrets
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import suppress
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
+from opentelemetry import context as otel_context
+from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from shared.access.caller import Caller
 from shared.data.models import Data
-from shared.db.database import Database, is_readonly_violation, is_unavailable
-from shared.errors.framework import (
-    DatabaseUnavailable,
-    NotAllowed,
-    NotSignedIn,
-    ResultUnknown,
-    RunTimeout,
-    StepRuleBroken,
-)
-from shared.errors.kinds import BusinessError
+from shared.db.database import Database
+from shared.errors.framework import NotAllowed, NotSignedIn, ResultUnknown, StepRuleBroken
+from shared.flow.auditing import audit_failure, audit_hook
+from shared.flow.entry_errors import check_access, fill_error, translate
 from shared.flow.runner import execute
 from shared.flow.scope import Scope, Transaction
+from shared.flow.streaming import stream_events
 from shared.modules.catalog import Binding, Catalog
 from shared.modules.contract import Contract
 from shared.records.models import RunRecord, StepRecord
 from shared.records.recorder import Recorder
 
 if TYPE_CHECKING:
+    from shared.cache.backends import Cache
+    from shared.files.storage import FileStorage
+    from shared.files.uploads import UploadArea
     from shared.flow.inject import JobSubmitter
     from shared.model_calls.service import ModelService
+    from shared.remote_calls.service import RemoteService
+    from shared.telemetry.service import Telemetry
 
 log = logging.getLogger("server.runtime")
 
@@ -54,6 +56,12 @@ class Runtime:
         *,
         models: "ModelService | None" = None,
         jobs: "JobSubmitter | None" = None,
+        remotes: "RemoteService | None" = None,
+        cache: "Cache | None" = None,
+        files: "FileStorage | None" = None,
+        uploads: "UploadArea | None" = None,
+        legacy: "Database | None" = None,
+        telemetry: "Telemetry | None" = None,
         code_version: str = "dev",
         step_checks: bool = True,
     ) -> None:
@@ -62,6 +70,12 @@ class Runtime:
         self.recorder = recorder
         self.models = models
         self.jobs = jobs
+        self.remotes = remotes
+        self.cache = cache
+        self.files = files
+        self.uploads = uploads
+        self.legacy = legacy
+        self.telemetry = telemetry
         self.code_version = code_version
         self.step_checks = step_checks
 
@@ -76,30 +90,69 @@ class Runtime:
         job_id: str = "",
         before_commit: Hook | None = None,
         on_start: Callable[[str], None] | None = None,
+        emitter: Callable[[str], Awaitable[None]] | None = None,
     ) -> Out:
         binding = self.catalog.binding(item)
         if not item.entry:
             raise StepRuleBroken(f"操作 {item.name} 是内部操作，只能由其他模块调用")
         deadline = asyncio.get_running_loop().time() + item.timeout
-        scope = Scope(self, caller, request_id, job_id, deadline, tx=Transaction())
+        scope = Scope(self, caller, request_id, job_id, deadline, tx=Transaction(), emitter=emitter)
         run = self.open_run(binding, scope, None, None)
+        span = (
+            self.telemetry.tracer.start_span(
+                "run", attributes={"run.id": run.id, "operation": item.name}
+            )
+            if self.telemetry is not None
+            else None
+        )
+        token = otel_context.attach(trace.set_span_in_context(span)) if span else None
         scope.root_id = run.id
         if on_start is not None:
             on_start(run.id)
         try:
-            check_access(item, caller)
-            async with asyncio.timeout_at(deadline):
+            return cast(
+                Out, await self.execute_entry(binding, item, input, scope, run, before_commit)
+            )
+        finally:
+            try:
+                await scope.tx.close()
+            finally:
+                if span is not None and token is not None:
+                    span.set_attribute("run.status", run.status)
+                    otel_context.detach(token)
+                    span.end()
+
+    # 执行入口并在同一事务中写成功审计；失败时回滚并单独写失败审计。
+    async def execute_entry(
+        self,
+        binding: Binding,
+        item: Contract[Any, Any],
+        input: Data,
+        scope: Scope,
+        run: RunRecord,
+        before_commit: Hook | None,
+    ) -> Data:
+        try:
+            check_access(item, scope.caller)
+            async with asyncio.timeout_at(scope.deadline):
                 result = await execute(binding, input, scope, run)
-            await self.commit(scope.tx, run, before_commit, result)
+            hook = audit_hook(item, scope, before_commit)
+            await self.commit(scope.tx, run, hook, result)
             await self.close_run(run, "ok")
-            return cast(Out, result)
+            return result
         except BaseException as error:
             problem = await self.settle(scope.tx, run, error)
+            await audit_failure(self.database, item, scope, run, problem)
             if problem is error:
                 raise
             raise problem from error
-        finally:
-            await scope.tx.close()
+
+    # 把声明为 stream 的操作变成 SSE；客户端断开时取消后台执行并等待回滚。
+    async def stream[In: Data, Out: Data](
+        self, item: Contract[In, Out], input: In, *, caller: Caller, request_id: str = ""
+    ) -> AsyncIterator[bytes]:
+        async for event in stream_events(self, item, input, caller=caller, request_id=request_id):
+            yield event
 
     # 执行模块之间的调用：沿用上层事务和剩余时间，记录为下一层运行。
     async def call[In: Data, Out: Data](
@@ -118,6 +171,14 @@ class Runtime:
             parent, depth=parent.depth + 1, deadline=min(parent.deadline, loop_time + item.timeout)
         )
         run = self.open_run(binding, scope, parent_run, parent_step)
+        span = (
+            self.telemetry.tracer.start_span(
+                "module_call", attributes={"run.id": run.id, "operation": item.name}
+            )
+            if self.telemetry is not None
+            else None
+        )
+        token = otel_context.attach(trace.set_span_in_context(span)) if span else None
         parent_step.children.append(run.id)
         try:
             async with asyncio.timeout_at(scope.deadline):
@@ -130,9 +191,15 @@ class Runtime:
             if problem is error:
                 raise
             raise problem from error
-        run.writes = "in_parent" if scope.tx.connection else "none"
-        await self.close_run(run, "ok")
-        return cast(Out, result)
+        else:
+            run.writes = "in_parent" if scope.tx.connection else "none"
+            await self.close_run(run, "ok")
+            return cast(Out, result)
+        finally:
+            if span is not None and token is not None:
+                span.set_attribute("run.status", run.status)
+                otel_context.detach(token)
+                span.end()
 
     # 在独立的短事务中登记一个后台任务，返回任务编号。
     async def submit(
@@ -220,44 +287,3 @@ class Runtime:
             await self.recorder.finish(run)
         except Exception:
             log.exception("run_record_failed run_id=%s", run.id)
-
-
-# 检查调用者能否执行操作：没有身份时报未登录，有身份但缺权限时报无权限。
-def check_access(item: Contract[Any, Any], caller: Caller) -> None:
-    if caller.can(item.access):
-        return
-    if caller.kind == "anonymous":
-        raise NotSignedIn(f"「{item.title}」需要登录或服务密钥")
-    raise NotAllowed(f"没有权限执行「{item.title}」，需要权限 {item.access}")
-
-
-# 把超时、数据库断连、只读违规等异常转成框架的错误种类。
-def translate(error: BaseException) -> BaseException:
-    if isinstance(error, BusinessError) or not isinstance(error, Exception):
-        return error
-    if isinstance(error, TimeoutError):
-        return RunTimeout("处理超时，已停止等待；已经发出的外部操作可能仍在进行")
-    if is_readonly_violation(error):
-        return StepRuleBroken("没有声明 saves=True 的步骤试图写入数据库")
-    if is_unavailable(error):
-        return DatabaseUnavailable()
-    return error
-
-
-# 把错误信息写进运行记录。
-def fill_error(run: RunRecord, problem: BaseException) -> None:
-    failed = next((step for step in reversed(run.steps) if step.status == "failed"), None)
-    run.failed_step = failed.title if failed else ""
-    if isinstance(problem, BusinessError):
-        run.error_code, run.error_kind, run.error_message = (
-            problem.code,
-            problem.kind,
-            problem.detail,
-        )
-    elif isinstance(problem, asyncio.CancelledError):
-        run.error_code, run.error_kind, run.error_message = "cancelled", "cancelled", "执行被取消"
-    else:
-        run.error_code, run.error_kind = type(problem).__name__, "unexpected"
-        run.error_message = (
-            failed.error_message if failed else ""
-        ) or f"程序异常：{type(problem).__name__}"

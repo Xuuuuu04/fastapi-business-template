@@ -4,11 +4,15 @@
 关闭模块就从这里删掉，依赖它的其他模块会在启动检查时报错，不会静默跳过。
 """
 
+from service.file_library.module import module as file_library
 from service.order_quote.module import module as order_quote
 from service.product_catalog.module import module as product_catalog
+from service.user_access.module import module as user_access
 from shared.modules.module import Module
 
 MODULES: list[Module] = [
     product_catalog,
     order_quote,
+    user_access,
+    file_library,
 ]

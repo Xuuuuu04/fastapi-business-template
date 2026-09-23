@@ -12,14 +12,19 @@ from shared.flow.flow import Flow
 from shared.flow.step import PARAMS, Condition, Step
 from shared.model_calls.prompt import Prompt
 from shared.modules.contract import Contract
+from shared.remote_calls.remote import Remote
 
 MAX_STEPS = 12
-ONE_KIND = ("store", "call", "model")
+ONE_KIND = ("store", "call", "model", "remote")
 
 
 # 检查一个流程与它实现的操作约定，返回问题清单。
 def check_flow(
-    flow: Flow, contract: Contract[Any, Any], has_store: bool, prompts: tuple[Prompt, ...]
+    flow: Flow,
+    contract: Contract[Any, Any],
+    has_store: bool,
+    prompts: tuple[Prompt, ...],
+    remotes: tuple[Remote, ...] = (),
 ) -> list[str]:
     place = f"流程「{flow.title}」"
     if not (isinstance(flow.work, type) and issubclass(flow.work, WorkData)):
@@ -30,7 +35,11 @@ def check_flow(
     problems = check_notes(flow.work, place)
     problems += check_shape(flow, contract, place)
     for item in flow.steps:
-        problems += check_step(item, notes, has_store, prompts)
+        problems += check_step(item, notes, has_store, prompts, remotes)
+        if "emit" in item.params and not contract.stream:
+            problems.append(
+                f"步骤「{item.title}」使用 emit，但操作 {contract.name} 没有声明 stream=True"
+            )
     problems += check_writers(flow, contract, notes)
     problems += check_sources(flow, contract, notes)
     problems += check_model_order(flow)
@@ -66,7 +75,11 @@ def check_shape(flow: Flow, contract: Contract[Any, Any], place: str) -> list[st
 
 # 检查单个步骤：读写字段存在、参数与声明一致。
 def check_step(
-    item: Step, notes: dict[str, FieldNote], has_store: bool, prompts: tuple[Prompt, ...]
+    item: Step,
+    notes: dict[str, FieldNote],
+    has_store: bool,
+    prompts: tuple[Prompt, ...],
+    remotes: tuple[Remote, ...],
 ) -> list[str]:
     place = f"步骤「{item.title}」（{item.source}）"
     problems = [
@@ -81,6 +94,11 @@ def check_step(
     for used in item.prompts:
         if used not in prompts:
             problems.append(f"{place} 使用的提示词「{used.title}」没有在模块声明的 prompts 中登记")
+    for target in item.remotes:
+        if target not in remotes:
+            problems.append(
+                f"{place} 使用的外部系统「{target.title}」没有在模块声明的 remotes 中登记"
+            )
     return problems
 
 
@@ -112,6 +130,7 @@ def check_params(item: Step, place: str, has_store: bool) -> list[str]:
         ("call", item.uses, "uses"),
         ("model", item.prompts, "prompts"),
         ("later", item.later, "later"),
+        ("remote", item.remotes, "remotes"),
     ]
     for param, declared, option in pairs:
         if bool(declared) != (param in params):
@@ -122,8 +141,16 @@ def check_params(item: Step, place: str, has_store: bool) -> list[str]:
         problems.append(f"{place} 声明了 saves=True，但没有 store 或 later 参数")
     if "later" in params and not item.saves:
         problems.append(f"{place} 登记任务会写数据库，需要声明 saves=True")
+    return problems + check_execution_style(item, place)
+
+
+# 检查同步或异步步骤的执行方式与所用工具相符。
+def check_execution_style(item: Step, place: str) -> list[str]:
+    problems = []
     if item.heavy and item.is_async:
         problems.append(f"{place} 的 heavy=True 只用于普通函数（def），async 步骤不需要")
+    if "emit" in item.params and not item.is_async:
+        problems.append(f"{place} 使用 emit 时必须写成 async def")
     return problems
 
 
@@ -183,9 +210,9 @@ def check_model_order(flow: Flow) -> list[str]:
     for item in flow.steps:
         if item.saves and saving is None:
             saving = item
-        elif saving is not None and "model" in item.params:
+        elif saving is not None and ("model" in item.params or "remote" in item.params):
             problems.append(
-                f"步骤「{item.title}」在写入事务开始（「{saving.title}」）之后调用大模型，"
-                "事务会在等待模型时一直占用数据库连接；请把大模型步骤移到第一个保存步骤之前"
+                f"步骤「{item.title}」在写入事务开始（「{saving.title}」）之后调用外部服务，"
+                "事务会在等待时一直占用数据库连接；请把调用移到第一个保存步骤之前"
             )
     return problems

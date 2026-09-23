@@ -115,6 +115,22 @@ async def runtime(request: Request, caller: CallerDep) -> dict[str, Any]:
     }
 
 
+# 按操作和状态统计已结束的运行，说明尚未保存的记录数。
+@router.get("/stats", summary="运行统计", operation_id="system_stats")
+async def stats(
+    request: Request,
+    caller: CallerDep,
+    hours: Annotated[int, Query(ge=1, le=24 * 90)] = 24,
+    module: str = "",
+) -> dict[str, Any]:
+    require(caller, PERMISSION)
+    recorder: Recorder = request.app.state.services.recorder
+    since = time.time() - hours * 3600
+    rows = await recorder.stats(since, module)
+    log.info("diagnostics_stats caller=%s module=%s hours=%s", caller.id, module, hours)
+    return {"since": since, "hours": hours, "items": rows, "records": completeness(recorder)}
+
+
 # 读取一次运行所在的整棵调用树。
 async def load_tree(request: Request, run_id: str) -> list[Any]:
     recorder: Recorder = request.app.state.services.recorder

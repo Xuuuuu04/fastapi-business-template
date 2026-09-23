@@ -20,6 +20,8 @@ class Contract[In: Data, Out: Data]:
     errors: tuple[type[BusinessError], ...] = ()
     entry: bool = True
     timeout: float = 30.0
+    audit: bool = False
+    stream: bool = False
 
     # 约定名称的第一段是提供它的模块名。
     @property
@@ -43,5 +45,7 @@ def contract[In: Data, Out: Data](
     errors: tuple[type[BusinessError], ...] = (),
     entry: bool = True,
     timeout: float = 30.0,
+    audit: bool = False,
+    stream: bool = False,
 ) -> Contract[In, Out]:
-    return Contract(name, title, input, output, access, errors, entry, timeout)
+    return Contract(name, title, input, output, access, errors, entry, timeout, audit, stream)

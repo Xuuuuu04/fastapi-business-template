@@ -10,6 +10,8 @@ from typing import Any
 from sqlalchemy import Executable, RowMapping, TextClause
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from shared.access.caller import Caller
+from shared.db.org import check_org
 from shared.errors.framework import StepRuleBroken
 
 READ_WORDS = ("select", "with", "explain", "show", "values")
@@ -17,10 +19,18 @@ READ_WORDS = ("select", "with", "explain", "show", "values")
 
 class Db:
     # 包装框架准备好的连接；place 是使用它的步骤名称，用于报错。
-    def __init__(self, connection: AsyncConnection, *, read_only: bool, place: str) -> None:
+    def __init__(
+        self,
+        connection: AsyncConnection,
+        *,
+        read_only: bool,
+        place: str,
+        caller: Caller | None = None,
+    ) -> None:
         self._connection = connection
         self._read_only = read_only
         self._place = place
+        self._caller = caller
 
     # 执行查询并返回全部行，每行可以按列名取值。
     async def all(self, statement: Executable) -> Sequence[RowMapping]:
@@ -61,6 +71,10 @@ class Db:
 
     # 只读步骤中遇到写入语句时立刻报错。
     def _check(self, statement: Executable) -> None:
+        if self._caller is not None:
+            if isinstance(statement, TextClause):
+                raise StepRuleBroken("业务数据库请使用表声明构造语句，不能直接执行 SQL 文本")
+            check_org(statement, self._caller)
         if self._read_only and is_write(statement):
             raise StepRuleBroken(
                 f"步骤「{self._place}」没有声明 saves=True，不能写入数据库。"

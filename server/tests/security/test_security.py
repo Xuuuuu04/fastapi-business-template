@@ -16,8 +16,12 @@ from app.setup.web import create_app
 from shared.config.settings import Settings
 from shared.errors.framework import ConfigError
 from shared.model_calls.providers import FakeModel
-from shared.public import Data, Flow, Module, WorkData, contract, meaning, step
+from shared.public import Data, Flow, Module, WorkData, contract, meaning, remote, step
 from tests.testing_app import KEY, make_settings, reset_database_now
+
+remote_module = Module(
+    "sample_partner", "外部系统示例", "1", provides={}, remotes=(remote("partner", "合作方"),)
+)
 
 
 class Login(Data):
@@ -83,16 +87,23 @@ def test_wrong_key(sample_client: TestClient) -> None:
 def test_production_settings_are_checked(tmp_path: Path) -> None:
     sqlite = f"sqlite+aiosqlite:///{tmp_path}/prod.db"
     settings = make_settings(
-        tmp_path, env="production", dev_caller=True, api_keys=[], database_url=sqlite
+        tmp_path,
+        env="production",
+        dev_caller=True,
+        api_keys=[],
+        database_url=sqlite,
+        jwt_secret="short-secret",
     )
     with pytest.raises(ConfigError) as caught:
-        build(settings)
+        build(settings, modules=[remote_module])
     text = str(caught.value)
     assert (
         "PostgreSQL" in text
         and "APP_DEV_CALLER" in text
         and "APP_RUN_RECORDS" in text
         and "APP_API_KEYS" in text
+        and "APP_JWT_SECRET" in text
+        and "partner" in text
     )
 
 
@@ -127,13 +138,17 @@ def test_unexpected_error_is_not_leaked(secure_client: TestClient) -> None:
 
 # 请求正文超过限制时返回 413。
 def test_body_limit(tmp_path: Path) -> None:
-    settings = make_settings(tmp_path, max_body_bytes=1000)
+    settings = make_settings(tmp_path, max_body_bytes=1000, upload_paths=["/upload/"])
     reset_database_now(settings.database_url)
     with TestClient(create_app(settings, build(settings, modules=[]))) as client:
         reply = client.post(
             "/health/live", content=b"x" * 2000, headers={"Content-Type": "application/json"}
         )
         assert reply.status_code == 413 and reply.json()["code"] == "request_too_large"
+        # 上传路径按上传大小限制，2000 字节不会被拒绝；超过上传限制仍返回 413。
+        assert client.post("/upload/x", content=b"x" * 2000).status_code == 404
+        limit = settings.upload_max_bytes + 64 * 1024
+        assert client.post("/upload/x", content=b"x" * (limit + 1)).status_code == 413
 
 
 # 同时处理的请求达到上限时返回 503。

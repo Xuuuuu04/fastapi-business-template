@@ -14,6 +14,8 @@
 | `step`、`condition`、`Flow` | 写步骤、条件，并把步骤连成流程 |
 | `Module` | 在 module.py 中声明模块 |
 | `Call`、`Model`、`Later`、`Note`、`Caller`、`Db` | 步骤参数的类型：调用其他模块、大模型、登记任务、数据说明、调用者、数据库 |
+| `remote`、`RemoteClient`、`ModuleCache`、`ModuleFiles` | 声明外部系统，使用外部接口、缓存与文件存储 |
+| `Emitter`、`org_column` | 流式输出的步骤参数、需要按组织隔离的表列 |
 | `JobPlan`、`Retry`、`Schedule` | 后台任务和定时计划 |
 | `prompt` | 声明提示词 |
 | `BusinessError`、`Kind` | 业务错误 |
@@ -31,7 +33,11 @@
 | [graphs](graphs/) | 模块关系图、流程图、字段来源、实际执行图和诊断报告 |
 | [jobs](jobs/) | 任务表、worker、定时计划 |
 | [model_calls](model_calls/) | 大模型调用入口 |
-| [access](access/) | 调用者身份、权限和服务密钥 |
+| [remote_calls](remote_calls/) | 外部接口连接、重试和调用记录 |
+| [cache](cache/) | 进程内和 Redis 缓存 |
+| [files](files/) | 本地和 S3 兼容文件存储、上传临时区 |
+| [telemetry](telemetry/) | OpenTelemetry 跨度导出 |
+| [access](access/) | 调用者身份、权限、服务密钥、令牌和审计 |
 | [errors](errors/) | 错误种类和框架错误 |
 | [config](config/) | 运行配置 |
 | [logs](logs/) | 日志格式 |
