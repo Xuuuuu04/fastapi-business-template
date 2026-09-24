@@ -70,12 +70,16 @@ jobs:
           cache-dependency-glob: server/uv.lock
 
       # 服务容器不能指定启动参数，MinIO 需要 "server /data"，所以单独启动并等待就绪。
+      # Docker Hub 上的 minio/minio 已不能拉取，这里用 quay.io 上同一发布版本，并按摘要锁定。
+      # MinIO 社区版已不再发布新镜像；将来这个镜像失效时，换成任何 S3 兼容服务即可，
+      # 测试只依赖 APP_TEST_S3_ENDPOINT 和访问密钥。
       - name: 启动 MinIO（S3 兼容存储）
         run: |
           docker run --detach --name minio --publish 9000:9000 \
             --env MINIO_ROOT_USER="$APP_TEST_S3_ACCESS_KEY" \
             --env MINIO_ROOT_PASSWORD="$APP_TEST_S3_SECRET_KEY" \
-            minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e \
+            server /data
           for _ in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:9000/minio/health/live; then
               exit 0
