@@ -14,6 +14,10 @@ def hash_password(password: str) -> str:
     return f"{salt.hex()}:{digest.hex()}"
 
 
+# 账号不存在时也计算一次 scrypt，使响应时间不暴露账号是否存在。
+DUMMY_HASH = hash_password("unused-password")
+
+
 # 校验原文与保存的摘要是否一致。
 def verify_password(password: str, saved: str) -> bool:
     salt_hex, digest_hex = saved.split(":", 1)

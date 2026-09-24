@@ -2,12 +2,14 @@
 定义调用者身份和权限判断。
 身份来自已验证的密钥或登录结果，不能来自请求体自报的内容。
 权限名写作“模块名.动作”，例如 product_catalog.write；“模块名.*”表示该模块的全部权限。
+public 对所有调用者开放；signed_in 对任何已登录的用户、服务密钥和系统任务开放，例如修改自己的密码。
 """
 
 from dataclasses import dataclass, field
 from typing import Literal
 
 PUBLIC = "public"
+SIGNED_IN = "signed_in"
 
 CallerKind = Literal["user", "service", "system", "developer", "anonymous"]
 
@@ -24,6 +26,8 @@ class Caller:
     def can(self, permission: str) -> bool:
         if permission == PUBLIC or "*" in self.permissions:
             return True
+        if permission == SIGNED_IN:
+            return self.kind != "anonymous"
         module = permission.split(".", 1)[0]
         return permission in self.permissions or f"{module}.*" in self.permissions
 

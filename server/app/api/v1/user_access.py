@@ -1,29 +1,61 @@
 """
-组织、角色、用户管理和登录接口。业务规则交给 user_access 模块执行。
+组织、角色、用户管理和登录会话接口。业务规则交给 user_access 模块执行，
+这里只负责签发访问令牌（签名密钥只在接口层配置中）和登录失败限流。
 """
 
 import hashlib
+import time
 
-from fastapi import APIRouter, Request
-from pydantic import BaseModel
+from fastapi import APIRouter, Request, Response
+from pydantic import BaseModel, Field
 
 from app.api.replies import responses_for
 from app.api.runner import RunDep
 from service.user_access import public as access
 from shared.access.caller import Caller
 from shared.access.tokens import issue_token
+from shared.config.settings import Settings
 from shared.errors.framework import TooManyRequests
 from shared.public import Nothing
 
 router = APIRouter(prefix="/api/v1/access", tags=["用户权限"])
 
 
-class LoginReply(BaseModel):
-    token: str
-    token_type: str = "Bearer"
-    expires_at: int
-    user_id: int
-    org_id: str
+class TokenReply(BaseModel):
+    access_token: str = Field(description="访问令牌，请求时放在 Authorization: Bearer 后面")
+    token_type: str = Field(default="Bearer", description="令牌类型，固定为 Bearer")
+    expires_in: int = Field(description="访问令牌还有多少秒失效")
+    refresh_token: str = Field(description="刷新令牌，只用于换新令牌和退出登录，每次刷新后换新")
+    refresh_expires_in: int = Field(description="刷新令牌还有多少秒失效")
+    user_id: int = Field(description="用户编号")
+    org_id: str = Field(description="用户所属组织")
+
+
+# 按会话签发访问令牌，返回 OAuth 2.0 通用的令牌字段。
+def token_reply(grant: access.SessionGrant, settings: Settings) -> TokenReply:
+    account = grant.account
+    caller = Caller(
+        str(account.user_id),
+        "user",
+        account.username,
+        frozenset(account.permissions),
+        account.org_id,
+    )
+    token, _ = issue_token(
+        caller,
+        settings.jwt_secret.get_secret_value(),
+        settings.jwt_issuer,
+        settings.jwt_audience,
+        settings.token_minutes,
+    )
+    return TokenReply(
+        access_token=token,
+        expires_in=settings.token_minutes * 60,
+        refresh_token=grant.refresh_token,
+        refresh_expires_in=max(0, int(grant.refresh_expires_at - time.time())),
+        user_id=account.user_id,
+        org_id=account.org_id,
+    )
 
 
 # 创建组织，只允许全组织管理员。
@@ -110,15 +142,15 @@ async def change_user(body: access.UserChange, run: RunDep) -> access.UserView:
     return await run(access.change_user, body)
 
 
-# 登录失败按组织、用户名和来源地址限流；成功后签发有效期明确的令牌。
+# 登录失败按组织、用户名和来源地址限流；成功后签发访问令牌和刷新令牌。
 @router.post(
     "/login",
     summary="用户登录",
     operation_id="login",
-    response_model=LoginReply,
+    response_model=TokenReply,
     responses=responses_for(access.login),
 )
-async def login(body: access.LoginInput, request: Request, run: RunDep) -> LoginReply:
+async def login(body: access.LoginInput, request: Request, run: RunDep) -> TokenReply:
     settings = request.app.state.settings
     source = request.client.host if request.client else "unknown"
     digest = hashlib.sha256(f"{body.org_code}:{body.username}:{source}".encode()).hexdigest()
@@ -127,25 +159,50 @@ async def login(body: access.LoginInput, request: Request, run: RunDep) -> Login
     if int(await cache.get(key) or 0) >= settings.login_failure_limit:
         raise TooManyRequests("登录失败次数过多，请十五分钟后再试")
     try:
-        identity = await run(access.login, body)
+        grant = await run(access.login, body)
     except access.LoginFailed:
         await cache.incr(key, 900)
         raise
     await cache.delete(key)
-    caller = Caller(
-        str(identity.user_id),
-        "user",
-        identity.username,
-        frozenset(identity.permissions),
-        identity.org_id,
-    )
-    token, expires = issue_token(
-        caller,
-        settings.jwt_secret.get_secret_value(),
-        settings.jwt_issuer,
-        settings.jwt_audience,
-        settings.token_minutes,
-    )
-    return LoginReply(
-        token=token, expires_at=expires, user_id=identity.user_id, org_id=identity.org_id
-    )
+    return token_reply(grant, settings)
+
+
+# 用刷新令牌换新的访问令牌和刷新令牌；旧刷新令牌随即作废。
+@router.post(
+    "/refresh",
+    summary="刷新登录",
+    operation_id="refresh",
+    response_model=TokenReply,
+    responses=responses_for(access.refresh),
+)
+async def refresh(body: access.RefreshInput, request: Request, run: RunDep) -> TokenReply:
+    renewal = await run(access.refresh, body)
+    if renewal.grant is None:
+        raise access.RefreshRejected()
+    return token_reply(renewal.grant, request.app.state.settings)
+
+
+# 退出登录：作废这次登录的全部刷新令牌；令牌无效时同样返回成功，不暴露令牌是否存在。
+@router.post(
+    "/logout",
+    summary="退出登录",
+    operation_id="logout",
+    status_code=204,
+    responses=responses_for(access.logout),
+)
+async def logout(body: access.RefreshInput, run: RunDep) -> Response:
+    await run(access.logout, body)
+    return Response(status_code=204)
+
+
+# 登录用户修改自己的密码；成功后所有设备都需要重新登录。
+@router.post(
+    "/password",
+    summary="修改密码",
+    operation_id="change_password",
+    status_code=204,
+    responses=responses_for(access.change_password),
+)
+async def change_password(body: access.PasswordChange, run: RunDep) -> Response:
+    await run(access.change_password, body)
+    return Response(status_code=204)

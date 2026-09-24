@@ -3,7 +3,6 @@
 """
 
 from service.user_access.data import (
-    LoginWork,
     OrgListWork,
     OrgWork,
     RoleListWork,
@@ -70,9 +69,3 @@ async def list_users(data: UserListWork, store: AccessStore) -> None:
 )
 async def update_user(data: UserChangeWork, store: AccessStore) -> None:
     data.result = await store.change_user(data.org_id, data.user_id, data.role_id, data.active)
-
-
-# 校验账号密码并返回可用于签发令牌的身份。
-@step("校验登录", reads=["org_code", "username", "password"], writes=["result"], rule="R-03")
-async def check_login(data: LoginWork, store: AccessStore) -> None:
-    data.result = await store.login(data.org_code, data.username, data.password)

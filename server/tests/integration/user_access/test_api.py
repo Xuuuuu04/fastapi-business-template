@@ -62,7 +62,7 @@ def test_manage_users_and_login(client: TestClient) -> None:
         json={"org_code": "north", "username": "alice", "password": "correct-password"},
     )
     assert login.status_code == 200, login.text
-    token = login.json()["token"]
+    token = login.json()["access_token"]
     bearer = {"Authorization": f"Bearer {token}"}
     assert client.get("/api/v1/access/users?org_id=north", headers=bearer).status_code == 403
     assert client.get("/api/v1/files/north", headers=bearer).status_code == 200
@@ -119,7 +119,7 @@ def north_manager(client: TestClient) -> dict[str, str]:
     token = client.post(
         "/api/v1/access/login",
         json={"org_code": "north", "username": "manager", "password": "correct-password"},
-    ).json()["token"]
+    ).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 

@@ -1,8 +1,10 @@
 """
-用户权限的公开数据与流程数据。密码只在输入中出现，运行记录不保存原值。
+用户权限的公开数据与流程数据。密码和刷新令牌只在输入输出中出现，运行记录不保存原值。
 """
 
-from shared.public import BusinessError, Data, Kind, WorkData, meaning
+from typing import Literal
+
+from shared.public import BusinessError, Data, Kind, Nothing, WorkData, meaning
 
 
 class OrgInput(Data):
@@ -67,16 +69,56 @@ class UserList(Data):
 
 
 class LoginInput(Data):
-    org_code: str = meaning("组织代码", rule="R-03")
-    username: str = meaning("用户名", rule="R-03")
-    password: str = meaning("密码", rule="R-03", secret=True)
+    org_code: str = meaning("组织代码", rule="R-03", max_length=32)
+    username: str = meaning("用户名", rule="R-03", max_length=64)
+    password: str = meaning("密码", rule="R-03", secret=True, max_length=256)
 
 
-class LoginIdentity(Data):
-    user_id: int = meaning("登录成功的用户编号", rule="R-03")
+class Account(Data):
+    user_id: int = meaning("用户编号", rule="R-03")
     org_id: str = meaning("用户所属组织", rule="R-03")
     username: str = meaning("用户名", rule="R-03")
-    permissions: list[str] = meaning("签发令牌时的权限", rule="R-03")
+    permissions: list[str] = meaning("角色当前的权限，写进访问令牌", rule="R-03")
+
+
+class SessionGrant(Data):
+    account: Account = meaning("登录的用户及其当前权限", rule="R-05")
+    refresh_token: str = meaning("新的刷新令牌原文，只在这次返回", rule="R-05", secret=True)
+    refresh_expires_at: float = meaning("刷新令牌失效时间", rule="R-05", unit="Unix 秒")
+
+
+class SessionRenewal(Data):
+    grant: SessionGrant | None = meaning(
+        "换得的新会话", rule="R-05", empty="刷新令牌无效、过期、已作废或被重复使用"
+    )
+
+
+class RefreshInput(Data):
+    refresh_token: str = meaning(
+        "刷新令牌", rule="R-05", secret=True, min_length=20, max_length=200
+    )
+
+
+class PasswordChange(Data):
+    old_password: str = meaning("原密码", rule="R-06", secret=True, max_length=256)
+    new_password: str = meaning("新密码", rule="R-06", secret=True, min_length=8, max_length=256)
+
+
+class PurgeResult(Data):
+    removed: int = meaning("删除的刷新令牌记录数", rule="R-07")
+
+
+class TokenCheck(Data):
+    status: Literal["active", "reused", "invalid"] = meaning(
+        "刷新令牌状态：active 可用，reused 已用过又被提交，invalid 不存在、过期、已作废或用户停用",
+        rule="R-05",
+    )
+    digest: str = meaning("刷新令牌的 SHA-256 摘要", secret=True)
+    family_id: str = meaning("刷新令牌所属的登录会话编号；令牌不存在时为空文本", default="")
+    started_at: float = meaning("登录会话开始时间；令牌不可用时为 0", unit="Unix 秒", default=0.0)
+    account: Account | None = meaning(
+        "用户及其当前权限", empty="令牌不可用，不读取用户", default=None
+    )
 
 
 class AccessConflict(BusinessError):
@@ -95,6 +137,18 @@ class LoginFailed(BusinessError):
     code = "login_failed"
     kind = Kind.NOT_SIGNED_IN
     message = "账号或密码不正确"
+
+
+class RefreshRejected(BusinessError):
+    code = "refresh_rejected"
+    kind = Kind.NOT_SIGNED_IN
+    message = "登录已失效，请重新登录"
+
+
+class PasswordMismatch(BusinessError):
+    code = "password_mismatch"
+    kind = Kind.INVALID
+    message = "原密码不正确"
 
 
 class OrgWork(WorkData):
@@ -144,4 +198,27 @@ class LoginWork(WorkData):
     org_code: str = meaning("组织代码")
     username: str = meaning("用户名")
     password: str = meaning("密码", secret=True)
-    result: LoginIdentity = meaning("经过密码校验的身份")
+    account: Account = meaning("经过密码校验的用户")
+    result: SessionGrant = meaning("新建的登录会话", secret=True)
+
+
+class RefreshWork(WorkData):
+    refresh_token: str = meaning("刷新令牌", secret=True)
+    check: TokenCheck = meaning("刷新令牌的核对结果")
+    result: SessionRenewal = meaning("换得的新会话", secret=True)
+
+
+class LogoutWork(WorkData):
+    refresh_token: str = meaning("刷新令牌", secret=True)
+    result: Nothing = meaning("没有返回内容")
+
+
+class PasswordWork(WorkData):
+    old_password: str = meaning("原密码", secret=True)
+    new_password: str = meaning("新密码", secret=True)
+    user_id: int = meaning("核对过原密码的用户编号")
+    result: Nothing = meaning("没有返回内容")
+
+
+class PurgeWork(WorkData):
+    result: PurgeResult = meaning("清理结果")

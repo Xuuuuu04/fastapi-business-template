@@ -1,8 +1,19 @@
 """
-用户权限模块独占的组织、角色和用户表。
+用户权限模块独占的组织、角色、用户和刷新令牌表。
+刷新令牌只保存 SHA-256 摘要；同一次登录后轮换出的令牌共用一个 family_id，可以整组作废。
 """
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+)
 
 from shared.public import metadata
 
@@ -33,4 +44,17 @@ users = Table(
     Column("role_id", Integer, ForeignKey("user_access_roles.id"), nullable=False),
     Column("active", Boolean, nullable=False, default=True),
     UniqueConstraint("org_id", "username", name="uq_user_access_username"),
+)
+
+refresh_tokens = Table(
+    "user_access_refresh_tokens",
+    metadata,
+    Column("token_sha256", String(64), primary_key=True),
+    Column("family_id", String(32), nullable=False, index=True),
+    Column("org_id", String(32), ForeignKey("user_access_orgs.code"), nullable=False),
+    Column("user_id", Integer, ForeignKey("user_access_users.id"), nullable=False, index=True),
+    Column("started_at", Float, nullable=False),
+    Column("expires_at", Float, nullable=False, index=True),
+    Column("used_at", Float, nullable=True),
+    Column("revoked_at", Float, nullable=True),
 )

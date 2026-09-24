@@ -3,7 +3,7 @@
 含义与每个模块的 public.py 相同：这是框架对外公开的部分，其余都是框架内部实现。
 """
 
-from shared.access.caller import PUBLIC, Caller
+from shared.access.caller import PUBLIC, SIGNED_IN, Caller
 from shared.cache.gate import ModuleCache
 from shared.data.fields import meaning
 from shared.data.models import Data, Nothing, Page, WorkData
@@ -28,6 +28,7 @@ from shared.remote_calls.remote import remote
 
 __all__ = [
     "PUBLIC",
+    "SIGNED_IN",
     "BusinessError",
     "Call",
     "Caller",

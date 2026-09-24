@@ -70,7 +70,8 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr = SecretStr(LOCAL_JWT_SECRET)
     jwt_issuer: str = "backend-template"
     jwt_audience: str = "backend-template-api"
-    token_minutes: int = Field(default=60, ge=1, le=1440)
+    jwt_previous_secrets: list[SecretStr] = []
+    token_minutes: int = Field(default=15, ge=1, le=60)
     request_rate_per_minute: int = Field(default=120, ge=1)
     login_failure_limit: int = Field(default=5, ge=1)
     hsts_seconds: int = Field(default=0, ge=0)
@@ -110,4 +111,6 @@ def check_production(settings: Settings) -> list[str]:
     secret = settings.jwt_secret.get_secret_value()
     if secret == LOCAL_JWT_SECRET or len(secret) < 32:
         problems.append("生产环境必须设置独立的 APP_JWT_SECRET，至少 32 个字符")
+    if any(len(item.get_secret_value()) < 32 for item in settings.jwt_previous_secrets):
+        problems.append("APP_JWT_PREVIOUS_SECRETS 中的旧密钥也必须至少 32 个字符")
     return problems

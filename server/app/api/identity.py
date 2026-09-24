@@ -31,9 +31,10 @@ async def get_caller(request: Request, key: Annotated[str | None, Security(key_h
             raise NotSignedIn("服务密钥无效")
     elif request.headers.get("Authorization", "").startswith("Bearer "):
         token = request.headers["Authorization"].removeprefix("Bearer ")
+        keys = [settings.jwt_secret, *settings.jwt_previous_secrets]
         caller = verify_token(
             token,
-            settings.jwt_secret.get_secret_value(),
+            [item.get_secret_value() for item in keys],
             settings.jwt_issuer,
             settings.jwt_audience,
         )

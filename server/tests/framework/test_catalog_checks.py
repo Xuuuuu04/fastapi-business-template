@@ -59,7 +59,9 @@ def test_ownership_and_access_names() -> None:
     module = Module("sample_wrong", "错位", "1", provides={wrong: calc_flow})
     problems = problems_of(module)
     assert any("名称前缀必须是 sample_wrong." in item for item in problems)
-    assert any("权限 admin 必须是 public 或以 sample_wrong. 开头" in item for item in problems)
+    assert any(
+        "权限 admin 必须是 public、signed_in 或以 sample_wrong. 开头" in item for item in problems
+    )
 
 
 # 两个模块互相调用形成循环。

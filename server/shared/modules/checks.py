@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from shared.access.caller import PUBLIC
+from shared.access.caller import PUBLIC, SIGNED_IN
 from shared.data.fields import check_notes
 from shared.errors.kinds import BusinessError
 from shared.flow.checks import check_flow
@@ -98,9 +98,10 @@ def check_contract(module: Module, item: Contract[Any, Any], flow: Flow) -> list
         problems.append(
             f"操作 {item.name} 登记在模块 {module.name} 中，名称前缀必须是 {module.name}."
         )
-    if item.access != PUBLIC and not item.access.startswith(f"{module.name}."):
+    if item.access not in (PUBLIC, SIGNED_IN) and not item.access.startswith(f"{module.name}."):
         problems.append(
-            f"操作 {item.name} 的权限 {item.access} 必须是 public 或以 {module.name}. 开头"
+            f"操作 {item.name} 的权限 {item.access} "
+            f"必须是 public、signed_in 或以 {module.name}. 开头"
         )
     if not isinstance(flow, Flow):
         return [*problems, f"操作 {item.name} 对应的实现必须是 Flow"]

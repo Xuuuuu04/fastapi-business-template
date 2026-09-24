@@ -13,8 +13,10 @@ from fastapi.testclient import TestClient
 from app.api.runner import RunDep
 from app.setup.build import build
 from app.setup.web import create_app
+from shared.access.caller import Caller
+from shared.access.tokens import issue_token, verify_token
 from shared.config.settings import Settings
-from shared.errors.framework import ConfigError
+from shared.errors.framework import ConfigError, NotSignedIn
 from shared.model_calls.providers import FakeModel
 from shared.public import Data, Flow, Module, WorkData, contract, meaning, remote, step
 from tests.testing_app import KEY, make_settings, reset_database_now
@@ -181,3 +183,15 @@ def test_request_id_is_sanitized(sample_client: TestClient) -> None:
 def test_no_cors_by_default(sample_client: TestClient) -> None:
     reply = sample_client.get("/health/live", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in reply.headers
+
+
+# 更换签名密钥的过渡期内，旧密钥签发的令牌仍能校验；去掉旧密钥后被拒绝。
+def test_token_secret_rotation() -> None:
+    old, new = "old-secret-" + "x" * 32, "new-secret-" + "y" * 32
+    user = Caller("7", "user", "alice", frozenset({"file_library.read"}), "north")
+    token, _ = issue_token(user, old, "issuer", "audience", 15)
+    assert verify_token(token, [new, old], "issuer", "audience") == user
+    with pytest.raises(NotSignedIn):
+        verify_token(token, [new], "issuer", "audience")
+    with pytest.raises(NotSignedIn):
+        verify_token(token, [old], "other-issuer", "audience")

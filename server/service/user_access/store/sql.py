@@ -1,5 +1,6 @@
 """
 用户权限的数据访问实现。管理操作始终核对调用者组织，登录按组织代码精确查询。
+登录会话和刷新令牌的部分在 sessions.py。
 """
 
 import asyncio
@@ -12,8 +13,8 @@ from sqlalchemy.exc import IntegrityError
 from service.user_access.data import (
     AccessConflict,
     AccessMissing,
+    Account,
     LoginFailed,
-    LoginIdentity,
     OrgList,
     OrgView,
     RoleList,
@@ -21,16 +22,16 @@ from service.user_access.data import (
     UserList,
     UserView,
 )
-from service.user_access.store.password import hash_password, verify_password
-from service.user_access.store.tables import orgs, roles, users
+from service.user_access.store.password import DUMMY_HASH, hash_password, verify_password
+from service.user_access.store.sessions import SessionStore
+from service.user_access.store.tables import orgs, refresh_tokens, roles, users
 from shared.public import Caller, Db, NotAllowed
 
 ORG_CODE = re.compile(r"^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$")
 PLATFORM_WIDE = ("user_access.system", "system.diagnostics", "system.jobs", "system.*")
-DUMMY_HASH = hash_password("unused-password")
 
 
-class SqlAccessStore:
+class SqlAccessStore(SessionStore):
     # 取得当前步骤的数据库入口和经过验证的调用者。
     def __init__(self, db: Db, caller: Caller) -> None:
         self.db, self.caller = db, caller
@@ -114,7 +115,7 @@ class SqlAccessStore:
         rows = await self.db.all(select(users).where(users.c.org_id == org_id).order_by(users.c.id))
         return UserList(items=[user_view(row) for row in rows])
 
-    # 角色必须属于同一个组织，修改只影响该组织中的用户。
+    # 角色必须属于同一个组织，修改只影响该组织中的用户；停用时立即作废这个用户的全部会话。
     async def change_user(self, org_id: str, user_id: int, role_id: int, active: bool) -> UserView:
         self.require_org(org_id)
         await self.require_role(org_id, role_id)
@@ -126,10 +127,12 @@ class SqlAccessStore:
         )
         if row is None:
             raise AccessMissing(f"组织 {org_id} 中没有用户 {user_id}")
+        if not active:
+            await self.revoke(refresh_tokens.c.user_id == user_id)
         return user_view(row)
 
     # 失败时使用相同的错误；不存在的用户也计算一次 scrypt，减少账号枚举差异。
-    async def login(self, org_code: str, username: str, password: str) -> LoginIdentity:
+    async def login(self, org_code: str, username: str, password: str) -> Account:
         query = (
             select(users, roles.c.permissions)
             .join(roles, users.c.role_id == roles.c.id)
@@ -140,7 +143,7 @@ class SqlAccessStore:
         valid = await asyncio.to_thread(verify_password, password, saved)
         if row is None or not valid or not row["active"]:
             raise LoginFailed()
-        return LoginIdentity(
+        return Account(
             user_id=row["id"],
             org_id=row["org_id"],
             username=row["username"],

@@ -16,6 +16,10 @@
 | list_users | 查询用户 | user_access.manage | 接口或任务 | 无 |
 | change_user | 调整用户 | user_access.manage | 接口或任务 | user_access_missing（组织、角色或用户不存在） |
 | login | 用户登录 | public | 接口或任务 | login_failed（账号或密码不正确） |
+| refresh | 刷新登录 | public | 接口或任务 | refresh_rejected（登录已失效，请重新登录） |
+| logout | 退出登录 | public | 接口或任务 | 无 |
+| change_password | 修改密码 | signed_in | 接口或任务 | password_mismatch（原密码不正确） |
+| purge_sessions | 清理过期刷新令牌 | user_access.system | 接口或任务 | 无 |
 
 ## 创建组织（user_access.create_org）
 
@@ -342,14 +346,13 @@ flowchart TD
 | username | str | 是 | 用户名 |  |  | R-03 |
 | password | str | 是 | 密码 |  |  | R-03 |
 
-输出 `LoginIdentity`：
+输出 `SessionGrant`：
 
 | 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
 | --- | --- | --- | --- | --- | --- | --- |
-| user_id | int | 是 | 登录成功的用户编号 |  |  | R-03 |
-| org_id | str | 是 | 用户所属组织 |  |  | R-03 |
-| username | str | 是 | 用户名 |  |  | R-03 |
-| permissions | list[str] | 是 | 签发令牌时的权限 |  |  | R-03 |
+| account | Account | 是 | 登录的用户及其当前权限 |  |  | R-05 |
+| refresh_token | str | 是 | 新的刷新令牌原文，只在这次返回 |  |  | R-05 |
+| refresh_expires_at | float | 是 | 刷新令牌失效时间 | Unix 秒 |  | R-05 |
 
 计算流程：
 
@@ -358,8 +361,10 @@ flowchart TD
     start(["输入：组织代码、用户名、密码"])
     s1["1. 校验登录（读取）<br/>规则 R-03"]:::read
     start --> s1
-    finish(["结果：经过密码校验的身份"])
-    s1 --> finish
+    s2["2. 建立登录会话（保存）<br/>规则 R-05"]:::save
+    s1 --> s2
+    finish(["结果：新建的登录会话"])
+    s2 --> finish
     classDef compute fill:#eef6ff,stroke:#4a78b5
     classDef read fill:#f2fbf2,stroke:#4a9a4a
     classDef save fill:#fff4e5,stroke:#c07a1a
@@ -378,4 +383,173 @@ flowchart TD
 | org_code | 组织代码 | 操作输入 |  |  |  |
 | username | 用户名 | 操作输入 |  |  |  |
 | password | 密码 | 操作输入 |  |  |  |
-| result | 经过密码校验的身份 | 步骤 | 校验登录 | R-03 | org_code、username、password |
+| account | 经过密码校验的用户 | 步骤 | 校验登录 | R-03 | org_code、username、password |
+| result | 新建的登录会话 | 步骤 | 建立登录会话 | R-05 | account |
+
+## 刷新登录（user_access.refresh）
+
+输入 `RefreshInput`：
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| refresh_token | str | 是 | 刷新令牌 |  |  | R-05 |
+
+输出 `SessionRenewal`：
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| grant | SessionGrant \| None | 是 | 换得的新会话 |  | 刷新令牌无效、过期、已作废或被重复使用 | R-05 |
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：刷新令牌"])
+    s1["1. 核对刷新令牌（读取）<br/>规则 R-05"]:::read
+    start --> s1
+    s2["2. 轮换刷新令牌（保存）<br/>规则 R-05"]:::save
+    s1 --> s2
+    finish(["结果：换得的新会话"])
+    s2 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| refresh_token | 刷新令牌 | 操作输入 |  |  |  |
+| check | 刷新令牌的核对结果 | 步骤 | 核对刷新令牌 | R-05 | refresh_token |
+| result | 换得的新会话 | 步骤 | 轮换刷新令牌 | R-05 | check |
+
+## 退出登录（user_access.logout）
+
+输入 `RefreshInput`：
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| refresh_token | str | 是 | 刷新令牌 |  |  | R-05 |
+
+输出 `Nothing`：
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：刷新令牌"])
+    s1["1. 作废登录会话（保存）<br/>规则 R-05"]:::save
+    start --> s1
+    finish(["结果：没有返回内容"])
+    s1 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| refresh_token | 刷新令牌 | 操作输入 |  |  |  |
+| result | 没有返回内容 | 步骤 | 作废登录会话 | R-05 | refresh_token |
+
+## 修改密码（user_access.change_password）
+
+输入 `PasswordChange`：
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| old_password | str | 是 | 原密码 |  |  | R-06 |
+| new_password | str | 是 | 新密码 |  |  | R-06 |
+
+输出 `Nothing`：
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：原密码、新密码"])
+    s1["1. 核对原密码（读取）<br/>规则 R-06"]:::read
+    start --> s1
+    s2["2. 更新密码并作废会话（保存）<br/>规则 R-06"]:::save
+    s1 --> s2
+    finish(["结果：没有返回内容"])
+    s2 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| old_password | 原密码 | 操作输入 |  |  |  |
+| new_password | 新密码 | 操作输入 |  |  |  |
+| user_id | 核对过原密码的用户编号 | 步骤 | 核对原密码 | R-06 | old_password |
+| result | 没有返回内容 | 步骤 | 更新密码并作废会话 | R-06 | user_id、new_password |
+
+## 清理过期刷新令牌（user_access.purge_sessions）
+
+输入 `Nothing`：
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+
+输出 `PurgeResult`：
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| removed | int | 是 | 删除的刷新令牌记录数 |  |  | R-07 |
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：无"])
+    s1["1. 清理过期刷新令牌（保存）<br/>规则 R-07"]:::save
+    start --> s1
+    finish(["结果：清理结果"])
+    s1 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| result | 清理结果 | 步骤 | 清理过期刷新令牌 | R-07 |  |
