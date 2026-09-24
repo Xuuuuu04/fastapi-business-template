@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.api_doc import api_markdown
+from tools.api_doc import api_markdown, docs_app
 from tools.compare_api import compare
 from tools.framework_lock import differences, digests
 from tools.quality.rules import PROJECT
@@ -42,7 +42,7 @@ def test_compare_api() -> None:
 
 # 中文接口清单来自实际路由，不需要启动服务和数据库。
 def test_api_markdown() -> None:
-    schema, text = api_markdown()
+    schema, text = api_markdown(docs_app())
     assert "/health/live" in schema["paths"]
     assert "接口清单" in text and "/health/live" in text
 

@@ -63,6 +63,15 @@ def run_report(runs: list[RunRecord], root_id: str) -> str:
     return "\n".join(lines)
 
 
+# 错误码和说明；说明本身以错误码开头时不再重复。
+def error_text(run: RunRecord) -> str:
+    if not run.error_code:
+        return "无"
+    if run.error_message.startswith(run.error_code):
+        return run.error_message
+    return f"{run.error_code}：{run.error_message}"
+
+
 # 生成基本信息表。
 def info_table(run: RunRecord) -> list[str]:
     rows = [
@@ -76,7 +85,7 @@ def info_table(run: RunRecord) -> list[str]:
         ("请求编号", run.request_id or "无"),
         ("任务编号", run.job_id or "无"),
         ("调用者", run.caller),
-        ("错误", f"{run.error_code}：{run.error_message}" if run.error_code else "无"),
+        ("错误", error_text(run)),
     ]
     if run.gaps:
         rows.append(("记录完整性", "；".join(run.gaps)))

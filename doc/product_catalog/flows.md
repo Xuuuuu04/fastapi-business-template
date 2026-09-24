@@ -6,33 +6,18 @@
 
 ## 公开操作
 
-| 操作 | 名称 | 权限 | 调用方式 | 可能的业务错误 |
+| 操作 | 名称 | 权限 | 接口 | 可能的业务错误 |
 | --- | --- | --- | --- | --- |
-| list_products | 查询商品 | product_catalog.read | 接口或任务 | 无 |
-| get_product | 读取商品 | product_catalog.read | 接口或任务 | product_missing（商品不存在） |
-| create_product | 新建商品 | product_catalog.write | 接口或任务 | product_code_used（商品编码已被其他商品使用） |
-| update_product | 修改商品 | product_catalog.write | 接口或任务 | product_missing（商品不存在）、product_code_used（商品编码已被其他商品使用） |
-| delete_product | 删除商品 | product_catalog.write | 接口或任务 | product_missing（商品不存在） |
+| list_products | 查询商品 | product_catalog.read | GET /api/v1/products | 无 |
+| get_product | 读取商品 | product_catalog.read | GET /api/v1/products/{product_id} | product_missing（商品不存在） |
+| create_product | 新建商品 | product_catalog.write | POST /api/v1/products | product_code_used（商品编码已被其他商品使用） |
+| update_product | 修改商品 | product_catalog.write | PUT /api/v1/products/{product_id} | product_missing（商品不存在）、product_code_used（商品编码已被其他商品使用） |
+| delete_product | 删除商品 | product_catalog.write | DELETE /api/v1/products/{product_id} | product_missing（商品不存在） |
 | get_prices | 查询可报价的单价 | product_catalog.read | 只供其他模块调用 | 无 |
 
 ## 查询商品（product_catalog.list_products）
 
-输入 `ProductQuery`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| offset | int | 否 | 从第几条开始，从 0 计数 |  |  |  |
-| limit | int | 否 | 本页最多返回多少条 |  |  |  |
-| on_sale | bool \| None | 否 | 只看在售或只看停售 |  | 不按在售状态筛选 |  |
-
-输出 `Page[ProductView]`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| items | list[ProductView] | 是 | 本页记录 |  |  |  |
-| total | int | 是 | 符合条件的记录总数 |  |  |  |
-| offset | int | 是 | 本页从第几条开始，从 0 计数 |  |  |  |
-| limit | int | 是 | 本页最多返回多少条 |  |  |  |
+输入 `ProductQuery`，输出 `Page[ProductView]`，字段见“数据模型”。
 
 计算流程：
 
@@ -65,22 +50,7 @@ flowchart TD
 
 ## 读取商品（product_catalog.get_product）
 
-输入 `ProductId`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| product_id | int | 是 | 商品编号 |  |  |  |
-
-输出 `ProductView`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| id | int | 是 | 商品编号 |  |  |  |
-| code | str | 是 | 商品编码 |  |  | R-01 |
-| name | str | 是 | 商品名称 |  |  |  |
-| price | Decimal \| None | 是 | 单价 | 元 | 尚未定价 | R-02 |
-| on_sale | bool | 是 | 是否在售 |  |  | R-02 |
-| updated_at | datetime | 是 | 最后修改时间（UTC） |  |  |  |
+输入 `ProductId`，输出 `ProductView`，字段见“数据模型”。
 
 计算流程：
 
@@ -111,25 +81,7 @@ flowchart TD
 
 ## 新建商品（product_catalog.create_product）
 
-输入 `ProductInput`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| code | str | 是 | 商品编码，保存前去掉首尾空白并转成大写 |  |  | R-01 |
-| name | str | 是 | 商品名称 |  |  |  |
-| price | Decimal \| None | 否 | 单价 | 元 | 尚未定价，不能用于报价 | R-02 |
-| on_sale | bool | 否 | 是否在售；停售的商品不能用于报价 |  |  | R-02 |
-
-输出 `ProductView`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| id | int | 是 | 商品编号 |  |  |  |
-| code | str | 是 | 商品编码 |  |  | R-01 |
-| name | str | 是 | 商品名称 |  |  |  |
-| price | Decimal \| None | 是 | 单价 | 元 | 尚未定价 | R-02 |
-| on_sale | bool | 是 | 是否在售 |  |  | R-02 |
-| updated_at | datetime | 是 | 最后修改时间（UTC） |  |  |  |
+输入 `ProductInput`，输出 `ProductView`，字段见“数据模型”。
 
 计算流程：
 
@@ -166,26 +118,7 @@ flowchart TD
 
 ## 修改商品（product_catalog.update_product）
 
-输入 `ProductChange`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| code | str | 是 | 商品编码，保存前去掉首尾空白并转成大写 |  |  | R-01 |
-| name | str | 是 | 商品名称 |  |  |  |
-| price | Decimal \| None | 否 | 单价 | 元 | 尚未定价，不能用于报价 | R-02 |
-| on_sale | bool | 否 | 是否在售；停售的商品不能用于报价 |  |  | R-02 |
-| product_id | int | 是 | 要修改的商品编号 |  |  |  |
-
-输出 `ProductView`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| id | int | 是 | 商品编号 |  |  |  |
-| code | str | 是 | 商品编码 |  |  | R-01 |
-| name | str | 是 | 商品名称 |  |  |  |
-| price | Decimal \| None | 是 | 单价 | 元 | 尚未定价 | R-02 |
-| on_sale | bool | 是 | 是否在售 |  |  | R-02 |
-| updated_at | datetime | 是 | 最后修改时间（UTC） |  |  |  |
+输入 `ProductChange`，输出 `ProductView`，字段见“数据模型”。
 
 计算流程：
 
@@ -223,16 +156,7 @@ flowchart TD
 
 ## 删除商品（product_catalog.delete_product）
 
-输入 `ProductId`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| product_id | int | 是 | 商品编号 |  |  |  |
-
-输出 `Nothing`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
+输入 `ProductId`，输出 `Nothing`，字段见“数据模型”。
 
 计算流程：
 
@@ -263,18 +187,7 @@ flowchart TD
 
 ## 查询可报价的单价（product_catalog.get_prices）
 
-输入 `PriceQuery`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| codes | list[str] | 是 | 要查询单价的商品编码 |  |  |  |
-
-输出 `PriceList`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| prices | dict[str, Decimal] | 是 | 可以报价的商品单价，按商品编码对应 | 元 |  | R-02 |
-| missing | list[str] | 是 | 不能报价的商品编码：不存在、已停售或尚未定价 |  |  | R-02 |
+输入 `PriceQuery`，输出 `PriceList`，字段见“数据模型”。
 
 计算流程：
 
@@ -302,3 +215,89 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- |
 | codes | 要查询单价的商品编码 | 操作输入 |  |  |  |
 | prices | 查询结果 | 步骤 | 读取可报价单价 | R-02 | codes |
+
+## 数据模型
+
+### ProductQuery
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| offset | int | 否 | 从第几条开始，从 0 计数 |  |  |  |
+| limit | int | 否 | 本页最多返回多少条 |  |  |  |
+| on_sale | bool \| None | 否 | 只看在售或只看停售 |  | 不按在售状态筛选 |  |
+
+### Page[ProductView]
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| items | list[ProductView] | 是 | 本页记录 |  |  |  |
+| total | int | 是 | 符合条件的记录总数 |  |  |  |
+| offset | int | 是 | 本页从第几条开始，从 0 计数 |  |  |  |
+| limit | int | 是 | 本页最多返回多少条 |  |  |  |
+
+### ProductView
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| id | int | 是 | 商品编号 |  |  |  |
+| code | str | 是 | 商品编码 |  |  | R-01 |
+| name | str | 是 | 商品名称 |  |  |  |
+| price | Decimal \| None | 是 | 单价 | 元 | 尚未定价 | R-02 |
+| on_sale | bool | 是 | 是否在售 |  |  | R-02 |
+| updated_at | datetime | 是 | 最后修改时间（UTC） |  |  |  |
+
+### ProductId
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| product_id | int | 是 | 商品编号 |  |  |  |
+
+### ProductInput
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| code | str | 是 | 商品编码，保存前去掉首尾空白并转成大写 |  |  | R-01 |
+| name | str | 是 | 商品名称 |  |  |  |
+| price | Decimal \| None | 否 | 单价 | 元 | 尚未定价，不能用于报价 | R-02 |
+| on_sale | bool | 否 | 是否在售；停售的商品不能用于报价 |  |  | R-02 |
+
+### ProductChange
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| code | str | 是 | 商品编码，保存前去掉首尾空白并转成大写 |  |  | R-01 |
+| name | str | 是 | 商品名称 |  |  |  |
+| price | Decimal \| None | 否 | 单价 | 元 | 尚未定价，不能用于报价 | R-02 |
+| on_sale | bool | 否 | 是否在售；停售的商品不能用于报价 |  |  | R-02 |
+| product_id | int | 是 | 要修改的商品编号 |  |  |  |
+
+### Nothing
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+
+### PriceQuery
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| codes | list[str] | 是 | 要查询单价的商品编码 |  |  |  |
+
+### PriceList
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| prices | dict[str, Decimal] | 是 | 可以报价的商品单价，按商品编码对应 | 元 |  | R-02 |
+| missing | list[str] | 是 | 不能报价的商品编码：不存在、已停售或尚未定价 |  |  | R-02 |
+
+## 数据表
+
+### product_catalog_items
+
+| 列 | 类型 | 可空 | 主键 | 索引 |
+| --- | --- | --- | --- | --- |
+| id | INTEGER |  | 是 |  |
+| code | VARCHAR(40) |  |  | 唯一 |
+| name | VARCHAR(80) |  |  |  |
+| price | NUMERIC(14, 2) | 是 |  |  |
+| on_sale | BOOLEAN |  |  |  |
+| updated_at | DATETIME |  |  |  |

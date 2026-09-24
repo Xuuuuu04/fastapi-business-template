@@ -15,6 +15,7 @@ from service.user_access.data import (
     AccessMissing,
     Account,
     LoginFailed,
+    OrgCodeInvalid,
     OrgList,
     OrgView,
     RoleList,
@@ -42,7 +43,7 @@ class SqlAccessStore(SessionStore):
             raise NotAllowed("创建组织需要全组织管理员身份")
         code, name = code.strip(), name.strip()
         if not ORG_CODE.fullmatch(code) or not name:
-            raise AccessConflict("组织代码或名称格式不正确")
+            raise OrgCodeInvalid()
         try:
             async with self.db.savepoint():
                 await self.db.change(insert(orgs).values(code=code, name=name))

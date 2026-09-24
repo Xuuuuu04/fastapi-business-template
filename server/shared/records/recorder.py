@@ -37,6 +37,7 @@ class Recorder:
         self.dropped = 0
         self.failures = 0
         self.wakeup = asyncio.Event()
+        self.closing = False
 
     # 登记一次开始执行的运行。
     def start(self, run: RunRecord) -> None:
@@ -73,13 +74,24 @@ class Recorder:
             batch = [self.waiting.popleft() for _ in range(min(100, len(self.waiting)))]
             await self.save(batch)
 
-    # 后台循环：有新记录时批量写入。
+    # 后台循环：有新记录时批量写入；收到停止信号时写完剩余记录再退出。
     async def run_forever(self) -> None:
         while True:
             await self.wakeup.wait()
             self.wakeup.clear()
             await self.flush()
+            if self.closing:
+                return
             await asyncio.sleep(0.2)
+
+    # 停止后台循环：不直接取消，避免正在写入的一批记录丢失；超时仍未写完时记日志。
+    async def stop(self, writer: "asyncio.Task[None]", seconds: float = 10.0) -> None:
+        self.closing = True
+        self.wakeup.set()
+        try:
+            await asyncio.wait_for(writer, seconds)
+        except TimeoutError:
+            log.error("run_records_stop_timeout waiting=%s", len(self.waiting))
 
     # 按编号查找记录：先查正在执行和等待写入的，再查保存位置。
     async def get(self, run_id: str) -> RunRecord | None:

@@ -110,3 +110,24 @@ async def test_background_flush_writes_waiting_runs() -> None:
     finally:
         task.cancel()
     assert await store.get("g") is not None and recorder.state().waiting == 0
+
+
+class PausingStore(SlowStore):
+    # 保存前先等待一会，模拟停止时正好有一批记录在写入。
+    async def save(self, runs: list[RunRecord]) -> None:
+        await asyncio.sleep(0.05)
+        await super().save(runs)
+
+
+# 停止后台写入时，正在写入的一批和还在缓冲中的记录都保存下来，不因取消而丢失。
+@pytest.mark.anyio
+async def test_stop_keeps_runs_being_written() -> None:
+    store = PausingStore()
+    recorder = Recorder(store)
+    writer = asyncio.create_task(recorder.run_forever())
+    await recorder.finish(record("first"))
+    await asyncio.sleep(0.01)
+    await recorder.finish(record("second"))
+    await recorder.stop(writer)
+    assert writer.done()
+    assert {run.id for run in await store.recent(RunFilter(), 10)} == {"first", "second"}

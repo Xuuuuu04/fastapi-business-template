@@ -8,6 +8,7 @@ from service.user_access.data import (
     Account,
     LoginFailed,
     LoginInput,
+    OrgCodeInvalid,
     OrgInput,
     OrgList,
     OrgQuery,
@@ -36,7 +37,7 @@ create_org = contract(
     input=OrgInput,
     output=OrgView,
     access="user_access.system",
-    errors=(AccessConflict,),
+    errors=(AccessConflict, OrgCodeInvalid),
     audit=True,
 )
 list_orgs = contract(
@@ -129,6 +130,7 @@ purge_sessions = contract(
 
 __all__ = [
     "AccessConflict",
+    "OrgCodeInvalid",
     "AccessMissing",
     "Account",
     "LoginFailed",

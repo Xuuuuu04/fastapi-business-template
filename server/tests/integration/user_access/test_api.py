@@ -54,7 +54,7 @@ def create_north_user(client: TestClient) -> tuple[int, int]:
     return role_id, user_id
 
 
-# 正确密码可登录，错误密码和停用状态都会拒绝登录。
+# R-03：正确密码可登录，错误密码和停用状态都会拒绝登录。
 def test_manage_users_and_login(client: TestClient) -> None:
     role_id, user_id = create_north_user(client)
     login = client.post(
@@ -154,3 +154,19 @@ def test_roles_cannot_raise_permissions(client: TestClient) -> None:
         headers=bearer,
     )
     assert own.status_code == 200, own.text
+
+
+# R-01：组织代码格式与唯一性、名称去空白；只有全组织的系统身份能创建组织。
+def test_create_org_rules(client: TestClient) -> None:
+    manager = north_manager(client)
+    orgs = "/api/v1/access/orgs"
+    created = client.post(orgs, json={"code": "east-1", "name": " 东区 "}, headers=KEY)
+    assert created.status_code == 200, created.text
+    assert created.json() == {"code": "east-1", "name": "东区"}
+    again = client.post(orgs, json={"code": "east-1", "name": "东区"}, headers=KEY)
+    assert again.status_code == 409 and again.json()["code"] == "user_access_conflict"
+    for code in ("North", "no", "a_b", "中文代码"):
+        body = {"code": code, "name": "错误代码"}
+        assert client.post(orgs, json=body, headers=KEY).status_code == 422, code
+    refused = client.post(orgs, json={"code": "west", "name": "西区"}, headers=manager)
+    assert refused.status_code == 403

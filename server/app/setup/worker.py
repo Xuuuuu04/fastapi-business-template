@@ -42,9 +42,7 @@ async def serve(settings: Settings) -> None:
         await worker.run(stop)
     finally:
         if flushing is not None:
-            flushing.cancel()
-            with suppress(asyncio.CancelledError):
-                await flushing
+            await services.recorder.stop(flushing)
         await services.close()
 
 

@@ -146,7 +146,7 @@ def test_logout_and_purge(client: TestClient) -> None:
     assert client.portal.call(purge) == (1, 1)
 
 
-# 同一账号的失败次数跨来源地址累计：换地址也不能继续猜密码，达到上限后正确密码也要等窗口结束。
+# R-03：同一账号的失败次数跨来源地址累计：换地址也不能继续猜密码，达到上限后正确密码也要等窗口结束。
 def test_account_failures_are_limited_across_sources(client: TestClient) -> None:
     prepare(client)
     app = client.app

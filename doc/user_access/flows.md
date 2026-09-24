@@ -6,36 +6,24 @@
 
 ## 公开操作
 
-| 操作 | 名称 | 权限 | 调用方式 | 可能的业务错误 |
+| 操作 | 名称 | 权限 | 接口 | 可能的业务错误 |
 | --- | --- | --- | --- | --- |
-| create_org | 创建组织 | user_access.system | 接口或任务 | user_access_conflict（组织代码、角色名或用户名已存在） |
-| list_orgs | 查询组织 | user_access.manage | 接口或任务 | 无 |
-| create_role | 创建角色 | user_access.manage | 接口或任务 | user_access_conflict（组织代码、角色名或用户名已存在）、user_access_missing（组织、角色或用户不存在） |
-| list_roles | 查询角色 | user_access.manage | 接口或任务 | 无 |
-| create_user | 创建用户 | user_access.manage | 接口或任务 | user_access_conflict（组织代码、角色名或用户名已存在）、user_access_missing（组织、角色或用户不存在） |
-| list_users | 查询用户 | user_access.manage | 接口或任务 | 无 |
-| change_user | 调整用户 | user_access.manage | 接口或任务 | user_access_missing（组织、角色或用户不存在） |
-| login | 用户登录 | public | 接口或任务 | login_failed（账号或密码不正确） |
-| refresh | 刷新登录 | public | 接口或任务 | refresh_rejected（登录已失效，请重新登录） |
-| logout | 退出登录 | public | 接口或任务 | 无 |
-| change_password | 修改密码 | signed_in | 接口或任务 | password_mismatch（原密码不正确） |
-| purge_sessions | 清理过期刷新令牌 | user_access.system | 接口或任务 | 无 |
+| create_org | 创建组织 | user_access.system | POST /api/v1/access/orgs | user_access_conflict（组织代码、角色名或用户名已存在）、org_code_invalid（组织代码只能由小写字母、数字和短横线组成，长 3 至 32 字符；名称不能为空） |
+| list_orgs | 查询组织 | user_access.manage | GET /api/v1/access/orgs | 无 |
+| create_role | 创建角色 | user_access.manage | POST /api/v1/access/roles | user_access_conflict（组织代码、角色名或用户名已存在）、user_access_missing（组织、角色或用户不存在） |
+| list_roles | 查询角色 | user_access.manage | GET /api/v1/access/roles | 无 |
+| create_user | 创建用户 | user_access.manage | POST /api/v1/access/users | user_access_conflict（组织代码、角色名或用户名已存在）、user_access_missing（组织、角色或用户不存在） |
+| list_users | 查询用户 | user_access.manage | GET /api/v1/access/users | 无 |
+| change_user | 调整用户 | user_access.manage | PUT /api/v1/access/users | user_access_missing（组织、角色或用户不存在） |
+| login | 用户登录 | public | POST /api/v1/access/login | login_failed（账号或密码不正确） |
+| refresh | 刷新登录 | public | POST /api/v1/access/refresh | refresh_rejected（登录已失效，请重新登录） |
+| logout | 退出登录 | public | POST /api/v1/access/logout | 无 |
+| change_password | 修改密码 | signed_in | POST /api/v1/access/password | password_mismatch（原密码不正确） |
+| purge_sessions | 清理过期刷新令牌 | user_access.system | 定时计划 | 无 |
 
 ## 创建组织（user_access.create_org）
 
-输入 `OrgInput`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| code | str | 是 | 组织代码 |  |  | R-01 |
-| name | str | 是 | 组织名称 |  |  | R-01 |
-
-输出 `OrgView`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| code | str | 是 | 组织代码 |  |  | R-01 |
-| name | str | 是 | 组织名称 |  |  | R-01 |
+输入 `OrgInput`，输出 `OrgView`，字段见“数据模型”。
 
 计算流程：
 
@@ -67,16 +55,7 @@ flowchart TD
 
 ## 查询组织（user_access.list_orgs）
 
-输入 `Nothing`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-
-输出 `OrgList`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| items | list[OrgView] | 是 | 可访问的组织 |  |  |  |
+输入 `Nothing`，输出 `OrgList`，字段见“数据模型”。
 
 计算流程：
 
@@ -106,22 +85,7 @@ flowchart TD
 
 ## 创建角色（user_access.create_role）
 
-输入 `RoleInput`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_id | str | 是 | 角色所属组织代码 |  |  | R-02 |
-| name | str | 是 | 角色名称，在组织内唯一 |  |  | R-02 |
-| permissions | list[str] | 是 | 角色拥有的权限名 |  |  | R-02 |
-
-输出 `RoleView`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| id | int | 是 | 角色编号 |  |  |  |
-| org_id | str | 是 | 角色所属组织代码 |  |  |  |
-| name | str | 是 | 角色名称 |  |  |  |
-| permissions | list[str] | 是 | 角色权限 |  |  |  |
+输入 `RoleInput`，输出 `RoleView`，字段见“数据模型”。
 
 计算流程：
 
@@ -154,17 +118,7 @@ flowchart TD
 
 ## 查询角色（user_access.list_roles）
 
-输入 `OrgQuery`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_id | str | 是 | 要查询的组织代码 |  |  | R-04 |
-
-输出 `RoleList`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| items | list[RoleView] | 是 | 可访问的角色 |  |  |  |
+输入 `OrgQuery`，输出 `RoleList`，字段见“数据模型”。
 
 计算流程：
 
@@ -195,24 +149,7 @@ flowchart TD
 
 ## 创建用户（user_access.create_user）
 
-输入 `UserInput`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_id | str | 是 | 用户所属组织代码 |  |  | R-02 |
-| username | str | 是 | 用户名，在组织内唯一 |  |  | R-02 |
-| password | str | 是 | 登录密码 |  |  | R-02 |
-| role_id | int | 是 | 角色编号 |  |  | R-02 |
-
-输出 `UserView`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| id | int | 是 | 用户编号 |  |  |  |
-| org_id | str | 是 | 用户所属组织代码 |  |  |  |
-| username | str | 是 | 用户名 |  |  |  |
-| role_id | int | 是 | 角色编号 |  |  |  |
-| active | bool | 是 | 是否允许登录 |  |  |  |
+输入 `UserInput`，输出 `UserView`，字段见“数据模型”。
 
 计算流程：
 
@@ -246,22 +183,7 @@ flowchart TD
 
 ## 查询用户（user_access.list_users）
 
-输入 `UserQuery`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_id | str | 是 | 要查询的组织代码 |  |  | R-04 |
-| offset | int | 否 | 从第几条开始，从 0 计数 |  |  |  |
-| limit | int | 否 | 本页最多返回多少条 |  |  |  |
-
-输出 `Page[UserView]`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| items | list[UserView] | 是 | 本页记录 |  |  |  |
-| total | int | 是 | 符合条件的记录总数 |  |  |  |
-| offset | int | 是 | 本页从第几条开始，从 0 计数 |  |  |  |
-| limit | int | 是 | 本页最多返回多少条 |  |  |  |
+输入 `UserQuery`，输出 `Page[UserView]`，字段见“数据模型”。
 
 计算流程：
 
@@ -294,24 +216,7 @@ flowchart TD
 
 ## 调整用户（user_access.change_user）
 
-输入 `UserChange`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_id | str | 是 | 用户所属组织代码 |  |  | R-02 |
-| user_id | int | 是 | 要修改的用户编号 |  |  |  |
-| role_id | int | 是 | 修改后的角色编号 |  |  | R-02 |
-| active | bool | 是 | 修改后是否允许登录 |  |  | R-02 |
-
-输出 `UserView`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| id | int | 是 | 用户编号 |  |  |  |
-| org_id | str | 是 | 用户所属组织代码 |  |  |  |
-| username | str | 是 | 用户名 |  |  |  |
-| role_id | int | 是 | 角色编号 |  |  |  |
-| active | bool | 是 | 是否允许登录 |  |  |  |
+输入 `UserChange`，输出 `UserView`，字段见“数据模型”。
 
 计算流程：
 
@@ -345,21 +250,7 @@ flowchart TD
 
 ## 用户登录（user_access.login）
 
-输入 `LoginInput`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_code | str | 是 | 组织代码 |  |  | R-03 |
-| username | str | 是 | 用户名 |  |  | R-03 |
-| password | str | 是 | 密码 |  |  | R-03 |
-
-输出 `SessionGrant`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| account | Account | 是 | 登录的用户及其当前权限 |  |  | R-05 |
-| refresh_token | str | 是 | 新的刷新令牌原文，只在这次返回 |  |  | R-05 |
-| refresh_expires_at | float | 是 | 刷新令牌失效时间 | Unix 秒 |  | R-05 |
+输入 `LoginInput`，输出 `SessionGrant`，字段见“数据模型”。
 
 计算流程：
 
@@ -395,17 +286,7 @@ flowchart TD
 
 ## 刷新登录（user_access.refresh）
 
-输入 `RefreshInput`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| refresh_token | str | 是 | 刷新令牌 |  |  | R-05 |
-
-输出 `SessionRenewal`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| grant | SessionGrant \| None | 是 | 换得的新会话 |  | 刷新令牌无效、过期、已作废或被重复使用 | R-05 |
+输入 `RefreshInput`，输出 `SessionRenewal`，字段见“数据模型”。
 
 计算流程：
 
@@ -439,16 +320,7 @@ flowchart TD
 
 ## 退出登录（user_access.logout）
 
-输入 `RefreshInput`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| refresh_token | str | 是 | 刷新令牌 |  |  | R-05 |
-
-输出 `Nothing`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
+输入 `RefreshInput`，输出 `Nothing`，字段见“数据模型”。
 
 计算流程：
 
@@ -479,17 +351,7 @@ flowchart TD
 
 ## 修改密码（user_access.change_password）
 
-输入 `PasswordChange`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| old_password | str | 是 | 原密码 |  |  | R-06 |
-| new_password | str | 是 | 新密码 |  |  | R-06 |
-
-输出 `Nothing`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
+输入 `PasswordChange`，输出 `Nothing`，字段见“数据模型”。
 
 计算流程：
 
@@ -524,16 +386,7 @@ flowchart TD
 
 ## 清理过期刷新令牌（user_access.purge_sessions）
 
-输入 `Nothing`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-
-输出 `PurgeResult`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| removed | int | 是 | 删除的刷新令牌记录数 |  |  | R-07 |
+输入 `Nothing`，输出 `PurgeResult`，字段见“数据模型”。
 
 计算流程：
 
@@ -560,3 +413,196 @@ flowchart TD
 | 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
 | --- | --- | --- | --- | --- | --- |
 | result | 清理结果 | 步骤 | 清理过期刷新令牌 | R-07 |  |
+
+## 数据模型
+
+### OrgInput
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| code | str | 是 | 组织代码 |  |  | R-01 |
+| name | str | 是 | 组织名称 |  |  | R-01 |
+
+### OrgView
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| code | str | 是 | 组织代码 |  |  | R-01 |
+| name | str | 是 | 组织名称 |  |  | R-01 |
+
+### Nothing
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+
+### OrgList
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| items | list[OrgView] | 是 | 可访问的组织 |  |  |  |
+
+### RoleInput
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_id | str | 是 | 角色所属组织代码 |  |  | R-02 |
+| name | str | 是 | 角色名称，在组织内唯一 |  |  | R-02 |
+| permissions | list[str] | 是 | 角色拥有的权限名 |  |  | R-02 |
+
+### RoleView
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| id | int | 是 | 角色编号 |  |  |  |
+| org_id | str | 是 | 角色所属组织代码 |  |  |  |
+| name | str | 是 | 角色名称 |  |  |  |
+| permissions | list[str] | 是 | 角色权限 |  |  |  |
+
+### OrgQuery
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_id | str | 是 | 要查询的组织代码 |  |  | R-04 |
+
+### RoleList
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| items | list[RoleView] | 是 | 可访问的角色 |  |  |  |
+
+### UserInput
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_id | str | 是 | 用户所属组织代码 |  |  | R-02 |
+| username | str | 是 | 用户名，在组织内唯一 |  |  | R-02 |
+| password | str | 是 | 登录密码 |  |  | R-02 |
+| role_id | int | 是 | 角色编号 |  |  | R-02 |
+
+### UserView
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| id | int | 是 | 用户编号 |  |  |  |
+| org_id | str | 是 | 用户所属组织代码 |  |  |  |
+| username | str | 是 | 用户名 |  |  |  |
+| role_id | int | 是 | 角色编号 |  |  |  |
+| active | bool | 是 | 是否允许登录 |  |  |  |
+
+### UserQuery
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_id | str | 是 | 要查询的组织代码 |  |  | R-04 |
+| offset | int | 否 | 从第几条开始，从 0 计数 |  |  |  |
+| limit | int | 否 | 本页最多返回多少条 |  |  |  |
+
+### Page[UserView]
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| items | list[UserView] | 是 | 本页记录 |  |  |  |
+| total | int | 是 | 符合条件的记录总数 |  |  |  |
+| offset | int | 是 | 本页从第几条开始，从 0 计数 |  |  |  |
+| limit | int | 是 | 本页最多返回多少条 |  |  |  |
+
+### UserChange
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_id | str | 是 | 用户所属组织代码 |  |  | R-02 |
+| user_id | int | 是 | 要修改的用户编号 |  |  |  |
+| role_id | int | 是 | 修改后的角色编号 |  |  | R-02 |
+| active | bool | 是 | 修改后是否允许登录 |  |  | R-02 |
+
+### LoginInput
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_code | str | 是 | 组织代码 |  |  | R-03 |
+| username | str | 是 | 用户名 |  |  | R-03 |
+| password | str | 是 | 密码 |  |  | R-03 |
+
+### SessionGrant
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| account | Account | 是 | 登录的用户及其当前权限 |  |  | R-05 |
+| refresh_token | str | 是 | 新的刷新令牌原文，只在这次返回 |  |  | R-05 |
+| refresh_expires_at | float | 是 | 刷新令牌失效时间 | Unix 秒 |  | R-05 |
+
+### Account
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| user_id | int | 是 | 用户编号 |  |  | R-03 |
+| org_id | str | 是 | 用户所属组织 |  |  | R-03 |
+| username | str | 是 | 用户名 |  |  | R-03 |
+| permissions | list[str] | 是 | 角色当前的权限，写进访问令牌 |  |  | R-03 |
+
+### RefreshInput
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| refresh_token | str | 是 | 刷新令牌 |  |  | R-05 |
+
+### SessionRenewal
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| grant | SessionGrant \| None | 是 | 换得的新会话 |  | 刷新令牌无效、过期、已作废或被重复使用 | R-05 |
+
+### PasswordChange
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| old_password | str | 是 | 原密码 |  |  | R-06 |
+| new_password | str | 是 | 新密码 |  |  | R-06 |
+
+### PurgeResult
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| removed | int | 是 | 删除的刷新令牌记录数 |  |  | R-07 |
+
+## 数据表
+
+### user_access_orgs
+
+| 列 | 类型 | 可空 | 主键 | 索引 |
+| --- | --- | --- | --- | --- |
+| code | VARCHAR(32) |  | 是 |  |
+| name | VARCHAR(80) |  |  |  |
+
+### user_access_roles
+
+| 列 | 类型 | 可空 | 主键 | 索引 |
+| --- | --- | --- | --- | --- |
+| id | INTEGER |  | 是 |  |
+| org_id | VARCHAR(32) |  |  |  |
+| name | VARCHAR(64) |  |  |  |
+| permissions | TEXT |  |  |  |
+
+### user_access_users
+
+| 列 | 类型 | 可空 | 主键 | 索引 |
+| --- | --- | --- | --- | --- |
+| id | INTEGER |  | 是 |  |
+| org_id | VARCHAR(32) |  |  |  |
+| username | VARCHAR(64) |  |  |  |
+| password_hash | VARCHAR(192) |  |  |  |
+| role_id | INTEGER |  |  |  |
+| active | BOOLEAN |  |  |  |
+
+### user_access_refresh_tokens
+
+| 列 | 类型 | 可空 | 主键 | 索引 |
+| --- | --- | --- | --- | --- |
+| token_sha256 | VARCHAR(64) |  | 是 |  |
+| family_id | VARCHAR(32) |  |  | 是 |
+| org_id | VARCHAR(32) |  |  |  |
+| user_id | INTEGER |  |  | 是 |
+| started_at | FLOAT |  |  |  |
+| expires_at | FLOAT |  |  | 是 |
+| used_at | FLOAT | 是 |  |  |
+| revoked_at | FLOAT | 是 |  |  |

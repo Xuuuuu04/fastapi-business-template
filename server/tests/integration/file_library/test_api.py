@@ -14,7 +14,7 @@ from shared.public import Nothing
 from tests.testing_app import KEY
 
 
-# 文件保存后可查询和下载，跨组织不能下载，删除后由系统清理。
+# R-01 至 R-03：文件保存后可查询和下载，跨组织不能下载，删除后由系统清理，孤立对象也被清理。
 def test_file_lifecycle(client: TestClient) -> None:
     uploaded = client.post(
         "/api/v1/files/north",
@@ -54,7 +54,7 @@ def test_file_lifecycle(client: TestClient) -> None:
     assert client.get("/api/v1/files/north", headers=KEY).json()["items"] == []
 
 
-# 不允许的文件类型和匿名上传都被拒绝。
+# R-01：不允许的文件类型和匿名上传都被拒绝。
 def test_reject_file_type_and_anonymous_write(client: TestClient) -> None:
     assert (
         client.post(

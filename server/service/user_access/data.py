@@ -150,6 +150,12 @@ class RefreshRejected(BusinessError):
     message = "登录已失效，请重新登录"
 
 
+class OrgCodeInvalid(BusinessError):
+    code = "org_code_invalid"
+    kind = Kind.INVALID
+    message = "组织代码只能由小写字母、数字和短横线组成，长 3 至 32 字符；名称不能为空"
+
+
 class PasswordMismatch(BusinessError):
     code = "password_mismatch"
     kind = Kind.INVALID

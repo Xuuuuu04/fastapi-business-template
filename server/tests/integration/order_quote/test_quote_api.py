@@ -4,10 +4,14 @@
 
 import asyncio
 import time
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.setup.build import build
+from service.order_quote.store.tables import quotes
 from shared.config.settings import Settings
 from shared.jobs.worker import Worker, WorkerOptions
 from shared.model_calls.providers import FakeModel
@@ -101,6 +105,34 @@ def test_expire_job(client: TestClient, settings: Settings) -> None:
     asyncio.run(run_one_job(settings))
     job = client.get(job_url, headers=KEY).json()
     assert job["state"] == "done" and job["result"] == {"expired": 0}
+
+
+# R-06：创建超过指定天数的有效报价标为过期，新报价不受影响；重复执行结果相同。
+def test_expire_old_quotes(client: TestClient, settings: Settings) -> None:
+    add_products(client)
+    body = {"customer": "星河", "member_level": "none", "lines": [{"code": "A-1", "quantity": 1}]}
+    old, new = (client.post("/api/v1/quotes", json=body, headers=KEY).json() for _ in range(2))
+    asyncio.run(backdate(settings.database_url, old["id"], days=31))
+    counts = []
+    for key in ("expire-1", "expire-2"):
+        headers = {**KEY, "Idempotency-Key": key}
+        job_url = client.post("/api/v1/quotes/expire", json={"days": 30}, headers=headers).json()
+        asyncio.run(run_one_job(settings))
+        counts.append(client.get(job_url["status_url"], headers=KEY).json()["result"]["expired"])
+    assert counts == [1, 0]
+    assert client.get(f"/api/v1/quotes/{old['id']}", headers=KEY).json()["status"] == "expired"
+    assert client.get(f"/api/v1/quotes/{new['id']}", headers=KEY).json()["status"] == "active"
+
+
+# 把报价的创建时间改到指定天数之前。
+async def backdate(url: str, quote_id: int, days: int) -> None:
+    engine = create_async_engine(url)
+    moment = datetime.now(UTC) - timedelta(days=days)
+    async with engine.begin() as connection:
+        await connection.execute(
+            update(quotes).where(quotes.c.id == quote_id).values(created_at=moment)
+        )
+    await engine.dispose()
 
 
 # 在独立的服务中领取并执行一个任务，模拟 worker 进程。

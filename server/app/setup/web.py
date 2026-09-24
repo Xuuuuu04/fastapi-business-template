@@ -6,7 +6,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -82,8 +82,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         if flushing is not None:
-            flushing.cancel()
-            with suppress(asyncio.CancelledError):
-                await flushing
+            await services.recorder.stop(flushing)
         await services.close()
         log.info("server_stopped")

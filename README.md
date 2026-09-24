@@ -8,7 +8,7 @@
 | --- | --- |
 | [AGENTS.md](AGENTS.md) | AI 开发者的入口：阅读顺序、开发步骤、禁止事项、排查方法 |
 | [server/](server/) | 后端代码、测试、迁移、部署 |
-| [doc/](doc/) | 业务文档：需求、规则、变化记录，以及自动生成的流程图 |
+| [doc/](doc/) | 业务文档：需求、规则、变化记录；自动生成的流程、接口描述、开发进度；任务清单 |
 | [design/](design/) | 模板自身的设计记录；用模板开发产品时可以删除 |
 | [.github/](.github/) | 持续集成与依赖更新，见下方“持续集成” |
 
@@ -62,5 +62,6 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 文件管理：上传、下载、删除和每日清理 | `server/service/file_library` |
 | 运行统计、OpenTelemetry 链路导出、只读诊断网页 | `/api/system/stats`、`server/shared/telemetry`、`/system/console` |
 | 质量检查：注释、命名、长度、依赖、README、业务文档，纳入默认测试 | `server/tools/quality` |
+| 开发期观察与把关：测试失败时附运行报告；生成开发进度（待确认问题、规则的测试标注、任务数）、接口描述快照；改动影响报告写到合并请求的检查摘要页 | `doc/progress.md`、`doc/tasks.md`、`doc/api/`、`server/tools/impact.py` |
 | 新模块生成命令、删除示例命令、框架文件摘要、诊断与任务处理命令 | `server/tools` |
 | Docker 镜像、单机部署组合配置、环境检查、备份恢复 | `server/deploy` |
