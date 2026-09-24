@@ -4,7 +4,7 @@
 
 from typing import Literal
 
-from shared.public import BusinessError, Data, Kind, Nothing, Page, WorkData, meaning
+from shared.public import BusinessError, CursorPage, Data, Kind, Nothing, WorkData, meaning
 
 
 class OrgInput(Data):
@@ -64,12 +64,12 @@ class UserView(Data):
     active: bool = meaning("是否允许登录")
 
 
-UserPage = Page[UserView]
+UserPage = CursorPage[UserView]
 
 
 class UserQuery(Data):
     org_id: str = meaning("要查询的组织代码", rule="R-04")
-    offset: int = meaning("从第几条开始，从 0 计数", default=0, ge=0)
+    after: str = meaning("上一页返回的 next_after", empty="从第一页开始", default="", max_length=40)
     limit: int = meaning("本页最多返回多少条", default=20, ge=1, le=100)
 
 
@@ -194,7 +194,7 @@ class UserWork(WorkData):
 
 class UserListWork(WorkData):
     org_id: str = meaning("要查询的组织")
-    offset: int = meaning("从第几条开始")
+    after: str = meaning("从哪个位置之后开始")
     limit: int = meaning("本页最多返回多少条")
     result: UserPage = meaning("一页用户，按编号从小到大，不包含密码摘要")
 

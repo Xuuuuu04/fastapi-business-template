@@ -6,7 +6,7 @@
 from shared.access.caller import PUBLIC, SIGNED_IN, Caller
 from shared.cache.gate import ModuleCache
 from shared.data.fields import meaning
-from shared.data.models import Data, Nothing, Page, WorkData
+from shared.data.models import CursorPage, Data, Nothing, Page, WorkData
 from shared.db.access import Db
 from shared.db.org import org_column
 from shared.db.tables import metadata
@@ -34,6 +34,7 @@ __all__ = [
     "BusinessError",
     "Call",
     "Caller",
+    "CursorPage",
     "Data",
     "Db",
     "Emitter",

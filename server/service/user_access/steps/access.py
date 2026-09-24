@@ -53,10 +53,10 @@ async def create_user(data: UserWork, store: AccessStore) -> None:
     data.result = await store.create_user(data.org_id, data.username, data.password, data.role_id)
 
 
-# 分页查询一个组织的用户。
-@step("查询用户", reads=["org_id", "offset", "limit"], writes=["result"], rule="R-04")
+# 按位置续读一个组织的用户。
+@step("查询用户", reads=["org_id", "after", "limit"], writes=["result"], rule="R-04")
 async def list_users(data: UserListWork, store: AccessStore) -> None:
-    data.result = await store.list_users(data.org_id, data.offset, data.limit)
+    data.result = await store.list_users(data.org_id, data.after, data.limit)
 
 
 # 修改用户角色和启用状态。

@@ -164,13 +164,17 @@ def test_account_failures_are_limited_across_sources(client: TestClient) -> None
         assert other.post(LOGIN, json=right).status_code == 429
 
 
-# R-04：用户列表分页返回，带总数，按编号从小到大。
+# R-04：用户列表按编号从小到大，按位置续读：每页返回下一页的位置，最后一页位置为空；位置写错时拒绝。
 def test_user_list_pages(client: TestClient) -> None:
     role, _, first_user = prepare(client)
     body = {"org_id": "north", "password": "correct-password", "role_id": role}
     for name in ("bob", "carol"):
         client.post("/api/v1/access/users", json={**body, "username": name}, headers=KEY)
-    page = client.get("/api/v1/access/users?org_id=north&offset=1&limit=1", headers=KEY).json()
-    assert page["total"] == 3 and page["offset"] == 1 and page["limit"] == 1
-    assert [item["username"] for item in page["items"]] == ["bob"]
-    assert page["items"][0]["id"] > first_user
+    url = "/api/v1/access/users?org_id=north&limit=2"
+    first = client.get(url, headers=KEY).json()
+    assert [item["username"] for item in first["items"]] == ["alice", "bob"]
+    assert first["items"][0]["id"] == first_user and first["next_after"]
+    second = client.get(f"{url}&after={first['next_after']}", headers=KEY).json()
+    assert [item["username"] for item in second["items"]] == ["carol"]
+    assert second["next_after"] == ""
+    assert client.get(f"{url}&after=abc", headers=KEY).status_code == 422

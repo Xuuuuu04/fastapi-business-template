@@ -446,12 +446,12 @@
 | 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
 | --- | --- | --- | --- | --- | --- |
 | org_id | query | 是 | string |  | 要查询的组织代码；规则：R-04 |
-| offset | query | 否 | integer | 最小：0 | 从第几条开始，从 0 计数 |
+| after | query | 否 | string | 最长：40 | 上一页返回的 next_after；为空表示：从第一页开始 |
 | limit | query | 否 | integer | 最小：1；最大：100 | 本页最多返回多少条 |
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | Page_UserView_ |
+| 200 | Successful Response | CursorPage_UserView_ |
 | 401 | 没有提供有效身份 | ErrorReply |
 | 403 | 没有权限 | ErrorReply |
 | 422 | 输入不符合要求 | ErrorReply |
@@ -674,6 +674,13 @@
 | --- | --- | --- | --- | --- |
 | upload | string | 是 |  |  |
 
+### CursorPage_UserView_
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| items | 列表[UserView] | 是 | 本页记录 |  |
+| next_after | string | 否 | 取下一页时作为 after 传回的位置；为空表示：已经是最后一页 |  |
+
 ### ErrorReply
 
 | 字段 | 类型 | 必填 | 说明 | 限制 |
@@ -766,15 +773,6 @@
 | 字段 | 类型 | 必填 | 说明 | 限制 |
 | --- | --- | --- | --- | --- |
 | items | 列表[ProductView] | 是 | 本页记录 |  |
-| total | integer | 是 | 符合条件的记录总数 |  |
-| offset | integer | 是 | 本页从第几条开始，从 0 计数 |  |
-| limit | integer | 是 | 本页最多返回多少条 |  |
-
-### Page_UserView_
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| items | 列表[UserView] | 是 | 本页记录 |  |
 | total | integer | 是 | 符合条件的记录总数 |  |
 | offset | integer | 是 | 本页从第几条开始，从 0 计数 |  |
 | limit | integer | 是 | 本页最多返回多少条 |  |

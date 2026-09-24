@@ -12,6 +12,12 @@ class NotSignedIn(BusinessError):
     message = "需要提供有效的服务密钥或登录身份"
 
 
+class InvalidInput(BusinessError):
+    code = "invalid_input"
+    kind = Kind.INVALID
+    message = "输入不符合要求"
+
+
 class NotAllowed(BusinessError):
     code = "not_allowed"
     kind = Kind.FORBIDDEN

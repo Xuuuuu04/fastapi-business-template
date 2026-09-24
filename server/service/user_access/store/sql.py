@@ -7,7 +7,7 @@ import asyncio
 import json
 import re
 
-from sqlalchemy import RowMapping, func, insert, select, update
+from sqlalchemy import RowMapping, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from service.user_access.data import (
@@ -111,16 +111,11 @@ class SqlAccessStore(SessionStore):
         return user_view(row)
 
     # 查询指定组织中的用户，不返回密码摘要。
-    async def list_users(self, org_id: str, offset: int, limit: int) -> UserPage:
+    async def list_users(self, org_id: str, after: str, limit: int) -> UserPage:
         self.require_org(org_id)
-        own = users.c.org_id == org_id
-        total = await self.db.scalar(select(func.count()).select_from(users).where(own))
-        rows = await self.db.all(
-            select(users).where(own).order_by(users.c.id).offset(offset).limit(limit)
-        )
-        return UserPage(
-            items=[user_view(row) for row in rows], total=total, offset=offset, limit=limit
-        )
+        query = select(users).where(users.c.org_id == org_id)
+        rows, next_after = await self.db.page_after(query, users.c.id, after, limit)
+        return UserPage(items=[user_view(row) for row in rows], next_after=next_after)
 
     # 角色必须属于同一个组织，修改只影响该组织中的用户；停用时立即作废这个用户的全部会话。
     async def change_user(self, org_id: str, user_id: int, role_id: int, active: bool) -> UserView:

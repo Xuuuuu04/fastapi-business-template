@@ -183,13 +183,13 @@ flowchart TD
 
 ## 查询用户（user_access.list_users）
 
-输入 `UserQuery`，输出 `Page[UserView]`，字段见“数据模型”。
+输入 `UserQuery`，输出 `CursorPage[UserView]`，字段见“数据模型”。
 
 计算流程：
 
 ```mermaid
 flowchart TD
-    start(["输入：要查询的组织代码、从第几条开始，从 0 计数、本页最多返回多少条"])
+    start(["输入：要查询的组织代码、上一页返回的 next_after、本页最多返回多少条"])
     s1["1. 查询用户（读取）<br/>规则 R-04"]:::read
     start --> s1
     finish(["结果：一页用户，按编号从小到大，不包含密码摘要"])
@@ -210,9 +210,9 @@ flowchart TD
 | 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
 | --- | --- | --- | --- | --- | --- |
 | org_id | 要查询的组织 | 操作输入 |  |  |  |
-| offset | 从第几条开始 | 操作输入 |  |  |  |
+| after | 从哪个位置之后开始 | 操作输入 |  |  |  |
 | limit | 本页最多返回多少条 | 操作输入 |  |  |  |
-| result | 一页用户，按编号从小到大，不包含密码摘要 | 步骤 | 查询用户 | R-04 | org_id、offset、limit |
+| result | 一页用户，按编号从小到大，不包含密码摘要 | 步骤 | 查询用户 | R-04 | org_id、after、limit |
 
 ## 调整用户（user_access.change_user）
 
@@ -494,17 +494,15 @@ flowchart TD
 | 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
 | --- | --- | --- | --- | --- | --- | --- |
 | org_id | str | 是 | 要查询的组织代码 |  |  | R-04 |
-| offset | int | 否 | 从第几条开始，从 0 计数 |  |  |  |
+| after | str | 否 | 上一页返回的 next_after |  | 从第一页开始 |  |
 | limit | int | 否 | 本页最多返回多少条 |  |  |  |
 
-### Page[UserView]
+### CursorPage[UserView]
 
 | 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
 | --- | --- | --- | --- | --- | --- | --- |
 | items | list[UserView] | 是 | 本页记录 |  |  |  |
-| total | int | 是 | 符合条件的记录总数 |  |  |  |
-| offset | int | 是 | 本页从第几条开始，从 0 计数 |  |  |  |
-| limit | int | 是 | 本页最多返回多少条 |  |  |  |
+| next_after | str | 否 | 取下一页时作为 after 传回的位置 |  | 已经是最后一页 |  |
 
 ### UserChange
 

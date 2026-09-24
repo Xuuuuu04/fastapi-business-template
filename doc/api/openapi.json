@@ -1997,25 +1997,25 @@
             "description": "要查询的组织代码；规则：R-04"
           },
           {
-            "name": "offset",
+            "name": "after",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "description": "从第几条开始，从 0 计数",
+              "type": "string",
+              "maxLength": 40,
+              "description": "上一页返回的 next_after；为空表示：从第一页开始",
               "x-note": {
-                "meaning": "从第几条开始，从 0 计数",
+                "meaning": "上一页返回的 next_after",
                 "unit": "",
                 "rule": "",
-                "empty": "",
+                "empty": "从第一页开始",
                 "log_value": false,
                 "secret": false
               },
-              "default": 0,
-              "title": "Offset"
+              "default": "",
+              "title": "After"
             },
-            "description": "从第几条开始，从 0 计数"
+            "description": "上一页返回的 next_after；为空表示：从第一页开始"
           },
           {
             "name": "limit",
@@ -2046,7 +2046,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Page_UserView_"
+                  "$ref": "#/components/schemas/CursorPage_UserView_"
                 }
               }
             }
@@ -3120,6 +3120,46 @@
         ],
         "title": "Body_save_file"
       },
+      "CursorPage_UserView_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserView"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "本页记录",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "本页记录",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "next_after": {
+            "type": "string",
+            "title": "Next After",
+            "description": "取下一页时作为 after 传回的位置；为空表示：已经是最后一页",
+            "default": "",
+            "x-note": {
+              "empty": "已经是最后一页",
+              "log_value": false,
+              "meaning": "取下一页时作为 after 传回的位置",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[UserView]"
+      },
       "ErrorReply": {
         "properties": {
           "code": {
@@ -3740,74 +3780,6 @@
           "limit"
         ],
         "title": "Page[ProductView]"
-      },
-      "Page_UserView_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/UserView"
-            },
-            "type": "array",
-            "title": "Items",
-            "description": "本页记录",
-            "x-note": {
-              "empty": "",
-              "log_value": false,
-              "meaning": "本页记录",
-              "rule": "",
-              "secret": false,
-              "unit": ""
-            }
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total",
-            "description": "符合条件的记录总数",
-            "x-note": {
-              "empty": "",
-              "log_value": false,
-              "meaning": "符合条件的记录总数",
-              "rule": "",
-              "secret": false,
-              "unit": ""
-            }
-          },
-          "offset": {
-            "type": "integer",
-            "title": "Offset",
-            "description": "本页从第几条开始，从 0 计数",
-            "x-note": {
-              "empty": "",
-              "log_value": false,
-              "meaning": "本页从第几条开始，从 0 计数",
-              "rule": "",
-              "secret": false,
-              "unit": ""
-            }
-          },
-          "limit": {
-            "type": "integer",
-            "title": "Limit",
-            "description": "本页最多返回多少条",
-            "x-note": {
-              "empty": "",
-              "log_value": false,
-              "meaning": "本页最多返回多少条",
-              "rule": "",
-              "secret": false,
-              "unit": ""
-            }
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "items",
-          "total",
-          "offset",
-          "limit"
-        ],
-        "title": "Page[UserView]"
       },
       "PasswordChange": {
         "properties": {

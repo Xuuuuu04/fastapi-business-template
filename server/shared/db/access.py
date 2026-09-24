@@ -4,17 +4,17 @@ store 使用的数据库入口 Db：只能执行语句，不能提交、回滚�
 """
 
 import re
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
-from sqlalchemy import Executable, RowMapping, Select, TextClause
+from sqlalchemy import ColumnElement, Executable, RowMapping, Select, TextClause
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.sql import visitors
 
 from shared.access.caller import Caller
 from shared.db.org import check_org
-from shared.errors.framework import StepRuleBroken
+from shared.errors.framework import InvalidInput, StepRuleBroken
 from shared.errors.kinds import BusinessError
 
 READ_WORDS = ("select", "with", "explain", "show", "values")
@@ -65,6 +65,18 @@ class Db:
         result = await self._connection.execute(statement)
         return int(getattr(result, "rowcount", 0) or 0)
 
+    # 按位置续读一页：按唯一且可排序的列 key 排序，after 是上一页返回的位置；
+    # 数据量大时不必跳过前面的行，越往后也一样快。返回本页的行和下一页的位置（没有下一页为空）。
+    async def page_after(
+        self, statement: Select[Any], key: ColumnElement[Any], after: str, limit: int
+    ) -> tuple[Sequence[RowMapping], str]:
+        if after:
+            statement = statement.where(key > type_of(key)(after))
+        rows = await self.all(statement.order_by(key).limit(limit + 1))
+        if len(rows) <= limit:
+            return rows, ""
+        return rows[:limit], str(rows[limit - 1][key.name])
+
     # 带条件修改：语句的条件中写上读到的状态或版本，一行都没有改到时报 missing 这个业务错误，
     # 用于“先读后写”时发现数据已被别人改过。
     async def change_or_fail(self, statement: Executable, missing: BusinessError) -> int:
@@ -110,3 +122,17 @@ def is_write(statement: Executable) -> bool:
             return True
         return words[0] == "with" and any(word in WRITE_WORDS for word in words)
     return any(getattr(node, "is_dml", False) for node in visitors.iterate(statement))  # type: ignore[arg-type]
+
+
+# 位置文字转回列的 Python 类型，例如整数编号；转不了时报参数错误，不静默当成从头读。
+def type_of(key: ColumnElement[Any]) -> Callable[[str], Any]:
+    kind = key.type.python_type
+
+    # 转换并在失败时说明原因。
+    def convert(text: str) -> Any:
+        try:
+            return kind(text)
+        except ValueError:
+            raise InvalidInput(f"after 位置 {text} 格式不对") from None
+
+    return convert
