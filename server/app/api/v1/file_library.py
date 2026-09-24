@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, File, Request, Response, UploadFile
+from fastapi import APIRouter, File, Query, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.api.identity import require
@@ -45,16 +45,22 @@ async def save_file(
         await area.discard(received.temp_id)
 
 
-# 查询一个组织中未删除的文件。
+# 分页查询一个组织中未删除的文件，按保存时间从新到旧。
 @router.get(
     "/{org_id}",
     summary="查询文件",
     operation_id="list_files",
-    response_model=library.FileList,
+    response_model=library.FilePage,
     responses=responses_for(library.list_files),
 )
-async def list_files(org_id: str, run: RunDep) -> library.FileList:
-    return await run(library.list_files, library.OrgQuery(org_id=org_id))
+async def list_files(
+    org_id: str,
+    run: RunDep,
+    offset: Annotated[int, Query(ge=0, description="从第几条开始，从 0 计数")] = 0,
+    limit: Annotated[int, Query(ge=1, le=100, description="本页最多返回多少条")] = 20,
+) -> library.FilePage:
+    query = library.FileListQuery(org_id=org_id, offset=offset, limit=limit)
+    return await run(library.list_files, query)
 
 
 # 返回经组织核对后的文件信息，不公开存储键。

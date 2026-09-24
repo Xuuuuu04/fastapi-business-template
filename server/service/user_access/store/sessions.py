@@ -154,9 +154,7 @@ class SessionStore:
     # 保存新密码摘要，并作废这个用户的全部会话，其他设备需要重新登录。
     async def set_password(self, user_id: int, password: str) -> None:
         secret = await asyncio.to_thread(hash_password, password)
-        await self.db.change(
-            update(users).where(users.c.id == user_id).values(password_hash=secret)
-        )
+        await self.db.update_tracked(users, users.c.id == user_id, {"password_hash": secret})
         await self.revoke(refresh_tokens.c.user_id == user_id)
 
     # 删除过期或作废超过一天的刷新令牌记录，只允许全组织的系统任务执行。

@@ -1,0 +1,5946 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "单体后端模板",
+    "description": "按模块组织的单体后端。每个接口背后是一个登记过的操作，可以按运行编号查看执行过程。",
+    "version": "dev"
+  },
+  "paths": {
+    "/health/live": {
+      "get": {
+        "tags": [
+          "运行状态"
+        ],
+        "summary": "进程是否存活",
+        "operationId": "health_live",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Live"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "运行状态"
+        ],
+        "summary": "是否可以接收请求",
+        "operationId": "health_ready",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/modules": {
+      "get": {
+        "tags": [
+          "运行诊断"
+        ],
+        "summary": "模块目录和关系图",
+        "operationId": "system_modules",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response System Modules"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/system/flows/{name}": {
+      "get": {
+        "tags": [
+          "运行诊断"
+        ],
+        "summary": "操作的计算流程",
+        "operationId": "system_flow",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response System Flow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/fields/{name}/{field}": {
+      "get": {
+        "tags": [
+          "运行诊断"
+        ],
+        "summary": "字段来源",
+        "operationId": "system_field",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "field",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Field"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response System Field"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/runs": {
+      "get": {
+        "tags": [
+          "运行诊断"
+        ],
+        "summary": "最近的运行",
+        "operationId": "system_runs",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "module",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "contract",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Contract"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "job_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response System Runs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "运行诊断"
+        ],
+        "summary": "一次运行的详情",
+        "operationId": "system_run",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response System Run"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/runs/{run_id}/report": {
+      "get": {
+        "tags": [
+          "运行诊断"
+        ],
+        "summary": "一次运行的中文诊断报告",
+        "operationId": "system_run_report",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/runtime": {
+      "get": {
+        "tags": [
+          "运行诊断"
+        ],
+        "summary": "进程运行状态",
+        "operationId": "system_runtime",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response System Runtime"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/system/stats": {
+      "get": {
+        "tags": [
+          "运行诊断"
+        ],
+        "summary": "运行统计",
+        "operationId": "system_stats",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2160,
+              "minimum": 1,
+              "default": 24,
+              "title": "Hours"
+            }
+          },
+          {
+            "name": "module",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Module"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response System Stats"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "后台任务"
+        ],
+        "summary": "查看任务",
+        "operationId": "get_job",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/jobs": {
+      "get": {
+        "tags": [
+          "后台任务"
+        ],
+        "summary": "列出任务",
+        "operationId": "system_jobs",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "State"
+            }
+          },
+          {
+            "name": "contract",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Contract"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response System Jobs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/audit": {
+      "get": {
+        "tags": [
+          "安全审计"
+        ],
+        "summary": "查询审计记录",
+        "operationId": "system_audit",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response System Audit"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/changes": {
+      "get": {
+        "tags": [
+          "安全审计"
+        ],
+        "summary": "查询数据变更历史",
+        "operationId": "system_changes",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "表名，例如 product_catalog_products",
+              "default": "",
+              "title": "Table"
+            },
+            "description": "表名，例如 product_catalog_products"
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "记录编号",
+              "default": "",
+              "title": "Key"
+            },
+            "description": "记录编号"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response System Changes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "tags": [
+          "商品目录"
+        ],
+        "summary": "查询商品",
+        "operationId": "list_products",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "从第几条开始，从 0 计数",
+              "x-note": {
+                "meaning": "从第几条开始，从 0 计数",
+                "unit": "",
+                "rule": "",
+                "empty": "",
+                "log_value": false,
+                "secret": false
+              },
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "从第几条开始，从 0 计数"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "本页最多返回多少条",
+              "x-note": {
+                "meaning": "本页最多返回多少条",
+                "unit": "",
+                "rule": "",
+                "empty": "",
+                "log_value": false,
+                "secret": false
+              },
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "本页最多返回多少条"
+          },
+          {
+            "name": "on_sale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "只看在售或只看停售；为空表示：不按在售状态筛选",
+              "x-note": {
+                "meaning": "只看在售或只看停售",
+                "unit": "",
+                "rule": "",
+                "empty": "不按在售状态筛选",
+                "log_value": false,
+                "secret": false
+              },
+              "title": "On Sale"
+            },
+            "description": "只看在售或只看停售；为空表示：不按在售状态筛选"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ProductView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "商品目录"
+        ],
+        "summary": "新建商品",
+        "operationId": "create_product",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "product_code_used：商品编码已被其他商品使用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products/import": {
+      "post": {
+        "tags": [
+          "商品目录"
+        ],
+        "summary": "批量导入商品",
+        "operationId": "import_products",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_products"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/export": {
+      "get": {
+        "tags": [
+          "商品目录"
+        ],
+        "summary": "导出商品",
+        "operationId": "export_products",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "on_sale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "只导出在售或停售，不写则全部导出",
+              "title": "On Sale"
+            },
+            "description": "只导出在售或停售，不写则全部导出"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "csv",
+                "xlsx"
+              ],
+              "type": "string",
+              "description": "csv 或 xlsx",
+              "default": "csv",
+              "title": "Format"
+            },
+            "description": "csv 或 xlsx"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/products/{product_id}": {
+      "get": {
+        "tags": [
+          "商品目录"
+        ],
+        "summary": "读取商品",
+        "operationId": "get_product",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "商品编号",
+              "title": "Product Id"
+            },
+            "description": "商品编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "product_missing：商品不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "商品目录"
+        ],
+        "summary": "修改商品",
+        "operationId": "update_product",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "商品编号",
+              "title": "Product Id"
+            },
+            "description": "商品编号"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "product_missing：商品不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "product_code_used：商品编码已被其他商品使用",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "商品目录"
+        ],
+        "summary": "删除商品",
+        "operationId": "delete_product",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "商品编号",
+              "title": "Product Id"
+            },
+            "description": "商品编号"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "product_missing：商品不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes": {
+      "post": {
+        "tags": [
+          "订单报价"
+        ],
+        "summary": "创建报价",
+        "operationId": "create_quote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；nothing_to_quote：所有商品都不能报价：不存在、已停售或尚未定价",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/quotes/{quote_id}": {
+      "get": {
+        "tags": [
+          "订单报价"
+        ],
+        "summary": "读取报价",
+        "operationId": "get_quote",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quote_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "报价编号",
+              "title": "Quote Id"
+            },
+            "description": "报价编号"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "quote_missing：报价不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quotes/expire": {
+      "post": {
+        "tags": [
+          "订单报价"
+        ],
+        "summary": "标记过期报价（后台任务）",
+        "operationId": "expire_quotes",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 120,
+              "description": "请求编号，重复提交时用来识别同一个请求",
+              "default": "",
+              "title": "Idempotency-Key"
+            },
+            "description": "请求编号，重复提交时用来识别同一个请求"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpireRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobAccepted"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/orgs": {
+      "get": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "查询组织",
+        "operationId": "list_orgs",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "创建组织",
+        "operationId": "create_org",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "user_access_conflict：组织代码、角色名或用户名已存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；org_code_invalid：组织代码只能由小写字母、数字和短横线组成，长 3 至 32 字符；名称不能为空",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/roles": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "创建角色",
+        "operationId": "create_role",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "user_access_missing：组织、角色或用户不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "user_access_conflict：组织代码、角色名或用户名已存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "查询角色",
+        "operationId": "list_roles",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Org Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/users": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "创建用户",
+        "operationId": "create_user",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "user_access_missing：组织、角色或用户不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "user_access_conflict：组织代码、角色名或用户名已存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "查询用户",
+        "operationId": "list_users",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "要查询的组织代码；规则：R-04",
+              "x-note": {
+                "meaning": "要查询的组织代码",
+                "unit": "",
+                "rule": "R-04",
+                "empty": "",
+                "log_value": false,
+                "secret": false
+              },
+              "title": "Org Id"
+            },
+            "description": "要查询的组织代码；规则：R-04"
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "description": "上一页返回的 next_after；为空表示：从第一页开始",
+              "x-note": {
+                "meaning": "上一页返回的 next_after",
+                "unit": "",
+                "rule": "",
+                "empty": "从第一页开始",
+                "log_value": false,
+                "secret": false
+              },
+              "default": "",
+              "title": "After"
+            },
+            "description": "上一页返回的 next_after；为空表示：从第一页开始"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "本页最多返回多少条",
+              "x-note": {
+                "meaning": "本页最多返回多少条",
+                "unit": "",
+                "rule": "",
+                "empty": "",
+                "log_value": false,
+                "secret": false
+              },
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "本页最多返回多少条"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage_UserView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "调整用户",
+        "operationId": "change_user",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "user_access_missing：组织、角色或用户不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/access/login": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "用户登录",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenReply"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份；login_failed：账号或密码不正确；otp_required：需要两步验证码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/refresh": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "刷新登录",
+        "operationId": "refresh",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenReply"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份；refresh_rejected：登录已失效，请重新登录",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/logout": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "退出登录",
+        "operationId": "logout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/password": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "修改密码",
+        "operationId": "change_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；password_mismatch：原密码不正确",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/users/reset-code": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "生成密码重置码",
+        "operationId": "issue_reset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetCode"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/password/reset": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "用重置码设置新密码",
+        "operationId": "reset_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；reset_invalid：重置码无效或已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/otp": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "生成两步验证密钥",
+        "operationId": "start_otp",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpSetup"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；otp_invalid：验证码不正确或已用过",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/otp/enable": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "开启两步验证",
+        "operationId": "enable_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；otp_invalid：验证码不正确或已用过",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/otp/disable": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "关闭两步验证",
+        "operationId": "disable_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；otp_invalid：验证码不正确或已用过",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/users/otp/reset": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "管理员关闭两步验证",
+        "operationId": "reset_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/files/{org_id}": {
+      "post": {
+        "tags": [
+          "文件管理"
+        ],
+        "summary": "上传文件",
+        "operationId": "save_file",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Org Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_save_file"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "文件管理"
+        ],
+        "summary": "查询文件",
+        "operationId": "list_files",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Org Id"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "从第几条开始，从 0 计数",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "从第几条开始，从 0 计数"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "本页最多返回多少条",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "本页最多返回多少条"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_FileView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{org_id}/{file_id}/info": {
+      "get": {
+        "tags": [
+          "文件管理"
+        ],
+        "summary": "文件信息",
+        "operationId": "get_file_info",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Org Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileView"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "file_missing：文件不存在或不能访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{org_id}/{file_id}/download": {
+      "get": {
+        "tags": [
+          "文件管理"
+        ],
+        "summary": "下载文件",
+        "operationId": "download_file",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Org Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "file_missing：文件不存在或不能访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{org_id}/{file_id}": {
+      "delete": {
+        "tags": [
+          "文件管理"
+        ],
+        "summary": "删除文件",
+        "operationId": "delete_file",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Org Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "file_missing：文件不存在或不能访问",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stream/{name}": {
+      "post": {
+        "tags": [
+          "流式操作"
+        ],
+        "summary": "执行流式操作",
+        "operationId": "run_stream",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_import_products": {
+        "properties": {
+          "upload": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Upload",
+            "description": "CSV（UTF-8）或 .xlsx 文件"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload"
+        ],
+        "title": "Body_import_products"
+      },
+      "Body_save_file": {
+        "properties": {
+          "upload": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Upload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload"
+        ],
+        "title": "Body_save_file"
+      },
+      "CursorPage_UserView_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserView"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "本页记录",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "本页记录",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "next_after": {
+            "type": "string",
+            "title": "Next After",
+            "description": "取下一页时作为 after 传回的位置；为空表示：已经是最后一页",
+            "default": "",
+            "x-note": {
+              "empty": "已经是最后一页",
+              "log_value": false,
+              "meaning": "取下一页时作为 after 传回的位置",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CursorPage[UserView]"
+      },
+      "ErrorReply": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "稳定的错误码，程序按它判断，不要按说明文字判断",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "稳定的错误码，程序按它判断，不要按说明文字判断",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "错误种类，例如 invalid、not_found、conflict、temporary",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "错误种类，例如 invalid、not_found、conflict、temporary",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "给人看的中文说明",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "给人看的中文说明",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "description": "请求编号，用于查日志",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "请求编号，用于查日志",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id",
+            "description": "运行编号，用于查看执行过程；没有进入业务流程时为空文本",
+            "default": "",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "运行编号，用于查看执行过程；没有进入业务流程时为空文本",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldProblem"
+            },
+            "type": "array",
+            "title": "Fields",
+            "description": "逐个字段的问题",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "逐个字段的问题",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "kind",
+          "message",
+          "request_id"
+        ],
+        "title": "ErrorReply"
+      },
+      "ExpireRequest": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "maximum": 3650.0,
+            "minimum": 1.0,
+            "title": "Days",
+            "description": "创建超过多少天的有效报价标为过期；规则：R-06",
+            "default": 30,
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "创建超过多少天的有效报价标为过期",
+              "rule": "R-06",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ExpireRequest"
+      },
+      "FieldProblem": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "description": "有问题的字段路径，例如 lines.0.quantity",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "有问题的字段路径，例如 lines.0.quantity",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "problem": {
+            "type": "string",
+            "title": "Problem",
+            "description": "问题说明",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "问题说明",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "field",
+          "problem"
+        ],
+        "title": "FieldProblem"
+      },
+      "FileView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "文件编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "文件编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "org_id": {
+            "type": "string",
+            "title": "Org Id",
+            "description": "文件所属组织",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "文件所属组织",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "上传时的文件名",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "上传时的文件名",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "文件大小；单位：字节",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "文件大小",
+              "rule": "",
+              "secret": false,
+              "unit": "字节"
+            }
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256",
+            "description": "文件内容的 SHA-256 摘要",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "文件内容的 SHA-256 摘要",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "description": "下载响应的内容类型",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "下载响应的内容类型",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "保存时间，UTC",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "保存时间，UTC",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "org_id",
+          "name",
+          "size",
+          "sha256",
+          "content_type",
+          "created_at"
+        ],
+        "title": "FileView"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ImportResult": {
+        "properties": {
+          "created": {
+            "type": "integer",
+            "title": "Created",
+            "description": "新建的商品数；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "新建的商品数",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "updated": {
+            "type": "integer",
+            "title": "Updated",
+            "description": "修改的商品数；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "修改的商品数",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/RowProblem"
+            },
+            "type": "array",
+            "title": "Problems",
+            "description": "没有导入的行及原因；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "没有导入的行及原因",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "created",
+          "updated",
+          "problems"
+        ],
+        "title": "ImportResult"
+      },
+      "JobAccepted": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id",
+            "description": "任务编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "任务编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "state": {
+            "type": "string",
+            "title": "State",
+            "description": "任务状态，刚受理时为 queued",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "任务状态，刚受理时为 queued",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "status_url": {
+            "type": "string",
+            "title": "Status Url",
+            "description": "查询任务状态的地址",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "查询任务状态的地址",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job_id",
+          "state",
+          "status_url"
+        ],
+        "title": "JobAccepted"
+      },
+      "LoginInput": {
+        "properties": {
+          "org_code": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Org Code",
+            "description": "组织代码；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "组织代码",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Username",
+            "description": "用户名；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户名",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Password",
+            "description": "密码；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "密码",
+              "rule": "R-03",
+              "secret": true,
+              "unit": ""
+            }
+          },
+          "otp_code": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Otp Code",
+            "description": "两步验证码；为空表示：没有开启两步验证；规则：R-09",
+            "default": "",
+            "x-note": {
+              "empty": "没有开启两步验证",
+              "log_value": false,
+              "meaning": "两步验证码",
+              "rule": "R-09",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "org_code",
+          "username",
+          "password"
+        ],
+        "title": "LoginInput"
+      },
+      "OrgInput": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 3,
+            "title": "Code",
+            "description": "组织代码；规则：R-01",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "组织代码",
+              "rule": "R-01",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "description": "组织名称；规则：R-01",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "组织名称",
+              "rule": "R-01",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "OrgInput"
+      },
+      "OrgList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OrgView"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "可访问的组织",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "可访问的组织",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "OrgList"
+      },
+      "OrgView": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "组织代码；规则：R-01",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "组织代码",
+              "rule": "R-01",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "组织名称；规则：R-01",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "组织名称",
+              "rule": "R-01",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "OrgView"
+      },
+      "OtpCode": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 6,
+            "minLength": 6,
+            "title": "Code",
+            "description": "身份验证器应用显示的 6 位验证码；规则：R-09",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "身份验证器应用显示的 6 位验证码",
+              "rule": "R-09",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "OtpCode"
+      },
+      "OtpSetup": {
+        "properties": {
+          "secret": {
+            "type": "string",
+            "title": "Secret",
+            "description": "两步验证密钥，填进身份验证器应用；规则：R-09",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "两步验证密钥，填进身份验证器应用",
+              "rule": "R-09",
+              "secret": true,
+              "unit": ""
+            }
+          },
+          "uri": {
+            "type": "string",
+            "title": "Uri",
+            "description": "可生成二维码的地址；规则：R-09",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "可生成二维码的地址",
+              "rule": "R-09",
+              "secret": true,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "secret",
+          "uri"
+        ],
+        "title": "OtpSetup"
+      },
+      "Page_FileView_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FileView"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "本页记录",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "本页记录",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "符合条件的记录总数",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "符合条件的记录总数",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "本页从第几条开始，从 0 计数",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "本页从第几条开始，从 0 计数",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "本页最多返回多少条",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "本页最多返回多少条",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "Page[FileView]"
+      },
+      "Page_ProductView_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductView"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "本页记录",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "本页记录",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "符合条件的记录总数",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "符合条件的记录总数",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "本页从第几条开始，从 0 计数",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "本页从第几条开始，从 0 计数",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "本页最多返回多少条",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "本页最多返回多少条",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "Page[ProductView]"
+      },
+      "PasswordChange": {
+        "properties": {
+          "old_password": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Old Password",
+            "description": "原密码；规则：R-06",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "原密码",
+              "rule": "R-06",
+              "secret": true,
+              "unit": ""
+            }
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "New Password",
+            "description": "新密码；规则：R-06",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "新密码",
+              "rule": "R-06",
+              "secret": true,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "old_password",
+          "new_password"
+        ],
+        "title": "PasswordChange"
+      },
+      "ProductInput": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "description": "商品编码，保存前去掉首尾空白并转成大写；规则：R-01",
+            "examples": [
+              "A-100"
+            ],
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "商品编码，保存前去掉首尾空白并转成大写",
+              "rule": "R-01",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "description": "商品名称",
+            "examples": [
+              "打印纸"
+            ],
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "商品名称",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,13}0*$)\\d{0,10}\\.\\d{0,2}0*$)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price",
+            "description": "单价；单位：元；为空表示：尚未定价，不能用于报价；规则：R-02",
+            "x-note": {
+              "empty": "尚未定价，不能用于报价",
+              "log_value": false,
+              "meaning": "单价",
+              "rule": "R-02",
+              "secret": false,
+              "unit": "元"
+            }
+          },
+          "on_sale": {
+            "type": "boolean",
+            "title": "On Sale",
+            "description": "是否在售；停售的商品不能用于报价；规则：R-02",
+            "default": true,
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "是否在售；停售的商品不能用于报价",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "ProductInput"
+      },
+      "ProductView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "商品编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "商品编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "商品编码；规则：R-01",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "商品编码",
+              "rule": "R-01",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "商品名称",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "商品名称",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price",
+            "description": "单价；单位：元；为空表示：尚未定价；规则：R-02",
+            "x-note": {
+              "empty": "尚未定价",
+              "log_value": false,
+              "meaning": "单价",
+              "rule": "R-02",
+              "secret": false,
+              "unit": "元"
+            }
+          },
+          "on_sale": {
+            "type": "boolean",
+            "title": "On Sale",
+            "description": "是否在售；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "是否在售",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "最后修改时间（UTC）",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "最后修改时间（UTC）",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "price",
+          "on_sale",
+          "updated_at"
+        ],
+        "title": "ProductView"
+      },
+      "QuoteLine": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "商品编码",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "商品编码",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity",
+            "description": "数量；同一编码的多行已合并；规则：R-01",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "数量；同一编码的多行已合并",
+              "rule": "R-01",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "unit_price": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Unit Price",
+            "description": "单价；单位：元；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "单价",
+              "rule": "R-02",
+              "secret": false,
+              "unit": "元"
+            }
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "description": "金额 = 单价 × 数量；单位：元；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "金额 = 单价 × 数量",
+              "rule": "R-02",
+              "secret": false,
+              "unit": "元"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "quantity",
+          "unit_price",
+          "amount"
+        ],
+        "title": "QuoteLine"
+      },
+      "QuoteLineInput": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Code",
+            "description": "商品编码",
+            "examples": [
+              "A-100"
+            ],
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "商品编码",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "description": "数量",
+            "examples": [
+              2
+            ],
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "数量",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "quantity"
+        ],
+        "title": "QuoteLineInput"
+      },
+      "QuoteRequest": {
+        "properties": {
+          "customer": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Customer",
+            "description": "客户名称",
+            "examples": [
+              "星河贸易"
+            ],
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "客户名称",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "member_level": {
+            "type": "string",
+            "enum": [
+              "none",
+              "silver",
+              "gold"
+            ],
+            "title": "Member Level",
+            "description": "会员等级：none 非会员，silver 银卡，gold 金卡；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "会员等级：none 非会员，silver 银卡，gold 金卡",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteLineInput"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Lines",
+            "description": "报价明细",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "报价明细",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "customer",
+          "member_level",
+          "lines"
+        ],
+        "title": "QuoteRequest"
+      },
+      "QuoteView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "报价编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "报价编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "customer": {
+            "type": "string",
+            "title": "Customer",
+            "description": "客户名称",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "客户名称",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "member_level": {
+            "type": "string",
+            "enum": [
+              "none",
+              "silver",
+              "gold"
+            ],
+            "title": "Member Level",
+            "description": "会员等级；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "会员等级",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteLine"
+            },
+            "type": "array",
+            "title": "Lines",
+            "description": "计入报价的明细；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "计入报价的明细",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "excluded": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Excluded",
+            "description": "没有计入报价的商品编码：不存在、停售或未定价；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "没有计入报价的商品编码：不存在、停售或未定价",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "subtotal": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Subtotal",
+            "description": "商品合计；单位：元；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "商品合计",
+              "rule": "R-02",
+              "secret": false,
+              "unit": "元"
+            }
+          },
+          "discount": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Discount",
+            "description": "会员优惠；单位：元；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "会员优惠",
+              "rule": "R-03",
+              "secret": false,
+              "unit": "元"
+            }
+          },
+          "total": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total",
+            "description": "应付金额；单位：元；规则：R-04",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "应付金额",
+              "rule": "R-04",
+              "secret": false,
+              "unit": "元"
+            }
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation",
+            "description": "给客户看的报价说明，由大模型生成；规则：R-05",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "给客户看的报价说明，由大模型生成",
+              "rule": "R-05",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "expired"
+            ],
+            "title": "Status",
+            "description": "报价状态：active 有效，expired 已过期；规则：R-06",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "报价状态：active 有效，expired 已过期",
+              "rule": "R-06",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间（UTC）",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "创建时间（UTC）",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "customer",
+          "member_level",
+          "lines",
+          "excluded",
+          "subtotal",
+          "discount",
+          "total",
+          "explanation",
+          "status",
+          "created_at"
+        ],
+        "title": "QuoteView"
+      },
+      "RefreshInput": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 20,
+            "title": "Refresh Token",
+            "description": "刷新令牌；规则：R-05",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "刷新令牌",
+              "rule": "R-05",
+              "secret": true,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshInput"
+      },
+      "ResetCode": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "一次性重置码，只返回这一次；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "一次性重置码，只返回这一次",
+              "rule": "R-08",
+              "secret": true,
+              "unit": ""
+            }
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "还有多少秒失效；单位：秒；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "还有多少秒失效",
+              "rule": "R-08",
+              "secret": false,
+              "unit": "秒"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "expires_in"
+        ],
+        "title": "ResetCode"
+      },
+      "ResetInput": {
+        "properties": {
+          "org_code": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Org Code",
+            "description": "组织代码；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "组织代码",
+              "rule": "R-08",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Username",
+            "description": "用户名；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户名",
+              "rule": "R-08",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Code",
+            "description": "管理员给的重置码；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "管理员给的重置码",
+              "rule": "R-08",
+              "secret": true,
+              "unit": ""
+            }
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "New Password",
+            "description": "新密码；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "新密码",
+              "rule": "R-08",
+              "secret": true,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "org_code",
+          "username",
+          "code",
+          "new_password"
+        ],
+        "title": "ResetInput"
+      },
+      "RoleInput": {
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "title": "Org Id",
+            "description": "角色所属组织代码；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "角色所属组织代码",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "description": "角色名称，在组织内唯一；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "角色名称，在组织内唯一",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions",
+            "description": "角色拥有的权限名；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "角色拥有的权限名",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "org_id",
+          "name",
+          "permissions"
+        ],
+        "title": "RoleInput"
+      },
+      "RoleList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoleView"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "可访问的角色",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "可访问的角色",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "RoleList"
+      },
+      "RoleView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "角色编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "角色编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "org_id": {
+            "type": "string",
+            "title": "Org Id",
+            "description": "角色所属组织代码",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "角色所属组织代码",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "角色名称",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "角色名称",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions",
+            "description": "角色权限",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "角色权限",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "org_id",
+          "name",
+          "permissions"
+        ],
+        "title": "RoleView"
+      },
+      "RowProblem": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "title": "Row",
+            "description": "行号；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "行号",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "这一行没有导入的原因；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "这一行没有导入的原因",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "row",
+          "message"
+        ],
+        "title": "RowProblem"
+      },
+      "TokenReply": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token",
+            "description": "访问令牌，请求时放在 Authorization: Bearer 后面"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "description": "令牌类型，固定为 Bearer",
+            "default": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "访问令牌还有多少秒失效"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "刷新令牌，只用于换新令牌和退出登录，每次刷新后换新"
+          },
+          "refresh_expires_in": {
+            "type": "integer",
+            "title": "Refresh Expires In",
+            "description": "刷新令牌还有多少秒失效"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id",
+            "description": "用户编号"
+          },
+          "org_id": {
+            "type": "string",
+            "title": "Org Id",
+            "description": "用户所属组织"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_in",
+          "refresh_token",
+          "refresh_expires_in",
+          "user_id",
+          "org_id"
+        ],
+        "title": "TokenReply"
+      },
+      "UserChange": {
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "title": "Org Id",
+            "description": "用户所属组织代码；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户所属组织代码",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "user_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "User Id",
+            "description": "要修改的用户编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "要修改的用户编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "role_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Role Id",
+            "description": "修改后的角色编号；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "修改后的角色编号",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active",
+            "description": "修改后是否允许登录；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "修改后是否允许登录",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "org_id",
+          "user_id",
+          "role_id",
+          "active"
+        ],
+        "title": "UserChange"
+      },
+      "UserInput": {
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "title": "Org Id",
+            "description": "用户所属组织代码；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户所属组织代码",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Username",
+            "description": "用户名，在组织内唯一；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户名，在组织内唯一",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "Password",
+            "description": "登录密码；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "登录密码",
+              "rule": "R-02",
+              "secret": true,
+              "unit": ""
+            }
+          },
+          "role_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Role Id",
+            "description": "角色编号；规则：R-02",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "角色编号",
+              "rule": "R-02",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "org_id",
+          "username",
+          "password",
+          "role_id"
+        ],
+        "title": "UserInput"
+      },
+      "UserRef": {
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Org Id",
+            "description": "用户所属组织代码；规则：R-04",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户所属组织代码",
+              "rule": "R-04",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "user_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "User Id",
+            "description": "用户编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "org_id",
+          "user_id"
+        ],
+        "title": "UserRef"
+      },
+      "UserView": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "用户编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "org_id": {
+            "type": "string",
+            "title": "Org Id",
+            "description": "用户所属组织代码",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户所属组织代码",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "username": {
+            "type": "string",
+            "title": "Username",
+            "description": "用户名",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户名",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "role_id": {
+            "type": "integer",
+            "title": "Role Id",
+            "description": "角色编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "角色编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active",
+            "description": "是否允许登录",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "是否允许登录",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "org_id",
+          "username",
+          "role_id",
+          "active"
+        ],
+        "title": "UserView"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "服务密钥": {
+        "type": "apiKey",
+        "description": "服务密钥，由 tools.make_key 生成并配置到 APP_API_KEYS",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  }
+}

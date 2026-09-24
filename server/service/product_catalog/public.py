@@ -5,15 +5,21 @@
 
 from service.product_catalog.data import (
     CodeUsed,
+    ExportQuery,
+    ImportLine,
+    ImportRequest,
+    ImportResult,
     PriceList,
     PriceQuery,
     ProductChange,
     ProductId,
     ProductInput,
+    ProductList,
     ProductMissing,
     ProductPage,
     ProductQuery,
     ProductView,
+    RowProblem,
 )
 from shared.public import Nothing, contract
 
@@ -61,6 +67,21 @@ delete_product = contract(
     errors=(ProductMissing,),
 )
 
+import_products = contract(
+    "product_catalog.import_products",
+    "批量导入商品",
+    input=ImportRequest,
+    output=ImportResult,
+    access="product_catalog.write",
+    audit=True,
+)
+export_products = contract(
+    "product_catalog.export_products",
+    "导出商品",
+    input=ExportQuery,
+    output=ProductList,
+    access="product_catalog.read",
+)
 get_prices = contract(
     "product_catalog.get_prices",
     "查询可报价的单价",
@@ -72,19 +93,27 @@ get_prices = contract(
 
 __all__ = [
     "CodeUsed",
+    "ExportQuery",
+    "ImportLine",
+    "ImportRequest",
+    "ImportResult",
     "PriceList",
     "PriceQuery",
     "ProductChange",
     "ProductId",
     "ProductInput",
+    "ProductList",
     "ProductMissing",
     "ProductPage",
     "ProductQuery",
     "ProductView",
+    "RowProblem",
     "create_product",
     "delete_product",
+    "export_products",
     "get_prices",
     "get_product",
+    "import_products",
     "list_products",
     "update_product",
 ]

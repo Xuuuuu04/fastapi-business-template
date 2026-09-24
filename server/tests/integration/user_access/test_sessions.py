@@ -116,6 +116,9 @@ def test_change_password(client: TestClient) -> None:
     )
     assert old.status_code == 401
     sign_in(client, "new-password-1")
+    history = client.get("/api/system/changes?table=user_access_users", headers=KEY).json()
+    [change] = [item for item in history["items"] if item["field"] == "password_hash"]
+    assert change["before"] == change["after"] == "（已隐藏）"
 
 
 # R-05、R-07：退出登录后刷新令牌失效；系统任务删除作废超过一天的记录。
@@ -144,3 +147,37 @@ def test_logout_and_purge(client: TestClient) -> None:
         return result.removed, int(left)
 
     assert client.portal.call(purge) == (1, 1)
+
+
+# R-03：同一账号的失败次数跨来源地址累计：换地址也不能继续猜密码，达到上限后正确密码也要等窗口结束。
+def test_account_failures_are_limited_across_sources(client: TestClient) -> None:
+    prepare(client)
+    app = client.app
+    app.state.settings = app.state.settings.model_copy(  # type: ignore[attr-defined]
+        update={"login_failure_limit": 100, "login_account_failure_limit": 3}
+    )
+    wrong = {"org_code": "north", "username": "alice", "password": "wrong-password"}
+    replies = []
+    for number in range(4):
+        with TestClient(app, client=(f"10.0.0.{number}", 5000)) as other:
+            replies.append(other.post(LOGIN, json=wrong).status_code)
+    assert replies == [401, 401, 401, 429]
+    with TestClient(app, client=("10.0.0.9", 5000)) as other:
+        right = {**wrong, "password": "correct-password"}
+        assert other.post(LOGIN, json=right).status_code == 429
+
+
+# R-04：用户列表按编号从小到大，按位置续读：每页返回下一页的位置，最后一页位置为空；位置写错时拒绝。
+def test_user_list_pages(client: TestClient) -> None:
+    role, _, first_user = prepare(client)
+    body = {"org_id": "north", "password": "correct-password", "role_id": role}
+    for name in ("bob", "carol"):
+        client.post("/api/v1/access/users", json={**body, "username": name}, headers=KEY)
+    url = "/api/v1/access/users?org_id=north&limit=2"
+    first = client.get(url, headers=KEY).json()
+    assert [item["username"] for item in first["items"]] == ["alice", "bob"]
+    assert first["items"][0]["id"] == first_user and first["next_after"]
+    second = client.get(f"{url}&after={first['next_after']}", headers=KEY).json()
+    assert [item["username"] for item in second["items"]] == ["carol"]
+    assert second["next_after"] == ""
+    assert client.get(f"{url}&after=abc", headers=KEY).status_code == 422

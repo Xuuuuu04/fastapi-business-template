@@ -17,4 +17,6 @@
 - 运行：`uv run pytest -q`（在 server 目录）。设置 `APP_TEST_DATABASE_URL` 后，同一组测试在 PostgreSQL 上运行。
 - 设置 `APP_TEST_REDIS_URL` 后测试 Redis 缓存；设置 `APP_TEST_S3_ENDPOINT`、`APP_TEST_S3_ACCESS_KEY`、`APP_TEST_S3_SECRET_KEY`（可选 `APP_TEST_S3_BUCKET`、`APP_TEST_S3_REGION`）后测试 S3 兼容存储。没有设置时这些测试跳过；生产使用 Redis 或 S3 时，发布前要设置后运行。
 - 共用配置：[testing_app.py](testing_app.py)（测试密钥 `KEY`、只读密钥 `READER`）、[conftest.py](conftest.py)（`client`、`services`、`sample` 夹具）。
+- 测试失败时，[failure_reports.py](failure_reports.py) 把本测试中失败运行的中文报告附在失败输出里，先读报告再读代码。
+- 测试说明中写上规则编号（例如 `# R-03：……`），`doc/progress.md` 据此统计每条规则有没有测试。
 - 业务测试的预期值来自已确认的业务样例，不要照着实现代码的公式反推预期。

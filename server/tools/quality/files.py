@@ -75,7 +75,11 @@ def check_todo(name: str, source: str) -> list[Problem]:
     tokens = tokenize.generate_tokens(io.StringIO(source).readline)
     return [
         Problem(
-            name, token.start[0], "todo", "代码中不留待办标记", "未完成的事项记到任务清单或业务文档"
+            name,
+            token.start[0],
+            "todo",
+            "代码中不留待办标记",
+            "未完成的事项记到 doc/tasks.md，待定的业务问题在 rules.md 中标“待确认”",
         )
         for token in tokens
         if token.type == tokenize.COMMENT and pattern.search(token.string)

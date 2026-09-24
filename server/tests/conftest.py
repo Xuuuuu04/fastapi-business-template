@@ -2,6 +2,7 @@
 测试夹具：配置、HTTP 客户端、组装好的服务。每个测试使用重置过的数据库，不读取项目的 .env。
 SQLite 上自动跳过标记 postgres_only 的测试。
 完整运行默认测试（不带路径和筛选参数）时，检查模块总目录中的每个操作至少被执行过一次。
+测试失败时附上失败运行的中文报告，见 failure_reports.py。
 """
 
 import asyncio
@@ -21,6 +22,8 @@ from shared.model_calls.providers import FakeModel, ModelRequest
 from tests.framework.sample_modules import calc_module, outer_module, sample_metadata
 from tests.framework.sample_routes import sample_router
 from tests.testing_app import make_settings, on_postgres, reset_database, reset_database_now
+
+pytest_plugins = ["tests.failure_reports"]
 
 EXECUTED: set[str] = set()
 

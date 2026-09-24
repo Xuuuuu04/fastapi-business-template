@@ -5,7 +5,14 @@
 from fastapi import APIRouter
 
 from app.api.system import audit, console, health, jobs, runs, structure
-from app.api.v1 import file_library, order_quote, product_catalog, stream, user_access
+from app.api.v1 import (
+    file_library,
+    order_quote,
+    product_catalog,
+    stream,
+    user_access,
+    user_access_security,
+)
 
 ROUTERS: list[APIRouter] = [
     health.router,
@@ -17,6 +24,7 @@ ROUTERS: list[APIRouter] = [
     product_catalog.router,
     order_quote.router,
     user_access.router,
+    user_access_security.router,
     file_library.router,
     stream.router,
 ]

@@ -130,6 +130,7 @@ def check_params(item: Step, place: str, has_store: bool) -> list[str]:
         ("call", item.uses, "uses"),
         ("model", item.prompts, "prompts"),
         ("later", item.later, "later"),
+        ("publish", item.publishes, "publishes"),
         ("remote", item.remotes, "remotes"),
     ]
     for param, declared, option in pairs:
@@ -137,10 +138,10 @@ def check_params(item: Step, place: str, has_store: bool) -> list[str]:
             problems.append(f"{place} 的参数 {param} 与声明 {option}= 必须同时出现")
     if "store" in params and not has_store:
         problems.append(f"{place} 使用了 store，但所在模块没有在 module.py 中声明 store")
-    if item.saves and not params & {"store", "later"}:
-        problems.append(f"{place} 声明了 saves=True，但没有 store 或 later 参数")
-    if "later" in params and not item.saves:
-        problems.append(f"{place} 登记任务会写数据库，需要声明 saves=True")
+    if item.saves and not params & {"store", "later", "publish"}:
+        problems.append(f"{place} 声明了 saves=True，但没有 store、later 或 publish 参数")
+    if params & {"later", "publish"} and not item.saves:
+        problems.append(f"{place} 登记任务或发布事件会写数据库，需要声明 saves=True")
     return problems + check_execution_style(item, place)
 
 

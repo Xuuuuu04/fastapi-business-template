@@ -7,9 +7,9 @@ import secrets
 import time
 from datetime import UTC, datetime
 
-from sqlalchemy import RowMapping, delete, insert, select, update
+from sqlalchemy import RowMapping, delete, func, insert, select, update
 
-from service.file_library.data import FileEntry, FileList, FileStage, FileView, PendingFile
+from service.file_library.data import FileEntry, FilePage, FileStage, FileView, PendingFile
 from service.file_library.store.tables import files
 from shared.public import Caller, Db, ModuleFiles, NotAllowed
 
@@ -79,16 +79,21 @@ class SqlFileStore:
         )
         return FileEntry(view=view_of(row), key=row["storage_key"]) if row else None
 
-    # 只列出指定组织的未删除文件。
-    async def list_files(self, org_id: str) -> FileList:
+    # 分页列出指定组织的未删除文件，同时返回总数。
+    async def list_files(self, org_id: str, offset: int, limit: int) -> FilePage:
         self.require_org(org_id)
+        kept = (files.c.org_id == org_id, files.c.deleted_at.is_(None))
+        total = await self.db.scalar(select(func.count()).select_from(files).where(*kept))
         rows = await self.db.all(
             select(files)
-            .where(files.c.org_id == org_id, files.c.deleted_at.is_(None))
-            .order_by(files.c.created_at.desc())
-            .limit(200)
+            .where(*kept)
+            .order_by(files.c.created_at.desc(), files.c.id)
+            .offset(offset)
+            .limit(limit)
         )
-        return FileList(items=[view_of(row) for row in rows])
+        return FilePage(
+            items=[view_of(row) for row in rows], total=total, offset=offset, limit=limit
+        )
 
     # 在数据库中标记删除，立即阻止读取和下载。
     async def mark_deleted(self, org_id: str, file_id: str) -> bool:

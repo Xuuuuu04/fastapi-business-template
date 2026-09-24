@@ -6,12 +6,21 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import RowMapping, delete, func, insert, select, update
+from sqlalchemy import RowMapping, delete, func, insert, select
 from sqlalchemy.exc import IntegrityError
 
-from service.product_catalog.data import CodeUsed, ProductMissing, ProductPage, ProductView
+from service.product_catalog.data import (
+    CodeUsed,
+    ProductInput,
+    ProductList,
+    ProductMissing,
+    ProductPage,
+    ProductView,
+)
 from service.product_catalog.store.tables import products
 from shared.public import Db
+
+EXPORT_LIMIT = 5000
 
 
 class SqlProductStore:
@@ -52,27 +61,46 @@ class SqlProductStore:
             ) from None
         return view_of(row)
 
-    # 修改商品，编码冲突或商品不存在时转成业务错误。
+    # 修改商品并记录变更历史，编码冲突或商品不存在时转成业务错误。
     async def change(
         self, product_id: int, code: str, name: str, price: Decimal | None, on_sale: bool
     ) -> ProductView:
         values = {"code": code, "name": name, "price": price, "on_sale": on_sale}
-        statement = (
-            update(products)
-            .where(products.c.id == product_id)
-            .values(**values, updated_at=datetime.now(UTC))
-            .returning(products)
-        )
+        where = products.c.id == product_id
+        quiet = {"updated_at": datetime.now(UTC)}
         try:
             async with self.db.savepoint():
-                row = await self.db.first(statement)
+                count = await self.db.update_tracked(products, where, values, quiet=quiet)
         except IntegrityError:
             raise CodeUsed(
                 f"商品编码 {code} 已被其他商品使用", fields={"code": "编码重复"}
             ) from None
-        if row is None:
+        if count == 0:
             raise ProductMissing(f"商品 {product_id} 不存在")
+        row = await self.db.one(select(products).where(where))
         return view_of(row)
+
+    # 按编码新建或修改一批商品，返回新建数和修改数；修改记入变更历史。
+    async def upsert(self, items: list[ProductInput]) -> tuple[int, int]:
+        codes = [item.code for item in items]
+        found = await self.db.all(select(products.c.code).where(products.c.code.in_(codes)))
+        existing = {row["code"] for row in found}
+        now = datetime.now(UTC)
+        for item in items:
+            values = item.model_dump()
+            if item.code in existing:
+                where = products.c.code == item.code
+                await self.db.update_tracked(products, where, values, quiet={"updated_at": now})
+            else:
+                await self.db.change(insert(products).values(**values, updated_at=now))
+        return len(items) - len(existing), len(existing)
+
+    # 按在售状态筛选导出商品，按编码排序，最多 5000 条。
+    async def export(self, on_sale: bool | None) -> ProductList:
+        query = select(products).order_by(products.c.code).limit(EXPORT_LIMIT)
+        if on_sale is not None:
+            query = query.where(products.c.on_sale == on_sale)
+        return ProductList(items=[view_of(row) for row in await self.db.all(query)])
 
     # 删除商品。
     async def remove(self, product_id: int) -> None:

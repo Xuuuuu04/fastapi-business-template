@@ -7,7 +7,7 @@ import asyncio
 import json
 import re
 
-from sqlalchemy import RowMapping, insert, select, update
+from sqlalchemy import RowMapping, and_, insert, select
 from sqlalchemy.exc import IntegrityError
 
 from service.user_access.data import (
@@ -15,26 +15,28 @@ from service.user_access.data import (
     AccessMissing,
     Account,
     LoginFailed,
+    OrgCodeInvalid,
     OrgList,
     OrgView,
     RoleList,
     RoleView,
-    UserList,
+    UserPage,
     UserView,
 )
 from service.user_access.store.password import DUMMY_HASH, hash_password, verify_password
+from service.user_access.store.security import SecurityStore
 from service.user_access.store.sessions import SessionStore
 from service.user_access.store.tables import orgs, refresh_tokens, roles, users
-from shared.public import Caller, Db, NotAllowed
+from shared.public import Caller, Db, NotAllowed, Vault
 
 ORG_CODE = re.compile(r"^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$")
 PLATFORM_WIDE = ("user_access.system", "system.diagnostics", "system.jobs", "system.*")
 
 
-class SqlAccessStore(SessionStore):
-    # 取得当前步骤的数据库入口和经过验证的调用者。
-    def __init__(self, db: Db, caller: Caller) -> None:
-        self.db, self.caller = db, caller
+class SqlAccessStore(SessionStore, SecurityStore):
+    # 取得当前步骤的数据库入口、经过验证的调用者和字段加密工具。
+    def __init__(self, db: Db, caller: Caller, vault: Vault) -> None:
+        self.db, self.caller, self.vault = db, caller, vault
 
     # 只有全组织管理员能创建组织。
     async def create_org(self, code: str, name: str) -> OrgView:
@@ -42,7 +44,7 @@ class SqlAccessStore(SessionStore):
             raise NotAllowed("创建组织需要全组织管理员身份")
         code, name = code.strip(), name.strip()
         if not ORG_CODE.fullmatch(code) or not name:
-            raise AccessConflict("组织代码或名称格式不正确")
+            raise OrgCodeInvalid()
         try:
             async with self.db.savepoint():
                 await self.db.change(insert(orgs).values(code=code, name=name))
@@ -110,29 +112,27 @@ class SqlAccessStore(SessionStore):
         return user_view(row)
 
     # 查询指定组织中的用户，不返回密码摘要。
-    async def list_users(self, org_id: str) -> UserList:
+    async def list_users(self, org_id: str, after: str, limit: int) -> UserPage:
         self.require_org(org_id)
-        rows = await self.db.all(select(users).where(users.c.org_id == org_id).order_by(users.c.id))
-        return UserList(items=[user_view(row) for row in rows])
+        query = select(users).where(users.c.org_id == org_id)
+        rows, next_after = await self.db.page_after(query, users.c.id, after, limit)
+        return UserPage(items=[user_view(row) for row in rows], next_after=next_after)
 
     # 角色必须属于同一个组织，修改只影响该组织中的用户；停用时立即作废这个用户的全部会话。
     async def change_user(self, org_id: str, user_id: int, role_id: int, active: bool) -> UserView:
         self.require_org(org_id)
         await self.require_role(org_id, role_id)
-        row = await self.db.first(
-            update(users)
-            .where(users.c.id == user_id, users.c.org_id == org_id)
-            .values(role_id=role_id, active=active)
-            .returning(users)
-        )
-        if row is None:
+        where = and_(users.c.id == user_id, users.c.org_id == org_id)
+        values = {"role_id": role_id, "active": active}
+        if await self.db.update_tracked(users, where, values) == 0:
             raise AccessMissing(f"组织 {org_id} 中没有用户 {user_id}")
+        row = await self.db.one(select(users).where(where))
         if not active:
             await self.revoke(refresh_tokens.c.user_id == user_id)
         return user_view(row)
 
     # 失败时使用相同的错误；不存在的用户也计算一次 scrypt，减少账号枚举差异。
-    async def login(self, org_code: str, username: str, password: str) -> Account:
+    async def login(self, org_code: str, username: str, password: str, otp_code: str) -> Account:
         query = (
             select(users, roles.c.permissions)
             .join(roles, users.c.role_id == roles.c.id)
@@ -148,6 +148,7 @@ class SqlAccessStore(SessionStore):
             org_id=row["org_id"],
             username=row["username"],
             permissions=json.loads(row["permissions"]),
+            otp_step=self.login_step(row, otp_code),
         )
 
     # 拒绝管理其他组织或使用没有组织范围的身份。

@@ -5,11 +5,11 @@
 from service.file_library.data import (
     CleanResult,
     FileEntry,
-    FileList,
+    FileListQuery,
     FileMissing,
+    FilePage,
     FileQuery,
     FileView,
-    OrgQuery,
     SaveInput,
 )
 from shared.public import Nothing, contract
@@ -33,8 +33,8 @@ get_file = contract(
 list_files = contract(
     "file_library.list_files",
     "查询文件",
-    input=OrgQuery,
-    output=FileList,
+    input=FileListQuery,
+    output=FilePage,
     access="file_library.read",
 )
 delete_file = contract(
@@ -59,11 +59,11 @@ clean_files = contract(
 __all__ = [
     "CleanResult",
     "FileEntry",
-    "FileList",
+    "FilePage",
     "FileMissing",
     "FileQuery",
     "FileView",
-    "OrgQuery",
+    "FileListQuery",
     "SaveInput",
     "save_file",
     "get_file",

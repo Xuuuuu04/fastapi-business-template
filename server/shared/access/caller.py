@@ -11,7 +11,7 @@ from typing import Literal
 PUBLIC = "public"
 SIGNED_IN = "signed_in"
 
-CallerKind = Literal["user", "service", "system", "developer", "anonymous"]
+CallerKind = Literal["user", "service", "system", "developer", "anonymous", "event"]
 
 
 @dataclass(frozen=True)

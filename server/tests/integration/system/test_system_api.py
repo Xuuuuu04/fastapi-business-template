@@ -72,10 +72,11 @@ def test_failed_run_detail(sample_client: TestClient) -> None:
     assert "在「计算应付」步骤停止" in detail["summary"] and "flowchart TD" in detail["graph"]
 
 
-# 进程状态包含内存、连接池、运行记录和任务数量。
+# 进程状态包含内存、连接池、运行记录、任务数量和熔断状态。
 def test_runtime(sample_client: TestClient) -> None:
     body = sample_client.get("/api/system/runtime", headers=KEY).json()
     assert body["memory_mb"] > 0 and "Pool size" in body["database_pool"] and body["jobs"] == {}
+    assert body["breakers"] == {"model": "正常"}
 
 
 # 运行统计按操作和状态汇总，诊断网页只读取受权限保护的系统接口。
@@ -122,3 +123,20 @@ def test_openapi(sample_client: TestClient) -> None:
     assert all(item.get("operationId") and item.get("summary") for item in operations)
     fields = schema["components"]["schemas"]["CalcInput"]["properties"]
     assert fields["amount"]["description"] == "金额；单位：元"
+
+
+class BrokenCache:
+    # 模拟连不上的 Redis：每次读取都报连接错误。
+    async def get(self, key: str) -> str | None:
+        raise ConnectionError("cache down")
+
+
+# 缓存读不到时，就绪检查返回 503，避免把请求转给每次限流都会失败的实例。
+def test_ready_needs_cache(sample_client: TestClient) -> None:
+    services = sample_client.app.state.services  # type: ignore[attr-defined]
+    working, services.cache = services.cache, BrokenCache()
+    try:
+        ready = sample_client.get("/health/ready")
+    finally:
+        services.cache = working
+    assert ready.status_code == 503 and "缓存服务不可用" in ready.json()["problems"][0]

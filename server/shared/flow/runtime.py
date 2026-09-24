@@ -32,6 +32,7 @@ from shared.records.models import RunRecord, StepRecord
 from shared.records.recorder import Recorder
 
 if TYPE_CHECKING:
+    from shared.access.vault import Vault
     from shared.cache.backends import Cache
     from shared.files.storage import FileStorage
     from shared.files.uploads import UploadArea
@@ -62,6 +63,7 @@ class Runtime:
         uploads: "UploadArea | None" = None,
         legacy: "Database | None" = None,
         telemetry: "Telemetry | None" = None,
+        vault: "Vault | None" = None,
         code_version: str = "dev",
         step_checks: bool = True,
     ) -> None:
@@ -76,6 +78,7 @@ class Runtime:
         self.uploads = uploads
         self.legacy = legacy
         self.telemetry = telemetry
+        self.vault = vault
         self.code_version = code_version
         self.step_checks = step_checks
 

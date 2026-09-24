@@ -5,6 +5,8 @@
 import json
 from typing import Any
 
+from fastapi import FastAPI
+
 from app.setup.web import create_app
 from shared.config.settings import Settings
 
@@ -19,9 +21,13 @@ LIMITS = {
 }
 
 
+# 用于生成文档的应用：测试配置、开放接口文档，不连接外部服务。
+def docs_app() -> FastAPI:
+    return create_app(Settings(_env_file=None, env="test", docs=True))
+
+
 # 生成 OpenAPI 描述和中文接口清单。
-def api_markdown() -> tuple[dict[str, Any], str]:
-    app = create_app(Settings(_env_file=None, env="test", docs=True))
+def api_markdown(app: FastAPI) -> tuple[dict[str, Any], str]:
     schema = app.openapi()
     lines = [
         f"# {schema['info']['title']} 接口清单",

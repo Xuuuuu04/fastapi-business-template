@@ -8,6 +8,7 @@ from service.user_access.data import (
     Account,
     LoginFailed,
     LoginInput,
+    OrgCodeInvalid,
     OrgInput,
     OrgList,
     OrgQuery,
@@ -24,8 +25,19 @@ from service.user_access.data import (
     SessionRenewal,
     UserChange,
     UserInput,
-    UserList,
+    UserPage,
+    UserQuery,
     UserView,
+)
+from service.user_access.data_security import (
+    OtpCode,
+    OtpInvalid,
+    OtpRequired,
+    OtpSetup,
+    ResetCode,
+    ResetInput,
+    ResetInvalid,
+    UserRef,
 )
 from shared.public import SIGNED_IN, Nothing, contract
 
@@ -35,7 +47,7 @@ create_org = contract(
     input=OrgInput,
     output=OrgView,
     access="user_access.system",
-    errors=(AccessConflict,),
+    errors=(AccessConflict, OrgCodeInvalid),
     audit=True,
 )
 list_orgs = contract(
@@ -69,8 +81,8 @@ create_user = contract(
 list_users = contract(
     "user_access.list_users",
     "查询用户",
-    input=OrgQuery,
-    output=UserList,
+    input=UserQuery,
+    output=UserPage,
     access="user_access.manage",
 )
 change_user = contract(
@@ -88,7 +100,7 @@ login = contract(
     input=LoginInput,
     output=SessionGrant,
     access="public",
-    errors=(LoginFailed,),
+    errors=(LoginFailed, OtpRequired),
     audit=True,
 )
 refresh = contract(
@@ -117,6 +129,58 @@ change_password = contract(
     errors=(PasswordMismatch,),
     audit=True,
 )
+issue_reset = contract(
+    "user_access.issue_reset",
+    "生成密码重置码",
+    input=UserRef,
+    output=ResetCode,
+    access="user_access.manage",
+    audit=True,
+)
+reset_password = contract(
+    "user_access.reset_password",
+    "用重置码设置新密码",
+    input=ResetInput,
+    output=Nothing,
+    access="public",
+    errors=(ResetInvalid,),
+    audit=True,
+)
+start_otp = contract(
+    "user_access.start_otp",
+    "生成两步验证密钥",
+    input=Nothing,
+    output=OtpSetup,
+    access=SIGNED_IN,
+    errors=(OtpInvalid,),
+    audit=True,
+)
+enable_otp = contract(
+    "user_access.enable_otp",
+    "开启两步验证",
+    input=OtpCode,
+    output=Nothing,
+    access=SIGNED_IN,
+    errors=(OtpInvalid,),
+    audit=True,
+)
+disable_otp = contract(
+    "user_access.disable_otp",
+    "关闭两步验证",
+    input=OtpCode,
+    output=Nothing,
+    access=SIGNED_IN,
+    errors=(OtpInvalid,),
+    audit=True,
+)
+reset_otp = contract(
+    "user_access.reset_otp",
+    "管理员关闭两步验证",
+    input=UserRef,
+    output=Nothing,
+    access="user_access.manage",
+    audit=True,
+)
 purge_sessions = contract(
     "user_access.purge_sessions",
     "清理过期刷新令牌",
@@ -127,7 +191,22 @@ purge_sessions = contract(
 )
 
 __all__ = [
+    "OtpCode",
+    "OtpInvalid",
+    "OtpRequired",
+    "OtpSetup",
+    "ResetCode",
+    "ResetInput",
+    "ResetInvalid",
+    "UserRef",
+    "issue_reset",
+    "reset_password",
+    "start_otp",
+    "enable_otp",
+    "disable_otp",
+    "reset_otp",
     "AccessConflict",
+    "OrgCodeInvalid",
     "AccessMissing",
     "Account",
     "LoginFailed",
@@ -148,7 +227,8 @@ __all__ = [
     "SessionRenewal",
     "UserChange",
     "UserInput",
-    "UserList",
+    "UserPage",
+    "UserQuery",
     "UserView",
     "create_org",
     "list_orgs",

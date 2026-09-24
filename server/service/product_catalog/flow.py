@@ -5,12 +5,20 @@
 from service.product_catalog.data import (
     CreateWork,
     DeleteWork,
+    ExportWork,
     GetWork,
+    ImportWork,
     ListWork,
     PriceWork,
     UpdateWork,
 )
 from service.product_catalog.steps.check_product import clean_code
+from service.product_catalog.steps.import_products import (
+    build_import_result,
+    check_rows,
+    read_export,
+    save_rows,
+)
 from service.product_catalog.steps.read_products import read_page, read_prices, read_product
 from service.product_catalog.steps.save_products import (
     remove_product,
@@ -34,3 +42,10 @@ update_flow = Flow(
 delete_flow = Flow("删除商品", work=DeleteWork, result="done", steps=[remove_product])
 
 price_flow = Flow("查询可报价的单价", work=PriceWork, result="prices", steps=[read_prices])
+import_flow = Flow(
+    "批量导入商品",
+    work=ImportWork,
+    result="result",
+    steps=[check_rows, save_rows, build_import_result],
+)
+export_flow = Flow("导出商品", work=ExportWork, result="result", steps=[read_export])

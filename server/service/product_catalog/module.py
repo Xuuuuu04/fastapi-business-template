@@ -19,6 +19,8 @@ module = Module(
         public.update_product: flow.update_flow,
         public.delete_product: flow.delete_flow,
         public.get_prices: flow.price_flow,
+        public.import_products: flow.import_flow,
+        public.export_products: flow.export_flow,
     },
     store=SqlProductStore,
     tables=(products,),

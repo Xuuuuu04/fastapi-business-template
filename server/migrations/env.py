@@ -10,6 +10,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 import shared.access.audit
+import shared.db.history
 import shared.jobs.tables
 import shared.records.tables
 from app.setup.catalog import MODULES

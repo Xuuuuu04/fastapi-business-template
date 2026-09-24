@@ -9,16 +9,18 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.setup.catalog import MODULES
-from shared.cache.backends import Cache, MemoryCache, RedisCache
+from app.setup.backends import create
+from app.setup.catalog import BACKENDS, MODULES
+from shared.access.vault import Vault
+from shared.cache.backends import Cache
 from shared.config.settings import Settings, check_production
 from shared.db.database import Database
 from shared.errors.framework import ConfigError
-from shared.files.storage import FileStorage, LocalFiles, S3Files, S3Options
+from shared.files.storage import FileStorage
 from shared.files.uploads import UploadArea
 from shared.flow.runtime import Runtime
 from shared.jobs.queue import JobQueue
-from shared.model_calls.providers import FakeModel, ModelProvider, OpenAICompatible
+from shared.model_calls.providers import FakeModel, ModelProvider
 from shared.model_calls.service import ModelService
 from shared.modules.catalog import Catalog
 from shared.modules.module import Module
@@ -104,7 +106,8 @@ def finish_build(
     models: ModelService,
 ) -> Services:
     remotes = RemoteService(settings.remotes)
-    cache: Cache = RedisCache(settings.cache_url) if settings.cache_url else MemoryCache()
+    cache_kind = settings.cache_backend or ("redis" if settings.cache_url else "memory")
+    cache: Cache = create("cache", cache_kind, settings, BACKENDS)
     legacy = Database(settings.legacy_database_url) if settings.legacy_database_url else None
     storage, uploads = file_components(settings)
     telemetry = Telemetry(settings.otel_endpoint, settings.name)
@@ -121,6 +124,7 @@ def finish_build(
         uploads=uploads,
         legacy=legacy,
         telemetry=telemetry,
+        vault=Vault([key.get_secret_value() for key in settings.data_keys]),
         code_version=settings.code_version,
         step_checks=settings.extra_step_checks(),
     )
@@ -148,20 +152,10 @@ def file_components(settings: Settings) -> tuple[FileStorage, UploadArea]:
     return file_service(settings), uploads
 
 
-# 根据配置选择本地文件目录或 S3 兼容存储。
+# 按 APP_FILE_STORAGE 选择文件存储实现。
 def file_service(settings: Settings) -> FileStorage:
-    if settings.file_storage == "local":
-        return LocalFiles(Path(settings.file_root))
-    if not settings.s3_bucket:
-        raise ConfigError(["APP_FILE_STORAGE=s3 时必须配置 APP_S3_BUCKET"])
-    options = S3Options(
-        settings.s3_bucket,
-        settings.s3_endpoint,
-        settings.s3_region,
-        settings.s3_access_key,
-        settings.s3_secret_key.get_secret_value() if settings.s3_secret_key else "",
-    )
-    return S3Files(options)
+    storage: FileStorage = create("files", settings.file_storage, settings, BACKENDS)
+    return storage
 
 
 # 选择大模型服务：配置了就用真实服务；本地和测试没配置时用模拟回复，生产环境没配置则拒绝启动。
@@ -169,11 +163,8 @@ def model_service(
     settings: Settings, catalog: Catalog, provider: ModelProvider | None
 ) -> ModelService:
     prompts = catalog.prompts()
-    if provider is None and settings.has_model():
-        key = settings.model_api_key.get_secret_value() if settings.model_api_key else ""
-        provider = OpenAICompatible(
-            settings.model_base_url, key, settings.model_name, settings.model_timeout
-        )
+    if provider is None and (settings.has_model() or settings.model_provider != "openai"):
+        provider = create("model", settings.model_provider, settings, BACKENDS)
     if provider is None:
         if settings.env == "production" and prompts:
             problem = "模块声明了提示词，但生产环境没有配置 APP_MODEL_BASE_URL 等大模型设置"

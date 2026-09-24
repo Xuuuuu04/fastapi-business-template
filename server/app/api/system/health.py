@@ -1,6 +1,7 @@
 """
 健康检查：/health/live 只判断进程能否响应；
-/health/ready 判断数据库能否连通、结构是否已迁移到当前版本。
+/health/ready 判断数据库能否连通、结构是否已迁移到当前版本，以及缓存能否读取（使用 Redis 时，
+每个请求的限流计数都依赖它）。
 不依赖 worker 和大模型服务，观察服务出问题也不会让接口被判为未就绪。
 """
 
@@ -19,7 +20,7 @@ async def live() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# 数据库可用且结构版本正确时返回 ready，否则返回 503 和原因。
+# 数据库可用、结构版本正确、缓存可读时返回 ready，否则返回 503 和原因。
 @router.get("/ready", summary="是否可以接收请求", operation_id="health_ready")
 async def ready(request: Request) -> JSONResponse:
     database = request.app.state.services.database
@@ -32,6 +33,10 @@ async def ready(request: Request) -> JSONResponse:
             problems.append(f"数据库结构版本是“{shown}”，代码需要“{head}”，请先执行迁移")
     except Exception as error:
         problems.append(f"{DatabaseUnavailable.message}（{type(error).__name__}）")
+    try:
+        await request.app.state.services.cache.get("health:ready")
+    except Exception as error:
+        problems.append(f"缓存服务不可用（{type(error).__name__}），请检查 APP_CACHE_URL")
     status = 200 if not problems else 503
     body = {"status": "ready" if not problems else "not_ready", "problems": problems}
     return JSONResponse(body, status)

@@ -6,34 +6,17 @@
 
 ## 公开操作
 
-| 操作 | 名称 | 权限 | 调用方式 | 可能的业务错误 |
+| 操作 | 名称 | 权限 | 接口 | 可能的业务错误 |
 | --- | --- | --- | --- | --- |
-| save_file | 保存上传文件 | file_library.write | 接口或任务 | 无 |
-| get_file | 读取文件 | file_library.read | 接口或任务 | file_missing（文件不存在或不能访问） |
-| list_files | 查询文件 | file_library.read | 接口或任务 | 无 |
-| delete_file | 删除文件 | file_library.write | 接口或任务 | file_missing（文件不存在或不能访问） |
-| clean_files | 清理已删除文件 | file_library.clean | 接口或任务 | 无 |
+| save_file | 保存上传文件 | file_library.write | POST /api/v1/files/{org_id} | 无 |
+| get_file | 读取文件 | file_library.read | GET /api/v1/files/{org_id}/{file_id}/info<br/>GET /api/v1/files/{org_id}/{file_id}/download | file_missing（文件不存在或不能访问） |
+| list_files | 查询文件 | file_library.read | GET /api/v1/files/{org_id} | 无 |
+| delete_file | 删除文件 | file_library.write | DELETE /api/v1/files/{org_id}/{file_id} | file_missing（文件不存在或不能访问） |
+| clean_files | 清理已删除文件 | file_library.clean | 定时计划 | 无 |
 
 ## 保存上传文件（file_library.save_file）
 
-输入 `SaveInput`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_id | str | 是 | 文件所属组织 |  |  | R-02 |
-| temp_id | str | 是 | 上传临时区返回的文件编号 |  |  | R-01 |
-
-输出 `FileView`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| id | str | 是 | 文件编号 |  |  |  |
-| org_id | str | 是 | 文件所属组织 |  |  |  |
-| name | str | 是 | 上传时的文件名 |  |  |  |
-| size | int | 是 | 文件大小 | 字节 |  |  |
-| sha256 | str | 是 | 文件内容的 SHA-256 摘要 |  |  |  |
-| content_type | str | 是 | 下载响应的内容类型 |  |  |  |
-| created_at | datetime | 是 | 保存时间，UTC |  |  |  |
+输入 `SaveInput`，输出 `FileView`，字段见“数据模型”。
 
 计算流程：
 
@@ -68,19 +51,7 @@ flowchart TD
 
 ## 读取文件（file_library.get_file）
 
-输入 `FileQuery`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_id | str | 是 | 文件所属组织 |  |  | R-02 |
-| file_id | str | 是 | 文件编号 |  |  | R-02 |
-
-输出 `FileEntry`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| view | FileView | 是 | 经组织权限核对后的文件信息 |  |  |  |
-| key | str | 是 | 正式存储键，只供服务端读取 |  |  |  |
+输入 `FileQuery`，输出 `FileEntry`，字段见“数据模型”。
 
 计算流程：
 
@@ -112,26 +83,16 @@ flowchart TD
 
 ## 查询文件（file_library.list_files）
 
-输入 `OrgQuery`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_id | str | 是 | 要查询的组织 |  |  | R-02 |
-
-输出 `FileList`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| items | list[FileView] | 是 | 本组织未删除的文件 |  |  |  |
+输入 `FileListQuery`，输出 `Page[FileView]`，字段见“数据模型”。
 
 计算流程：
 
 ```mermaid
 flowchart TD
-    start(["输入：要查询的组织"])
+    start(["输入：要查询的组织、从第几条开始，从 0 计数、本页最多返回多少条"])
     s1["1. 查询文件（读取）<br/>规则 R-02"]:::read
     start --> s1
-    finish(["结果：文件列表"])
+    finish(["结果：一页文件，按保存时间从新到旧"])
     s1 --> finish
     classDef compute fill:#eef6ff,stroke:#4a78b5
     classDef read fill:#f2fbf2,stroke:#4a9a4a
@@ -149,21 +110,13 @@ flowchart TD
 | 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
 | --- | --- | --- | --- | --- | --- |
 | org_id | 要查询的组织 | 操作输入 |  |  |  |
-| result | 文件列表 | 步骤 | 查询文件 | R-02 | org_id |
+| offset | 从第几条开始 | 操作输入 |  |  |  |
+| limit | 本页最多返回多少条 | 操作输入 |  |  |  |
+| result | 一页文件，按保存时间从新到旧 | 步骤 | 查询文件 | R-02 | org_id、offset、limit |
 
 ## 删除文件（file_library.delete_file）
 
-输入 `FileQuery`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| org_id | str | 是 | 文件所属组织 |  |  | R-02 |
-| file_id | str | 是 | 文件编号 |  |  | R-02 |
-
-输出 `Nothing`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
+输入 `FileQuery`，输出 `Nothing`，字段见“数据模型”。
 
 计算流程：
 
@@ -195,18 +148,7 @@ flowchart TD
 
 ## 清理已删除文件（file_library.clean_files）
 
-输入 `Nothing`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-
-输出 `CleanResult`：
-
-| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
-| --- | --- | --- | --- | --- | --- | --- |
-| removed | int | 是 | 清理的文件记录数 |  |  | R-03 |
-| temp_removed | int | 是 | 清理的临时文件数 |  |  | R-03 |
-| orphan_removed | int | 是 | 清理的无记录正式文件数 |  |  | R-03 |
+输入 `Nothing`，输出 `CleanResult`，字段见“数据模型”。
 
 计算流程：
 
@@ -242,3 +184,84 @@ flowchart TD
 | temp_removed | 已清理的临时文件数 | 步骤 | 清理文件内容 | R-03 | pending、orphans |
 | orphan_removed | 已清理的无记录正式文件数 | 步骤 | 清理文件内容 | R-03 | pending、orphans |
 | result | 清理结果 | 步骤 | 清理文件记录 | R-03 | deleted_ids、temp_removed、orphan_removed |
+
+## 数据模型
+
+### SaveInput
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_id | str | 是 | 文件所属组织 |  |  | R-02 |
+| temp_id | str | 是 | 上传临时区返回的文件编号 |  |  | R-01 |
+
+### FileView
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| id | str | 是 | 文件编号 |  |  |  |
+| org_id | str | 是 | 文件所属组织 |  |  |  |
+| name | str | 是 | 上传时的文件名 |  |  |  |
+| size | int | 是 | 文件大小 | 字节 |  |  |
+| sha256 | str | 是 | 文件内容的 SHA-256 摘要 |  |  |  |
+| content_type | str | 是 | 下载响应的内容类型 |  |  |  |
+| created_at | datetime | 是 | 保存时间，UTC |  |  |  |
+
+### FileQuery
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_id | str | 是 | 文件所属组织 |  |  | R-02 |
+| file_id | str | 是 | 文件编号 |  |  | R-02 |
+
+### FileEntry
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| view | FileView | 是 | 经组织权限核对后的文件信息 |  |  |  |
+| key | str | 是 | 正式存储键，只供服务端读取 |  |  |  |
+
+### FileListQuery
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_id | str | 是 | 要查询的组织 |  |  | R-02 |
+| offset | int | 否 | 从第几条开始，从 0 计数 |  |  |  |
+| limit | int | 否 | 本页最多返回多少条 |  |  |  |
+
+### Page[FileView]
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| items | list[FileView] | 是 | 本页记录 |  |  |  |
+| total | int | 是 | 符合条件的记录总数 |  |  |  |
+| offset | int | 是 | 本页从第几条开始，从 0 计数 |  |  |  |
+| limit | int | 是 | 本页最多返回多少条 |  |  |  |
+
+### Nothing
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+
+### CleanResult
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| removed | int | 是 | 清理的文件记录数 |  |  | R-03 |
+| temp_removed | int | 是 | 清理的临时文件数 |  |  | R-03 |
+| orphan_removed | int | 是 | 清理的无记录正式文件数 |  |  | R-03 |
+
+## 数据表
+
+### file_library_files
+
+| 列 | 类型 | 可空 | 主键 | 索引 |
+| --- | --- | --- | --- | --- |
+| id | VARCHAR(32) |  | 是 |  |
+| org_id | VARCHAR(64) |  |  | 是 |
+| name | VARCHAR(200) |  |  |  |
+| size | BIGINT |  |  |  |
+| sha256 | VARCHAR(64) |  |  |  |
+| content_type | VARCHAR(120) |  |  |  |
+| storage_key | VARCHAR(300) |  |  |  |
+| created_at | DATETIME |  |  |  |
+| deleted_at | FLOAT | 是 |  |  |

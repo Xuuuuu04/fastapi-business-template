@@ -10,6 +10,7 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from shared.access.keys import ApiKeyConfig
+from shared.access.vault import LOCAL_DATA_KEY
 from shared.remote_calls.remote import RemoteConfig
 
 LOCAL_JWT_SECRET = "local-development-only-secret-change-me"
@@ -47,6 +48,7 @@ class Settings(BaseSettings):
     model_timeout: float = Field(default=60, gt=0)
     model_concurrency: int = Field(default=4, ge=1)
     model_keep_text: bool = False
+    model_provider: str = "openai"
 
     job_poll_seconds: float = Field(default=1.0, gt=0)
     job_concurrency: int = Field(default=4, ge=1)
@@ -55,7 +57,8 @@ class Settings(BaseSettings):
     remotes: dict[str, RemoteConfig] = {}
     legacy_database_url: str = ""
     cache_url: str = ""
-    file_storage: Literal["local", "s3"] = "local"
+    cache_backend: str = ""
+    file_storage: str = "local"
     file_root: str = "var/files"
     upload_root: str = "var/uploads"
     upload_max_bytes: int = Field(default=10_000_000, ge=1)
@@ -68,12 +71,14 @@ class Settings(BaseSettings):
     s3_secret_key: SecretStr | None = None
 
     jwt_secret: SecretStr = SecretStr(LOCAL_JWT_SECRET)
+    data_keys: list[SecretStr] = [SecretStr(LOCAL_DATA_KEY)]
     jwt_issuer: str = "backend-template"
     jwt_audience: str = "backend-template-api"
     jwt_previous_secrets: list[SecretStr] = []
     token_minutes: int = Field(default=15, ge=1, le=60)
     request_rate_per_minute: int = Field(default=120, ge=1)
     login_failure_limit: int = Field(default=5, ge=1)
+    login_account_failure_limit: int = Field(default=20, ge=1)
     hsts_seconds: int = Field(default=0, ge=0)
     otel_endpoint: str = ""
     console: bool | None = None
@@ -111,6 +116,9 @@ def check_production(settings: Settings) -> list[str]:
     secret = settings.jwt_secret.get_secret_value()
     if secret == LOCAL_JWT_SECRET or len(secret) < 32:
         problems.append("生产环境必须设置独立的 APP_JWT_SECRET，至少 32 个字符")
+    keys = [item.get_secret_value() for item in settings.data_keys]
+    if not keys or LOCAL_DATA_KEY in keys or any(len(key) < 32 for key in keys):
+        problems.append("生产环境必须设置独立的 APP_DATA_KEYS（字段加密密钥），每把至少 32 个字符")
     if any(len(item.get_secret_value()) < 32 for item in settings.jwt_previous_secrets):
         problems.append("APP_JWT_PREVIOUS_SECRETS 中的旧密钥也必须至少 32 个字符")
     return problems

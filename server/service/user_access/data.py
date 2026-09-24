@@ -4,7 +4,7 @@
 
 from typing import Literal
 
-from shared.public import BusinessError, Data, Kind, Nothing, WorkData, meaning
+from shared.public import BusinessError, CursorPage, Data, Kind, Nothing, WorkData, meaning
 
 
 class OrgInput(Data):
@@ -64,14 +64,22 @@ class UserView(Data):
     active: bool = meaning("是否允许登录")
 
 
-class UserList(Data):
-    items: list[UserView] = meaning("可访问的用户，不包含密码摘要")
+UserPage = CursorPage[UserView]
+
+
+class UserQuery(Data):
+    org_id: str = meaning("要查询的组织代码", rule="R-04")
+    after: str = meaning("上一页返回的 next_after", empty="从第一页开始", default="", max_length=40)
+    limit: int = meaning("本页最多返回多少条", default=20, ge=1, le=100)
 
 
 class LoginInput(Data):
     org_code: str = meaning("组织代码", rule="R-03", max_length=32)
     username: str = meaning("用户名", rule="R-03", max_length=64)
     password: str = meaning("密码", rule="R-03", secret=True, max_length=256)
+    otp_code: str = meaning(
+        "两步验证码", rule="R-09", empty="没有开启两步验证", default="", max_length=10
+    )
 
 
 class Account(Data):
@@ -79,6 +87,9 @@ class Account(Data):
     org_id: str = meaning("用户所属组织", rule="R-03")
     username: str = meaning("用户名", rule="R-03")
     permissions: list[str] = meaning("角色当前的权限，写进访问令牌", rule="R-03")
+    otp_step: int = meaning(
+        "这次登录用掉的验证码周期", rule="R-09", empty="没有开启两步验证", default=0
+    )
 
 
 class SessionGrant(Data):
@@ -145,6 +156,12 @@ class RefreshRejected(BusinessError):
     message = "登录已失效，请重新登录"
 
 
+class OrgCodeInvalid(BusinessError):
+    code = "org_code_invalid"
+    kind = Kind.INVALID
+    message = "组织代码只能由小写字母、数字和短横线组成，长 3 至 32 字符；名称不能为空"
+
+
 class PasswordMismatch(BusinessError):
     code = "password_mismatch"
     kind = Kind.INVALID
@@ -183,7 +200,9 @@ class UserWork(WorkData):
 
 class UserListWork(WorkData):
     org_id: str = meaning("要查询的组织")
-    result: UserList = meaning("用户列表")
+    after: str = meaning("从哪个位置之后开始")
+    limit: int = meaning("本页最多返回多少条")
+    result: UserPage = meaning("一页用户，按编号从小到大，不包含密码摘要")
 
 
 class UserChangeWork(WorkData):
@@ -198,6 +217,7 @@ class LoginWork(WorkData):
     org_code: str = meaning("组织代码")
     username: str = meaning("用户名")
     password: str = meaning("密码", secret=True)
+    otp_code: str = meaning("两步验证码", secret=True)
     account: Account = meaning("经过密码校验的用户")
     result: SessionGrant = meaning("新建的登录会话", secret=True)
 

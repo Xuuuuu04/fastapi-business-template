@@ -58,6 +58,37 @@ class ProductView(Data):
 ProductPage = Page[ProductView]
 
 
+class ImportLine(Data):
+    row: int = meaning("在上传文件中的行号", rule="R-03", ge=1)
+    code: str = meaning("编码原文", rule="R-03", default="", max_length=200)
+    name: str = meaning("名称原文", rule="R-03", default="", max_length=200)
+    price: str = meaning("单价原文", rule="R-03", empty="尚未定价", default="", max_length=40)
+    on_sale: str = meaning("在售原文：是/否", rule="R-03", empty="在售", default="", max_length=10)
+
+
+class ImportRequest(Data):
+    lines: list[ImportLine] = meaning("文件中的非空行", rule="R-03", min_length=1, max_length=5000)
+
+
+class RowProblem(Data):
+    row: int = meaning("行号", rule="R-03")
+    message: str = meaning("这一行没有导入的原因", rule="R-03")
+
+
+class ImportResult(Data):
+    created: int = meaning("新建的商品数", rule="R-03")
+    updated: int = meaning("修改的商品数", rule="R-03")
+    problems: list[RowProblem] = meaning("没有导入的行及原因", rule="R-03")
+
+
+class ExportQuery(Data):
+    on_sale: bool | None = meaning("只导出在售或停售", empty="全部导出", rule="R-04", default=None)
+
+
+class ProductList(Data):
+    items: list[ProductView] = meaning("导出的商品，按编码排序，最多 5000 条", rule="R-04")
+
+
 class PriceQuery(Data):
     codes: list[str] = meaning("要查询单价的商品编码", min_length=1, max_length=200)
 
@@ -114,3 +145,17 @@ class DeleteWork(WorkData):
 class PriceWork(WorkData):
     codes: list[str] = meaning("要查询单价的商品编码")
     prices: PriceList = meaning("查询结果")
+
+
+class ImportWork(WorkData):
+    lines: list[ImportLine] = meaning("文件中的非空行")
+    valid: list[ProductInput] = meaning("检查通过、要保存的商品", rule="R-03")
+    problems: list[RowProblem] = meaning("没有导入的行及原因", rule="R-03")
+    created: int = meaning("新建的商品数", rule="R-03", log_value=True)
+    updated: int = meaning("修改的商品数", rule="R-03", log_value=True)
+    result: ImportResult = meaning("导入结果")
+
+
+class ExportWork(WorkData):
+    on_sale: bool | None = meaning("在售筛选", empty="全部导出")
+    result: ProductList = meaning("导出的商品")

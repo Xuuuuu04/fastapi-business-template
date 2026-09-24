@@ -4,7 +4,7 @@
 
 from datetime import datetime
 
-from shared.public import BusinessError, Data, Kind, Nothing, WorkData, meaning
+from shared.public import BusinessError, Data, Kind, Nothing, Page, WorkData, meaning
 
 
 class SaveInput(Data):
@@ -17,8 +17,10 @@ class FileQuery(Data):
     file_id: str = meaning("文件编号", rule="R-02")
 
 
-class OrgQuery(Data):
+class FileListQuery(Data):
     org_id: str = meaning("要查询的组织", rule="R-02")
+    offset: int = meaning("从第几条开始，从 0 计数", default=0, ge=0)
+    limit: int = meaning("本页最多返回多少条", default=20, ge=1, le=100)
 
 
 class FileView(Data):
@@ -36,8 +38,7 @@ class FileEntry(Data):
     key: str = meaning("正式存储键，只供服务端读取", secret=True)
 
 
-class FileList(Data):
-    items: list[FileView] = meaning("本组织未删除的文件")
+FilePage = Page[FileView]
 
 
 class FileStage(Data):
@@ -82,7 +83,9 @@ class GetWork(WorkData):
 
 class ListWork(WorkData):
     org_id: str = meaning("要查询的组织")
-    result: FileList = meaning("文件列表")
+    offset: int = meaning("从第几条开始")
+    limit: int = meaning("本页最多返回多少条")
+    result: FilePage = meaning("一页文件，按保存时间从新到旧")
 
 
 class DeleteWork(WorkData):
