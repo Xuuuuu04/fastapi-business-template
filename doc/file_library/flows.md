@@ -112,26 +112,31 @@ flowchart TD
 
 ## 查询文件（file_library.list_files）
 
-输入 `OrgQuery`：
+输入 `FileListQuery`：
 
 | 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
 | --- | --- | --- | --- | --- | --- | --- |
 | org_id | str | 是 | 要查询的组织 |  |  | R-02 |
+| offset | int | 否 | 从第几条开始，从 0 计数 |  |  |  |
+| limit | int | 否 | 本页最多返回多少条 |  |  |  |
 
-输出 `FileList`：
+输出 `Page[FileView]`：
 
 | 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
 | --- | --- | --- | --- | --- | --- | --- |
-| items | list[FileView] | 是 | 本组织未删除的文件 |  |  |  |
+| items | list[FileView] | 是 | 本页记录 |  |  |  |
+| total | int | 是 | 符合条件的记录总数 |  |  |  |
+| offset | int | 是 | 本页从第几条开始，从 0 计数 |  |  |  |
+| limit | int | 是 | 本页最多返回多少条 |  |  |  |
 
 计算流程：
 
 ```mermaid
 flowchart TD
-    start(["输入：要查询的组织"])
+    start(["输入：要查询的组织、从第几条开始，从 0 计数、本页最多返回多少条"])
     s1["1. 查询文件（读取）<br/>规则 R-02"]:::read
     start --> s1
-    finish(["结果：文件列表"])
+    finish(["结果：一页文件，按保存时间从新到旧"])
     s1 --> finish
     classDef compute fill:#eef6ff,stroke:#4a78b5
     classDef read fill:#f2fbf2,stroke:#4a9a4a
@@ -149,7 +154,9 @@ flowchart TD
 | 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
 | --- | --- | --- | --- | --- | --- |
 | org_id | 要查询的组织 | 操作输入 |  |  |  |
-| result | 文件列表 | 步骤 | 查询文件 | R-02 | org_id |
+| offset | 从第几条开始 | 操作输入 |  |  |  |
+| limit | 本页最多返回多少条 | 操作输入 |  |  |  |
+| result | 一页文件，按保存时间从新到旧 | 步骤 | 查询文件 | R-02 | org_id、offset、limit |
 
 ## 删除文件（file_library.delete_file）
 

@@ -24,7 +24,8 @@ from service.user_access.data import (
     SessionRenewal,
     UserChange,
     UserInput,
-    UserList,
+    UserPage,
+    UserQuery,
     UserView,
 )
 from shared.public import SIGNED_IN, Nothing, contract
@@ -69,8 +70,8 @@ create_user = contract(
 list_users = contract(
     "user_access.list_users",
     "查询用户",
-    input=OrgQuery,
-    output=UserList,
+    input=UserQuery,
+    output=UserPage,
     access="user_access.manage",
 )
 change_user = contract(
@@ -148,7 +149,8 @@ __all__ = [
     "SessionRenewal",
     "UserChange",
     "UserInput",
-    "UserList",
+    "UserPage",
+    "UserQuery",
     "UserView",
     "create_org",
     "list_orgs",

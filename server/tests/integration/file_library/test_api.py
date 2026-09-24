@@ -66,3 +66,21 @@ def test_reject_file_type_and_anonymous_write(client: TestClient) -> None:
         client.post("/api/v1/files/north", files={"upload": ("report.txt", b"x")}).status_code
         == 401
     )
+
+
+# R-02：文件列表分页返回，带总数，按保存时间从新到旧；每页超过 100 条时拒绝。
+def test_file_list_pages(client: TestClient) -> None:
+    for number in range(3):
+        reply = client.post(
+            "/api/v1/files/north",
+            files={"upload": (f"page-{number}.txt", b"x", "text/plain")},
+            headers=KEY,
+        )
+        assert reply.status_code == 200, reply.text
+    first = client.get("/api/v1/files/north?limit=2", headers=KEY).json()
+    second = client.get("/api/v1/files/north?offset=2&limit=2", headers=KEY).json()
+    assert first["total"] == 3 and len(first["items"]) == 2
+    assert len(second["items"]) == 1
+    names = [item["name"] for item in first["items"] + second["items"]]
+    assert sorted(names) == ["page-0.txt", "page-1.txt", "page-2.txt"]
+    assert client.get("/api/v1/files/north?limit=101", headers=KEY).status_code == 422

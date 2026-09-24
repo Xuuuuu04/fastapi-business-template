@@ -13,6 +13,9 @@ x-app: &app
     APP_RUN_RECORDS: database
     APP_FILE_ROOT: /app/var/files
     APP_UPLOAD_ROOT: /app/var/uploads
+    # 信任哪些反向代理传来的 X-Forwarded-For；不设置时只信任容器内的 127.0.0.1，
+    # 经宿主机或其他容器上的代理访问时，所有请求的来源地址都会是代理地址，按地址的限流会互相影响
+    FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
   volumes: [files:/app/var]
   depends_on:
     database:

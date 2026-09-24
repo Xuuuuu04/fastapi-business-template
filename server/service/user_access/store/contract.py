@@ -13,7 +13,7 @@ from service.user_access.data import (
     SessionGrant,
     SessionRenewal,
     TokenCheck,
-    UserList,
+    UserPage,
     UserView,
 )
 
@@ -37,7 +37,7 @@ class AccessStore(Protocol):
     ) -> UserView: ...
 
     # 返回指定组织的用户。
-    async def list_users(self, org_id: str) -> UserList: ...
+    async def list_users(self, org_id: str, offset: int, limit: int) -> UserPage: ...
 
     # 修改用户的角色与启用状态。
     async def change_user(

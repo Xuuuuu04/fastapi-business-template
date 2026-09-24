@@ -144,3 +144,33 @@ def test_logout_and_purge(client: TestClient) -> None:
         return result.removed, int(left)
 
     assert client.portal.call(purge) == (1, 1)
+
+
+# 同一账号的失败次数跨来源地址累计：换地址也不能继续猜密码，达到上限后正确密码也要等窗口结束。
+def test_account_failures_are_limited_across_sources(client: TestClient) -> None:
+    prepare(client)
+    app = client.app
+    app.state.settings = app.state.settings.model_copy(  # type: ignore[attr-defined]
+        update={"login_failure_limit": 100, "login_account_failure_limit": 3}
+    )
+    wrong = {"org_code": "north", "username": "alice", "password": "wrong-password"}
+    replies = []
+    for number in range(4):
+        with TestClient(app, client=(f"10.0.0.{number}", 5000)) as other:
+            replies.append(other.post(LOGIN, json=wrong).status_code)
+    assert replies == [401, 401, 401, 429]
+    with TestClient(app, client=("10.0.0.9", 5000)) as other:
+        right = {**wrong, "password": "correct-password"}
+        assert other.post(LOGIN, json=right).status_code == 429
+
+
+# R-04：用户列表分页返回，带总数，按编号从小到大。
+def test_user_list_pages(client: TestClient) -> None:
+    role, _, first_user = prepare(client)
+    body = {"org_id": "north", "password": "correct-password", "role_id": role}
+    for name in ("bob", "carol"):
+        client.post("/api/v1/access/users", json={**body, "username": name}, headers=KEY)
+    page = client.get("/api/v1/access/users?org_id=north&offset=1&limit=1", headers=KEY).json()
+    assert page["total"] == 3 and page["offset"] == 1 and page["limit"] == 1
+    assert [item["username"] for item in page["items"]] == ["bob"]
+    assert page["items"][0]["id"] > first_user

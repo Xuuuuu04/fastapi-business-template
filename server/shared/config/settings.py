@@ -74,6 +74,7 @@ class Settings(BaseSettings):
     token_minutes: int = Field(default=15, ge=1, le=60)
     request_rate_per_minute: int = Field(default=120, ge=1)
     login_failure_limit: int = Field(default=5, ge=1)
+    login_account_failure_limit: int = Field(default=20, ge=1)
     hsts_seconds: int = Field(default=0, ge=0)
     otel_endpoint: str = ""
     console: bool | None = None

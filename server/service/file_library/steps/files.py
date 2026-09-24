@@ -36,10 +36,10 @@ async def read_file(data: GetWork, store: FileStore) -> None:
     data.result = found
 
 
-# 只列出指定组织中尚未删除的文件。
-@step("查询文件", reads=["org_id"], writes=["result"], rule="R-02")
+# 分页列出指定组织中尚未删除的文件。
+@step("查询文件", reads=["org_id", "offset", "limit"], writes=["result"], rule="R-02")
 async def list_files(data: ListWork, store: FileStore) -> None:
-    data.result = await store.list_files(data.org_id)
+    data.result = await store.list_files(data.org_id, data.offset, data.limit)
 
 
 # 先标记删除，下载立即不可用。

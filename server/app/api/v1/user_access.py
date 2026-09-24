@@ -5,8 +5,9 @@
 
 import hashlib
 import time
+from typing import Annotated
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from app.api.replies import responses_for
@@ -118,16 +119,16 @@ async def create_user(body: access.UserInput, run: RunDep) -> access.UserView:
     return await run(access.create_user, body)
 
 
-# 查询指定组织的用户。
+# 分页查询指定组织的用户，按编号从小到大。
 @router.get(
     "/users",
     summary="查询用户",
     operation_id="list_users",
-    response_model=access.UserList,
+    response_model=access.UserPage,
     responses=responses_for(access.list_users),
 )
-async def list_users(org_id: str, run: RunDep) -> access.UserList:
-    return await run(access.list_users, access.OrgQuery(org_id=org_id))
+async def list_users(run: RunDep, query: Annotated[access.UserQuery, Query()]) -> access.UserPage:
+    return await run(access.list_users, query)
 
 
 # 修改用户角色和启用状态。
@@ -142,7 +143,8 @@ async def change_user(body: access.UserChange, run: RunDep) -> access.UserView:
     return await run(access.change_user, body)
 
 
-# 登录失败按组织、用户名和来源地址限流；成功后签发访问令牌和刷新令牌。
+# 登录失败分两层限流：同一来源地址对同一账号的失败次数，以及同一账号来自所有地址的失败次数，
+# 后者防止攻击者换地址持续猜同一个账号的密码。成功后签发访问令牌和刷新令牌。
 @router.post(
     "/login",
     summary="用户登录",
@@ -153,18 +155,29 @@ async def change_user(body: access.UserChange, run: RunDep) -> access.UserView:
 async def login(body: access.LoginInput, request: Request, run: RunDep) -> TokenReply:
     settings = request.app.state.settings
     source = request.client.host if request.client else "unknown"
-    digest = hashlib.sha256(f"{body.org_code}:{body.username}:{source}".encode()).hexdigest()
-    key = f"login-failed:{digest}"
+    account = f"{body.org_code}:{body.username}"
+    keys = {
+        failure_key("source", f"{account}:{source}"): settings.login_failure_limit,
+        failure_key("account", account): settings.login_account_failure_limit,
+    }
     cache = request.app.state.services.cache
-    if int(await cache.get(key) or 0) >= settings.login_failure_limit:
-        raise TooManyRequests("登录失败次数过多，请十五分钟后再试")
+    for key, limit in keys.items():
+        if int(await cache.get(key) or 0) >= limit:
+            raise TooManyRequests("登录失败次数过多，请十五分钟后再试")
     try:
         grant = await run(access.login, body)
     except access.LoginFailed:
-        await cache.incr(key, 900)
+        for key in keys:
+            await cache.incr(key, 900)
         raise
-    await cache.delete(key)
+    for key in keys:
+        await cache.delete(key)
     return token_reply(grant, settings)
+
+
+# 登录失败计数的缓存键；账号和地址先做摘要，缓存中不出现原文。
+def failure_key(kind: str, text: str) -> str:
+    return f"login-failed:{kind}:{hashlib.sha256(text.encode()).hexdigest()}"
 
 
 # 用刷新令牌换新的访问令牌和刷新令牌；旧刷新令牌随即作废。

@@ -4,7 +4,7 @@
 
 from typing import Protocol
 
-from service.file_library.data import FileEntry, FileList, FileStage, FileView, PendingFile
+from service.file_library.data import FileEntry, FilePage, FileStage, FileView, PendingFile
 
 
 class FileStore(Protocol):
@@ -18,7 +18,7 @@ class FileStore(Protocol):
     async def get(self, org_id: str, file_id: str) -> FileEntry | None: ...
 
     # 查询组织中未删除的文件。
-    async def list_files(self, org_id: str) -> FileList: ...
+    async def list_files(self, org_id: str, offset: int, limit: int) -> FilePage: ...
 
     # 标记文件为待清理。
     async def mark_deleted(self, org_id: str, file_id: str) -> bool: ...

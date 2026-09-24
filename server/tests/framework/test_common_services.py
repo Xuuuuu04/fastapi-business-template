@@ -4,12 +4,25 @@
 
 import httpx2
 import pytest
-from sqlalchemy import Column, Integer, MetaData, String, Table, func, or_, select, text, update
+from sqlalchemy import (
+    Column,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    delete,
+    func,
+    insert,
+    or_,
+    select,
+    text,
+    update,
+)
 
 from shared.access.caller import Caller
 from shared.cache.backends import MemoryCache
 from shared.cache.gate import ModuleCache
-from shared.db.access import Db
+from shared.db.access import Db, is_write
 from shared.db.org import check_org, org_column
 from shared.errors.framework import RemoteResultUnknown, RemoteUnavailable, StepRuleBroken
 from shared.records.models import RemoteCallRecord
@@ -154,3 +167,13 @@ def test_business_db_rejects_sql_text() -> None:
     db = Db(None, read_only=True, place="查询", caller=caller)  # type: ignore[arg-type]
     with pytest.raises(StepRuleBroken):
         db._check(text("SELECT * FROM file_library_files"))
+
+
+# 查询中带写入的公共表表达式、以 WITH 开头的写入文本，都按写入处理，只读步骤不能执行。
+def test_write_hidden_in_query_is_detected() -> None:
+    removed = delete(links).returning(links.c.id).cte("removed")
+    assert is_write(select(removed.c.id))
+    assert is_write(select(links.c.id).add_cte(insert(links).values(id=1).cte("added")))
+    assert is_write(text("WITH gone AS (DELETE FROM t RETURNING id) SELECT id FROM gone"))
+    assert not is_write(text("WITH kept AS (SELECT id FROM t) SELECT id FROM kept"))
+    assert not is_write(select(links.c.id))

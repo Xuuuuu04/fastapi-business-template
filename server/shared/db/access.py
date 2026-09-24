@@ -3,18 +3,21 @@ store 使用的数据库入口 Db：只能执行语句，不能提交、回滚�
 事务由框架按步骤声明安排；没有 saves=True 的步骤拿到只读的 Db，写入会立刻报错。
 """
 
+import re
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
 from sqlalchemy import Executable, RowMapping, TextClause
 from sqlalchemy.ext.asyncio import AsyncConnection
+from sqlalchemy.sql import visitors
 
 from shared.access.caller import Caller
 from shared.db.org import check_org
 from shared.errors.framework import StepRuleBroken
 
 READ_WORDS = ("select", "with", "explain", "show", "values")
+WRITE_WORDS = ("insert", "update", "delete", "merge")
 
 
 class Db:
@@ -82,11 +85,11 @@ class Db:
             )
 
 
-# 判断一条语句是否会修改数据。
+# 判断一条语句是否会修改数据；查询中带有写入的公共表表达式（WITH ... DELETE）也算写入。
 def is_write(statement: Executable) -> bool:
-    if getattr(statement, "is_dml", False):
-        return True
     if isinstance(statement, TextClause):
-        words = statement.text.strip().split(None, 1)
-        return not words or words[0].lower() not in READ_WORDS
-    return False
+        words = re.findall(r"[a-z_]+", statement.text.lower())
+        if not words or words[0] not in READ_WORDS:
+            return True
+        return words[0] == "with" and any(word in WRITE_WORDS for word in words)
+    return any(getattr(node, "is_dml", False) for node in visitors.iterate(statement))  # type: ignore[arg-type]
