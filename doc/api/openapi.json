@@ -662,6 +662,84 @@
         }
       }
     },
+    "/api/system/changes": {
+      "get": {
+        "tags": [
+          "安全审计"
+        ],
+        "summary": "查询数据变更历史",
+        "operationId": "system_changes",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "表名，例如 product_catalog_products",
+              "default": "",
+              "title": "Table"
+            },
+            "description": "表名，例如 product_catalog_products"
+          },
+          {
+            "name": "key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "记录编号",
+              "default": "",
+              "title": "Key"
+            },
+            "description": "记录编号"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response System Changes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/products": {
       "get": {
         "tags": [

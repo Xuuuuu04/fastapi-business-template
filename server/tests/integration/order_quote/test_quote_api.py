@@ -29,7 +29,7 @@ def add_products(client: TestClient) -> None:
         assert client.post("/api/v1/products", json=body, headers=KEY).status_code == 201
 
 
-# 金卡客户的报价：合并明细、排除不能报价的商品、优惠 10%、保存并能读回。
+# 金卡客户的报价：合并明细、排除不能报价的商品、优惠 10%、保存并能读回；别人看不到（R-07）。
 def test_create_and_read_quote(client: TestClient) -> None:
     add_products(client)
     lines = [
@@ -47,8 +47,11 @@ def test_create_and_read_quote(client: TestClient) -> None:
     quote = reply.json()
     assert (quote["subtotal"], quote["discount"], quote["total"]) == ("37.50", "3.75", "33.75")
     assert quote["excluded"] == ["B-2", "C-3"] and quote["lines"][0]["quantity"] == 3
-    again = client.get(f"/api/v1/quotes/{quote['id']}", headers=READER)
+    again = client.get(f"/api/v1/quotes/{quote['id']}", headers=KEY)
     assert again.status_code == 200 and again.json() == quote
+    # R-07：没有 order_quote.manage 权限的调用者看不到别人创建的报价。
+    other = client.get(f"/api/v1/quotes/{quote['id']}", headers=READER)
+    assert other.status_code == 404 and other.json()["code"] == "quote_missing"
 
 
 # 所有商品都不能报价时返回 422，写入被撤销。

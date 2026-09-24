@@ -40,7 +40,7 @@ users = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("org_id", String(32), ForeignKey("user_access_orgs.code"), nullable=False),
     Column("username", String(64), nullable=False),
-    Column("password_hash", String(192), nullable=False),
+    Column("password_hash", String(192), nullable=False, info={"secret": True}),
     Column("role_id", Integer, ForeignKey("user_access_roles.id"), nullable=False),
     Column("active", Boolean, nullable=False, default=True),
     UniqueConstraint("org_id", "username", name="uq_user_access_username"),

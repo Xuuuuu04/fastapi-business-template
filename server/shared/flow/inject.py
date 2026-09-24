@@ -161,7 +161,11 @@ async def build_store(
     if "db" in names:
         connection = await store_connection(part, scope, stack)
         available["db"] = Db(
-            connection, read_only=not part.saves, place=part.title, caller=scope.caller
+            connection,
+            read_only=not part.saves,
+            place=part.title,
+            caller=scope.caller,
+            run_id=scope.root_id,
         )
     if "legacy" in names:
         if scope.runtime.legacy is None:

@@ -211,6 +211,7 @@ flowchart TD
 | explanation | TEXT |  |  |  |
 | status | VARCHAR(10) |  |  |  |
 | created_at | DATETIME |  |  |  |
+| owner_id | VARCHAR(64) |  |  | 是 |
 
 ### order_quote_lines
 

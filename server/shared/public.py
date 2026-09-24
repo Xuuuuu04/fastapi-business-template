@@ -9,6 +9,7 @@ from shared.data.fields import meaning
 from shared.data.models import CursorPage, Data, Nothing, Page, WorkData
 from shared.db.access import Db
 from shared.db.org import org_column
+from shared.db.owner import owner_column
 from shared.db.tables import metadata
 from shared.db.types import ExactNumber, UtcTime
 from shared.errors.framework import NotAllowed
@@ -64,6 +65,7 @@ __all__ = [
     "on",
     "metadata",
     "org_column",
+    "owner_column",
     "prompt",
     "remote",
     "step",

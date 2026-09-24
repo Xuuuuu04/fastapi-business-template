@@ -39,7 +39,7 @@ def test_list_products(client: TestClient) -> None:
     assert [item["code"] for item in selling["items"]] == ["C-3", "A-1"]
 
 
-# 修改商品和删除商品；删除后读取返回 404。
+# 修改商品并记下每个改动字段的前后值和运行编号；删除商品；删除后读取返回 404。
 def test_update_and_delete(client: TestClient) -> None:
     created = client.post(
         "/api/v1/products", json={"code": "A-1", "name": "甲"}, headers=KEY
@@ -47,6 +47,12 @@ def test_update_and_delete(client: TestClient) -> None:
     path = f"/api/v1/products/{created['id']}"
     changed = client.put(path, json={"code": "A-2", "name": "乙", "price": "3.00"}, headers=KEY)
     assert changed.status_code == 200 and changed.json()["code"] == "A-2"
+    history = client.get(
+        f"/api/system/changes?table=product_catalog_items&key={created['id']}", headers=KEY
+    ).json()["items"]
+    fields = {item["field"]: (item["before"], item["after"]) for item in history}
+    assert fields == {"code": ("A-1", "A-2"), "name": ("甲", "乙"), "price": ("", "3.00")}
+    assert all(item["run_id"] == changed.headers["X-Run-ID"] for item in history)
     assert client.delete(path, headers=KEY).status_code == 204
     missing = client.get(path, headers=KEY)
     assert missing.status_code == 404 and missing.json()["code"] == "product_missing"

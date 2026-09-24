@@ -7,7 +7,7 @@ import asyncio
 import json
 import re
 
-from sqlalchemy import RowMapping, insert, select, update
+from sqlalchemy import RowMapping, and_, insert, select
 from sqlalchemy.exc import IntegrityError
 
 from service.user_access.data import (
@@ -121,14 +121,11 @@ class SqlAccessStore(SessionStore):
     async def change_user(self, org_id: str, user_id: int, role_id: int, active: bool) -> UserView:
         self.require_org(org_id)
         await self.require_role(org_id, role_id)
-        row = await self.db.first(
-            update(users)
-            .where(users.c.id == user_id, users.c.org_id == org_id)
-            .values(role_id=role_id, active=active)
-            .returning(users)
-        )
-        if row is None:
+        where = and_(users.c.id == user_id, users.c.org_id == org_id)
+        values = {"role_id": role_id, "active": active}
+        if await self.db.update_tracked(users, where, values) == 0:
             raise AccessMissing(f"组织 {org_id} 中没有用户 {user_id}")
+        row = await self.db.one(select(users).where(where))
         if not active:
             await self.revoke(refresh_tokens.c.user_id == user_id)
         return user_view(row)

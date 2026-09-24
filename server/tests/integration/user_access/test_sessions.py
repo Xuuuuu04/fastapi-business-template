@@ -116,6 +116,9 @@ def test_change_password(client: TestClient) -> None:
     )
     assert old.status_code == 401
     sign_in(client, "new-password-1")
+    history = client.get("/api/system/changes?table=user_access_users", headers=KEY).json()
+    [change] = [item for item in history["items"] if item["field"] == "password_hash"]
+    assert change["before"] == change["after"] == "（已隐藏）"
 
 
 # R-05、R-07：退出登录后刷新令牌失效；系统任务删除作废超过一天的记录。

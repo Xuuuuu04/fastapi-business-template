@@ -187,6 +187,23 @@
 | 200 | Successful Response | object |
 | 422 | Validation Error | HTTPValidationError |
 
+## GET /api/system/changes
+
+用途：查询数据变更历史
+分组：安全审计
+操作编号：system_changes
+
+| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| table | query | 否 | string | 最长：80 | 表名，例如 product_catalog_products |
+| key | query | 否 | string | 最长：80 | 记录编号 |
+| limit | query | 否 | integer | 最小：1；最大：200 |  |
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | object |
+| 422 | Validation Error | HTTPValidationError |
+
 ## GET /api/v1/products
 
 用途：查询商品

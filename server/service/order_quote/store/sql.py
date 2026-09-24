@@ -6,17 +6,24 @@ import json
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import ColumnElement, insert, select, update
 
 from service.order_quote.data import MemberLevel, QuoteLine, QuoteView
 from service.order_quote.store.tables import quote_lines, quotes
-from shared.public import Db
+from shared.public import Caller, Db
 
 
 class SqlQuoteStore:
-    # 使用框架提供的数据库入口。
-    def __init__(self, db: Db) -> None:
+    # 使用框架提供的数据库入口和调用者身份。
+    def __init__(self, db: Db, caller: Caller) -> None:
         self.db = db
+        self.caller = caller
+
+    # 按 R-07 限定只看自己创建的报价；有 order_quote.manage 权限时看全部。
+    def mine(self) -> list[ColumnElement[bool]]:
+        if self.caller.can("order_quote.manage"):
+            return []
+        return [quotes.c.owner_id == self.caller.id]
 
     # 保存报价主表和明细。
     async def add(
@@ -33,6 +40,7 @@ class SqlQuoteStore:
         values = {"customer": customer, "member_level": member_level, "subtotal": subtotal}
         values |= {"discount": discount, "total": total, "excluded": json.dumps(excluded)}
         values |= {"explanation": explanation, "status": "active", "created_at": created_at}
+        values |= {"owner_id": self.caller.id}
         row = await self.db.one(insert(quotes).values(**values).returning(quotes.c.id))
         rows = [{"quote_id": row["id"], **line.model_dump()} for line in lines]
         await self.db.change(insert(quote_lines).values(rows))
@@ -40,7 +48,7 @@ class SqlQuoteStore:
 
     # 读取报价和明细。
     async def find(self, quote_id: int) -> QuoteView | None:
-        head = await self.db.first(select(quotes).where(quotes.c.id == quote_id))
+        head = await self.db.first(select(quotes).where(quotes.c.id == quote_id, *self.mine()))
         if head is None:
             return None
         query = (

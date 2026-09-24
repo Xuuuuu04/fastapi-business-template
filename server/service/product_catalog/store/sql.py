@@ -6,7 +6,7 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import RowMapping, delete, func, insert, select, update
+from sqlalchemy import RowMapping, delete, func, insert, select
 from sqlalchemy.exc import IntegrityError
 
 from service.product_catalog.data import CodeUsed, ProductMissing, ProductPage, ProductView
@@ -52,26 +52,23 @@ class SqlProductStore:
             ) from None
         return view_of(row)
 
-    # 修改商品，编码冲突或商品不存在时转成业务错误。
+    # 修改商品并记录变更历史，编码冲突或商品不存在时转成业务错误。
     async def change(
         self, product_id: int, code: str, name: str, price: Decimal | None, on_sale: bool
     ) -> ProductView:
         values = {"code": code, "name": name, "price": price, "on_sale": on_sale}
-        statement = (
-            update(products)
-            .where(products.c.id == product_id)
-            .values(**values, updated_at=datetime.now(UTC))
-            .returning(products)
-        )
+        where = products.c.id == product_id
+        quiet = {"updated_at": datetime.now(UTC)}
         try:
             async with self.db.savepoint():
-                row = await self.db.first(statement)
+                count = await self.db.update_tracked(products, where, values, quiet=quiet)
         except IntegrityError:
             raise CodeUsed(
                 f"商品编码 {code} 已被其他商品使用", fields={"code": "编码重复"}
             ) from None
-        if row is None:
+        if count == 0:
             raise ProductMissing(f"商品 {product_id} 不存在")
+        row = await self.db.one(select(products).where(where))
         return view_of(row)
 
     # 删除商品。

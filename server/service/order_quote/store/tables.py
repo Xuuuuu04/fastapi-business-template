@@ -1,10 +1,11 @@
 """
 订单报价的数据库表：报价主表和明细表。表名以模块名开头，只有本模块的 store 可以读写。
+报价按负责人隔离（R-07）：没有 order_quote.manage 权限的调用者只能读写自己创建的报价。
 """
 
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, Table, Text
 
-from shared.public import ExactNumber, UtcTime, metadata
+from shared.public import ExactNumber, UtcTime, metadata, owner_column
 
 quotes = Table(
     "order_quote_quotes",
@@ -19,6 +20,7 @@ quotes = Table(
     Column("explanation", Text, nullable=False),
     Column("status", String(10), nullable=False),
     Column("created_at", UtcTime(), nullable=False),
+    owner_column(see_all="order_quote.manage"),
     Index("ix_order_quote_quotes_status_created", "status", "created_at"),
 )
 

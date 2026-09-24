@@ -4,7 +4,7 @@
 无法证明隔离条件成立的语句一律拒绝执行，由存储实现改成简单语句。
 """
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from typing import Any
 
 from sqlalchemy import Column, String, Table
@@ -49,31 +49,44 @@ def check_org(statement: Executable, caller: Caller) -> None:
         raise StepRuleBroken(f"无法确认访问 {names} 时带有组织条件，请改成简单的单表或关联查询")
 
 
-# 一层查询中每个按组织隔离的来源都必须在这一层的条件中限定组织。
-def check_select(select: Select[Any], org_id: str) -> set[Any]:
-    sources = {source for source in flatten(select.get_final_froms()) if is_scoped(source)}
+# 一层查询中每个按组织隔离的来源都必须在这一层的条件中限定组织；
+# column、scoped、what 让按负责人隔离（owner.py）复用同一套检查。
+def check_select(
+    select: Select[Any],
+    org_id: str,
+    column: str = "org_id",
+    scoped: Callable[[Any], bool] | None = None,
+    what: str = "组织编号等于调用者的组织",
+) -> set[Any]:
+    test = scoped or is_scoped
+    sources = {source for source in flatten(select.get_final_froms()) if test(source)}
     for source in sources:
-        if not guarded(select.whereclause, source.c.org_id, org_id):
-            raise StepRuleBroken(f"访问 {name_of(source)} 时必须写明组织编号等于调用者的组织")
+        if not guarded(select.whereclause, source.c[column], org_id):
+            raise StepRuleBroken(f"访问 {name_of(source)} 时必须写明{what}")
     return sources
 
 
 # 插入的组织必须是调用者的组织；修改和删除必须限定组织，且不能改组织编号。
-def check_change(statement: Insert | Update | Delete, org_id: str) -> None:
+def check_change(
+    statement: Insert | Update | Delete,
+    org_id: str,
+    column: str = "org_id",
+    what: str = "组织编号",
+) -> None:
     table = statement.table
     if isinstance(statement, Insert):
         values = statement.compile().params
         found = [
-            value for key, value in values.items() if key == "org_id" or key.startswith("org_id_m")
+            value for key, value in values.items() if key == column or key.startswith(f"{column}_m")
         ]
         if not found or any(value != org_id for value in found):
-            raise StepRuleBroken(f"写入 {name_of(table)} 时组织编号必须是调用者的组织")
+            raise StepRuleBroken(f"写入 {name_of(table)} 时{what}必须是调用者自己")
         return
-    if not guarded(statement.whereclause, table.c.org_id, org_id):
-        raise StepRuleBroken(f"修改或删除 {name_of(table)} 时必须写明组织编号等于调用者的组织")
+    if not guarded(statement.whereclause, table.c[column], org_id):
+        raise StepRuleBroken(f"修改或删除 {name_of(table)} 时必须写明{what}等于调用者")
     values = getattr(statement, "_values", None) or {}
-    if any(getattr(key, "name", key) == "org_id" for key in values):
-        raise StepRuleBroken(f"不能通过更新语句修改 {name_of(table)} 的组织编号")
+    if any(getattr(key, "name", key) == column for key in values):
+        raise StepRuleBroken(f"不能通过更新语句修改 {name_of(table)} 的{what}")
 
 
 # AND 中有一个组织条件即可；OR 的每个分支都必须有组织条件。
