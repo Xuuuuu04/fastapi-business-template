@@ -3,12 +3,14 @@
 开发业务模块时不应改动这些文件；确实需要改框架时，审查后运行 --update 更新摘要，
 并在提交说明中写明原因。这样每次框架改动都会在代码审查中清楚地出现。
 它挡不住有意绕过的人，只保证改动不会悄悄发生。
+pyproject.toml 只锁定 [tool] 下的检查与测试配置；依赖版本由 Dependabot 更新，更新时不需要改摘要。
 """
 
 import argparse
 import hashlib
 import json
 import sys
+import tomllib
 from pathlib import Path
 
 from tools.quality.rules import ROOT
@@ -37,6 +39,15 @@ REGISTRATION = ("app/setup/catalog.py",)
 SUFFIXES = (".py", ".md", ".mako", ".toml", ".ini", ".txt")
 
 
+# pyproject.toml 中只取 [tool] 下的配置（ruff、mypy、pytest 等），依赖版本不参与摘要。
+def tool_sections(content: bytes) -> bytes:
+    tools = tomllib.loads(content.decode("utf-8")).get("tool", {})
+    return json.dumps(tools, sort_keys=True, ensure_ascii=False).encode("utf-8")
+
+
+PARTIAL = {"pyproject.toml": tool_sections}
+
+
 # 计算全部框架文件的摘要。
 def digests(root: Path = ROOT) -> dict[str, str]:
     found = {}
@@ -51,7 +62,10 @@ def digests(root: Path = ROOT) -> dict[str, str]:
                 and "__pycache__" not in name
                 and name not in REGISTRATION
             ):
-                found[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+                content = path.read_bytes()
+                if name in PARTIAL:
+                    content = PARTIAL[name](content)
+                found[name] = hashlib.sha256(content).hexdigest()
     return found
 
 

@@ -41,7 +41,7 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 代码与测试 | 在真实的 PostgreSQL 17、Redis、MinIO 上运行 `tools.check`：代码风格、格式、类型、生成文档是否过期、SQLite 与 PostgreSQL 两轮测试 |
 | 部署镜像与配置 | 构建 `server/deploy/Dockerfile`，确认镜像中的接口和 worker 能导入，校验 `compose.yaml` 能否展开 |
 
-依赖严格按 `server/uv.lock` 安装，锁文件与 `pyproject.toml` 不一致时直接失败。第三方 Action 按提交号锁定；[.github/dependabot.yml](.github/dependabot.yml) 每周一检查 Action 和 Python 依赖的新版本，每类合并成一个合并请求，检查通过后再合并。用本模板建立的新仓库会带上同样的检查。
+依赖严格按 `server/uv.lock` 安装，锁文件与 `pyproject.toml` 不一致时直接失败。第三方 Action 按提交号锁定；[.github/dependabot.yml](.github/dependabot.yml) 每周一检查 Action 和 Python 依赖的新版本：小版本和补丁按类别合并成一个合并请求，大版本各自单独提交，检查通过后再合并。框架文件摘要对 `pyproject.toml` 只锁定 `[tool]` 下的检查配置，依赖更新不需要改摘要。用本模板建立的新仓库会带上同样的检查。
 
 ## 这个模板提供什么
 

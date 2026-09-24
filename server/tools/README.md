@@ -9,7 +9,7 @@
 | `uv run python -m tools.jobs list/show/requeue/cancel` | 查看和人工处理后台任务 |
 | `uv run python -m tools.make_key --name 名称 --org-id 组织 --permissions 权限` | 生成带组织范围的服务密钥 |
 | `uv run python -m tools.compare_api --before 旧 --after 新` | 比较两份接口文档 |
-| `uv run python -m tools.framework_lock` | 检查框架文件是否被改动；审查后用 `--update` 更新 |
+| `uv run python -m tools.framework_lock` | 检查框架文件是否被改动；审查后用 `--update` 更新。`pyproject.toml` 只锁定 `[tool]` 下的检查配置，改依赖版本不需要更新 |
 
 - [quality](quality/)：质量检查规则，默认测试会调用。
 - [templates](templates/)：新模块的模板。

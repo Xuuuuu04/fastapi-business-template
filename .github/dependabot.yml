@@ -1,6 +1,8 @@
-# Dependabot：每周一检查 GitHub Actions 和 Python 依赖的新版本，每类合并成一个合并请求。
+# Dependabot：每周一检查 GitHub Actions 和 Python 依赖的新版本。
+# 小版本和补丁更新按类别合并成一个合并请求；大版本更新可能有不兼容的改动，每个单独提交，
+# 这样一个大版本出问题时不会卡住其他更新。
 # 工作流中的 Action 按提交号锁定，Dependabot 会同时更新提交号和后面的版本注释。
-# 合并请求会触发全量检查；检查通过、读过更新说明后再合并。
+# 合并请求会触发全量检查；检查通过、读过更新说明（大版本要读不兼容改动）后再合并。
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -11,8 +13,8 @@ updates:
       time: "09:00"
       timezone: Asia/Shanghai
     groups:
-      actions:
-        patterns: ["*"]
+      actions-minor-and-patch:
+        update-types: ["minor", "patch"]
     commit-message:
       prefix: "依赖更新"
 
@@ -24,8 +26,8 @@ updates:
       time: "09:00"
       timezone: Asia/Shanghai
     groups:
-      python:
-        patterns: ["*"]
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
     open-pull-requests-limit: 5
     commit-message:
       prefix: "依赖更新"

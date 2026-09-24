@@ -62,6 +62,26 @@ def test_framework_lock(tmp_path: Path) -> None:
     assert differences(tmp_path) == ["新增：shared/c.py", "删除：shared/b.py", "修改：shared/a.py"]
 
 
+# pyproject.toml 只锁定检查配置：改依赖版本不算框架改动，放宽检查规则会被发现。
+def test_framework_lock_pyproject(tmp_path: Path) -> None:
+    project = tmp_path / "pyproject.toml"
+    project.write_text(
+        '[project]\ndependencies = ["redis>=7,<8"]\n\n[tool.ruff]\nline-length = 100\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "framework.lock").write_text(json.dumps(digests(tmp_path)), encoding="utf-8")
+    project.write_text(
+        '[project]\ndependencies = ["redis>=8,<9"]\n\n[tool.ruff]\nline-length = 100\n',
+        encoding="utf-8",
+    )
+    assert differences(tmp_path) == []
+    project.write_text(
+        '[project]\ndependencies = ["redis>=8,<9"]\n\n[tool.ruff]\nline-length = 200\n',
+        encoding="utf-8",
+    )
+    assert differences(tmp_path) == ["修改：pyproject.toml"]
+
+
 # 新项目的起步路径：删除示例、生成新模块、升级并生成迁移、导出文档后，副本中的全部测试通过。
 def test_new_project_path(tmp_path: Path) -> None:
     if os.environ.get(COPY_FLAG):
