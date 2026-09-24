@@ -15,15 +15,21 @@ from service.user_access.store.contract import AccessStore
 from shared.public import Note, Nothing, step
 
 
-# 核对组织、用户名、密码和启用状态，读出角色当前的权限。
-@step("校验登录", reads=["org_code", "username", "password"], writes=["account"], rule="R-03")
+# 核对组织、用户名、密码、启用状态和两步验证码，读出角色当前的权限。
+@step(
+    "校验登录",
+    reads=["org_code", "username", "password", "otp_code"],
+    writes=["account"],
+    rule="R-03",
+)
 async def check_login(data: LoginWork, store: AccessStore) -> None:
-    data.account = await store.login(data.org_code, data.username, data.password)
+    data.account = await store.login(data.org_code, data.username, data.password, data.otp_code)
 
 
-# 开始新的登录会话，签发第一个刷新令牌。
+# 用掉两步验证码的周期，开始新的登录会话，签发第一个刷新令牌。
 @step("建立登录会话", reads=["account"], writes=["result"], rule="R-05", saves=True)
 async def create_session(data: LoginWork, store: AccessStore) -> None:
+    await store.use_login_step(data.account)
     data.result = await store.start_session(data.account)
 
 

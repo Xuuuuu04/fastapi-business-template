@@ -541,7 +541,7 @@
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
 | 200 | Successful Response | TokenReply |
-| 401 | 没有提供有效身份；login_failed：账号或密码不正确 | ErrorReply |
+| 401 | 没有提供有效身份；login_failed：账号或密码不正确；otp_required：需要两步验证码 | ErrorReply |
 | 403 | 没有权限 | ErrorReply |
 | 422 | 输入不符合要求 | ErrorReply |
 | 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
@@ -595,6 +595,106 @@
 | 401 | 没有提供有效身份 | ErrorReply |
 | 403 | 没有权限 | ErrorReply |
 | 422 | 输入不符合要求；password_mismatch：原密码不正确 | ErrorReply |
+| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
+| 503 | 暂时故障，可以稍后重试 | ErrorReply |
+
+## POST /api/v1/access/users/reset-code
+
+用途：生成密码重置码
+分组：用户权限
+操作编号：issue_reset
+
+请求正文：application/json，模型 UserRef。
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | ResetCode |
+| 401 | 没有提供有效身份 | ErrorReply |
+| 403 | 没有权限 | ErrorReply |
+| 422 | 输入不符合要求 | ErrorReply |
+| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
+| 503 | 暂时故障，可以稍后重试 | ErrorReply |
+
+## POST /api/v1/access/password/reset
+
+用途：用重置码设置新密码
+分组：用户权限
+操作编号：reset_password
+
+请求正文：application/json，模型 ResetInput。
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 204 | Successful Response | 空响应 |
+| 401 | 没有提供有效身份 | ErrorReply |
+| 403 | 没有权限 | ErrorReply |
+| 422 | 输入不符合要求；reset_invalid：重置码无效或已过期 | ErrorReply |
+| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
+| 503 | 暂时故障，可以稍后重试 | ErrorReply |
+
+## POST /api/v1/access/otp
+
+用途：生成两步验证密钥
+分组：用户权限
+操作编号：start_otp
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | OtpSetup |
+| 401 | 没有提供有效身份 | ErrorReply |
+| 403 | 没有权限 | ErrorReply |
+| 422 | 输入不符合要求；otp_invalid：验证码不正确或已用过 | ErrorReply |
+| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
+| 503 | 暂时故障，可以稍后重试 | ErrorReply |
+
+## POST /api/v1/access/otp/enable
+
+用途：开启两步验证
+分组：用户权限
+操作编号：enable_otp
+
+请求正文：application/json，模型 OtpCode。
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 204 | Successful Response | 空响应 |
+| 401 | 没有提供有效身份 | ErrorReply |
+| 403 | 没有权限 | ErrorReply |
+| 422 | 输入不符合要求；otp_invalid：验证码不正确或已用过 | ErrorReply |
+| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
+| 503 | 暂时故障，可以稍后重试 | ErrorReply |
+
+## POST /api/v1/access/otp/disable
+
+用途：关闭两步验证
+分组：用户权限
+操作编号：disable_otp
+
+请求正文：application/json，模型 OtpCode。
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 204 | Successful Response | 空响应 |
+| 401 | 没有提供有效身份 | ErrorReply |
+| 403 | 没有权限 | ErrorReply |
+| 422 | 输入不符合要求；otp_invalid：验证码不正确或已用过 | ErrorReply |
+| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
+| 503 | 暂时故障，可以稍后重试 | ErrorReply |
+
+## POST /api/v1/access/users/otp/reset
+
+用途：管理员关闭两步验证
+分组：用户权限
+操作编号：reset_otp
+
+请求正文：application/json，模型 UserRef。
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 204 | Successful Response | 空响应 |
+| 401 | 没有提供有效身份 | ErrorReply |
+| 403 | 没有权限 | ErrorReply |
+| 422 | 输入不符合要求 | ErrorReply |
 | 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
 | 503 | 暂时故障，可以稍后重试 | ErrorReply |
 
@@ -806,6 +906,7 @@
 | org_code | string | 是 | 组织代码；规则：R-03 | 最长：32 |
 | username | string | 是 | 用户名；规则：R-03 | 最长：64 |
 | password | string | 是 | 密码；规则：R-03 | 最长：256 |
+| otp_code | string | 否 | 两步验证码；为空表示：没有开启两步验证；规则：R-09 | 最长：10 |
 
 ### OrgInput
 
@@ -826,6 +927,19 @@
 | --- | --- | --- | --- | --- |
 | code | string | 是 | 组织代码；规则：R-01 |  |
 | name | string | 是 | 组织名称；规则：R-01 |  |
+
+### OtpCode
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| code | string | 是 | 身份验证器应用显示的 6 位验证码；规则：R-09 | 最短：6；最长：6 |
+
+### OtpSetup
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| secret | string | 是 | 两步验证密钥，填进身份验证器应用；规则：R-09 |  |
+| uri | string | 是 | 可生成二维码的地址；规则：R-09 |  |
 
 ### Page_FileView_
 
@@ -918,6 +1032,22 @@
 | --- | --- | --- | --- | --- |
 | refresh_token | string | 是 | 刷新令牌；规则：R-05 | 最短：20；最长：200 |
 
+### ResetCode
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| code | string | 是 | 一次性重置码，只返回这一次；规则：R-08 |  |
+| expires_in | integer | 是 | 还有多少秒失效；单位：秒；规则：R-08 |  |
+
+### ResetInput
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| org_code | string | 是 | 组织代码；规则：R-08 | 最长：32 |
+| username | string | 是 | 用户名；规则：R-08 | 最长：64 |
+| code | string | 是 | 管理员给的重置码；规则：R-08 | 最长：64 |
+| new_password | string | 是 | 新密码；规则：R-08 | 最短：8；最长：256 |
+
 ### RoleInput
 
 | 字段 | 类型 | 必填 | 说明 | 限制 |
@@ -977,6 +1107,13 @@
 | username | string | 是 | 用户名，在组织内唯一；规则：R-02 | 最短：1；最长：64 |
 | password | string | 是 | 登录密码；规则：R-02 | 最短：8；最长：256 |
 | role_id | integer | 是 | 角色编号；规则：R-02 | 大于：0.0 |
+
+### UserRef
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| org_id | string | 是 | 用户所属组织代码；规则：R-04 | 最长：32 |
+| user_id | integer | 是 | 用户编号 | 大于：0.0 |
 
 ### UserView
 

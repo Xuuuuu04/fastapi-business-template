@@ -16,6 +16,7 @@ from service.user_access.data import (
     UserPage,
     UserView,
 )
+from service.user_access.data_security import OtpSetup, ResetCode
 
 
 class AccessStore(Protocol):
@@ -44,8 +45,34 @@ class AccessStore(Protocol):
         self, org_id: str, user_id: int, role_id: int, active: bool
     ) -> UserView: ...
 
-    # 校验组织、用户名和密码。
-    async def login(self, org_code: str, username: str, password: str) -> Account: ...
+    # 校验组织、用户名、密码和两步验证码（R-09）。
+    async def login(
+        self, org_code: str, username: str, password: str, otp_code: str
+    ) -> Account: ...
+
+    # 登录成功后用掉验证码周期，防止同一个验证码用两次。
+    async def use_login_step(self, account: Account) -> None: ...
+
+    # 管理员为本组织用户生成一次性重置码（R-08）。
+    async def issue_reset(self, org_id: str, user_id: int) -> ResetCode: ...
+
+    # 查出重置码对应的用户编号。
+    async def check_reset(self, org_code: str, username: str, code: str) -> int: ...
+
+    # 用掉重置码，并发提交时只有一个成功。
+    async def use_reset(self, code: str) -> None: ...
+
+    # 生成待确认的两步验证密钥（R-09）。
+    async def start_otp(self) -> OtpSetup: ...
+
+    # 核对当前用户的验证码，返回用掉的周期。
+    async def check_own_otp(self, code: str) -> int: ...
+
+    # 开启或关闭当前用户的两步验证。
+    async def set_own_otp(self, enabled: bool, step: int) -> None: ...
+
+    # 管理员为本组织用户关闭两步验证。
+    async def reset_otp(self, org_id: str, user_id: int) -> None: ...
 
     # 开始新的登录会话，返回第一个刷新令牌。
     async def start_session(self, account: Account) -> SessionGrant: ...

@@ -24,18 +24,19 @@ from service.user_access.data import (
     UserView,
 )
 from service.user_access.store.password import DUMMY_HASH, hash_password, verify_password
+from service.user_access.store.security import SecurityStore
 from service.user_access.store.sessions import SessionStore
 from service.user_access.store.tables import orgs, refresh_tokens, roles, users
-from shared.public import Caller, Db, NotAllowed
+from shared.public import Caller, Db, NotAllowed, Vault
 
 ORG_CODE = re.compile(r"^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$")
 PLATFORM_WIDE = ("user_access.system", "system.diagnostics", "system.jobs", "system.*")
 
 
-class SqlAccessStore(SessionStore):
-    # 取得当前步骤的数据库入口和经过验证的调用者。
-    def __init__(self, db: Db, caller: Caller) -> None:
-        self.db, self.caller = db, caller
+class SqlAccessStore(SessionStore, SecurityStore):
+    # 取得当前步骤的数据库入口、经过验证的调用者和字段加密工具。
+    def __init__(self, db: Db, caller: Caller, vault: Vault) -> None:
+        self.db, self.caller, self.vault = db, caller, vault
 
     # 只有全组织管理员能创建组织。
     async def create_org(self, code: str, name: str) -> OrgView:
@@ -131,7 +132,7 @@ class SqlAccessStore(SessionStore):
         return user_view(row)
 
     # 失败时使用相同的错误；不存在的用户也计算一次 scrypt，减少账号枚举差异。
-    async def login(self, org_code: str, username: str, password: str) -> Account:
+    async def login(self, org_code: str, username: str, password: str, otp_code: str) -> Account:
         query = (
             select(users, roles.c.permissions)
             .join(roles, users.c.role_id == roles.c.id)
@@ -147,6 +148,7 @@ class SqlAccessStore(SessionStore):
             org_id=row["org_id"],
             username=row["username"],
             permissions=json.loads(row["permissions"]),
+            otp_step=self.login_step(row, otp_code),
         )
 
     # 拒绝管理其他组织或使用没有组织范围的身份。

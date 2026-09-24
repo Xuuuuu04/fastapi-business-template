@@ -19,7 +19,7 @@ from shared.model_calls.prompt import Prompt
 from shared.modules.contract import Contract
 from shared.remote_calls.remote import Remote
 
-STORE_PARAMS = ("db", "legacy", "remote", "files", "cache", "caller")
+STORE_PARAMS = ("db", "legacy", "remote", "files", "cache", "caller", "vault")
 
 
 @dataclass(frozen=True, eq=False)

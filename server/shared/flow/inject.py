@@ -155,6 +155,8 @@ async def build_store(
         "remote": remote_gate(part, scope, record, module.remotes),
         "cache": module_cache(scope, module.name, record),
     }
+    if scope.runtime.vault is not None:
+        available["vault"] = scope.runtime.vault
     if scope.runtime.files is not None and scope.runtime.uploads is not None:
         available["files"] = ModuleFiles(scope.runtime.files, scope.runtime.uploads, module.name)
     names = set(inspect.signature(factory).parameters)

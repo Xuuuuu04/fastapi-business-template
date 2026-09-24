@@ -16,3 +16,7 @@ async def ask_supplier(data: QuoteWork, remote: RemoteClient) -> None:
 ```
 
 配置示例：`APP_REMOTES={"supplier": {"base_url": "https://supplier.example", "token": "..."}}`。生产环境中声明了但没有配置的外部系统会让服务拒绝启动。
+
+## 熔断
+
+[breaker.py](breaker.py)：同一个外部系统（以及大模型服务）连续暂时失败 5 次后暂停调用 30 秒，暂停期间直接失败，不再每次等到超时；暂停结束放行一次试探，成功就恢复。对方明确拒绝（参数错误、没有权限、找不到）说明对方可用，不算失败。状态保存在各进程内存中，显示在 `/api/system/runtime` 的 `breakers`。

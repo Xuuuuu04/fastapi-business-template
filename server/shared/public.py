@@ -4,6 +4,7 @@
 """
 
 from shared.access.caller import PUBLIC, SIGNED_IN, Caller
+from shared.access.vault import Vault
 from shared.cache.gate import ModuleCache
 from shared.data.fields import meaning
 from shared.data.models import CursorPage, Data, Nothing, Page, WorkData
@@ -57,6 +58,7 @@ __all__ = [
     "Retry",
     "Schedule",
     "UtcTime",
+    "Vault",
     "WorkData",
     "condition",
     "contract",

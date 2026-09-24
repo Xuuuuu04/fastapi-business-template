@@ -15,11 +15,17 @@
 | create_user | 创建用户 | user_access.manage | POST /api/v1/access/users | user_access_conflict（组织代码、角色名或用户名已存在）、user_access_missing（组织、角色或用户不存在） |
 | list_users | 查询用户 | user_access.manage | GET /api/v1/access/users | 无 |
 | change_user | 调整用户 | user_access.manage | PUT /api/v1/access/users | user_access_missing（组织、角色或用户不存在） |
-| login | 用户登录 | public | POST /api/v1/access/login | login_failed（账号或密码不正确） |
+| login | 用户登录 | public | POST /api/v1/access/login | login_failed（账号或密码不正确）、otp_required（需要两步验证码） |
 | refresh | 刷新登录 | public | POST /api/v1/access/refresh | refresh_rejected（登录已失效，请重新登录） |
 | logout | 退出登录 | public | POST /api/v1/access/logout | 无 |
 | change_password | 修改密码 | signed_in | POST /api/v1/access/password | password_mismatch（原密码不正确） |
 | purge_sessions | 清理过期刷新令牌 | user_access.system | 定时计划 | 无 |
+| issue_reset | 生成密码重置码 | user_access.manage | POST /api/v1/access/users/reset-code | 无 |
+| reset_password | 用重置码设置新密码 | public | POST /api/v1/access/password/reset | reset_invalid（重置码无效或已过期） |
+| start_otp | 生成两步验证密钥 | signed_in | POST /api/v1/access/otp | otp_invalid（验证码不正确或已用过） |
+| enable_otp | 开启两步验证 | signed_in | POST /api/v1/access/otp/enable | otp_invalid（验证码不正确或已用过） |
+| disable_otp | 关闭两步验证 | signed_in | POST /api/v1/access/otp/disable | otp_invalid（验证码不正确或已用过） |
+| reset_otp | 管理员关闭两步验证 | user_access.manage | POST /api/v1/access/users/otp/reset | 无 |
 
 ## 创建组织（user_access.create_org）
 
@@ -256,7 +262,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    start(["输入：组织代码、用户名、密码"])
+    start(["输入：组织代码、用户名、密码、两步验证码"])
     s1["1. 校验登录（读取）<br/>规则 R-03"]:::read
     start --> s1
     s2["2. 建立登录会话（保存）<br/>规则 R-05"]:::save
@@ -281,7 +287,8 @@ flowchart TD
 | org_code | 组织代码 | 操作输入 |  |  |  |
 | username | 用户名 | 操作输入 |  |  |  |
 | password | 密码 | 操作输入 |  |  |  |
-| account | 经过密码校验的用户 | 步骤 | 校验登录 | R-03 | org_code、username、password |
+| otp_code | 两步验证码 | 操作输入 |  |  |  |
+| account | 经过密码校验的用户 | 步骤 | 校验登录 | R-03 | org_code、username、password、otp_code |
 | result | 新建的登录会话 | 步骤 | 建立登录会话 | R-05 | account |
 
 ## 刷新登录（user_access.refresh）
@@ -414,6 +421,199 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- |
 | result | 清理结果 | 步骤 | 清理过期刷新令牌 | R-07 |  |
 
+## 生成密码重置码（user_access.issue_reset）
+
+输入 `UserRef`，输出 `ResetCode`，字段见“数据模型”。
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：用户所属组织代码、用户编号"])
+    s1["1. 生成重置码（保存）<br/>规则 R-08"]:::save
+    start --> s1
+    finish(["结果：新的重置码"])
+    s1 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| org_id | 用户所属组织 | 操作输入 |  |  |  |
+| user_id | 用户编号 | 操作输入 |  |  |  |
+| result | 新的重置码 | 步骤 | 生成重置码 | R-08 | org_id、user_id |
+
+## 用重置码设置新密码（user_access.reset_password）
+
+输入 `ResetInput`，输出 `Nothing`，字段见“数据模型”。
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：组织代码、用户名、管理员给的重置码、新密码"])
+    s1["1. 核对重置码（读取）<br/>规则 R-08"]:::read
+    start --> s1
+    s2["2. 用重置码设置新密码（保存）<br/>规则 R-08"]:::save
+    s1 --> s2
+    finish(["结果：没有返回内容"])
+    s2 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| org_code | 组织代码 | 操作输入 |  |  |  |
+| username | 用户名 | 操作输入 |  |  |  |
+| code | 重置码 | 操作输入 |  |  |  |
+| new_password | 新密码 | 操作输入 |  |  |  |
+| user_id | 重置码对应的用户编号 | 步骤 | 核对重置码 | R-08 | org_code、username、code |
+| result | 没有返回内容 | 步骤 | 用重置码设置新密码 | R-08 | code、user_id、new_password |
+
+## 生成两步验证密钥（user_access.start_otp）
+
+输入 `Nothing`，输出 `OtpSetup`，字段见“数据模型”。
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：无"])
+    s1["1. 生成两步验证密钥（保存）<br/>规则 R-09"]:::save
+    start --> s1
+    finish(["结果：待确认的两步验证密钥"])
+    s1 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| result | 待确认的两步验证密钥 | 步骤 | 生成两步验证密钥 | R-09 |  |
+
+## 开启两步验证（user_access.enable_otp）
+
+输入 `OtpCode`，输出 `Nothing`，字段见“数据模型”。
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：身份验证器应用显示的 6 位验证码"])
+    s1["1. 确认并开启两步验证（保存）<br/>规则 R-09"]:::save
+    start --> s1
+    finish(["结果：没有返回内容"])
+    s1 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| code | 验证码 | 操作输入 |  |  |  |
+| result | 没有返回内容 | 步骤 | 确认并开启两步验证 | R-09 | code |
+
+## 关闭两步验证（user_access.disable_otp）
+
+输入 `OtpCode`，输出 `Nothing`，字段见“数据模型”。
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：身份验证器应用显示的 6 位验证码"])
+    s1["1. 确认并关闭两步验证（保存）<br/>规则 R-09"]:::save
+    start --> s1
+    finish(["结果：没有返回内容"])
+    s1 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| code | 验证码 | 操作输入 |  |  |  |
+| result | 没有返回内容 | 步骤 | 确认并关闭两步验证 | R-09 | code |
+
+## 管理员关闭两步验证（user_access.reset_otp）
+
+输入 `UserRef`，输出 `Nothing`，字段见“数据模型”。
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：用户所属组织代码、用户编号"])
+    s1["1. 管理员关闭两步验证（保存）<br/>规则 R-09"]:::save
+    start --> s1
+    finish(["结果：没有返回内容"])
+    s1 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| org_id | 用户所属组织 | 操作输入 |  |  |  |
+| user_id | 用户编号 | 操作输入 |  |  |  |
+| result | 没有返回内容 | 步骤 | 管理员关闭两步验证 | R-09 | org_id、user_id |
+
 ## 数据模型
 
 ### OrgInput
@@ -520,6 +720,7 @@ flowchart TD
 | org_code | str | 是 | 组织代码 |  |  | R-03 |
 | username | str | 是 | 用户名 |  |  | R-03 |
 | password | str | 是 | 密码 |  |  | R-03 |
+| otp_code | str | 否 | 两步验证码 |  | 没有开启两步验证 | R-09 |
 
 ### SessionGrant
 
@@ -537,6 +738,7 @@ flowchart TD
 | org_id | str | 是 | 用户所属组织 |  |  | R-03 |
 | username | str | 是 | 用户名 |  |  | R-03 |
 | permissions | list[str] | 是 | 角色当前的权限，写进访问令牌 |  |  | R-03 |
+| otp_step | int | 否 | 这次登录用掉的验证码周期 |  | 没有开启两步验证 | R-09 |
 
 ### RefreshInput
 
@@ -562,6 +764,42 @@ flowchart TD
 | 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
 | --- | --- | --- | --- | --- | --- | --- |
 | removed | int | 是 | 删除的刷新令牌记录数 |  |  | R-07 |
+
+### UserRef
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_id | str | 是 | 用户所属组织代码 |  |  | R-04 |
+| user_id | int | 是 | 用户编号 |  |  |  |
+
+### ResetCode
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| code | str | 是 | 一次性重置码，只返回这一次 |  |  | R-08 |
+| expires_in | int | 是 | 还有多少秒失效 | 秒 |  | R-08 |
+
+### ResetInput
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| org_code | str | 是 | 组织代码 |  |  | R-08 |
+| username | str | 是 | 用户名 |  |  | R-08 |
+| code | str | 是 | 管理员给的重置码 |  |  | R-08 |
+| new_password | str | 是 | 新密码 |  |  | R-08 |
+
+### OtpSetup
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| secret | str | 是 | 两步验证密钥，填进身份验证器应用 |  |  | R-09 |
+| uri | str | 是 | 可生成二维码的地址 |  |  | R-09 |
+
+### OtpCode
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| code | str | 是 | 身份验证器应用显示的 6 位验证码 |  |  | R-09 |
 
 ## 数据表
 
@@ -591,6 +829,9 @@ flowchart TD
 | password_hash | VARCHAR(192) |  |  |  |
 | role_id | INTEGER |  |  |  |
 | active | BOOLEAN |  |  |  |
+| otp_secret | TEXT | 是 |  |  |
+| otp_enabled | BOOLEAN |  |  |  |
+| otp_last_step | INTEGER | 是 |  |  |
 
 ### user_access_refresh_tokens
 
@@ -604,3 +845,14 @@ flowchart TD
 | expires_at | FLOAT |  |  | 是 |
 | used_at | FLOAT | 是 |  |  |
 | revoked_at | FLOAT | 是 |  |  |
+
+### user_access_reset_codes
+
+| 列 | 类型 | 可空 | 主键 | 索引 |
+| --- | --- | --- | --- | --- |
+| code_sha256 | VARCHAR(64) |  | 是 |  |
+| org_id | VARCHAR(32) |  |  |  |
+| user_id | INTEGER |  |  | 是 |
+| created_by | VARCHAR(120) |  |  |  |
+| expires_at | FLOAT |  |  |  |
+| used_at | FLOAT | 是 |  |  |

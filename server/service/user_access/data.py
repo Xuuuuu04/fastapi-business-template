@@ -77,6 +77,9 @@ class LoginInput(Data):
     org_code: str = meaning("组织代码", rule="R-03", max_length=32)
     username: str = meaning("用户名", rule="R-03", max_length=64)
     password: str = meaning("密码", rule="R-03", secret=True, max_length=256)
+    otp_code: str = meaning(
+        "两步验证码", rule="R-09", empty="没有开启两步验证", default="", max_length=10
+    )
 
 
 class Account(Data):
@@ -84,6 +87,9 @@ class Account(Data):
     org_id: str = meaning("用户所属组织", rule="R-03")
     username: str = meaning("用户名", rule="R-03")
     permissions: list[str] = meaning("角色当前的权限，写进访问令牌", rule="R-03")
+    otp_step: int = meaning(
+        "这次登录用掉的验证码周期", rule="R-09", empty="没有开启两步验证", default=0
+    )
 
 
 class SessionGrant(Data):
@@ -211,6 +217,7 @@ class LoginWork(WorkData):
     org_code: str = meaning("组织代码")
     username: str = meaning("用户名")
     password: str = meaning("密码", secret=True)
+    otp_code: str = meaning("两步验证码", secret=True)
     account: Account = meaning("经过密码校验的用户")
     result: SessionGrant = meaning("新建的登录会话", secret=True)
 

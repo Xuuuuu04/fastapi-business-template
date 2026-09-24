@@ -2501,7 +2501,7 @@
             }
           },
           "401": {
-            "description": "没有提供有效身份；login_failed：账号或密码不正确",
+            "description": "没有提供有效身份；login_failed：账号或密码不正确；otp_required：需要两步验证码",
             "content": {
               "application/json": {
                 "schema": {
@@ -2766,6 +2766,484 @@
           },
           "422": {
             "description": "输入不符合要求；password_mismatch：原密码不正确",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/users/reset-code": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "生成密码重置码",
+        "operationId": "issue_reset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetCode"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/password/reset": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "用重置码设置新密码",
+        "operationId": "reset_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；reset_invalid：重置码无效或已过期",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/otp": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "生成两步验证密钥",
+        "operationId": "start_otp",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpSetup"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；otp_invalid：验证码不正确或已用过",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/otp/enable": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "开启两步验证",
+        "operationId": "enable_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；otp_invalid：验证码不正确或已用过",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/otp/disable": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "关闭两步验证",
+        "operationId": "disable_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpCode"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求；otp_invalid：验证码不正确或已用过",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/access/users/otp/reset": {
+      "post": {
+        "tags": [
+          "用户权限"
+        ],
+        "summary": "管理员关闭两步验证",
+        "operationId": "reset_otp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
             "content": {
               "application/json": {
                 "schema": {
@@ -3873,6 +4351,21 @@
               "secret": true,
               "unit": ""
             }
+          },
+          "otp_code": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Otp Code",
+            "description": "两步验证码；为空表示：没有开启两步验证；规则：R-09",
+            "default": "",
+            "x-note": {
+              "empty": "没有开启两步验证",
+              "log_value": false,
+              "meaning": "两步验证码",
+              "rule": "R-09",
+              "secret": false,
+              "unit": ""
+            }
           }
         },
         "additionalProperties": false,
@@ -3987,6 +4480,68 @@
           "name"
         ],
         "title": "OrgView"
+      },
+      "OtpCode": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 6,
+            "minLength": 6,
+            "title": "Code",
+            "description": "身份验证器应用显示的 6 位验证码；规则：R-09",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "身份验证器应用显示的 6 位验证码",
+              "rule": "R-09",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "OtpCode"
+      },
+      "OtpSetup": {
+        "properties": {
+          "secret": {
+            "type": "string",
+            "title": "Secret",
+            "description": "两步验证密钥，填进身份验证器应用；规则：R-09",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "两步验证密钥，填进身份验证器应用",
+              "rule": "R-09",
+              "secret": true,
+              "unit": ""
+            }
+          },
+          "uri": {
+            "type": "string",
+            "title": "Uri",
+            "description": "可生成二维码的地址；规则：R-09",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "可生成二维码的地址",
+              "rule": "R-09",
+              "secret": true,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "secret",
+          "uri"
+        ],
+        "title": "OtpSetup"
       },
       "Page_FileView_": {
         "properties": {
@@ -4739,6 +5294,113 @@
         ],
         "title": "RefreshInput"
       },
+      "ResetCode": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "一次性重置码，只返回这一次；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "一次性重置码，只返回这一次",
+              "rule": "R-08",
+              "secret": true,
+              "unit": ""
+            }
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "还有多少秒失效；单位：秒；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "还有多少秒失效",
+              "rule": "R-08",
+              "secret": false,
+              "unit": "秒"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "expires_in"
+        ],
+        "title": "ResetCode"
+      },
+      "ResetInput": {
+        "properties": {
+          "org_code": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Org Code",
+            "description": "组织代码；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "组织代码",
+              "rule": "R-08",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Username",
+            "description": "用户名；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户名",
+              "rule": "R-08",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Code",
+            "description": "管理员给的重置码；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "管理员给的重置码",
+              "rule": "R-08",
+              "secret": true,
+              "unit": ""
+            }
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 8,
+            "title": "New Password",
+            "description": "新密码；规则：R-08",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "新密码",
+              "rule": "R-08",
+              "secret": true,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "org_code",
+          "username",
+          "code",
+          "new_password"
+        ],
+        "title": "ResetInput"
+      },
       "RoleInput": {
         "properties": {
           "org_id": {
@@ -5112,6 +5774,45 @@
           "role_id"
         ],
         "title": "UserInput"
+      },
+      "UserRef": {
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Org Id",
+            "description": "用户所属组织代码；规则：R-04",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户所属组织代码",
+              "rule": "R-04",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "user_id": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "User Id",
+            "description": "用户编号",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "用户编号",
+              "rule": "",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "org_id",
+          "user_id"
+        ],
+        "title": "UserRef"
       },
       "UserView": {
         "properties": {

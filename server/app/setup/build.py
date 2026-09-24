@@ -11,6 +11,7 @@ from pathlib import Path
 
 from app.setup.backends import create
 from app.setup.catalog import BACKENDS, MODULES
+from shared.access.vault import Vault
 from shared.cache.backends import Cache
 from shared.config.settings import Settings, check_production
 from shared.db.database import Database
@@ -123,6 +124,7 @@ def finish_build(
         uploads=uploads,
         legacy=legacy,
         telemetry=telemetry,
+        vault=Vault([key.get_secret_value() for key in settings.data_keys]),
         code_version=settings.code_version,
         step_checks=settings.extra_step_checks(),
     )

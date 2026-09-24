@@ -6,7 +6,7 @@ from datetime import time
 
 from service.user_access import flow, public
 from service.user_access.store.sql import SqlAccessStore
-from service.user_access.store.tables import orgs, refresh_tokens, roles, users
+from service.user_access.store.tables import orgs, refresh_tokens, reset_codes, roles, users
 from shared.public import JobPlan, Module, Nothing, Retry, Schedule
 
 module = Module(
@@ -26,9 +26,15 @@ module = Module(
         public.logout: flow.logout,
         public.change_password: flow.change_password,
         public.purge_sessions: flow.purge_sessions,
+        public.issue_reset: flow.issue_reset,
+        public.reset_password: flow.reset_password,
+        public.start_otp: flow.start_otp,
+        public.enable_otp: flow.enable_otp,
+        public.disable_otp: flow.disable_otp,
+        public.reset_otp: flow.reset_otp,
     },
     store=SqlAccessStore,
-    tables=(orgs, roles, users, refresh_tokens),
+    tables=(orgs, roles, users, refresh_tokens, reset_codes),
     jobs=(JobPlan(public.purge_sessions, retry=Retry(times=2), repeat_safe=True, max_queued=10),),
     schedules=(
         Schedule(
