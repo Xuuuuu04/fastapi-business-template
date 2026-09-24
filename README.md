@@ -10,6 +10,7 @@
 | [server/](server/) | 后端代码、测试、迁移、部署 |
 | [doc/](doc/) | 业务文档：需求、规则、变化记录，以及自动生成的流程图 |
 | [design/](design/) | 模板自身的设计记录；用模板开发产品时可以删除 |
+| [.github/](.github/) | 持续集成与依赖更新，见下方“持续集成” |
 
 ## 快速开始
 
@@ -30,6 +31,17 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 3. 在根目录 `AGENTS.md` 第 1 节写清产品名称、使用者和主要模块。
 4. 每个业务模块先在 `doc/模块名/` 写需求和规则，再运行 `uv run python -m tools.new_module 模块名 --title 中文名` 生成骨架，按 `AGENTS.md` 第 3 节开发。
 5. 每次完成后运行 `uv run python -m tools.check`；生产使用 PostgreSQL 时加 `--postgres 数据库地址`。
+
+## 持续集成
+
+[.github/workflows/check.yml](.github/workflows/check.yml) 在推送到 main、每个合并请求和手动触发时运行两项检查：
+
+| 检查 | 内容 |
+| --- | --- |
+| 代码与测试 | 在真实的 PostgreSQL 17、Redis、MinIO 上运行 `tools.check`：代码风格、格式、类型、生成文档是否过期、SQLite 与 PostgreSQL 两轮测试 |
+| 部署镜像与配置 | 构建 `server/deploy/Dockerfile`，确认镜像中的接口和 worker 能导入，校验 `compose.yaml` 能否展开 |
+
+依赖严格按 `server/uv.lock` 安装，锁文件与 `pyproject.toml` 不一致时直接失败。第三方 Action 按提交号锁定；[.github/dependabot.yml](.github/dependabot.yml) 每周一检查 Action 和 Python 依赖的新版本，每类合并成一个合并请求，检查通过后再合并。用本模板建立的新仓库会带上同样的检查。
 
 ## 这个模板提供什么
 

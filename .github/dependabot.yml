@@ -1,0 +1,31 @@
+# Dependabot：每周一检查 GitHub Actions 和 Python 依赖的新版本，每类合并成一个合并请求。
+# 工作流中的 Action 按提交号锁定，Dependabot 会同时更新提交号和后面的版本注释。
+# 合并请求会触发全量检查；检查通过、读过更新说明后再合并。
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "依赖更新"
+
+  - package-ecosystem: uv
+    directory: /server
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    groups:
+      python:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "依赖更新"
