@@ -17,14 +17,14 @@ dependencies = [
   "psutil>=6,<8",
   "python-multipart>=0.0.18,<1",
   "pyjwt>=2.9,<3",
-  "redis>=5,<8",
+  "redis>=5,<9",
   "boto3>=1.35,<2",
   "opentelemetry-sdk>=1.30,<2",
   "opentelemetry-exporter-otlp-proto-http>=1.30,<2",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8,<10", "ruff>=0.9,<1", "mypy>=1.13,<2", "types-psutil>=6"]
+dev = ["pytest>=8,<10", "ruff>=0.9,<1", "mypy>=1.13,<3", "types-psutil>=6"]
 
 [tool.uv]
 package = false
