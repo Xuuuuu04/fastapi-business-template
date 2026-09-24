@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from shared.access.caller import PUBLIC, SIGNED_IN
 from shared.data.fields import check_notes
 from shared.errors.kinds import BusinessError
+from shared.events.checks import check_events
 from shared.flow.checks import check_flow
 from shared.flow.flow import Flow
 from shared.flow.step import Step
@@ -39,6 +40,7 @@ def check_catalog(modules: Sequence[Module]) -> list[str]:
     problems += check_cycles(modules, provided)
     problems += check_model_in_save(provided)
     problems += check_error_codes(provided)
+    problems += check_events(modules)
     return problems
 
 

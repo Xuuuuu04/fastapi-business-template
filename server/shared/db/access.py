@@ -8,13 +8,14 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
-from sqlalchemy import Executable, RowMapping, TextClause
+from sqlalchemy import Executable, RowMapping, Select, TextClause
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.sql import visitors
 
 from shared.access.caller import Caller
 from shared.db.org import check_org
 from shared.errors.framework import StepRuleBroken
+from shared.errors.kinds import BusinessError
 
 READ_WORDS = ("select", "with", "explain", "show", "values")
 WRITE_WORDS = ("insert", "update", "delete", "merge")
@@ -63,6 +64,22 @@ class Db:
         self._check(statement)
         result = await self._connection.execute(statement)
         return int(getattr(result, "rowcount", 0) or 0)
+
+    # 带条件修改：语句的条件中写上读到的状态或版本，一行都没有改到时报 missing 这个业务错误，
+    # 用于“先读后写”时发现数据已被别人改过。
+    async def change_or_fail(self, statement: Executable, missing: BusinessError) -> int:
+        count = await self.change(statement)
+        if count == 0:
+            raise missing
+        return count
+
+    # 加锁读取第一行：只能在 saves=True 的步骤中使用，读到的行在本次事务结束前不会被别人修改。
+    async def first_for_update(self, statement: Select[Any]) -> RowMapping | None:
+        if self._read_only:
+            raise StepRuleBroken(
+                f"步骤「{self._place}」加锁读取需要声明 saves=True，读和写要在同一事务中"
+            )
+        return await self.first(statement.with_for_update())
 
     # 在保存点中执行一段写入；失败时只撤销这一段，事务可以继续。
     @asynccontextmanager

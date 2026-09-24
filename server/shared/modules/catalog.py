@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from shared.errors.framework import DeclarationError, StepRuleBroken
+from shared.events.event import Event
 from shared.flow.flow import Flow
 from shared.flow.view import FieldTypes
 from shared.jobs.plan import JobPlan, Schedule
@@ -41,6 +42,11 @@ class Catalog:
         }
         self.by_name = {item.name: binding for item, binding in self.bindings.items()}
         self.plans = {plan.contract.name: plan for module in modules for plan in module.jobs}
+        subscriptions = [sub for module in modules for sub in module.subscribes]
+        self.plans |= {sub.handler.name: sub.plan() for sub in subscriptions}
+        self.subscribers: dict[Event, list[Contract[Any, Any]]] = {}
+        for sub in subscriptions:
+            self.subscribers.setdefault(sub.event, []).append(sub.handler)
         self.schedules: list[Schedule] = [s for module in modules for s in module.schedules]
         self.digest = digest_of(modules)
 
@@ -54,6 +60,10 @@ class Catalog:
     # 按操作名查找实现。
     def find(self, name: str) -> Binding | None:
         return self.by_name.get(name)
+
+    # 订阅了某个事件的全部处理操作。
+    def handlers(self, item: Event) -> list[Contract[Any, Any]]:
+        return self.subscribers.get(item, [])
 
     # 按操作名查找任务声明。
     def plan(self, name: str) -> JobPlan | None:

@@ -3,7 +3,7 @@
 ## 负责
 
 - [database.py](database.py)：连接池；只读连接（PostgreSQL 用只读事务，SQLite 用 query_only）；写入事务；判断数据库暂时不可用。
-- [access.py](access.py)：给 store 使用的 `Db`，只能执行语句，没有提交、回滚、关闭方法。
+- [access.py](access.py)：给 store 使用的 `Db`，只能执行语句，没有提交、回滚、关闭方法。先读后写时用 `change_or_fail`（带条件修改，一行没改到就报业务错误）或 `first_for_update`（在保存步骤中加锁读取）。
 - [tables.py](tables.py)：全项目共用的 `metadata`，约束命名固定。
 - [types.py](types.py)：`UtcTime`（带时区的时间，读出一律 UTC）和 `ExactNumber`（精确小数）。在 SQLite 和 PostgreSQL 上行为一致。
 - [schema.py](schema.py)：读取数据库当前的迁移版本，供就绪检查使用。

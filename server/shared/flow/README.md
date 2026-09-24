@@ -43,7 +43,7 @@ def count_total(data: QuoteWork) -> None:
 
 | 做法 | 写法 |
 | --- | --- |
-| 在保存步骤里加锁读取 | 读取放进 `saves=True` 的步骤，查询加 `.with_for_update()`，读和写在同一事务 |
-| 带条件更新 | `update(...).where(表.c.状态 == 读到的状态)` 或比较版本号，检查 `db.change()` 返回的行数，为零时报业务错误 |
+| 在保存步骤里加锁读取 | 读取放进 `saves=True` 的步骤，用 `db.first_for_update(select(...))`；只读步骤调用会报错 |
+| 带条件更新 | `db.change_or_fail(update(...).where(表.c.状态 == 读到的状态), 业务错误())`：一行都没改到时抛出这个业务错误 |
 
 不要在只读步骤里读、再在后面的保存步骤里无条件写入。

@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     model_timeout: float = Field(default=60, gt=0)
     model_concurrency: int = Field(default=4, ge=1)
     model_keep_text: bool = False
+    model_provider: str = "openai"
 
     job_poll_seconds: float = Field(default=1.0, gt=0)
     job_concurrency: int = Field(default=4, ge=1)
@@ -55,7 +56,8 @@ class Settings(BaseSettings):
     remotes: dict[str, RemoteConfig] = {}
     legacy_database_url: str = ""
     cache_url: str = ""
-    file_storage: Literal["local", "s3"] = "local"
+    cache_backend: str = ""
+    file_storage: str = "local"
     file_root: str = "var/files"
     upload_root: str = "var/uploads"
     upload_max_bytes: int = Field(default=10_000_000, ge=1)

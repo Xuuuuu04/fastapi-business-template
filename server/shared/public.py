@@ -13,6 +13,8 @@ from shared.db.tables import metadata
 from shared.db.types import ExactNumber, UtcTime
 from shared.errors.framework import NotAllowed
 from shared.errors.kinds import BusinessError, Kind
+from shared.events.event import event, on
+from shared.events.publish import Publisher as Publish
 from shared.files.gate import ModuleFiles
 from shared.flow.flow import Flow
 from shared.flow.inject import Call, Emitter, Later
@@ -49,13 +51,16 @@ __all__ = [
     "Nothing",
     "NotAllowed",
     "Page",
+    "Publish",
     "Retry",
     "Schedule",
     "UtcTime",
     "WorkData",
     "condition",
     "contract",
+    "event",
     "meaning",
+    "on",
     "metadata",
     "org_column",
     "prompt",

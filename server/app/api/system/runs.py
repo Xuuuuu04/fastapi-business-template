@@ -91,7 +91,7 @@ async def run_text(run_id: str, request: Request, caller: CallerDep) -> PlainTex
     return PlainTextResponse(run_report(tree, run_id), media_type="text/markdown; charset=utf-8")
 
 
-# 返回进程和资源的当前状态：内存、在途请求、连接池、运行记录缓冲、任务数量。
+# 返回进程和资源的当前状态：内存、在途请求、连接池、运行记录缓冲、任务数量、熔断状态。
 @router.get("/runtime", summary="进程运行状态", operation_id="system_runtime")
 async def runtime(request: Request, caller: CallerDep) -> dict[str, Any]:
     require(caller, PERMISSION)
@@ -112,6 +112,10 @@ async def runtime(request: Request, caller: CallerDep) -> dict[str, Any]:
         "database_pool": services.database.engine.pool.status(),
         "records": completeness(services.recorder),
         "jobs": jobs,
+        "breakers": {
+            "model": services.models.breaker.state(),
+            **{name: item.state() for name, item in services.remotes.breakers.items()},
+        },
     }
 
 

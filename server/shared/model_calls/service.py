@@ -12,9 +12,11 @@ from pydantic import ValidationError
 
 from shared.data.models import Data
 from shared.errors.framework import ModelOutputInvalid, ModelUnavailable
+from shared.errors.kinds import BusinessError
 from shared.model_calls.prompt import Prompt, PromptText, fill_prompt, load_prompt
 from shared.model_calls.providers import ModelProvider, ModelReply, ModelRequest
 from shared.records.models import ModelCallRecord
+from shared.remote_calls.breaker import Breaker
 
 RETRY_WAITS = (1.0, 3.0)
 KEPT_TEXT = 2000
@@ -35,6 +37,7 @@ class ModelService:
         self.keep_text = keep_text
         self.retry_waits = retry_waits
         self.texts: dict[Prompt, PromptText] = {}
+        self.breaker = Breaker()
 
     # 启动时读取并检查全部提示词文件。
     def load(self, prompts: list[Prompt]) -> None:
@@ -67,8 +70,27 @@ class ModelService:
             record.prompt_text, record.reply_text = user[:KEPT_TEXT], reply.text[:KEPT_TEXT]
         return reply
 
-    # 在并发上限内发送请求，暂时故障按 retry_waits 的次数和间隔重试。
+    # 在并发上限内发送请求；连续失败时熔断，暂停期间直接失败。
     async def send(self, request: ModelRequest, record: ModelCallRecord) -> ModelReply:
+        wait = self.breaker.blocked()
+        if wait:
+            raise ModelUnavailable(f"大模型服务连续失败，暂停调用，{wait:.0f} 秒后再试")
+        try:
+            reply = await self.attempts(request, record)
+        except ModelUnavailable:
+            self.breaker.failed()
+            raise
+        except BusinessError:
+            self.breaker.succeeded()
+            raise
+        except BaseException:
+            self.breaker.released()
+            raise
+        self.breaker.succeeded()
+        return reply
+
+    # 暂时故障按 retry_waits 的次数和间隔重试。
+    async def attempts(self, request: ModelRequest, record: ModelCallRecord) -> ModelReply:
         for attempt in range(len(self.retry_waits) + 1):
             try:
                 async with self.limit:

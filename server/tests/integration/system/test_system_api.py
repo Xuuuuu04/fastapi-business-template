@@ -72,10 +72,11 @@ def test_failed_run_detail(sample_client: TestClient) -> None:
     assert "在「计算应付」步骤停止" in detail["summary"] and "flowchart TD" in detail["graph"]
 
 
-# 进程状态包含内存、连接池、运行记录和任务数量。
+# 进程状态包含内存、连接池、运行记录、任务数量和熔断状态。
 def test_runtime(sample_client: TestClient) -> None:
     body = sample_client.get("/api/system/runtime", headers=KEY).json()
     assert body["memory_mb"] > 0 and "Pool size" in body["database_pool"] and body["jobs"] == {}
+    assert body["breakers"] == {"model": "正常"}
 
 
 # 运行统计按操作和状态汇总，诊断网页只读取受权限保护的系统接口。

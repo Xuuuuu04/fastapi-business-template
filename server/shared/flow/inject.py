@@ -4,7 +4,7 @@
 """
 
 import inspect
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, Protocol
 
@@ -15,6 +15,7 @@ from shared.cache.gate import ModuleCache
 from shared.data.models import Data
 from shared.db.access import Db
 from shared.errors.framework import StepRuleBroken
+from shared.events.publish import Publisher
 from shared.files.gate import ModuleFiles
 from shared.flow.scope import Scope
 from shared.flow.step import Step
@@ -116,30 +117,30 @@ class Emitter:
 async def tools_for(
     part: Step, scope: Scope, run: RunRecord, record: StepRecord, module: Module
 ) -> AsyncIterator[dict[str, Any]]:
-    tools: dict[str, Any] = {}
     params = set(part.params)
     async with AsyncExitStack() as stack:
+        tools = simple_tools(part, scope, run, record, module, params)
         if "store" in params:
             tools["store"] = await build_store(part, scope, record, module, stack)
-        if "call" in params:
-            tools["call"] = Call(scope, run, record, part)
-        if "model" in params:
-            tools["model"] = ModelGate(
-                scope.runtime.models, part.prompts, record.models, part.title
-            )
-        if "remote" in params:
-            tools["remote"] = remote_gate(part, scope, record, part.remotes)
-        if "cache" in params:
-            tools["cache"] = module_cache(scope, module.name, record)
-        if "later" in params:
-            tools["later"] = Later(scope, record, part)
-        if "caller" in params:
-            tools["caller"] = scope.caller
-        if "note" in params:
-            tools["note"] = NoteWriter(record)
-        if "emit" in params:
-            tools["emit"] = Emitter(scope, record)
         yield tools
+
+
+# 准备不需要打开连接的工具，只准备步骤参数中出现的。
+def simple_tools(
+    part: Step, scope: Scope, run: RunRecord, record: StepRecord, module: Module, params: set[str]
+) -> dict[str, Any]:
+    makers: dict[str, Callable[[], Any]] = {
+        "call": lambda: Call(scope, run, record, part),
+        "model": lambda: ModelGate(scope.runtime.models, part.prompts, record.models, part.title),
+        "remote": lambda: remote_gate(part, scope, record, part.remotes),
+        "cache": lambda: module_cache(scope, module.name, record),
+        "later": lambda: Later(scope, record, part),
+        "publish": lambda: Publisher(scope, run, record, part),
+        "caller": lambda: scope.caller,
+        "note": lambda: NoteWriter(record),
+        "emit": lambda: Emitter(scope, record),
+    }
+    return {name: make() for name, make in makers.items() if name in params}
 
 
 # 按构造参数名准备存储实现所需的依赖；旧库始终使用独立的只读连接。

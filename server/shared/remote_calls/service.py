@@ -19,7 +19,9 @@ from shared.errors.framework import (
     RemoteUnavailable,
     StepRuleBroken,
 )
+from shared.errors.kinds import BusinessError
 from shared.records.models import RemoteCallRecord
+from shared.remote_calls.breaker import Breaker
 from shared.remote_calls.remote import Remote, RemoteConfig
 
 SAFE_METHODS = ("GET", "HEAD")
@@ -56,6 +58,7 @@ class RemoteService:
         self.retry_waits = retry_waits
         self.clients: dict[str, httpx2.AsyncClient] = {}
         self.limits: dict[str, asyncio.Semaphore] = {}
+        self.breakers: dict[str, Breaker] = {}
 
     # 发送一次请求并记录；按方法和请求编号决定是否重试。
     async def send(
@@ -66,13 +69,30 @@ class RemoteService:
         record.bytes_out = len(str(request.json or "").encode("utf-8"))
         records.append(record)
         started = time.perf_counter()
+        breaker = self.breakers.setdefault(target.name, Breaker())
         try:
+            wait = breaker.blocked()
+            if wait:
+                raise RemoteUnavailable(
+                    f"外部系统 {target.title}连续失败，暂停调用，{wait:.0f} 秒后再试"
+                )
             reply = await self.attempts(target, request, record)
+        except (RemoteUnavailable, RemoteResultUnknown) as error:
+            if not wait:
+                breaker.failed()
+            record.error = error.detail
+            raise
+        except BusinessError as error:
+            breaker.succeeded()
+            record.error = error.detail
+            raise
         except BaseException as error:
-            record.error = getattr(error, "detail", type(error).__name__)
+            breaker.released()
+            record.error = type(error).__name__
             raise
         finally:
             record.elapsed_ms = (time.perf_counter() - started) * 1000
+        breaker.succeeded()
         record.bytes_in = len(reply.content)
         return reply
 
