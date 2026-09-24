@@ -981,6 +981,202 @@
         }
       }
     },
+    "/api/v1/products/import": {
+      "post": {
+        "tags": [
+          "商品目录"
+        ],
+        "summary": "批量导入商品",
+        "operationId": "import_products",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_products"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/export": {
+      "get": {
+        "tags": [
+          "商品目录"
+        ],
+        "summary": "导出商品",
+        "operationId": "export_products",
+        "security": [
+          {
+            "服务密钥": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "on_sale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "只导出在售或停售，不写则全部导出",
+              "title": "On Sale"
+            },
+            "description": "只导出在售或停售，不写则全部导出"
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "csv",
+                "xlsx"
+              ],
+              "type": "string",
+              "description": "csv 或 xlsx",
+              "default": "csv",
+              "title": "Format"
+            },
+            "description": "csv 或 xlsx"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "401": {
+            "description": "没有提供有效身份",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "没有权限",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "输入不符合要求",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "程序与声明不一致，需要修改代码",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "暂时故障，可以稍后重试",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/products/{product_id}": {
       "get": {
         "tags": [
@@ -3184,6 +3380,21 @@
   },
   "components": {
     "schemas": {
+      "Body_import_products": {
+        "properties": {
+          "upload": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Upload",
+            "description": "CSV（UTF-8）或 .xlsx 文件"
+          }
+        },
+        "type": "object",
+        "required": [
+          "upload"
+        ],
+        "title": "Body_import_products"
+      },
       "Body_save_file": {
         "properties": {
           "upload": {
@@ -3513,6 +3724,60 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ImportResult": {
+        "properties": {
+          "created": {
+            "type": "integer",
+            "title": "Created",
+            "description": "新建的商品数；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "新建的商品数",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "updated": {
+            "type": "integer",
+            "title": "Updated",
+            "description": "修改的商品数；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "修改的商品数",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/RowProblem"
+            },
+            "type": "array",
+            "title": "Problems",
+            "description": "没有导入的行及原因；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "没有导入的行及原因",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "created",
+          "updated",
+          "problems"
+        ],
+        "title": "ImportResult"
       },
       "JobAccepted": {
         "properties": {
@@ -4623,6 +4888,43 @@
           "permissions"
         ],
         "title": "RoleView"
+      },
+      "RowProblem": {
+        "properties": {
+          "row": {
+            "type": "integer",
+            "title": "Row",
+            "description": "行号；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "行号",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "这一行没有导入的原因；规则：R-03",
+            "x-note": {
+              "empty": "",
+              "log_value": false,
+              "meaning": "这一行没有导入的原因",
+              "rule": "R-03",
+              "secret": false,
+              "unit": ""
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "row",
+          "message"
+        ],
+        "title": "RowProblem"
       },
       "TokenReply": {
         "properties": {

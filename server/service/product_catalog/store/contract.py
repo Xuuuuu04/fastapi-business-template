@@ -6,7 +6,7 @@
 from decimal import Decimal
 from typing import Protocol
 
-from service.product_catalog.data import ProductPage, ProductView
+from service.product_catalog.data import ProductInput, ProductList, ProductPage, ProductView
 
 
 class ProductStore(Protocol):
@@ -31,3 +31,9 @@ class ProductStore(Protocol):
 
     # 返回在售且已定价的商品单价，按编码对应。
     async def prices(self, codes: list[str]) -> dict[str, Decimal]: ...
+
+    # 按编码新建或修改一批商品，返回新建数和修改数；修改记入变更历史。
+    async def upsert(self, items: list[ProductInput]) -> tuple[int, int]: ...
+
+    # 按在售状态筛选导出商品，按编码排序，最多 5000 条。
+    async def export(self, on_sale: bool | None) -> ProductList: ...

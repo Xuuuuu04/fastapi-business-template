@@ -14,6 +14,8 @@
 | update_product | 修改商品 | product_catalog.write | PUT /api/v1/products/{product_id} | product_missing（商品不存在）、product_code_used（商品编码已被其他商品使用） |
 | delete_product | 删除商品 | product_catalog.write | DELETE /api/v1/products/{product_id} | product_missing（商品不存在） |
 | get_prices | 查询可报价的单价 | product_catalog.read | 只供其他模块调用 | 无 |
+| import_products | 批量导入商品 | product_catalog.write | POST /api/v1/products/import | 无 |
+| export_products | 导出商品 | product_catalog.read | GET /api/v1/products/export | 无 |
 
 ## 查询商品（product_catalog.list_products）
 
@@ -216,6 +218,76 @@ flowchart TD
 | codes | 要查询单价的商品编码 | 操作输入 |  |  |  |
 | prices | 查询结果 | 步骤 | 读取可报价单价 | R-02 | codes |
 
+## 批量导入商品（product_catalog.import_products）
+
+输入 `ImportRequest`，输出 `ImportResult`，字段见“数据模型”。
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：文件中的非空行"])
+    s1["1. 逐行检查（计算）<br/>规则 R-03"]:::compute
+    start --> s1
+    s2["2. 保存导入的商品（保存）<br/>规则 R-03"]:::save
+    s1 --> s2
+    s3["3. 整理导入结果（计算）<br/>规则 R-03"]:::compute
+    s2 --> s3
+    finish(["结果：导入结果"])
+    s3 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| lines | 文件中的非空行 | 操作输入 |  |  |  |
+| valid | 检查通过、要保存的商品 | 步骤 | 逐行检查 | R-03 | lines |
+| problems | 没有导入的行及原因 | 步骤 | 逐行检查 | R-03 | lines |
+| created | 新建的商品数 | 步骤 | 保存导入的商品 | R-03 | valid |
+| updated | 修改的商品数 | 步骤 | 保存导入的商品 | R-03 | valid |
+| result | 导入结果 | 步骤 | 整理导入结果 | R-03 | created、updated、problems |
+
+## 导出商品（product_catalog.export_products）
+
+输入 `ExportQuery`，输出 `ProductList`，字段见“数据模型”。
+
+计算流程：
+
+```mermaid
+flowchart TD
+    start(["输入：只导出在售或停售"])
+    s1["1. 读取导出的商品（读取）<br/>规则 R-04"]:::read
+    start --> s1
+    finish(["结果：导出的商品"])
+    s1 --> finish
+    classDef compute fill:#eef6ff,stroke:#4a78b5
+    classDef read fill:#f2fbf2,stroke:#4a9a4a
+    classDef save fill:#fff4e5,stroke:#c07a1a
+    classDef call fill:#f5f0ff,stroke:#7a5ab5
+    classDef model fill:#ffeef4,stroke:#b54a7a
+    classDef ok fill:#eaf7ea,stroke:#3c8c3c
+    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px
+    classDef skipped fill:#f2f2f2,stroke:#999,stroke-dasharray:4 3,color:#777
+    classDef running fill:#fff8d6,stroke:#b59a1a
+```
+
+字段来源：
+
+| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
+| --- | --- | --- | --- | --- | --- |
+| on_sale | 在售筛选 | 操作输入 |  |  |  |
+| result | 导出的商品 | 步骤 | 读取导出的商品 | R-04 | on_sale |
+
 ## 数据模型
 
 ### ProductQuery
@@ -288,6 +360,49 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- | --- |
 | prices | dict[str, Decimal] | 是 | 可以报价的商品单价，按商品编码对应 | 元 |  | R-02 |
 | missing | list[str] | 是 | 不能报价的商品编码：不存在、已停售或尚未定价 |  |  | R-02 |
+
+### ImportRequest
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| lines | list[ImportLine] | 是 | 文件中的非空行 |  |  | R-03 |
+
+### ImportLine
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| row | int | 是 | 在上传文件中的行号 |  |  | R-03 |
+| code | str | 否 | 编码原文 |  |  | R-03 |
+| name | str | 否 | 名称原文 |  |  | R-03 |
+| price | str | 否 | 单价原文 |  | 尚未定价 | R-03 |
+| on_sale | str | 否 | 在售原文：是/否 |  | 在售 | R-03 |
+
+### ImportResult
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| created | int | 是 | 新建的商品数 |  |  | R-03 |
+| updated | int | 是 | 修改的商品数 |  |  | R-03 |
+| problems | list[RowProblem] | 是 | 没有导入的行及原因 |  |  | R-03 |
+
+### RowProblem
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| row | int | 是 | 行号 |  |  | R-03 |
+| message | str | 是 | 这一行没有导入的原因 |  |  | R-03 |
+
+### ExportQuery
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| on_sale | bool \| None | 否 | 只导出在售或停售 |  | 全部导出 | R-04 |
+
+### ProductList
+
+| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
+| --- | --- | --- | --- | --- | --- | --- |
+| items | list[ProductView] | 是 | 导出的商品，按编码排序，最多 5000 条 |  |  | R-04 |
 
 ## 数据表
 

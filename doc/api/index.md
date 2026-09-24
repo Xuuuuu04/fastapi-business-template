@@ -243,6 +243,43 @@
 | 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
 | 503 | 暂时故障，可以稍后重试 | ErrorReply |
 
+## POST /api/v1/products/import
+
+用途：批量导入商品
+分组：商品目录
+操作编号：import_products
+
+请求正文：multipart/form-data，模型 Body_import_products。
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | ImportResult |
+| 401 | 没有提供有效身份 | ErrorReply |
+| 403 | 没有权限 | ErrorReply |
+| 422 | 输入不符合要求 | ErrorReply |
+| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
+| 503 | 暂时故障，可以稍后重试 | ErrorReply |
+
+## GET /api/v1/products/export
+
+用途：导出商品
+分组：商品目录
+操作编号：export_products
+
+| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| on_sale | query | 否 | boolean 或 null |  | 只导出在售或停售，不写则全部导出 |
+| format | query | 否 | string | 可选值：['csv', 'xlsx'] | csv 或 xlsx |
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | 未指定 |
+| 401 | 没有提供有效身份 | ErrorReply |
+| 403 | 没有权限 | ErrorReply |
+| 422 | 输入不符合要求 | ErrorReply |
+| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
+| 503 | 暂时故障，可以稍后重试 | ErrorReply |
+
 ## GET /api/v1/products/{product_id}
 
 用途：读取商品
@@ -685,6 +722,12 @@
 
 ## 数据模型
 
+### Body_import_products
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| upload | string | 是 | CSV（UTF-8）或 .xlsx 文件 |  |
+
 ### Body_save_file
 
 | 字段 | 类型 | 必填 | 说明 | 限制 |
@@ -739,6 +782,14 @@
 | 字段 | 类型 | 必填 | 说明 | 限制 |
 | --- | --- | --- | --- | --- |
 | detail | 列表[ValidationError] | 否 |  |  |
+
+### ImportResult
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| created | integer | 是 | 新建的商品数；规则：R-03 |  |
+| updated | integer | 是 | 修改的商品数；规则：R-03 |  |
+| problems | 列表[RowProblem] | 是 | 没有导入的行及原因；规则：R-03 |  |
 
 ### JobAccepted
 
@@ -889,6 +940,13 @@
 | org_id | string | 是 | 角色所属组织代码 |  |
 | name | string | 是 | 角色名称 |  |
 | permissions | 列表[string] | 是 | 角色权限 |  |
+
+### RowProblem
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| row | integer | 是 | 行号；规则：R-03 |  |
+| message | string | 是 | 这一行没有导入的原因；规则：R-03 |  |
 
 ### TokenReply
 
