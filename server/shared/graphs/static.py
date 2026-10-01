@@ -11,7 +11,7 @@ from shared.modules.catalog import Binding, Catalog
 from shared.records.models import STEP_KIND_TEXT
 
 
-# 生成模块关系图：实线是经由哪些操作调用，虚线是事件（发布方指向订阅方）。
+# 生成模块关系图：说明模块经由哪些操作调用其他模块。
 def module_graph(catalog: Catalog) -> str:
     lines = ["flowchart LR"]
     for module in catalog.modules.values():
@@ -21,11 +21,6 @@ def module_graph(catalog: Catalog) -> str:
         for target, titles in targets.items():
             via = label("、".join(titles))
             lines.append(f'    {node_id("m", source)} -->|"{via}"| {node_id("m", target)}')
-    for module in catalog.modules.values():
-        for sub in module.subscribes:
-            text = label(f"事件：{sub.event.title}")
-            publisher, subscriber = node_id("m", sub.event.module), node_id("m", module.name)
-            lines.append(f'    {publisher} -.->|"{text}"| {subscriber}')
     return "\n".join(lines)
 
 
@@ -45,6 +40,10 @@ def flow_graph(binding: Binding) -> str:
         edge = f' -->|"条件：{label(part.when.title)}"| ' if part.when else " --> "
         lines.append(f"    {previous}{edge}{current}")
         lines += call_lines(current, part.uses, part.prompts)
+        for task in part.later:
+            target = node_id("j", task.name)
+            lines.append(f'    {target}[["后台任务：{label(task.title)}"]]')
+            lines.append(f"    {current} -.-> {target}")
         previous = current
     lines.append(f'    finish(["结果：{label(result_note.meaning or flow.result)}"])')
     lines.append(f"    {previous} --> finish")

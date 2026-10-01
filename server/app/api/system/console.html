@@ -3,71 +3,50 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>运行诊断</title>
+  <title>模块与运行</title>
   <style>
-    :root { color-scheme: light; font: 16px/1.6 system-ui, sans-serif; }
-    body { max-width: 960px; margin: 2rem auto; padding: 0 1rem; color: #17212b; }
-    h1 { margin-bottom: .25rem; } p { color: #425466; }
-    form, nav { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1rem 0; }
-    input, select, button { font: inherit; padding: .5rem .7rem; }
-    input { flex: 1; min-width: 16rem; } button { cursor: pointer; }
-    #notice { min-height: 1.5rem; } table { width: 100%; border-collapse: collapse; }
-    th, td { padding: .55rem; border-bottom: 1px solid #d8e0e7; text-align: left; }
-    pre { overflow: auto; background: #f3f6f8; padding: 1rem; white-space: pre-wrap; }
+    :root { color-scheme: light; font: 15px/1.65 system-ui,sans-serif; background:#f5f7fa; color:#203047; }
+    body { max-width:1180px; margin:2rem auto; padding:0 1rem; }
+    h1,h2,h3,p { margin:.5rem 0; } h1 { font-size:1.9rem; } h2 { font-size:1.3rem; } h3 { font-size:1.05rem; }
+    header,article,.panel { background:white; border:1px solid #dfe5ec; border-radius:12px; padding:1rem 1.25rem; margin:1rem 0; }
+    .muted,small { color:#596b80; } form,nav,.controls,.cards { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+    form,nav,.controls { margin:1rem 0; } input,select,button { font:inherit; padding:.45rem .7rem; border:1px solid #bac8d8; border-radius:6px; }
+    input { min-width:0; max-width:100%; box-sizing:border-box; } #secret,#run { flex:1; }
+    button { cursor:pointer; background:white; color:#214e8b; } button:hover,button.active { background:#e8f0fb; border-color:#6e95c8; }
+    .cards { align-items:stretch; } .cards article > button { margin:.2rem .3rem .2rem 0; }
+    .cards > article { flex:1 1 270px; margin:0; } .table-wrap { overflow:auto; }
+    table { width:100%; border-collapse:collapse; } th,td { padding:.65rem; border-bottom:1px solid #e1e7ef; text-align:left; vertical-align:top; }
+    th { color:#596b80; white-space:nowrap; } td { overflow-wrap:anywhere; } .status { white-space:nowrap; font-weight:600; }
+    .ok { color:#167049; } .failed,.refused,.lost { color:#a52a35; } .running { color:#215aa5; }
+    .steps { list-style:none; padding:0; } .steps > li { border-left:3px solid #b4c9e2; margin:0 0 .6rem; padding:.6rem 1rem; background:#f8faff; }
+    .steps > li.failed,.steps > li.failed.slowest { border-color:#c43b46; background:#fff3f4; } .steps > li.slowest { border-color:#bb7b1e; }
+    .steps > li + li::before { content:'↓'; color:#647994; display:block; margin-top:-.4rem; }
+    .steps p { color:#203047; } .empty { padding:2rem; text-align:center; color:#596b80; }
+    pre { overflow:auto; padding:1rem; background:#f0f3f7; white-space:pre-wrap; overflow-wrap:anywhere; }
+    code { overflow-wrap:anywhere; } summary { cursor:pointer; color:#315e92; } #notice { min-height:1.6rem; }
+    a { color:#215aa5; } .warning { color:#9b5710; } .connection { padding:.5rem 0; }
+    @media(max-width:640px) { body { margin:1rem auto; } header,article,.panel { padding:.8rem; } th,td { padding:.4rem; } }
   </style>
 </head>
 <body>
-  <h1>运行诊断</h1>
-  <p>输入具有系统诊断权限的服务密钥或登录令牌。凭据只用于当前页面请求，不保存到浏览器存储。</p>
-  <form id="access">
-    <select id="kind" aria-label="凭据类型"><option value="X-API-Key">服务密钥</option><option value="Authorization">登录令牌</option></select>
-    <input id="secret" type="password" autocomplete="off" aria-label="凭据">
-  </form>
-  <form id="report">
-    <input id="run" autocomplete="off" placeholder="错误响应中的 run_id" aria-label="运行编号">
-    <button type="submit">查看诊断报告</button>
-  </form>
-  <nav>
-    <button data-url="/api/system/runs">最近运行</button>
-    <button data-url="/api/system/stats">运行统计</button>
-    <button data-url="/api/system/runtime">进程状态</button>
-    <button data-url="/api/system/audit">审计记录</button>
+  <header>
+    <h1>模块与运行</h1>
+    <p class="muted">先看模块关系，再看执行步骤；失败位置和耗时都来自实际运行记录。</p>
+    <form id="access">
+      <select id="kind" aria-label="凭据类型"><option value="X-API-Key">服务密钥</option><option value="Authorization">登录令牌</option></select>
+      <input id="secret" type="password" autocomplete="off" aria-label="凭据" placeholder="输入具有系统查看权限的凭据">
+    </form>
+    <small>凭据只保留在当前页面。查看运行需要 system.diagnostics，查看操作记录需要 system.audit。</small>
+  </header>
+  <nav aria-label="查看内容">
+    <button data-path="modules">模块关系</button><button data-path="runs">最近运行</button>
+    <button data-path="stats">运行统计</button><button data-path="runtime">进程状态</button><button data-path="audit">操作记录</button>
   </nav>
-  <p id="notice" role="status"></p>
-  <section id="results" aria-live="polite"></section>
-  <script>
-    const notice = document.querySelector('#notice');
-    const results = document.querySelector('#results');
-    // 读取一个系统接口；报告是 Markdown 文本，其他接口是 JSON。结果只用 textContent 显示。
-    async function show(url, asText) {
-      const secret = document.querySelector('#secret').value.trim();
-      if (!secret) { notice.textContent = '请先输入凭据。'; return; }
-      const kind = document.querySelector('#kind').value;
-      const headers = { [kind]: kind === 'Authorization' ? `Bearer ${secret}` : secret };
-      notice.textContent = '正在读取…';
-      results.replaceChildren();
-      try {
-        const response = await fetch(url, { headers, cache: 'no-store' });
-        if (!response.ok) {
-          const problem = await response.json().catch(() => ({}));
-          notice.textContent = problem.message || `请求失败（${response.status}）`;
-          return;
-        }
-        const pre = document.createElement('pre');
-        pre.textContent = asText ? await response.text() : JSON.stringify(await response.json(), null, 2);
-        notice.textContent = '查询完成。';
-        results.append(pre);
-      } catch (error) { notice.textContent = `无法读取：${error.message}`; }
-    }
-    document.querySelector('#report').addEventListener('submit', event => {
-      event.preventDefault();
-      const run = document.querySelector('#run').value.trim();
-      if (!/^[0-9a-f]{8,64}$/.test(run)) { notice.textContent = '运行编号只包含数字和小写字母 a 到 f。'; return; }
-      show(`/api/system/runs/${run}/report`, true);
-    });
-    document.querySelectorAll('button[data-url]').forEach(button => {
-      button.addEventListener('click', () => show(button.dataset.url, false));
-    });
-  </script>
+  <form id="report"><input id="run" autocomplete="off" placeholder="粘贴错误响应中的运行编号" aria-label="运行编号"><button type="submit">查看运行详情</button></form>
+  <form id="filters"><input id="module" aria-label="模块筛选" placeholder="模块英文名（可选）"><select id="status" aria-label="状态筛选"><option value="">全部状态</option><option value="failed">失败</option><option value="running">执行中</option><option value="ok">已完成</option><option value="refused">被拒绝</option></select><button>筛选运行</button></form>
+  <div class="controls"><button id="refresh">刷新当前内容</button><label><input id="auto" type="checkbox">每 3 秒刷新</label></div>
+  <p id="notice" role="status">请选择要查看的内容。</p>
+  <main id="results" aria-live="polite"></main>
+  <script src="/system/console.js" defer></script>
 </body>
 </html>

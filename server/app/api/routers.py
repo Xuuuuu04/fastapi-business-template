@@ -1,14 +1,14 @@
 """
-全部路由的清单。新增模块的接口文件后在这里登记；tools.new_module 会自动加入。
+系统接口和业务接口的清单。业务接口随对应模块启用；新模块由 tools.new_module 登记。
 """
+
+from collections.abc import Collection
 
 from fastapi import APIRouter
 
 from app.api.system import audit, console, health, jobs, runs, structure
 from app.api.v1 import (
     file_library,
-    order_quote,
-    product_catalog,
     stream,
     user_access,
     user_access_security,
@@ -21,10 +21,18 @@ ROUTERS: list[APIRouter] = [
     jobs.router,
     audit.router,
     console.router,
-    product_catalog.router,
-    order_quote.router,
-    user_access.router,
-    user_access_security.router,
-    file_library.router,
     stream.router,
 ]
+
+MODULE_ROUTERS: dict[str, tuple[APIRouter, ...]] = {
+    "user_access": (user_access.router, user_access_security.router),
+    "file_library": (file_library.router,),
+}
+
+
+# 系统接口始终可用，业务接口随模块一起启用或关闭。
+def routers_for(modules: Collection[str]) -> list[APIRouter]:
+    business = [
+        router for name, routers in MODULE_ROUTERS.items() if name in modules for router in routers
+    ]
+    return [*ROUTERS, *business]

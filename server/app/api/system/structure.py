@@ -66,6 +66,21 @@ async def flow(name: str, request: Request, caller: CallerDep) -> dict[str, Any]
         "doc": binding.module.doc,
         "graph": flow_graph(binding),
         "fields": fields,
+        "steps": [
+            {
+                "name": part.name,
+                "title": part.title,
+                "kind": part.kind,
+                "rule": part.rule,
+                "source": part.source,
+                "reads": part.reads,
+                "writes": part.writes,
+                "condition": part.when.title if part.when else "",
+                "calls": [{"name": item.name, "title": item.title} for item in part.uses],
+                "jobs": [{"name": item.name, "title": item.title} for item in part.later],
+            }
+            for part in binding.flow.steps
+        ],
     }
 
 

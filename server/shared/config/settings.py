@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     env: Literal["local", "test", "production"] = "local"
     name: str = "单体后端模板"
     code_version: str = "dev"
+    disabled_modules: list[str] = []
 
     database_url: str = "sqlite+aiosqlite:///var/local.db"
     database_pool_size: int = Field(default=10, ge=1, le=200)
@@ -48,7 +49,6 @@ class Settings(BaseSettings):
     model_timeout: float = Field(default=60, gt=0)
     model_concurrency: int = Field(default=4, ge=1)
     model_keep_text: bool = False
-    model_provider: str = "openai"
 
     job_poll_seconds: float = Field(default=1.0, gt=0)
     job_concurrency: int = Field(default=4, ge=1)
@@ -57,8 +57,7 @@ class Settings(BaseSettings):
     remotes: dict[str, RemoteConfig] = {}
     legacy_database_url: str = ""
     cache_url: str = ""
-    cache_backend: str = ""
-    file_storage: str = "local"
+    file_storage: Literal["local", "s3"] = "local"
     file_root: str = "var/files"
     upload_root: str = "var/uploads"
     upload_max_bytes: int = Field(default=10_000_000, ge=1)
@@ -99,7 +98,7 @@ class Settings(BaseSettings):
 
 
 # 列出生产环境配置中不允许的地方。
-def check_production(settings: Settings) -> list[str]:
+def check_production(settings: Settings, *, needs_vault: bool = True) -> list[str]:
     if settings.env != "production":
         return []
     problems = []
@@ -117,7 +116,7 @@ def check_production(settings: Settings) -> list[str]:
     if secret == LOCAL_JWT_SECRET or len(secret) < 32:
         problems.append("生产环境必须设置独立的 APP_JWT_SECRET，至少 32 个字符")
     keys = [item.get_secret_value() for item in settings.data_keys]
-    if not keys or LOCAL_DATA_KEY in keys or any(len(key) < 32 for key in keys):
+    if needs_vault and (not keys or LOCAL_DATA_KEY in keys or any(len(key) < 32 for key in keys)):
         problems.append("生产环境必须设置独立的 APP_DATA_KEYS（字段加密密钥），每把至少 32 个字符")
     if any(len(item.get_secret_value()) < 32 for item in settings.jwt_previous_secrets):
         problems.append("APP_JWT_PREVIOUS_SECRETS 中的旧密钥也必须至少 32 个字符")

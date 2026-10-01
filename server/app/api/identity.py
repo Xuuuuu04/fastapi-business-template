@@ -7,7 +7,7 @@
 from typing import Annotated
 
 from fastapi import Depends, Request, Security
-from fastapi.security import APIKeyHeader
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 
 from shared.access.caller import ANONYMOUS, DEVELOPER, Caller
 from shared.access.keys import find_caller
@@ -20,17 +20,24 @@ key_header = APIKeyHeader(
     description="服务密钥，由 tools.make_key 生成并配置到 APP_API_KEYS",
     auto_error=False,
 )
+bearer_header = HTTPBearer(
+    scheme_name="登录令牌", description="登录后取得的访问令牌", auto_error=False
+)
 
 
 # 按请求头识别调用者。
-async def get_caller(request: Request, key: Annotated[str | None, Security(key_header)]) -> Caller:
+async def get_caller(
+    request: Request,
+    key: Annotated[str | None, Security(key_header)],
+    bearer: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_header)],
+) -> Caller:
     settings = request.app.state.settings
     if key:
         caller = find_caller(key, settings.api_keys)
         if caller is None:
             raise NotSignedIn("服务密钥无效")
-    elif request.headers.get("Authorization", "").startswith("Bearer "):
-        token = request.headers["Authorization"].removeprefix("Bearer ")
+    elif bearer is not None:
+        token = bearer.credentials
         keys = [settings.jwt_secret, *settings.jwt_previous_secrets]
         caller = verify_token(
             token,

@@ -63,7 +63,7 @@ def check_module_names(root: Path) -> list[Problem]:
             0,
             "module_name",
             f"模块名 {path.name} 至少要两个词",
-            "例如 product_catalog、order_quote，第二个词说明具体做什么",
+            "例如 user_access、file_library，第二个词说明具体做什么",
         )
         for path in sorted(service.iterdir())
         if path.is_dir() and not path.name.startswith(("_", ".")) and len(path.name.split("_")) < 2

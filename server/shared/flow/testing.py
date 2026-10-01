@@ -11,7 +11,6 @@ from typing import Any
 from shared.access.caller import DEVELOPER, Caller
 from shared.data.models import Data, WorkData
 from shared.errors.framework import StepRuleBroken
-from shared.events.event import Event
 from shared.flow.inject import NoteWriter
 from shared.flow.step import Step
 from shared.flow.view import FieldTypes, StepView, missing_writes
@@ -59,7 +58,6 @@ async def try_step_async(
     tools["call"] = fake_call(part, calls or {})
     tools["model"] = ModelGate(model, part.prompts, record.models, part.title)
     tools["later"] = fake_later(part, submitted)
-    tools["publish"] = fake_publish(part, submitted)
     chosen = {name: tools[name] for name in part.params[1:] if name in tools}
     returned = part.func(view, **chosen)
     if part.is_async:
@@ -117,17 +115,3 @@ def fake_later(part: Step, submitted: list[tuple[str, Data]]) -> Callable[..., A
         return f"test-{len(submitted)}"
 
     return later
-
-
-# 生成事件发布的替身：发布的事件和任务登记记在一起，名称写成“事件:事件名”。
-def fake_publish(
-    part: Step, submitted: list[tuple[str, Data]]
-) -> Callable[..., Awaitable[list[str]]]:
-    # 记下发布的事件，不登记订阅方任务。
-    async def publish(item: Event, data: Data) -> list[str]:
-        if item not in part.publishes:
-            raise StepRuleBroken(f"步骤「{part.title}」发布了未声明的事件 {item.name}")
-        submitted.append((f"事件:{item.name}", data))
-        return []
-
-    return publish

@@ -2,7 +2,7 @@
 $title 对外提供的操作约定和公开数据。其他模块和接口层只能导入本文件。
 """
 
-from service.$name.data import ${Camel}Id, ${Camel}Input, ${Camel}Missing, ${Camel}View
+from service.$name.data import ${Camel}Id, ${Camel}Input, ${Camel}Invalid, ${Camel}Missing, ${Camel}View
 from shared.public import contract
 
 create_record = contract(
@@ -11,6 +11,7 @@ create_record = contract(
     input=${Camel}Input,
     output=${Camel}View,
     access="$name.write",
+    errors=(${Camel}Invalid,),
 )
 
 get_record = contract(
@@ -25,6 +26,7 @@ get_record = contract(
 __all__ = [
     "${Camel}Id",
     "${Camel}Input",
+    "${Camel}Invalid",
     "${Camel}Missing",
     "${Camel}View",
     "create_record",

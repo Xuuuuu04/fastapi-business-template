@@ -87,16 +87,27 @@ def test_new_project_path(tmp_path: Path) -> None:
     if os.environ.get(COPY_FLAG):
         pytest.skip("已经在项目副本中运行，不再复制")
     copy = tmp_path / "project"
-    ignored = (".venv", "__pycache__", ".mypy_cache", ".ruff_cache", ".pytest_cache", "var", "out")
+    ignored = (
+        ".venv",
+        "__pycache__",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+        "var",
+        "out",
+        ".agent",
+        ".env",
+    )
     shutil.copytree(PROJECT, copy, ignore=shutil.ignore_patterns(*ignored, ".git"))
     env = {name: value for name, value in os.environ.items() if not name.startswith("APP_")}
     env |= {COPY_FLAG: "1", "APP_DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path}/copy.db"}
     steps = [
-        ["tools.remove_examples", "--yes"],
         ["tools.new_module", "customer_contact", "--title", "客户联系人"],
         ["alembic", "upgrade", "head"],
         ["alembic", "revision", "--autogenerate", "-m", "add customer_contact tables"],
         ["tools.export_docs"],
+        ["ruff", "format", "--quiet", "migrations"],
+        ["tools.check", "--module", "customer_contact"],
         ["pytest", "-q", "-p", "no:cacheprovider"],
     ]
     for step in steps:

@@ -2,11 +2,14 @@
 $title 的输入整理规则。纯计算，不读写数据库。
 """
 
-from service.$name.data import CreateWork
+from service.$name.data import ${Camel}Invalid, CreateWork
 from shared.public import step
 
+MAX_TITLE_LENGTH = 80
 
 # 按 R-01 整理标题：去掉首尾空白。
 @step("整理标题", reads=["title"], writes=["clean_title"], rule="R-01")
 def clean_title(data: CreateWork) -> None:
     data.clean_title = data.title.strip()
+    if not data.clean_title or len(data.clean_title) > MAX_TITLE_LENGTH:
+        raise ${Camel}Invalid()

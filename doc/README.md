@@ -6,8 +6,6 @@
 
 | 模块 | 名称 | 文档 |
 | --- | --- | --- |
-| product_catalog | 商品目录 | [需求](product_catalog/needs.md) · [规则](product_catalog/rules.md) · [变化](product_catalog/changes.md) · [流程](product_catalog/flows.md) |
-| order_quote | 订单报价 | [需求](order_quote/needs.md) · [规则](order_quote/rules.md) · [变化](order_quote/changes.md) · [流程](order_quote/flows.md) |
 | user_access | 用户权限 | [需求](user_access/needs.md) · [规则](user_access/rules.md) · [变化](user_access/changes.md) · [流程](user_access/flows.md) |
 | file_library | 文件管理 | [需求](file_library/needs.md) · [规则](file_library/rules.md) · [变化](file_library/changes.md) · [流程](file_library/flows.md) |
 
@@ -36,10 +34,3 @@
 - 没有确认的内容写“待确认”，不要让 AI 自行补全。
 - 每份文档不超过 200 行；变长时按业务主题拆分，保留全部业务条件和确认样例。
 - 业务改了先改文档，再改代码和测试；测试的预期值来自这里的确认样例。
-
-## 术语
-
-| 词 | 含义 |
-| --- | --- |
-| 可报价 | 商品在售并且已经定价 |
-| 会员等级 | 客户的会员级别：非会员、银卡、金卡 |

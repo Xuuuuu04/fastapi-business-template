@@ -32,7 +32,7 @@ KEYS = [
     ApiKeyConfig(
         name="reader",
         key_sha256=hash_key("test-reader-key"),
-        permissions=["product_catalog.read", "order_quote.read"],
+        permissions=["sample_calc.read"],
     ),
 ]
 

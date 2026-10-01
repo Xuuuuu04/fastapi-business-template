@@ -3,7 +3,7 @@
 步骤声明读取和写入哪些字段、调用哪些操作、使用哪些提示词、登记哪些任务；
 执行器只按声明提供数据和工具，声明以外的访问会报错。参数名决定步骤能拿到什么：
 data 流程数据、store 本模块存储、call 调用其他操作、model 大模型、remote 外部接口、
-cache 缓存、emit 流式输出、later 登记任务、publish 发布事件、caller 调用者身份、note 记录数据说明。
+cache 缓存、emit 流式输出、later 登记任务、caller 调用者身份、note 记录数据说明。
 """
 
 import inspect
@@ -11,7 +11,6 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from shared.events.event import Event
 from shared.model_calls.prompt import Prompt
 from shared.modules.contract import Contract
 from shared.remote_calls.remote import Remote
@@ -24,7 +23,6 @@ PARAMS = (
     "remote",
     "cache",
     "later",
-    "publish",
     "caller",
     "note",
     "emit",
@@ -50,7 +48,6 @@ class Step:
     uses: tuple[Contract[Any, Any], ...]
     prompts: tuple[Prompt, ...]
     later: tuple[Contract[Any, Any], ...]
-    publishes: tuple[Event, ...]
     remotes: tuple[Remote, ...]
     rule: str
     saves: bool
@@ -94,7 +91,6 @@ def step(
     uses: Sequence[Contract[Any, Any]] = (),
     prompts: Sequence[Prompt] = (),
     later: Sequence[Contract[Any, Any]] = (),
-    publishes: Sequence[Event] = (),
     remotes: Sequence[Remote] = (),
     rule: str = "",
     saves: bool = False,
@@ -113,7 +109,6 @@ def step(
             uses=tuple(uses),
             prompts=tuple(prompts),
             later=tuple(later),
-            publishes=tuple(publishes),
             remotes=tuple(remotes),
             rule=rule,
             saves=saves,

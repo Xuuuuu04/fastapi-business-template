@@ -12,6 +12,8 @@ import time
 from collections.abc import Awaitable, Callable, MutableMapping
 from typing import Any
 
+from starlette.datastructures import MutableHeaders
+
 from shared.logs.setup import request_id
 
 log = logging.getLogger("server.request")
@@ -119,13 +121,13 @@ def tagged(send: Send, scope: Scope, rid: str, status: list[int], hsts_seconds: 
     async def wrapped(message: Message) -> None:
         if message["type"] == "http.response.start":
             status[0] = message["status"]
-            headers = list(message.get("headers", []))
-            headers.append((b"x-request-id", rid.encode()))
-            headers.extend(security_headers(hsts_seconds))
+            headers = MutableHeaders(scope=message)
+            headers["X-Request-ID"] = rid
+            for name, value in security_headers(hsts_seconds):
+                headers[name.decode("latin-1")] = value.decode("latin-1")
             run_ids = scope.get("state", {}).get("run_ids") or []
-            if run_ids:
-                headers.append((b"x-run-id", run_ids[0].encode()))
-            message["headers"] = headers
+            if run_ids and "X-Run-ID" not in headers:
+                headers["X-Run-ID"] = run_ids[0]
         await send(message)
 
     return wrapped

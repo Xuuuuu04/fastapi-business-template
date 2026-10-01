@@ -31,7 +31,7 @@ class RunStore(Protocol):
     immediate: bool
     dropped: int
 
-    # 保存一批已经结束的运行记录。
+    # 按运行编号保存或更新一批进度和结果。
     async def save(self, runs: list[RunRecord]) -> None: ...
 
     # 按运行编号读取一条记录。
@@ -94,6 +94,7 @@ class MemoryRunStore:
             for run in self.rows.values()
             if run.started_at >= since
             and not run.parent_id
+            and run.status not in ("running", "lost")
             and (not module or run.module == module)
         ]
         groups: dict[tuple[str, str], list[float]] = {}
@@ -139,6 +140,9 @@ class SqlRunStore:
             return
         rows = [to_row(run) for run in runs]
         async with self.database.write() as connection:
+            await connection.execute(
+                delete(run_records).where(run_records.c.id.in_([run.id for run in runs]))
+            )
             await connection.execute(insert(run_records), rows)
 
     # 按运行编号读取一条记录。
@@ -193,7 +197,11 @@ class SqlRunStore:
                 func.avg(run_records.c.elapsed_ms).label("average_ms"),
                 func.max(run_records.c.elapsed_ms).label("max_ms"),
             )
-            .where(run_records.c.started_at >= since, run_records.c.parent_id == "")
+            .where(
+                run_records.c.started_at >= since,
+                run_records.c.parent_id == "",
+                run_records.c.status.not_in(("running", "lost")),
+            )
             .group_by(run_records.c.contract, run_records.c.status)
             .order_by(run_records.c.contract, run_records.c.status)
         )

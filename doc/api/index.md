@@ -195,7 +195,7 @@
 
 | 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
 | --- | --- | --- | --- | --- | --- |
-| table | query | 否 | string | 最长：80 | 表名，例如 product_catalog_products |
+| table | query | 否 | string | 最长：80 | 表名，例如 file_library_files |
 | key | query | 否 | string | 最长：80 | 记录编号 |
 | limit | query | 否 | integer | 最小：1；最大：200 |  |
 
@@ -204,202 +204,22 @@
 | 200 | Successful Response | object |
 | 422 | Validation Error | HTTPValidationError |
 
-## GET /api/v1/products
+## POST /api/v1/stream/{name}
 
-用途：查询商品
-分组：商品目录
-操作编号：list_products
-
-| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| offset | query | 否 | integer | 最小：0 | 从第几条开始，从 0 计数 |
-| limit | query | 否 | integer | 最小：1；最大：100 | 本页最多返回多少条 |
-| on_sale | query | 否 | boolean 或 null |  | 只看在售或只看停售；为空表示：不按在售状态筛选 |
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 200 | Successful Response | Page_ProductView_ |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 422 | 输入不符合要求 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
-
-## POST /api/v1/products
-
-用途：新建商品
-分组：商品目录
-操作编号：create_product
-
-请求正文：application/json，模型 ProductInput。
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 201 | Successful Response | ProductView |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 409 | product_code_used：商品编码已被其他商品使用 | ErrorReply |
-| 422 | 输入不符合要求 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
-
-## POST /api/v1/products/import
-
-用途：批量导入商品
-分组：商品目录
-操作编号：import_products
-
-请求正文：multipart/form-data，模型 Body_import_products。
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 200 | Successful Response | ImportResult |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 422 | 输入不符合要求 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
-
-## GET /api/v1/products/export
-
-用途：导出商品
-分组：商品目录
-操作编号：export_products
+用途：执行流式操作
+分组：流式操作
+操作编号：run_stream
 
 | 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
 | --- | --- | --- | --- | --- | --- |
-| on_sale | query | 否 | boolean 或 null |  | 只导出在售或停售，不写则全部导出 |
-| format | query | 否 | string | 可选值：['csv', 'xlsx'] | csv 或 xlsx |
+| name | path | 是 | string |  |  |
+
+请求正文：application/json，模型 object。
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
 | 200 | Successful Response | 未指定 |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 422 | 输入不符合要求 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
-
-## GET /api/v1/products/{product_id}
-
-用途：读取商品
-分组：商品目录
-操作编号：get_product
-
-| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| product_id | path | 是 | integer | 大于：0 | 商品编号 |
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 200 | Successful Response | ProductView |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 404 | product_missing：商品不存在 | ErrorReply |
-| 422 | 输入不符合要求 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
-
-## PUT /api/v1/products/{product_id}
-
-用途：修改商品
-分组：商品目录
-操作编号：update_product
-
-| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| product_id | path | 是 | integer | 大于：0 | 商品编号 |
-
-请求正文：application/json，模型 ProductInput。
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 200 | Successful Response | ProductView |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 404 | product_missing：商品不存在 | ErrorReply |
-| 409 | product_code_used：商品编码已被其他商品使用 | ErrorReply |
-| 422 | 输入不符合要求 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
-
-## DELETE /api/v1/products/{product_id}
-
-用途：删除商品
-分组：商品目录
-操作编号：delete_product
-
-| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| product_id | path | 是 | integer | 大于：0 | 商品编号 |
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 204 | Successful Response | 空响应 |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 404 | product_missing：商品不存在 | ErrorReply |
-| 422 | 输入不符合要求 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
-
-## POST /api/v1/quotes
-
-用途：创建报价
-分组：订单报价
-操作编号：create_quote
-
-请求正文：application/json，模型 QuoteRequest。
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 201 | Successful Response | QuoteView |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 422 | 输入不符合要求；nothing_to_quote：所有商品都不能报价：不存在、已停售或尚未定价 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
-
-## GET /api/v1/quotes/{quote_id}
-
-用途：读取报价
-分组：订单报价
-操作编号：get_quote
-
-| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| quote_id | path | 是 | integer | 大于：0 | 报价编号 |
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 200 | Successful Response | QuoteView |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 404 | quote_missing：报价不存在 | ErrorReply |
-| 422 | 输入不符合要求 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
-
-## POST /api/v1/quotes/expire
-
-用途：标记过期报价（后台任务）
-分组：订单报价
-操作编号：expire_quotes
-
-| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| idempotency-key | header | 否 | string | 最长：120 | 请求编号，重复提交时用来识别同一个请求 |
-
-请求正文：application/json，模型 ExpireRequest。
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 202 | Successful Response | JobAccepted |
-| 401 | 没有提供有效身份 | ErrorReply |
-| 403 | 没有权限 | ErrorReply |
-| 422 | 输入不符合要求 | ErrorReply |
-| 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
-| 503 | 暂时故障，可以稍后重试 | ErrorReply |
+| 422 | Validation Error | HTTPValidationError |
 
 ## GET /api/v1/access/orgs
 
@@ -803,30 +623,7 @@
 | 500 | 程序与声明不一致，需要修改代码 | ErrorReply |
 | 503 | 暂时故障，可以稍后重试 | ErrorReply |
 
-## POST /api/v1/stream/{name}
-
-用途：执行流式操作
-分组：流式操作
-操作编号：run_stream
-
-| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
-| --- | --- | --- | --- | --- | --- |
-| name | path | 是 | string |  |  |
-
-请求正文：application/json，模型 object。
-
-| 状态码 | 含义 | 返回模型 |
-| --- | --- | --- |
-| 200 | Successful Response | 未指定 |
-| 422 | Validation Error | HTTPValidationError |
-
 ## 数据模型
-
-### Body_import_products
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| upload | string | 是 | CSV（UTF-8）或 .xlsx 文件 |  |
 
 ### Body_save_file
 
@@ -852,12 +649,6 @@
 | run_id | string | 否 | 运行编号，用于查看执行过程；没有进入业务流程时为空文本 |  |
 | fields | 列表[FieldProblem] | 否 | 逐个字段的问题 |  |
 
-### ExpireRequest
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| days | integer | 否 | 创建超过多少天的有效报价标为过期；规则：R-06 | 最小：1.0；最大：3650.0 |
-
 ### FieldProblem
 
 | 字段 | 类型 | 必填 | 说明 | 限制 |
@@ -882,22 +673,6 @@
 | 字段 | 类型 | 必填 | 说明 | 限制 |
 | --- | --- | --- | --- | --- |
 | detail | 列表[ValidationError] | 否 |  |  |
-
-### ImportResult
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| created | integer | 是 | 新建的商品数；规则：R-03 |  |
-| updated | integer | 是 | 修改的商品数；规则：R-03 |  |
-| problems | 列表[RowProblem] | 是 | 没有导入的行及原因；规则：R-03 |  |
-
-### JobAccepted
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| job_id | string | 是 | 任务编号 |  |
-| state | string | 是 | 任务状态，刚受理时为 queued |  |
-| status_url | string | 是 | 查询任务状态的地址 |  |
 
 ### LoginInput
 
@@ -950,81 +725,12 @@
 | offset | integer | 是 | 本页从第几条开始，从 0 计数 |  |
 | limit | integer | 是 | 本页最多返回多少条 |  |
 
-### Page_ProductView_
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| items | 列表[ProductView] | 是 | 本页记录 |  |
-| total | integer | 是 | 符合条件的记录总数 |  |
-| offset | integer | 是 | 本页从第几条开始，从 0 计数 |  |
-| limit | integer | 是 | 本页最多返回多少条 |  |
-
 ### PasswordChange
 
 | 字段 | 类型 | 必填 | 说明 | 限制 |
 | --- | --- | --- | --- | --- |
 | old_password | string | 是 | 原密码；规则：R-06 | 最长：256 |
 | new_password | string | 是 | 新密码；规则：R-06 | 最短：8；最长：256 |
-
-### ProductInput
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| code | string | 是 | 商品编码，保存前去掉首尾空白并转成大写；规则：R-01 | 最短：1；最长：40 |
-| name | string | 是 | 商品名称 | 最短：1；最长：80 |
-| price | number 或 string 或 null | 否 | 单价；单位：元；为空表示：尚未定价，不能用于报价；规则：R-02 |  |
-| on_sale | boolean | 否 | 是否在售；停售的商品不能用于报价；规则：R-02 |  |
-
-### ProductView
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| id | integer | 是 | 商品编号 |  |
-| code | string | 是 | 商品编码；规则：R-01 |  |
-| name | string | 是 | 商品名称 |  |
-| price | string 或 null | 是 | 单价；单位：元；为空表示：尚未定价；规则：R-02 |  |
-| on_sale | boolean | 是 | 是否在售；规则：R-02 |  |
-| updated_at | date-time | 是 | 最后修改时间（UTC） |  |
-
-### QuoteLine
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| code | string | 是 | 商品编码 |  |
-| quantity | integer | 是 | 数量；同一编码的多行已合并；规则：R-01 |  |
-| unit_price | string | 是 | 单价；单位：元；规则：R-02 |  |
-| amount | string | 是 | 金额 = 单价 × 数量；单位：元；规则：R-02 |  |
-
-### QuoteLineInput
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| code | string | 是 | 商品编码 | 最短：1；最长：40 |
-| quantity | integer | 是 | 数量 | 最小：1.0；最大：10000.0 |
-
-### QuoteRequest
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| customer | string | 是 | 客户名称 | 最短：1；最长：80 |
-| member_level | string | 是 | 会员等级：none 非会员，silver 银卡，gold 金卡；规则：R-03 | 可选值：['none', 'silver', 'gold'] |
-| lines | 列表[QuoteLineInput] | 是 | 报价明细 |  |
-
-### QuoteView
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| id | integer | 是 | 报价编号 |  |
-| customer | string | 是 | 客户名称 |  |
-| member_level | string | 是 | 会员等级；规则：R-03 | 可选值：['none', 'silver', 'gold'] |
-| lines | 列表[QuoteLine] | 是 | 计入报价的明细；规则：R-02 |  |
-| excluded | 列表[string] | 是 | 没有计入报价的商品编码：不存在、停售或未定价；规则：R-02 |  |
-| subtotal | string | 是 | 商品合计；单位：元；规则：R-02 |  |
-| discount | string | 是 | 会员优惠；单位：元；规则：R-03 |  |
-| total | string | 是 | 应付金额；单位：元；规则：R-04 |  |
-| explanation | string | 是 | 给客户看的报价说明，由大模型生成；规则：R-05 |  |
-| status | string | 是 | 报价状态：active 有效，expired 已过期；规则：R-06 | 可选值：['active', 'expired'] |
-| created_at | date-time | 是 | 创建时间（UTC） |  |
 
 ### RefreshInput
 
@@ -1070,13 +776,6 @@
 | org_id | string | 是 | 角色所属组织代码 |  |
 | name | string | 是 | 角色名称 |  |
 | permissions | 列表[string] | 是 | 角色权限 |  |
-
-### RowProblem
-
-| 字段 | 类型 | 必填 | 说明 | 限制 |
-| --- | --- | --- | --- | --- |
-| row | integer | 是 | 行号；规则：R-03 |  |
-| message | string | 是 | 这一行没有导入的原因；规则：R-03 |  |
 
 ### TokenReply
 

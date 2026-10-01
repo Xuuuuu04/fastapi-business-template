@@ -15,15 +15,18 @@ from tools.quality.rules import ROOT
 TYPED = ("app", "service", "shared", "tools", "deploy")
 
 
-# 列出全部检查；类型检查只包含有 Python 文件的目录（删除示例后 service 可能暂时为空）。
-def steps() -> list[tuple[str, list[str]]]:
+# 列出全部检查；类型检查只包含有 Python 文件的目录（未添加业务时 service 可能暂时为空）。
+def steps(module: str = "") -> list[tuple[str, list[str]]]:
     typed = [name for name in TYPED if any((ROOT / name).rglob("*.py"))]
+    tests = ["-m", "pytest", "-q"]
+    if module:
+        tests += [f"tests/modules/{module}", f"tests/integration/{module}"]
     return [
         ("代码风格", ["ruff", "check", "."]),
         ("代码格式", ["ruff", "format", "--check", "."]),
         ("类型检查", ["mypy", *typed]),
         ("生成文档", ["-m", "tools.export_docs", "--check"]),
-        ("默认测试", ["-m", "pytest", "-q"]),
+        ("模块测试" if module else "默认测试", tests),
     ]
 
 
@@ -38,14 +41,26 @@ def run(title: str, command: list[str], env: dict[str, str]) -> bool:
 def main() -> None:
     parser = argparse.ArgumentParser(description="运行全部必需检查")
     parser.add_argument(
+        "--module", default="", help="只跑指定模块的步骤与接口测试，其余代码检查保持完整"
+    )
+    parser.add_argument(
         "--postgres", default="", help="PostgreSQL 连接地址，用于在真实数据库上再跑测试"
     )
     args = parser.parse_args()
+    if args.module:
+        from app.setup.catalog import MODULES
+
+        if args.module not in {module.name for module in MODULES}:
+            parser.error(f"模块没有登记：{args.module}")
+        for group in ("modules", "integration"):
+            if not list((ROOT / "tests" / group / args.module).glob("test_*.py")):
+                parser.error(f"模块缺少 tests/{group}/{args.module}/test_*.py")
     env = dict(os.environ)
-    results = [(title, run(title, command, env)) for title, command in steps()]
+    selected = steps(args.module)
+    results = [(title, run(title, command, env)) for title, command in selected]
     if args.postgres:
         env["APP_TEST_DATABASE_URL"] = args.postgres
-        results.append(("PostgreSQL 测试", run("PostgreSQL 测试", ["-m", "pytest", "-q"], env)))
+        results.append(("PostgreSQL 测试", run("PostgreSQL 测试", selected[-1][1], env)))
     print("\n检查结果：")
     for title, passed in results:
         print(f"  {'通过' if passed else '失败'}  {title}")

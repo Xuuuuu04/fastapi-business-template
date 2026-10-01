@@ -2,7 +2,7 @@
 
 | 命令 | 用途 |
 | --- | --- |
-| `uv run python -m tools.check` | 全量检查：代码风格、格式、类型、生成文档、默认测试；加 `--postgres 地址` 在 PostgreSQL 上再跑测试 |
+| `uv run python -m tools.check` | 全量检查：代码风格、格式、类型、生成文档、默认测试；加 `--module 模块名` 只跑该模块的步骤和接口测试，其他代码检查保留；加 `--postgres 地址` 在 PostgreSQL 上再跑测试 |
 | `uv run python -m tools.new_module 模块名 --title 中文名` | 生成新业务模块的完整骨架并登记 |
 | `uv run python -m tools.export_docs` | 生成 doc/ 下的文档：接口描述（doc/api）、模块关系、各模块流程、开发进度（doc/progress.md）；`--check` 只检查是否过期 |
 | `uv run python -m tools.diagnose runs/run/flow/field/stats` | 查看运行记录、诊断报告、流程、字段来源和统计 |

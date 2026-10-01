@@ -3,6 +3,7 @@ $title 的接口测试：从 HTTP 入口新建和读取记录，检查权限和�
 """
 
 from fastapi.testclient import TestClient
+import pytest
 
 from tests.testing_app import KEY
 
@@ -14,6 +15,14 @@ def test_create_and_get_record(client: TestClient) -> None:
     assert created.json()["title"] == "第一条"
     found = client.get(f"/api/v1/$path/{created.json()['id']}", headers=KEY)
     assert found.status_code == 200
+    assert found.json() == created.json()
+
+
+# R-01：接口接受整理后恰好 80 个字的标题。
+def test_title_limit_after_trimming(client: TestClient) -> None:
+    reply = client.post("/api/v1/$path", json={"title": " " + "字" * 80 + " "}, headers=KEY)
+    assert reply.status_code == 201
+    assert reply.json()["title"] == "字" * 80
 
 
 # 读取不存在的记录返回 404 和稳定的错误码。
@@ -26,3 +35,29 @@ def test_get_missing_record(client: TestClient) -> None:
 # 没有服务密钥时不能新建记录。
 def test_create_needs_key(client: TestClient) -> None:
     assert client.post("/api/v1/$path", json={"title": "x"}).status_code == 401
+
+
+# R-01：非法标题不能保存；步骤内失败能查到具体运行和失败位置。
+@pytest.mark.parametrize("title", ["", "   ", "x" * 81])
+def test_invalid_title_is_rejected(client: TestClient, title: str) -> None:
+    reply = client.post("/api/v1/$path", json={"title": title}, headers=KEY)
+    assert reply.status_code == 422
+    if title == "   ":
+        run_id = reply.json()["run_id"]
+        detail = client.get(f"/api/system/runs/{run_id}", headers=KEY).json()
+        failed = detail["runs"][0]
+        assert failed["status"] == "failed"
+        assert failed["failed_step"] == "整理标题"
+
+
+# 只有读取权限的调用者不能创建记录。
+def test_read_permission_cannot_create(client: TestClient) -> None:
+    from shared.access.keys import ApiKeyConfig, hash_key
+
+    client.app.state.settings.api_keys.append(ApiKeyConfig(
+        name="module-reader", key_sha256=hash_key("module-reader-key"),
+        permissions=["$name.read"],
+    ))
+    reply = client.post("/api/v1/$path", json={"title": "x"},
+                        headers={"X-API-Key": "module-reader-key"})
+    assert reply.status_code == 403

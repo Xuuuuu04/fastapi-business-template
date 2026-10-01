@@ -30,7 +30,7 @@ HEADER = (
 )
 
 
-# 读取每个操作约定对应的接口，例如 {"order_quote.create_quote": ["POST /api/v1/quotes"]}。
+# 读取每个操作约定对应的接口，例如 {"file_library.list_files": ["GET /api/v1/files/{org_id}"]}。
 def route_map(app: FastAPI) -> dict[str, list[str]]:
     found: dict[str, list[str]] = {}
     for route in iter_route_contexts(app.routes):
@@ -67,7 +67,6 @@ def module_doc(catalog: Catalog, name: str, routes: dict[str, list[str]]) -> str
     lines += operation_table(module, routes)
     for item in module.provides:
         lines += contract_section(catalog.bindings[item])
-    lines += events_section(module)
     lines += models_section(module.provides)
     lines += tables_section(module.tables)
     return "\n".join(lines).rstrip() + "\n"
@@ -83,10 +82,8 @@ def operation_table(module: Module, routes: dict[str, list[str]]) -> list[str]:
     ]
     scheduled = {plan.contract for plan in module.schedules}
     queued = {plan.contract for plan in module.jobs}
-    subscribed = {sub.handler: sub.event.name for sub in module.subscribes}
     for item in module.provides:
         ways = routes.get(item.name, []) if item.entry else ["只供其他模块调用"]
-        ways += [f"订阅事件 {subscribed[item]}"] if item in subscribed else []
         ways += ["定时计划"] if item in scheduled else []
         ways += ["后台任务"] if item in queued and item not in scheduled else []
         way = "<br/>".join(ways) or "没有接到接口或任务"
@@ -114,21 +111,6 @@ def contract_section(binding: Binding) -> list[str]:
     for source in field_sources(binding).values():
         values = [source.name, source.meaning, source.origin, source.step]
         values += [source.rule or source.step_rule, "、".join(source.inputs + source.uses)]
-        lines.append("| " + " | ".join(cell(value) for value in values) + " |")
-    return [*lines, ""]
-
-
-# 本模块发布和订阅的事件。
-def events_section(module: Module) -> list[str]:
-    if not module.publishes and not module.subscribes:
-        return []
-    lines = ["## 事件", "", "| 方向 | 事件 | 名称 | 数据 | 处理操作 |"]
-    lines.append("| --- | --- | --- | --- | --- |")
-    for item in module.publishes:
-        lines.append(f"| 发布 | {item.name} | {cell(item.title)} | {item.data.__name__} |  |")
-    for sub in module.subscribes:
-        values = ["订阅", sub.event.name, sub.event.title, sub.event.data.__name__]
-        values.append(sub.handler.name)
         lines.append("| " + " | ".join(cell(value) for value in values) + " |")
     return [*lines, ""]
 

@@ -49,12 +49,13 @@ class Scheduler:
             if self.last.get(schedule.name) == slot:
                 continue
             first = schedule.name not in self.last
-            self.last[schedule.name] = slot
             late = (moment - slot) > schedule.grace
             if first and late and schedule.missed == "skip":
+                self.last[schedule.name] = slot
                 log.info("schedule_skipped name=%s slot=%s", schedule.name, slot.isoformat())
                 continue
             if await self.submit(schedule, slot):
+                self.last[schedule.name] = slot
                 count += 1
         return count
 

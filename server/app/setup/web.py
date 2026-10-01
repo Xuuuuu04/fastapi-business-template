@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import add_error_handlers
 from app.api.middleware import RequestLimits, RequestMiddleware
-from app.api.routers import ROUTERS
+from app.api.routers import routers_for
 from app.setup.build import Services, build
 from shared.config.settings import Settings
 from shared.logs.setup import setup_logs
@@ -55,10 +55,16 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             CORSMiddleware,
             allow_origins=settings.cors,
             allow_methods=["GET", "POST", "PUT", "DELETE"],
-            allow_headers=["Content-Type", "X-API-Key", "Idempotency-Key", "X-Request-ID"],
+            allow_headers=[
+                "Content-Type",
+                "Authorization",
+                "X-API-Key",
+                "Idempotency-Key",
+                "X-Request-ID",
+            ],
             expose_headers=["X-Request-ID", "X-Run-ID"],
         )
-    for router in ROUTERS:
+    for router in routers_for(services.catalog.modules):
         app.include_router(router)
     return app
 

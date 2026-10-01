@@ -87,7 +87,8 @@ def test_stats_and_console(sample_client: TestClient) -> None:
     rows = sample_client.get("/api/system/stats?module=sample_calc", headers=KEY).json()["items"]
     assert {(row["status"], row["count"]) for row in rows} == {("ok", 1), ("failed", 1)}
     page = sample_client.get("/system/console")
-    assert page.status_code == 200 and "运行诊断" in page.text
+    assert page.status_code == 200 and "模块与运行" in page.text
+    assert sample_client.get("/system/console.js").status_code == 200
     assert sample_client.get("/api/system/stats").status_code == 401
 
 
@@ -140,3 +141,19 @@ def test_ready_needs_cache(sample_client: TestClient) -> None:
     finally:
         services.cache = working
     assert ready.status_code == 503 and "缓存服务不可用" in ready.json()["problems"][0]
+
+
+# 成功、业务错误和程序错误都只返回一个编号，可直接用它查询运行报告。
+def test_response_ids_can_open_the_run_report(sample_client: TestClient) -> None:
+    for failure, status in (("", 200), ("busy", 503), ("total", 500)):
+        reply = sample_client.post(
+            "/test/calc", json={"amount": "5", "fail_at": failure}, headers=KEY
+        )
+        assert reply.status_code == status
+        assert len(reply.headers.get_list("X-Request-ID")) == 1
+        assert len(reply.headers.get_list("X-Run-ID")) == 1
+        run_id = reply.headers["X-Run-ID"]
+        if status != 200:
+            assert reply.json()["run_id"] == run_id
+        report = sample_client.get(f"/api/system/runs/{run_id}/report", headers=KEY)
+        assert report.status_code == 200

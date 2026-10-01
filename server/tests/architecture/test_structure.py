@@ -1,5 +1,5 @@
 """
-架构测试：依赖方向、模块登记与接线、迁移与表定义一致、框架文件摘要、删除全部示例后框架仍能启动、
+架构测试：依赖方向、模块登记与接线、迁移与表定义一致、框架文件摘要、关闭全部业务模块后框架仍能启动、
 新模块命令能在当前的登记文件中登记。
 """
 
@@ -93,7 +93,7 @@ def test_framework_runs_without_modules(tmp_path: Path) -> None:
         assert body["modules"] == [] and client.get("/openapi.json").status_code == 200
 
 
-# 新模块命令按当前的模块总目录和路由清单登记：新模块被导入，并加进列表。
+# 新模块命令按当前文件格式登记：模块进入清单，接口按模块名分组。
 def test_scaffold_registers_in_current_files() -> None:
     changes = (
         (ROOT / "app" / "setup" / "catalog.py", add_module, "sample_new"),
@@ -108,10 +108,19 @@ def test_scaffold_registers_in_current_files() -> None:
             for alias in node.names
         }
         assert "sample_new" in imported, path.name
-        listed = [
-            ast.unparse(element)
-            for node in tree.body
-            if isinstance(node, ast.AnnAssign) and isinstance(node.value, ast.List)
-            for element in node.value.elts
-        ]
-        assert listed[-1] == item, path.name
+        if path.name == "catalog.py":
+            listed = [
+                ast.unparse(element)
+                for node in tree.body
+                if isinstance(node, ast.AnnAssign) and isinstance(node.value, ast.List)
+                for element in node.value.elts
+            ]
+            assert listed[-1] == item
+        else:
+            grouped = next(
+                node.value
+                for node in tree.body
+                if isinstance(node, ast.AnnAssign) and isinstance(node.value, ast.Dict)
+            )
+            assert ast.literal_eval(grouped.keys[-1]) == "sample_new"
+            assert ast.unparse(grouped.values[-1]) == "(sample_new.router,)"

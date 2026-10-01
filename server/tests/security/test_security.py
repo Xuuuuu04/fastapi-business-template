@@ -195,3 +195,35 @@ def test_token_secret_rotation() -> None:
         verify_token(token, [new], "issuer", "audience")
     with pytest.raises(NotSignedIn):
         verify_token(token, [old], "other-issuer", "audience")
+
+
+# 已允许的前端可携带登录令牌，其他来源和未允许的请求头仍被拒绝。
+def test_cors_allows_login_token_only_for_allowed_origin(settings: Settings) -> None:
+    settings.cors = ["https://frontend.example"]
+    with TestClient(create_app(settings, build(settings, modules=[]))) as client:
+        headers = {
+            "Origin": "https://frontend.example",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization,content-type",
+        }
+        reply = client.options("/api/system/modules", headers=headers)
+        assert reply.status_code == 200
+        assert reply.headers["access-control-allow-origin"] == headers["Origin"]
+        refused = client.options(
+            "/api/system/modules", headers={**headers, "Origin": "https://other.example"}
+        )
+        assert refused.status_code == 400
+        refused = client.options(
+            "/api/system/modules", headers={**headers, "Access-Control-Request-Headers": "x-other"}
+        )
+        assert refused.status_code == 400
+
+
+# 接口文档同时提供服务密钥和登录令牌，调用者可以任选一种身份方式。
+def test_api_docs_offer_both_authentication_methods(sample_client: TestClient) -> None:
+    schema = sample_client.get("/openapi.json").json()
+    schemes = schema["components"]["securitySchemes"]
+    assert schemes["服务密钥"]["name"] == "X-API-Key"
+    assert schemes["登录令牌"]["scheme"] == "bearer"
+    security = schema["paths"]["/api/system/modules"]["get"]["security"]
+    assert {"服务密钥": []} in security and {"登录令牌": []} in security

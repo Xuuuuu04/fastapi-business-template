@@ -4,23 +4,23 @@
 创建过程不连接数据库，连接在第一次使用时建立。
 """
 
+import inspect
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.setup.backends import create
-from app.setup.catalog import BACKENDS, MODULES
+from app.setup.catalog import MODULES
 from shared.access.vault import Vault
-from shared.cache.backends import Cache
+from shared.cache.backends import Cache, MemoryCache, RedisCache
 from shared.config.settings import Settings, check_production
 from shared.db.database import Database
 from shared.errors.framework import ConfigError
-from shared.files.storage import FileStorage
+from shared.files.storage import FileStorage, LocalFiles, S3Files, S3Options
 from shared.files.uploads import UploadArea
 from shared.flow.runtime import Runtime
 from shared.jobs.queue import JobQueue
-from shared.model_calls.providers import FakeModel, ModelProvider
+from shared.model_calls.providers import FakeModel, ModelProvider, OpenAICompatible
 from shared.model_calls.service import ModelService
 from shared.modules.catalog import Catalog
 from shared.modules.module import Module
@@ -38,19 +38,20 @@ class Services:
     catalog: Catalog
     database: Database
     recorder: Recorder
-    models: ModelService
+    models: ModelService | None
     queue: JobQueue
     runtime: Runtime
     remotes: RemoteService
     cache: Cache
     legacy: Database | None
-    uploads: UploadArea
+    uploads: UploadArea | None
     telemetry: Telemetry
 
     # 按创建的相反顺序释放资源。
     async def close(self) -> None:
         await self.recorder.flush()
-        await self.models.close()
+        if self.models is not None:
+            await self.models.close()
         await self.remotes.close()
         await self.cache.close()
         self.telemetry.close()
@@ -66,8 +67,9 @@ def build(
     modules: Sequence[Module] | None = None,
     provider: ModelProvider | None = None,
 ) -> Services:
-    catalog = Catalog(MODULES if modules is None else modules)
-    problems = check_production(settings) + unconfigured_remotes(settings, catalog)
+    catalog = Catalog(enabled_modules(settings) if modules is None else modules)
+    problems = check_production(settings, needs_vault="vault" in store_requirements(catalog))
+    problems += unconfigured_remotes(settings, catalog)
     if problems:
         raise ConfigError(problems)
     database = Database(
@@ -83,6 +85,14 @@ def build(
     recorder = Recorder(store, buffer=settings.run_record_buffer)
     models = model_service(settings, catalog, provider)
     return finish_build(settings, catalog, database, recorder, models)
+
+
+# 关闭模块只影响接口和执行入口，保留其数据库表与历史数据。
+def enabled_modules(settings: Settings) -> list[Module]:
+    unknown = set(settings.disabled_modules) - {module.name for module in MODULES}
+    if unknown:
+        raise ConfigError([f"APP_DISABLED_MODULES 中的模块没有登记：{', '.join(sorted(unknown))}"])
+    return [module for module in MODULES if module.name not in settings.disabled_modules]
 
 
 # 生产环境中，模块声明的每个外部系统都必须配置地址。
@@ -103,13 +113,17 @@ def finish_build(
     catalog: Catalog,
     database: Database,
     recorder: Recorder,
-    models: ModelService,
+    models: ModelService | None,
 ) -> Services:
-    remotes = RemoteService(settings.remotes)
-    cache_kind = settings.cache_backend or ("redis" if settings.cache_url else "memory")
-    cache: Cache = create("cache", cache_kind, settings, BACKENDS)
-    legacy = Database(settings.legacy_database_url) if settings.legacy_database_url else None
-    storage, uploads = file_components(settings)
+    remotes = remote_service(settings, catalog)
+    cache = RedisCache(settings.cache_url) if settings.cache_url else MemoryCache()
+    needs = store_requirements(catalog)
+    legacy = (
+        Database(settings.legacy_database_url)
+        if "legacy" in needs and settings.legacy_database_url
+        else None
+    )
+    storage, uploads = file_components(settings) if "files" in needs else (None, None)
     telemetry = Telemetry(settings.otel_endpoint, settings.name)
     queue = JobQueue(catalog, database)
     runtime = Runtime(
@@ -124,7 +138,9 @@ def finish_build(
         uploads=uploads,
         legacy=legacy,
         telemetry=telemetry,
-        vault=Vault([key.get_secret_value() for key in settings.data_keys]),
+        vault=Vault([key.get_secret_value() for key in settings.data_keys])
+        if "vault" in needs
+        else None,
         code_version=settings.code_version,
         step_checks=settings.extra_step_checks(),
     )
@@ -152,28 +168,60 @@ def file_components(settings: Settings) -> tuple[FileStorage, UploadArea]:
     return file_service(settings), uploads
 
 
+# 只保留启用模块声明过的外部系统地址。
+def remote_service(settings: Settings, catalog: Catalog) -> RemoteService:
+    used = {item.name for module in catalog.modules.values() for item in module.remotes}
+    return RemoteService({key: value for key, value in settings.remotes.items() if key in used})
+
+
 # 按 APP_FILE_STORAGE 选择文件存储实现。
 def file_service(settings: Settings) -> FileStorage:
-    storage: FileStorage = create("files", settings.file_storage, settings, BACKENDS)
-    return storage
+    if settings.file_storage == "local":
+        return LocalFiles(Path(settings.file_root))
+    if not settings.s3_bucket:
+        raise ConfigError(["APP_FILE_STORAGE=s3 时必须配置 APP_S3_BUCKET"])
+    secret = settings.s3_secret_key.get_secret_value() if settings.s3_secret_key else ""
+    return S3Files(
+        S3Options(
+            settings.s3_bucket,
+            settings.s3_endpoint,
+            settings.s3_region,
+            settings.s3_access_key,
+            secret,
+        )
+    )
 
 
-# 选择大模型服务：配置了就用真实服务；本地和测试没配置时用模拟回复，生产环境没配置则拒绝启动。
+# 有模块使用大模型时才创建服务；开发时可用模拟回复，生产时必须配置真实服务。
 def model_service(
     settings: Settings, catalog: Catalog, provider: ModelProvider | None
-) -> ModelService:
+) -> ModelService | None:
     prompts = catalog.prompts()
-    if provider is None and (settings.has_model() or settings.model_provider != "openai"):
-        provider = create("model", settings.model_provider, settings, BACKENDS)
+    if not prompts:
+        return None
+    if provider is None and settings.has_model():
+        key = settings.model_api_key.get_secret_value() if settings.model_api_key else ""
+        provider = OpenAICompatible(
+            settings.model_base_url, key, settings.model_name, settings.model_timeout
+        )
     if provider is None:
-        if settings.env == "production" and prompts:
+        if settings.env == "production":
             problem = "模块声明了提示词，但生产环境没有配置 APP_MODEL_BASE_URL 等大模型设置"
             raise ConfigError([problem])
-        if prompts:
-            log.warning("model_not_configured using=fake prompts=%s", len(prompts))
+        log.warning("model_not_configured using=fake prompts=%s", len(prompts))
         provider = FakeModel()
     service = ModelService(
         provider, concurrency=settings.model_concurrency, keep_text=settings.model_keep_text
     )
     service.load(prompts)
     return service
+
+
+# 从已有存储声明读取实际需要的服务，不再要求业务重复维护一份开关。
+def store_requirements(catalog: Catalog) -> set[str]:
+    return {
+        name
+        for module in catalog.modules.values()
+        if module.store is not None
+        for name in inspect.signature(module.store).parameters
+    }

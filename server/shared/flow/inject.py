@@ -15,7 +15,6 @@ from shared.cache.gate import ModuleCache
 from shared.data.models import Data
 from shared.db.access import Db
 from shared.errors.framework import StepRuleBroken
-from shared.events.publish import Publisher
 from shared.files.gate import ModuleFiles
 from shared.flow.scope import Scope
 from shared.flow.step import Step
@@ -135,7 +134,6 @@ def simple_tools(
         "remote": lambda: remote_gate(part, scope, record, part.remotes),
         "cache": lambda: module_cache(scope, module.name, record),
         "later": lambda: Later(scope, record, part),
-        "publish": lambda: Publisher(scope, run, record, part),
         "caller": lambda: scope.caller,
         "note": lambda: NoteWriter(record),
         "emit": lambda: Emitter(scope, record),

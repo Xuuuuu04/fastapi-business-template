@@ -154,6 +154,27 @@ async def test_schedule_is_idempotent(sample: Services) -> None:
     assert len(rows) == 1 and json.loads(rows[0]["caller_json"])["id"] == SYSTEM.id
 
 
+# 队列满导致定时任务登记失败时，释放容量后仍能补上当前时段。
+async def test_schedule_retries_after_queue_capacity_returns(sample: Services) -> None:
+    # 同一时段登记失败后，容量恢复就应补上；成功后仍只登记一次。
+    for mark in ("a", "b"):
+        await sample.runtime.submit(slow, SlowInput(mark=mark), caller=DEVELOPER)
+    timer = Schedule(
+        "hourly",
+        "每小时",
+        slow,
+        SlowInput(mark="scheduled"),
+        every=timedelta(hours=1),
+        missed="latest",
+    )
+    scheduler = Scheduler([timer], sample.queue, sample.database)
+    now = datetime(2026, 10, 1, 0, 0, tzinfo=UTC).timestamp()
+    assert await scheduler.tick(now) == 0
+    await work_once(sample)
+    assert await scheduler.tick(now + 1) == 1
+    assert await scheduler.tick(now + 2) == 0
+
+
 # 每日计划的最近时段：当天时间未到时取前一天。
 def test_latest_daily_slot() -> None:
     from datetime import time as clock

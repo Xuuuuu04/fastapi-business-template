@@ -38,8 +38,8 @@ def targets(name: str) -> dict[str, Path]:
         "doc/needs.md.txt": PROJECT / "doc" / name / "needs.md",
         "doc/rules.md.txt": PROJECT / "doc" / name / "rules.md",
         "doc/changes.md.txt": PROJECT / "doc" / name / "changes.md",
-        "tests/test_steps.py.txt": ROOT / "tests" / "modules" / name / "test_steps.py",
-        "tests/test_api.py.txt": ROOT / "tests" / "integration" / name / "test_api.py",
+        "tests/test_steps.py.txt": ROOT / "tests" / "modules" / name / "test_records.py",
+        "tests/test_api.py.txt": ROOT / "tests" / "integration" / name / "test_records.py",
         "api/routes.py.txt": ROOT / "app" / "api" / "v1" / f"{name}.py",
     }
 
@@ -86,10 +86,12 @@ def add_module(text: str, name: str) -> str:
 
 # 在路由清单中导入并登记新模块的接口。
 def add_route(text: str, name: str) -> str:
-    head = "ROUTERS: list[APIRouter]"
-    return append_item(
-        add_import(text, head, f"from app.api.v1 import {name}"), head, f"{name}.router"
-    )
+    head = "MODULE_ROUTERS: dict[str, tuple[APIRouter, ...]]"
+    position = text.index(head)
+    end = text.index("\n}", position)
+    text = text[:end] + f'\n    "{name}": ({name}.router,),' + text[end:]
+    imports_end = text.index("ROUTERS: list[APIRouter]")
+    return text[:imports_end] + f"from app.api.v1 import {name}\n\n" + text[imports_end:]
 
 
 # 把导入放在列表定义之前，之后由 ruff 并入导入区；不依赖已有导入行的写法。
@@ -161,7 +163,8 @@ def main() -> None:
     print("2. uv run alembic upgrade head（本地数据库需要先到最新版本才能比较出新表）")
     print(f'   uv run alembic revision --autogenerate -m "add {args.name} tables"，检查生成的迁移')
     print("3. uv run python -m tools.export_docs")
-    print("4. uv run python -m tools.check")
+    print(f"4. uv run python -m tools.check --module {args.name}（先检查本模块）")
+    print("5. uv run python -m tools.check（交付前检查全部模块）")
 
 
 if __name__ == "__main__":

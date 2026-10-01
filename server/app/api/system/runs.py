@@ -113,7 +113,7 @@ async def runtime(request: Request, caller: CallerDep) -> dict[str, Any]:
         "records": completeness(services.recorder),
         "jobs": jobs,
         "breakers": {
-            "model": services.models.breaker.state(),
+            **({"model": services.models.breaker.state()} if services.models is not None else {}),
             **{name: item.state() for name, item in services.remotes.breakers.items()},
         },
     }

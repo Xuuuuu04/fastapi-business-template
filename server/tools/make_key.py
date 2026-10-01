@@ -1,7 +1,7 @@
 """
 生成一把服务密钥：打印密钥原文（只显示这一次）和可以放进 APP_API_KEYS 的配置。
 用法：
-  uv run python -m tools.make_key --name reporting --org-id north --permissions product_catalog.read
+  uv run python -m tools.make_key --name reporting --org-id north --permissions file_library.read
 """
 
 import argparse
@@ -15,7 +15,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="生成服务密钥")
     parser.add_argument("--name", required=True, help="密钥名称，例如调用方系统的名字")
     parser.add_argument(
-        "--permissions", nargs="+", required=True, help="权限，例如 product_catalog.read"
+        "--permissions", nargs="+", required=True, help="权限，例如 file_library.read"
     )
     parser.add_argument("--org-id", default="", help="可访问的组织代码；* 只供全组织管理员使用")
     args = parser.parse_args()

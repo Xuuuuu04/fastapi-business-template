@@ -1,8 +1,8 @@
 # FastAPI 通用后端模板
 
-当前版本 1.0.0，变化见 [CHANGELOG.md](CHANGELOG.md)。
+当前代码版本 2.0.0（未发布），变化见 [CHANGELOG.md](CHANGELOG.md)。
 
-面向中小企业单体后端和 AI 业务的项目模板：人审查业务和架构，AI 按固定结构逐个模块开发或迁移旧系统；运行时每次执行都留下可以按编号查询的中文记录，出问题时能直接定位到步骤、字段、规则和源码位置。
+方便 AI 开发和迁移业务的单体后端模板：人审查业务和架构，AI 按固定结构逐个模块开发或迁移旧系统；运行时每次执行都留下可以按编号查询的中文记录，出问题时能直接定位到步骤、字段、规则和源码位置。
 
 ## 目录
 
@@ -29,10 +29,10 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 ## 用这个模板开始新项目
 
 1. 在 GitHub 上点“Use this template”建立新仓库，或者复制本仓库。
-2. 在 `server/` 运行 `uv run python -m tools.remove_examples --yes`，删除商品目录、订单报价两个示例模块。用户权限和文件管理两个通用模块会保留，不需要时从 `server/app/setup/catalog.py` 去掉。
+2. 模板只保留用户权限和文件管理两个通用模块，不需要时在配置中设置 `APP_DISABLED_MODULES=["user_access","file_library"]`；代码和历史数据保留，接口与执行入口一起关闭。
 3. 在根目录 `AGENTS.md` 第 1 节写清产品名称、使用者和主要模块。
-4. 每个业务模块先在 `doc/模块名/` 写需求和规则，再运行 `uv run python -m tools.new_module 模块名 --title 中文名` 生成骨架，按 `AGENTS.md` 第 3 节开发。
-5. 每次完成后运行 `uv run python -m tools.check`；生产使用 PostgreSQL 时加 `--postgres 数据库地址`。
+4. 每个业务模块先运行 `uv run python -m tools.new_module 模块名 --title 中文名` 生成固定目录和测试，再在 `doc/模块名/` 写清真实需求和规则，按 `AGENTS.md` 第 3 节开发。
+5. 开发时用 `uv run python -m tools.check --module 模块名` 单独检查；每次完成后运行 `uv run python -m tools.check`；生产使用 PostgreSQL 时加 `--postgres 数据库地址`。
 
 ## 持续集成
 
@@ -40,7 +40,7 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 
 | 检查 | 内容 |
 | --- | --- |
-| 代码与测试 | 在真实的 PostgreSQL 17、Redis、MinIO 上运行 `tools.check`：代码风格、格式、类型、生成文档是否过期、SQLite 与 PostgreSQL 两轮测试 |
+| 代码与测试 | 在真实的 PostgreSQL 17、Redis、S3 服务 上运行 `tools.check`：代码风格、格式、类型、生成文档是否过期、SQLite 与 PostgreSQL 两轮测试 |
 | 部署镜像与配置 | 构建 `server/deploy/Dockerfile`，确认镜像中的接口和 worker 能导入，校验 `compose.yaml` 能否展开 |
 
 依赖严格按 `server/uv.lock` 安装，锁文件与 `pyproject.toml` 不一致时直接失败。第三方 Action 按提交号锁定；[.github/dependabot.yml](.github/dependabot.yml) 每周一检查 Action 和 Python 依赖的新版本：小版本和补丁按类别合并成一个合并请求，大版本各自单独提交，检查通过后再合并。框架文件摘要对 `pyproject.toml` 只锁定 `[tool]` 下的检查配置，依赖更新不需要改摘要。用本模板建立的新仓库会带上同样的检查。
@@ -50,7 +50,6 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 能力 | 在哪里 |
 | --- | --- |
 | 模块统一登记，模块之间只通过操作约定调用，依赖方向自动检查 | `server/app/setup/catalog.py`、`server/shared/modules` |
-| 模块事件：发布方只说“发生了什么”，订阅方由 worker 异步处理；与业务写入同一事务登记，自带重试 | `server/shared/events` |
 | 流程由步骤组成，步骤声明读写的字段；启动时检查声明，运行时限制越界读写 | `server/shared/flow` |
 | 四种图：模块关系、计算流程、字段来源、实际执行 | `server/shared/graphs`、`/api/system/*` |
 | 每次执行的运行记录和中文摘要、诊断报告 | `server/shared/records`、`tools.diagnose` |
@@ -59,8 +58,7 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 后台任务和定时计划（任务表兼作队列，无需 RabbitMQ） | `server/shared/jobs` |
 | 大模型调用入口：提示词版本、用量记录、并发和重试（OpenAI 兼容接口） | `server/shared/model_calls` |
 | 外部接口调用：声明外部系统、超时与重试、熔断、写入结果待核对、调用概要记录 | `server/shared/remote_calls` |
-| 基础设施实现按名字选择，项目可登记自己的文件存储、缓存、大模型服务商 | `server/app/setup/backends.py` |
-| 导入导出：CSV、Excel 读写，逐行报告问题 | `server/shared/exchange`、商品目录示例 |
+| 导入导出：CSV、Excel 读写，逐行报告问题 | `server/shared/exchange` |
 | 缓存（进程内或 Redis）、文件存储（本地目录或 S3 兼容）、流式输出（SSE） | `server/shared/cache`、`files`、`flow` |
 | 旧系统迁移：旧库只读入口和迁移步骤 | `server/legacy` |
 | 统一错误格式、服务密钥、请求与登录限流、安全响应头、审计、结构化日志 | `server/app/api`、`server/shared/access` |
@@ -69,5 +67,5 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 运行统计、OpenTelemetry 链路导出、只读诊断网页 | `/api/system/stats`、`server/shared/telemetry`、`/system/console` |
 | 质量检查：注释、命名、长度、依赖、README、业务文档，纳入默认测试 | `server/tools/quality` |
 | 开发期观察与把关：测试失败时附运行报告；生成开发进度（待确认问题、规则的测试标注、任务数）、接口描述快照；改动影响报告写到合并请求的检查摘要页 | `doc/progress.md`、`doc/tasks.md`、`doc/api/`、`server/tools/impact.py` |
-| 新模块生成命令、删除示例命令、框架文件摘要、诊断与任务处理命令 | `server/tools` |
+| 新模块生成命令、模块独立检查、框架文件摘要、运行查看与任务处理命令 | `server/tools` |
 | Docker 镜像、单机部署组合配置、环境检查、备份恢复 | `server/deploy` |

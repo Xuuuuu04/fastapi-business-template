@@ -10,8 +10,7 @@ def count_total(data: QuoteWork) -> None:
 ```
 
 - `reads`、`writes`：只能读写声明的字段，越界、类型不对、声明要写却没写都会报错并指出步骤和字段。
-- 参数名决定步骤能拿到什么：`data`、`store`、`call`、`model`、`remote`、`cache`、`emit`、`later`、`publish`、`caller`、`note`。只有 `data` 的步骤是纯计算。
-- 发布事件用 `publish` 参数并声明 `publishes=[...]`、`saves=True`，写法见 [events](../events/README.md)。
+- 参数名决定步骤能拿到什么：`data`、`store`、`call`、`model`、`remote`、`cache`、`emit`、`later`、`caller`、`note`。只有 `data` 的步骤是纯计算。
 - 一个步骤只做一类事：`store`、`call`、`model`、`remote` 最多出现一个。
 - 写数据库的步骤要加 `saves=True`；其他步骤拿到的数据库连接是只读的。
 - 需要等待的步骤写 `async def`；耗时的纯计算加 `heavy=True` 放进线程。

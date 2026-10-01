@@ -8,7 +8,7 @@ from shared.public import BusinessError, Data, Kind, WorkData, meaning
 
 
 class ${Camel}Input(Data):
-    title: str = meaning("标题，保存前去掉首尾空白", rule="R-01", min_length=1, max_length=80)
+    title: str = meaning("标题，去掉首尾空白后为 1 到 80 个字", rule="R-01", min_length=1)
 
 
 class ${Camel}Id(Data):
@@ -25,6 +25,12 @@ class ${Camel}Missing(BusinessError):
     code = "${name}_missing"
     kind = Kind.NOT_FOUND
     message = "记录不存在"
+
+
+class ${Camel}Invalid(BusinessError):
+    code = "${name}_invalid"
+    kind = Kind.INVALID
+    message = "标题去掉首尾空白后须为 1 到 80 个字"
 
 
 class CreateWork(WorkData):

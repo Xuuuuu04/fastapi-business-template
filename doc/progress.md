@@ -2,14 +2,12 @@
 
 > 本文件由 `uv run python -m tools.export_docs` 根据业务文档、测试和任务清单生成，不要手工修改。
 
-任务清单（[tasks.md](tasks.md)）：未完成 5 项，已完成 18 项。
+任务清单（[tasks.md](tasks.md)）：未完成 4 项，已完成 17 项。
 
 ## 模块
 
 | 模块 | 名称 | 操作 | 规则 | 有测试标注的规则 | 待确认 |
 | --- | --- | --- | --- | --- | --- |
-| product_catalog | 商品目录 | 8 | 4 | 4/4 | 0 |
-| order_quote | 订单报价 | 3 | 7 | 7/7 | 0 |
 | user_access | 用户权限 | 18 | 9 | 9/9 | 0 |
 | file_library | 文件管理 | 5 | 3 | 3/3 | 0 |
 
