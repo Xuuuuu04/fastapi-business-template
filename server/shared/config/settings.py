@@ -16,6 +16,7 @@ from shared.remote_calls.remote import RemoteConfig
 LOCAL_JWT_SECRET = "local-development-only-secret-change-me"
 
 
+# 应用运行配置，从环境变量或配置文件读取并检查字段格式。
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="APP_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
@@ -92,7 +93,7 @@ class Settings(BaseSettings):
     def has_model(self) -> bool:
         return bool(self.model_base_url and self.model_name and self.model_api_key)
 
-    # 本地与测试默认显示诊断页，生产环境默认关闭。
+    # 本地与测试默认显示排查页，生产环境默认关闭。
     def console_enabled(self) -> bool:
         return self.console if self.console is not None else self.env != "production"
 

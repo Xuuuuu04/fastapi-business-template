@@ -13,14 +13,17 @@ from shared.public import Data, Flow, Module, WorkData, condition, contract, mea
 from tests.framework.sample_modules import NoteStore, calc, calc_module
 
 
+# 步骤声明测试接收的金额。
 class Ask(Data):
     amount: Decimal = meaning("金额")
 
 
+# 步骤声明测试返回的应付金额。
 class Answer(Data):
     total: Decimal = meaning("应付")
 
 
+# 步骤声明测试共享的金额、折扣率与计算结果。
 class Work(WorkData):
     amount: Decimal = meaning("金额")
     rate: Decimal = meaning("折扣率")
@@ -61,7 +64,7 @@ def test_valid_flow_passes() -> None:
 # 读取的字段在之前没有被写入。
 def test_read_before_write() -> None:
     problems = problems_of(build_answer, count_total)
-    assert any("「整理结果」读取的字段 total 在它之前没有确定的值" in item for item in problems)
+    assert any("“整理结果”读取的字段 total 在它之前没有确定的值" in item for item in problems)
 
 
 # 读写流程数据中不存在的字段。
@@ -80,7 +83,7 @@ def test_two_writers() -> None:
     def count_again(data: Work) -> None: ...
 
     problems = problems_of(count_total, count_again, build_answer)
-    assert any("字段 total 被「计算应付」、「再算一次」同时写入" in item for item in problems)
+    assert any("字段 total 被“计算应付”、“再算一次”同时写入" in item for item in problems)
 
 
 # 步骤覆盖了操作输入字段。
@@ -136,11 +139,12 @@ def test_conditional_write_needs_default() -> None:
     def apply_rate(data: Work) -> None: ...
 
     problems = problems_of(count_rate, apply_rate, build_answer)
-    assert any("「用折扣」读取的字段 rate 在它之前没有确定的值" in item for item in problems)
+    assert any("“用折扣”读取的字段 rate 在它之前没有确定的值" in item for item in problems)
 
 
 # 缺少字段含义、可空字段没有说明空值。
 def test_field_notes_required() -> None:
+    # 故意缺少字段说明的测试数据，用来验证启动检查。
     class Loose(WorkData):
         amount: Decimal = meaning("金额")
         total: Decimal
@@ -160,6 +164,7 @@ def test_model_after_save_is_rejected() -> None:
     @step("调用说明", reads=["mark"], writes=["text"], uses=[explain])
     async def ask_after(data: Any, call: Any) -> None: ...
 
+    # 步骤声明测试共享的数据，用来检查后续能力是否已登记。
     class LateWork(WorkData):
         seconds: float = meaning("等待秒数")
         mark: str = meaning("文字")

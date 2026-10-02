@@ -24,8 +24,8 @@ def check_access(item: Contract[Any, Any], caller: Caller) -> None:
     if caller.can(item.access):
         return
     if caller.kind == "anonymous":
-        raise NotSignedIn(f"「{item.title}」需要登录或服务密钥")
-    raise NotAllowed(f"没有权限执行「{item.title}」，需要权限 {item.access}")
+        raise NotSignedIn(f"“{item.title}”需要登录或服务密钥")
+    raise NotAllowed(f"没有权限执行“{item.title}”，需要权限 {item.access}")
 
 
 # 把超时、数据库断连和只读违规转成框架的错误种类。

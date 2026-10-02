@@ -1,5 +1,5 @@
 """
-从运行记录生成实际执行图和中文诊断报告。
+从运行记录生成实际执行图和中文排查报告。
 执行图标出每一步完成、失败、跳过的情况和耗时；报告先给中文摘要，再列步骤、字段、调用和源码位置，
 供人阅读，也供 Agent 按运行编号直接定位问题，不必从头读代码。
 """
@@ -42,7 +42,7 @@ def run_graph(runs: list[RunRecord]) -> str:
     return "\n".join(lines + STYLES)
 
 
-# 生成一次运行的中文诊断报告（Markdown）。
+# 生成一次运行的中文排查报告（Markdown）。
 def run_report(runs: list[RunRecord], root_id: str) -> str:
     by_id = {run.id: run for run in runs}
     root = by_id.get(root_id)

@@ -39,16 +39,19 @@ from tests.testing_app import make_settings, reset_database
 pytestmark = pytest.mark.anyio
 
 
+# 任务登记测试的输入，决定保存任务后是否故意失败。
 class Order(Data):
     fail: bool = meaning("登记任务后是否故意失败", default=False)
 
 
+# 任务登记测试的结果，说明任务编号、调用者和缓存状态。
 class Receipt(Data):
     job_id: str = meaning("登记的任务编号")
     who: str = meaning("调用者编号")
     seen: bool = meaning("缓存中是否已有记录")
 
 
+# 任务登记测试各步骤共享的任务编号、调用者和缓存状态。
 class OrderWork(WorkData):
     fail: bool = meaning("登记任务后是否故意失败")
     who: str = meaning("调用者编号")
@@ -57,10 +60,12 @@ class OrderWork(WorkData):
     result: Receipt = meaning("结果")
 
 
+# 后台文字保存测试各步骤共享的空返回结果。
 class NoteWork(WorkData):
     result: Nothing = meaning("没有返回内容")
 
 
+# 表示“按测试要求在登记任务后失败”的失败，由统一错误入口返回给调用方。
 class ProbeFailed(BusinessError):
     code = "probe_failed"
     kind = Kind.CONFLICT
@@ -127,6 +132,7 @@ async def call_twice(data: NoteWork, call: Call) -> None:
     data.result = Nothing()
 
 
+# 旧系统读取测试的数据访问实现，只使用旧数据库的读取入口。
 class OldStore:
     # 需要旧系统只读库。
     def __init__(self, legacy: Db) -> None:

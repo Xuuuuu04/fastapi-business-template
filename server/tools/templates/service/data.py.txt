@@ -7,38 +7,45 @@ from datetime import datetime
 from shared.public import BusinessError, Data, Kind, WorkData, meaning
 
 
+# $title 创建记录时接收的标题。
 class ${Camel}Input(Data):
     title: str = meaning("标题，去掉首尾空白后为 1 到 80 个字", rule="R-01", min_length=1)
 
 
+# $title 查询记录时接收的记录编号。
 class ${Camel}Id(Data):
     record_id: int = meaning("记录编号", gt=0)
 
 
+# $title 可公开返回的记录信息。
 class ${Camel}View(Data):
     id: int = meaning("记录编号")
     title: str = meaning("标题", rule="R-01")
     created_at: datetime = meaning("创建时间（UTC）")
 
 
+# $title 未找到记录时返回的失败。
 class ${Camel}Missing(BusinessError):
     code = "${name}_missing"
     kind = Kind.NOT_FOUND
     message = "记录不存在"
 
 
+# $title 输入不符合业务规则时返回的失败。
 class ${Camel}Invalid(BusinessError):
     code = "${name}_invalid"
     kind = Kind.INVALID
     message = "标题去掉首尾空白后须为 1 到 80 个字"
 
 
+# $title 创建记录时各步骤共享的输入、整理结果和保存结果。
 class CreateWork(WorkData):
     title: str = meaning("调用方填写的标题")
     clean_title: str = meaning("整理后的标题", rule="R-01")
     record: ${Camel}View = meaning("保存后的记录")
 
 
+# $title 读取记录时各步骤共享的编号和结果。
 class ReadWork(WorkData):
     record_id: int = meaning("记录编号")
     record: ${Camel}View = meaning("读取到的记录")

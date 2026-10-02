@@ -27,11 +27,12 @@ RESET_SECONDS = 30 * 60  # R-08：重置码 30 分钟内有效
 ISSUER = "backend-template"
 
 
-# 重置码的摘要；数据库按摘要查找，原文不落库。
+# 重置码的摘要；数据库按摘要查找，原文不写入数据库。
 def code_digest(code: str) -> str:
     return hashlib.sha256(code.encode()).hexdigest()
 
 
+# 保存密码重置与两步验证数据，检查组织范围和用户身份。
 class SecurityStore:
     db: Db
     caller: Caller
@@ -98,7 +99,7 @@ class SecurityStore:
         )
         return OtpSetup(secret=secret, uri=setup_uri(secret, ISSUER, self.caller.name))
 
-    # 核对当前登录用户的验证码，返回用掉的周期；没有密钥或验证码不对时报错。
+    # 检查当前登录用户的验证码，返回用掉的周期；没有密钥或验证码不对时报错。
     async def check_own_otp(self, code: str) -> int:
         row = await self.db.first(
             select(users.c.otp_secret, users.c.otp_last_step).where(
@@ -162,7 +163,7 @@ class SecurityStore:
             raise NotAllowed("只有登录用户可以设置自己的两步验证")
         return int(self.caller.id)
 
-    # 核对用户属于指定组织。
+    # 检查用户属于指定组织。
     async def require_user(self, org_id: str, user_id: int) -> None:
         found = await self.db.first(
             select(users.c.id).where(users.c.id == user_id, users.c.org_id == org_id)

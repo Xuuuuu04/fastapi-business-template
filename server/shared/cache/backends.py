@@ -11,6 +11,7 @@ from typing import Protocol
 import redis.asyncio as redis_client
 
 
+# 缓存实现需要提供的读写、计数与连通检查操作。
 class Cache(Protocol):
     # 读取一个值，不存在或已过期时返回 None。
     async def get(self, key: str) -> str | None: ...
@@ -28,6 +29,7 @@ class Cache(Protocol):
     async def close(self) -> None: ...
 
 
+# 单进程内的临时缓存，按有效时间淘汰数据。
 class MemoryCache:
     # 设置最多保存多少个值，超出时丢弃最久没有使用的。
     def __init__(self, max_entries: int = 10000) -> None:
@@ -72,6 +74,7 @@ class MemoryCache:
         return None
 
 
+# 通过 Redis 共享缓存和计数，供多个进程共同使用。
 class RedisCache:
     # 使用 Redis 地址创建连接池。
     def __init__(self, url: str) -> None:

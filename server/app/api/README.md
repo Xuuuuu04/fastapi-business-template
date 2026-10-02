@@ -9,14 +9,14 @@
 | [runner.py](runner.py) | 路由使用的执行入口 `RunDep`：只能执行登记过的操作或登记任务 |
 | [routers.py](routers.py) | 全部路由的清单 |
 | [v1](v1/) | 业务接口第 1 版 |
-| [system](system/) | 健康检查、运行诊断、运行统计、审计查询、诊断网页、任务查询 |
+| [system](system/) | 健康检查、运行排查、运行统计、操作记录查询、排查网页、任务查询 |
 
 ## 返回格式
 
 正常结果直接返回数据本身；错误使用正确的 HTTP 状态码和统一结构：
 
 ```json
-{"code": "product_missing", "kind": "not_found", "message": "商品 9 不存在",
+{"code": "file_missing", "kind": "not_found", "message": "商品 9 不存在",
  "request_id": "8acf9b04eb0d9300", "run_id": "f51c4dacdbdcca79", "fields": []}
 ```
 

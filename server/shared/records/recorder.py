@@ -20,6 +20,7 @@ LOST_AFTER_SECONDS = 300
 PROGRESS_SECONDS = 3.0
 
 
+# 运行记录的保存状态，显示活动数量、等待数量和丢失数量。
 @dataclass(frozen=True)
 class RecorderState:
     active: int
@@ -29,6 +30,7 @@ class RecorderState:
     stored_dropped: int
 
 
+# 收集运行进度并写入指定保存位置，记录保存故障和丢失数量。
 class Recorder:
     # 设置保存位置和等待写入的缓冲上限。
     def __init__(self, store: RunStore, *, buffer: int = 5000) -> None:

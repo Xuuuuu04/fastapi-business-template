@@ -1,5 +1,5 @@
 """
-用户权限的数据访问实现。管理操作始终核对调用者组织，登录按组织代码精确查询。
+用户权限的数据访问实现。管理操作始终检查调用者组织，登录按组织代码精确查询。
 登录会话和刷新令牌的部分在 sessions.py。
 """
 
@@ -33,6 +33,7 @@ ORG_CODE = re.compile(r"^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$")
 PLATFORM_WIDE = ("user_access.system", "system.diagnostics", "system.jobs", "system.*")
 
 
+# 用户权限的数据访问实现，共同使用会话与账号安全操作。
 class SqlAccessStore(SessionStore, SecurityStore):
     # 取得当前步骤的数据库入口、经过验证的调用者和字段加密工具。
     def __init__(self, db: Db, caller: Caller, vault: Vault) -> None:
@@ -165,7 +166,7 @@ class SqlAccessStore(SessionStore, SecurityStore):
         if beyond:
             raise NotAllowed(f"只能授予自己拥有的权限，缺少：{'、'.join(beyond)}")
 
-    # 核对角色存在且属于目标组织。
+    # 检查角色存在且属于目标组织。
     async def require_role(self, org_id: str, role_id: int) -> None:
         found = await self.db.first(
             select(roles.c.id).where(roles.c.id == role_id, roles.c.org_id == org_id)

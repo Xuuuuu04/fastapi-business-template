@@ -12,6 +12,7 @@ from shared.model_calls.service import ModelService, parse_output
 from shared.records.models import ModelCallRecord
 
 
+# 步骤使用的大模型入口，只允许调用步骤声明过的提示词。
 class ModelGate:
     # 绑定大模型服务、步骤允许的提示词和本步骤的调用记录。
     def __init__(
@@ -34,14 +35,14 @@ class ModelGate:
     # 调用大模型并把回复校验成声明的数据类型。
     async def ask_data[T: Data](self, item: Prompt, output: type[T], **values: Any) -> T:
         if item.output is not output:
-            raise StepRuleBroken(f"提示词「{item.title}」声明的输出类型不是 {output.__name__}")
+            raise StepRuleBroken(f"提示词“{item.title}”声明的输出类型不是 {output.__name__}")
         reply = await self._service_for(item).complete(item, values, self._records)
         return parse_output(reply.text, output)
 
     # 检查提示词是否已声明，并返回可用的大模型服务。
     def _service_for(self, item: Prompt) -> ModelService:
         if item not in self._allowed:
-            raise StepRuleBroken(f"步骤「{self._place}」使用了未声明的提示词「{item.title}」")
+            raise StepRuleBroken(f"步骤“{self._place}”使用了未声明的提示词“{item.title}”")
         if self._service is None:
             raise StepRuleBroken("没有配置大模型服务，请检查 APP_MODEL_* 配置")
         return self._service

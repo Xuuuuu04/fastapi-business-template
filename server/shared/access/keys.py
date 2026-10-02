@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from shared.access.caller import Caller
 
 
+# 服务密钥的配置，只保存密钥摘要以及允许访问的范围。
 class ApiKeyConfig(BaseModel):
     name: str = Field(min_length=1, max_length=64, description="密钥名称，用于记录是谁调用")
     key_sha256: str = Field(pattern=r"^[0-9a-f]{64}$", description="密钥原文的 SHA-256 摘要")
@@ -48,7 +49,7 @@ def find_caller(key: str, configs: list[ApiKeyConfig]) -> Caller | None:
     )
 
 
-# 按密钥名称取得当前配置中的权限，用于任务执行时重新核对权限。
+# 按密钥名称取得当前配置中的权限，用于任务执行时重新检查权限。
 def current_caller(name: str, configs: list[ApiKeyConfig]) -> Caller | None:
     for config in configs:
         if config.name == name:

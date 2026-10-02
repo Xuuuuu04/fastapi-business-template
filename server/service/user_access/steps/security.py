@@ -1,5 +1,5 @@
 """
-找回密码（R-08）和两步验证（R-09）的步骤。先在只读步骤中核对，再在保存步骤中写入。
+找回密码（R-08）和两步验证（R-09）的步骤。先在只读步骤中检查，再在保存步骤中写入。
 """
 
 from service.user_access.data_security import (
@@ -19,8 +19,8 @@ async def create_reset_code(data: IssueResetWork, store: AccessStore) -> None:
     data.result = await store.issue_reset(data.org_id, data.user_id)
 
 
-# 按 R-08 核对重置码与账号是否相符、是否仍然有效。
-@step("核对重置码", reads=["org_code", "username", "code"], writes=["user_id"], rule="R-08")
+# 按 R-08 检查重置码与账号是否相符、是否仍然有效。
+@step("检查重置码", reads=["org_code", "username", "code"], writes=["user_id"], rule="R-08")
 async def check_reset_code(data: ResetWork, store: AccessStore) -> None:
     data.user_id = await store.check_reset(data.org_code, data.username, data.code)
 

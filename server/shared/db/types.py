@@ -12,6 +12,7 @@ from sqlalchemy import DateTime, Dialect, Numeric, String
 from sqlalchemy.types import TypeDecorator, TypeEngine
 
 
+# 数据库时间字段的类型，统一按 UTC 保存与读取。
 class UtcTime(TypeDecorator[datetime]):
     impl = DateTime(timezone=True)
     cache_ok = True
@@ -39,6 +40,7 @@ class UtcTime(TypeDecorator[datetime]):
         return moment.astimezone(UTC)
 
 
+# 数据库中的精确数值类型，避免金额因浮点计算出现误差。
 class ExactNumber(TypeDecorator[Decimal]):
     impl = Numeric
     cache_ok = True

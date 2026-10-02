@@ -12,6 +12,7 @@ from shared.data.models import WorkData
 from shared.errors.framework import StepRuleBroken
 
 
+# 流程字段的含义与类型检查器，用于解释和验证步骤读写。
 class FieldTypes:
     # 为流程数据的每个字段准备类型校验器和字段说明。
     def __init__(self, work: type[WorkData]) -> None:
@@ -34,11 +35,12 @@ class FieldTypes:
             expected = getattr(self.annotations[name], "__name__", str(self.annotations[name]))
             first = error.errors()[0]["msg"] if error.errors() else ""
             raise StepRuleBroken(
-                f"步骤「{place}」写入字段 {self.label(name)} 的值类型不对：期望 {expected}，"
+                f"步骤“{place}”写入字段 {self.label(name)} 的值类型不对：期望 {expected}，"
                 f"实际是 {type(value).__name__}（{first}）"
             ) from None
 
 
+# 步骤能够读写的数据视图，越过声明范围时立即报错。
 class StepView:
     __slots__ = ("_values", "_reads", "_writes", "_written", "_types", "_place")
 
@@ -64,12 +66,12 @@ class StepView:
             raise AttributeError(name)
         if name not in self._reads and name not in self._written:
             raise StepRuleBroken(
-                f"步骤「{self._place}」读取了未声明的字段 {self._types.label(name)}，"
+                f"步骤“{self._place}”读取了未声明的字段 {self._types.label(name)}，"
                 "请在 reads 中声明"
             )
         if name not in self._values:
             raise StepRuleBroken(
-                f"步骤「{self._place}」读取的字段 {self._types.label(name)} 还没有值"
+                f"步骤“{self._place}”读取的字段 {self._types.label(name)} 还没有值"
             )
         return self._values[name]
 
@@ -77,7 +79,7 @@ class StepView:
     def __setattr__(self, name: str, value: Any) -> None:
         if name not in self._writes:
             raise StepRuleBroken(
-                f"步骤「{self._place}」写入了未声明的字段 {self._types.label(name)}，"
+                f"步骤“{self._place}”写入了未声明的字段 {self._types.label(name)}，"
                 "请在 writes 中声明"
             )
         self._values[name] = self._types.check(name, value, self._place)

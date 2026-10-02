@@ -10,6 +10,7 @@ from pathlib import Path
 from tools.quality.rules import ALLOWED, ROOT, SKIP_PARTS
 
 
+# 一次规范检查发现的问题，包含文件、位置、原因和处理建议。
 @dataclass(frozen=True)
 class Problem:
     path: str

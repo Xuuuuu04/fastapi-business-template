@@ -14,6 +14,7 @@ import httpx2
 from shared.errors.framework import ModelRejected, ModelUnavailable
 
 
+# 发送给大模型服务的提示内容和生成参数。
 @dataclass(frozen=True)
 class ModelRequest:
     prompt: str
@@ -24,6 +25,7 @@ class ModelRequest:
     wants_json: bool
 
 
+# 大模型返回的文本、模型名称和用量信息。
 @dataclass(frozen=True)
 class ModelReply:
     text: str
@@ -33,6 +35,7 @@ class ModelReply:
     finish: str = ""
 
 
+# 大模型服务实现需要提供的请求和资源释放操作。
 class ModelProvider(Protocol):
     name: str
 
@@ -43,6 +46,7 @@ class ModelProvider(Protocol):
     async def close(self) -> None: ...
 
 
+# 通过 OpenAI 兼容接口发送大模型请求并读取响应。
 class OpenAICompatible:
     name = "openai_compatible"
 
@@ -116,6 +120,7 @@ class OpenAICompatible:
 Answer = str | Callable[[ModelRequest], str]
 
 
+# 开发和测试使用的模拟回复，不发送真实大模型请求。
 class FakeModel:
     name = "fake"
 

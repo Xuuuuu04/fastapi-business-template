@@ -32,6 +32,7 @@ from shared.telemetry.service import Telemetry
 log = logging.getLogger("server.setup")
 
 
+# 接口与后台进程使用的服务对象，集中管理创建结果和退出时的资源释放。
 @dataclass
 class Services:
     settings: Settings

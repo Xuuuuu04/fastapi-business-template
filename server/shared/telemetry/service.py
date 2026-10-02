@@ -9,9 +9,10 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SimpleSpanProcessor, SpanExporter
 
 
+# 将执行过程导出到 OpenTelemetry 服务，未配置时不创建导出对象。
 class Telemetry:
     # 配置 OTLP HTTP 导出；空地址时使用 OpenTelemetry 的空实现。
-    # exporter 只在测试中传入，跨度结束后立即交给它，便于核对。
+    # exporter 只在测试中传入，跨度结束后立即交给它，便于检查。
     def __init__(
         self, endpoint: str, service_name: str, exporter: SpanExporter | None = None
     ) -> None:

@@ -33,20 +33,24 @@ from tests.testing_app import make_settings, reset_database
 partner = remote("partner", "合作方")
 
 
+# 外部接口测试输入的商品编号。
 class Sku(Data):
     sku: str = meaning("商品编号")
 
 
+# 外部接口测试返回的价格，单位为分。
 class Price(Data):
     price: int = meaning("合作方报价", unit="分")
 
 
+# 外部接口测试各步骤共享的编号、价格和结果。
 class PriceWork(WorkData):
     sku: str = meaning("商品编号")
     price: int = meaning("合作方报价", unit="分")
     result: Price = meaning("操作结果")
 
 
+# 外部接口测试的数据访问实现，同时使用外部请求与缓存。
 class PriceStore:
     # 构造参数名 remote 和 cache 决定框架注入外部接口和缓存。
     def __init__(self, remote: RemoteClient, cache: ModuleCache) -> None:

@@ -18,6 +18,7 @@ router = APIRouter(tags=["后台任务"])
 PERMISSION = "system.jobs"
 
 
+# 表示“任务不存在”的失败，由统一错误入口返回给调用方。
 class JobMissing(BusinessError):
     code = "job_missing"
     kind = Kind.NOT_FOUND

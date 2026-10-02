@@ -9,6 +9,7 @@ from shared.graphs.mermaid import label, node_id
 from shared.modules.catalog import Binding
 
 
+# 字段在计算流程中的来源，包含产生步骤、条件、规则和说明。
 @dataclass
 class FieldSource:
     name: str
@@ -71,7 +72,7 @@ def describe(item: FieldSource) -> str:
     title = f"{item.meaning or item.name}（{item.name}）"
     if item.origin != "步骤":
         return f"{title}：来自{item.origin}"
-    text = f"{title}：由步骤「{item.step}」写入"
+    text = f"{title}：由步骤“{item.step}”写入"
     if item.step_rule or item.rule:
         text += f"，规则 {item.rule or item.step_rule}"
     if item.condition:

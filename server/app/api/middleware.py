@@ -1,6 +1,6 @@
 """
 请求中间件：为每个请求分配请求编号、限制请求正文大小和同时处理的请求数、记录一行请求日志。
-响应头带上 X-Request-ID 和 X-Run-ID，出错时用这两个编号查询诊断信息。
+响应头带上 X-Request-ID 和 X-Run-ID，出错时用这两个编号查询排查信息。
 日志只记录路由模板、状态码和耗时，不记录查询参数、请求正文和密钥。
 """
 
@@ -27,10 +27,12 @@ App = Callable[[Scope, Receive, Send], Awaitable[None]]
 VALID_ID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 
 
+# 请求内容超过允许大小时的失败，交给接口入口返回统一响应。
 class BodyTooLarge(Exception):
     pass
 
 
+# 限制同时处理的请求数量，避免请求过多耗尽服务资源。
 class RequestLimits:
     # 记录限制值和当前在途请求数；运行状态接口会读取在途数量。
     def __init__(
@@ -51,6 +53,7 @@ class RequestLimits:
         return self.upload_body if path.startswith(self.upload_paths) else self.max_body
 
 
+# 在请求进入业务前检查大小和并发，统一写入请求编号与耗时。
 class RequestMiddleware:
     # 包装下一层应用，使用共享的请求限制。
     def __init__(self, app: App, limits: RequestLimits, hsts_seconds: int = 0) -> None:

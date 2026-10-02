@@ -7,6 +7,7 @@ from typing import Protocol
 from service.$name.data import ${Camel}View
 
 
+# $title 步骤允许使用的数据访问操作。
 class ${Camel}Store(Protocol):
     # 保存一条新记录并返回它。
     async def add(self, title: str) -> ${Camel}View: ...

@@ -14,6 +14,7 @@ from pydantic_core import PydanticUndefined
 NOTE_KEY = "x-note"
 
 
+# 字段的业务含义、单位、规则与敏感性，用于文档和运行记录。
 @dataclass(frozen=True)
 class FieldNote:
     name: str

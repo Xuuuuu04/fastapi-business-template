@@ -14,6 +14,7 @@ SIGNED_IN = "signed_in"
 CallerKind = Literal["user", "service", "system", "developer", "anonymous"]
 
 
+# 当前调用者的身份、权限和组织范围，贯穿一次业务执行。
 @dataclass(frozen=True)
 class Caller:
     id: str

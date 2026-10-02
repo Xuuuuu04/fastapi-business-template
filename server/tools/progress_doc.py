@@ -23,6 +23,7 @@ HEADER = (
 )
 
 
+# 业务文档中尚未确认的一项规则或问题，供开发进度汇总。
 @dataclass(frozen=True)
 class Pending:
     module: str

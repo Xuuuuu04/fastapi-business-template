@@ -6,7 +6,7 @@
 
 ```text
 模块名/
-├── README.md     职责、公开操作、依赖、内部组织、业务文档、测试
+├── README.md     用途、公开操作、依赖、内部组织、业务文档、测试
 ├── module.py     模块声明：操作与流程的对应、存储实现、表、提示词、任务
 ├── public.py     其他模块和接口层唯一允许导入的文件
 ├── data.py       公开数据、流程数据、业务错误；每个字段都用 meaning() 写含义
@@ -32,7 +32,7 @@ uv run python -m tools.new_module customer_contact --title 客户联系人
 | 规则 | 原因 |
 | --- | --- |
 | 只从 `shared.public` 使用框架，只导入其他模块的 `public.py` | 模块内部可以随意重构，不影响别人 |
-| 不导入 fastapi、httpx 等 HTTP 库；数据库库只在 `store/` 中使用 | HTTP 处理在 app/api，数据访问在 store，职责分开 |
+| 不导入 fastapi、httpx 等 HTTP 库；数据库库只在 `store/` 中使用 | HTTP 处理在 app/api，数据访问在 store，分别负责 |
 | 每个字段写清含义，可空字段写清空值含义 | 人和 AI 都不用猜 |
 | 计算规则写进 `doc/模块名/rules.md` 并编号，代码中用 `rule="R-xx"` 引用 | 字段来源能追到业务规则，业务变化时知道改哪里 |
 | 表名以模块名开头，只由本模块读写 | 数据有唯一的所有者 |

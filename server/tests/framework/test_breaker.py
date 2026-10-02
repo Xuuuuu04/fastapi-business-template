@@ -1,5 +1,5 @@
 """
-熔断：连续失败达到次数后暂停调用，暂停期间直接失败、不再访问对方；暂停结束后放行一次试探，
+连续失败后暂停调用：连续失败达到次数后暂停调用，暂停期间直接失败、不再访问对方；暂停结束后放行一次试探，
 试探成功恢复，失败再暂停；对方明确拒绝不算失败。
 """
 
@@ -13,6 +13,7 @@ from shared.remote_calls.remote import Remote, RemoteConfig
 from shared.remote_calls.service import RemoteRequest, RemoteService
 
 
+# 测试可手动推进的时间，验证暂停调用后的恢复条件。
 class Clock:
     # 可以手动拨动的时钟。
     def __init__(self) -> None:

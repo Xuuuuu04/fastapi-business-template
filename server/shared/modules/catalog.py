@@ -19,6 +19,7 @@ from shared.modules.contract import Contract
 from shared.modules.module import Module
 
 
+# 一个公开操作与其模块、计算流程和字段说明之间的对应关系。
 @dataclass(frozen=True, eq=False)
 class Binding:
     contract: Contract[Any, Any]
@@ -27,6 +28,7 @@ class Binding:
     types: FieldTypes
 
 
+# 统一保存模块和公开操作，启动时检查依赖与流程声明。
 class Catalog:
     # 检查模块声明并建立查找表；有问题时一次列出全部问题。
     def __init__(self, modules: Sequence[Module]) -> None:

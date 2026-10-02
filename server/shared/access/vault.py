@@ -20,6 +20,7 @@ def fernet_of(key: str) -> Fernet:
     return Fernet(base64.urlsafe_b64encode(hashlib.sha256(key.encode()).digest()))
 
 
+# 使用配置中的加密密钥保护数据库敏感字段，支持旧密钥读取。
 class Vault:
     # 按顺序使用密钥：第一把加密，全部都可以解密。
     def __init__(self, keys: Sequence[str]) -> None:

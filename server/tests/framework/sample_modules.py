@@ -38,6 +38,7 @@ notes = Table(
 )
 
 
+# 测试用数据访问实现，保存文字并统计当前记录数。
 class NoteStore:
     # 使用框架提供的数据库入口。
     def __init__(self, db: Db) -> None:
@@ -53,23 +54,27 @@ class NoteStore:
         return int(await self.db.scalar(select(func.count()).select_from(notes)))
 
 
+# 表示“示例的暂时故障”的失败，由统一错误入口返回给调用方。
 class SampleBusy(BusinessError):
     code = "sample_busy"
     kind = Kind.TEMPORARY
     message = "示例的暂时故障"
 
 
+# 计算测试接收的金额、会员状态和故意失败位置。
 class CalcInput(Data):
     amount: Decimal = meaning("金额", unit="元")
     vip: bool = meaning("是否会员", default=False)
     fail_at: str = meaning("在哪一步故意失败，测试用", default="")
 
 
+# 计算测试返回的应付金额与已保存记录数。
 class CalcResult(Data):
     total: Decimal = meaning("应付", unit="元")
     saved: int = meaning("保存后的总行数")
 
 
+# 计算测试各步骤共享的金额、折扣与保存结果。
 class CalcWork(WorkData):
     amount: Decimal = meaning("金额", unit="元")
     vip: bool = meaning("是否会员")
@@ -128,15 +133,18 @@ calc_flow = Flow(
 )
 
 
+# 慢任务测试接收的等待时间和要保存的文字。
 class SlowInput(Data):
     seconds: float = meaning("等待秒数", default=0.0)
     mark: str = meaning("要记下的文字")
 
 
+# 慢任务测试返回的已保存记录数量。
 class SlowResult(Data):
     saved: int = meaning("保存后的总行数")
 
 
+# 慢任务测试各步骤共享的等待时间、文字和保存结果。
 class SlowWork(WorkData):
     seconds: float = meaning("等待秒数")
     mark: str = meaning("要记下的文字")
@@ -171,14 +179,17 @@ hurried = contract(
 )
 
 
+# 大模型测试接收的待说明文字。
 class TextInput(Data):
     mark: str = meaning("要说明的文字")
 
 
+# 大模型测试返回的生成文字。
 class TextResult(Data):
     text: str = meaning("大模型写的说明")
 
 
+# 大模型测试各步骤共享的输入文字和生成结果。
 class TextWork(WorkData):
     mark: str = meaning("要说明的文字")
     result: TextResult = meaning("结果")
@@ -214,6 +225,7 @@ calc_module = Module(
 )
 
 
+# 模块互相调用测试中共享的输入与两次计算结果。
 class OuterWork(WorkData):
     amount: Decimal = meaning("金额", unit="元")
     vip: bool = meaning("是否会员")

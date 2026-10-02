@@ -119,6 +119,7 @@ def test_table_prefix() -> None:
 
 # 存储实现的构造参数写错名称，或者使用 remote 却没有声明外部系统。
 def test_store_params() -> None:
+    # 故意缺少操作的测试存储，用来检查模块声明错误。
     class WrongStore:
         # 参数名 database 和 remote 都不能直接使用。
         def __init__(self, database: object, remote: object) -> None:

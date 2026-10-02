@@ -24,14 +24,17 @@ old_items = Table(
 )
 
 
+# 旧系统读取测试返回的记录名称。
 class OldItem(Data):
     name: str = meaning("旧系统中的名称")
 
 
+# 旧系统读取测试各步骤共享的旧记录读取结果。
 class OldWork(WorkData):
     result: OldItem = meaning("从旧库读取的结果")
 
 
+# 旧系统读取测试的数据访问实现，只使用旧数据库的读取入口。
 class OldStore:
     # 旧库入口由构造参数名 legacy 注入。
     def __init__(self, legacy: Db) -> None:

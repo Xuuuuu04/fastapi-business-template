@@ -27,7 +27,7 @@ async def save_file(data: SaveWork, store: FileStore) -> None:
     data.result = await store.save(data.staged)
 
 
-# 核对组织后读取文件信息和存储键。
+# 检查组织后读取文件信息和存储键。
 @step("读取文件", reads=["org_id", "file_id"], writes=["result"], rule="R-02")
 async def read_file(data: GetWork, store: FileStore) -> None:
     found = await store.get(data.org_id, data.file_id)

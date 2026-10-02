@@ -31,10 +31,23 @@ def rules_of(problems: list) -> set[str]:  # type: ignore[type-arg]
     return {problem.rule for problem in problems}
 
 
-# 缺少文件说明、函数说明，留了待办标记。
+# 缺少文件说明、类说明、函数说明，留了待办标记。
 def test_comments_and_todo(tmp_path: Path) -> None:
-    write(tmp_path, "app/bad_file.py", "def run_task():\n    return 1  # TODO 以后再改\n")
-    assert {"file_header", "function_comment", "todo"} <= rules_of(check_files(tmp_path))
+    text = "class UserInput:\n    pass\n\ndef run_task():\n    return 1  # TODO 以后再改\n"
+    write(tmp_path, "app/bad_file.py", text)
+    assert {"file_header", "class_comment", "function_comment", "todo"} <= rules_of(
+        check_files(tmp_path)
+    )
+
+
+# 类说明放在装饰器前或类内时均可接受，英文说明不能满足中文说明要求。
+def test_class_explanations(tmp_path: Path) -> None:
+    text = GOOD_HEAD + "# 用户输入。\n@dataclass\nclass UserInput:\n    pass\n\n"
+    text += 'class UserResult:\n    """公开返回的用户信息。"""\n\n'
+    write(tmp_path, "app/user_data.py", text)
+    assert check_files(tmp_path) == []
+    write(tmp_path, "app/user_data.py", GOOD_HEAD + 'class UserInput:\n    """Input."""\n')
+    assert rules_of(check_files(tmp_path)) == {"class_comment"}
 
 
 # 函数太长、嵌套太深、函数内连续注释太多、文件太长。
@@ -112,7 +125,7 @@ def test_blocking_call(tmp_path: Path) -> None:
 def test_readme_rules(tmp_path: Path) -> None:
     write(tmp_path, "app/sample_code.py", GOOD_HEAD)
     write(tmp_path, "service/order_desk/module.py", GOOD_HEAD)
-    write(tmp_path, "service/order_desk/README.md", "# 订单台\n\n## 职责\n\n只写了职责。\n")
+    write(tmp_path, "service/order_desk/README.md", "# 订单台\n\n## 用途\n\n只写了用途。\n")
     rules = rules_of(check_readmes(tmp_path, {"order_desk": ["order_desk.create_order"]}))
     assert {"readme_missing", "readme_section", "readme_operation"} <= rules
 

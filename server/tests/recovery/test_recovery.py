@@ -1,5 +1,5 @@
 """
-故障恢复测试：提交时断连报告“结果待核对”、worker 停止时在途任务交给期限过期处理、
+故障恢复测试：提交时断连报告“结果待确认”、worker 停止时在途任务交给期限过期处理、
 规则版本变化后用同一个请求编号重试不会产生新任务。
 """
 
@@ -23,6 +23,7 @@ from tests.framework.test_jobs import make_worker
 pytestmark = pytest.mark.anyio
 
 
+# 模拟提交结果无法确认的测试连接，用来验证失败处理。
 class CommitLost:
     # 包装真实连接，提交时模拟网络断开。
     def __init__(self, connection: Any) -> None:
@@ -37,7 +38,7 @@ class CommitLost:
         return getattr(self.connection, name)
 
 
-# 提交时连接断开：不能确认是否已保存，报告“结果待核对”，不声称已回滚。
+# 提交时连接断开：不能确认是否已保存，报告“结果待确认”，不声称已回滚。
 async def test_commit_lost_is_unknown(sample: Services, monkeypatch: pytest.MonkeyPatch) -> None:
     real = sample.database.open_write
 
