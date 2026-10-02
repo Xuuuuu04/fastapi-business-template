@@ -53,7 +53,7 @@
     "/api/system/modules": {
       "get": {
         "tags": [
-          "运行诊断"
+          "运行排查"
         ],
         "summary": "模块目录和关系图",
         "operationId": "system_modules",
@@ -84,7 +84,7 @@
     "/api/system/flows/{name}": {
       "get": {
         "tags": [
-          "运行诊断"
+          "运行排查"
         ],
         "summary": "操作的计算流程",
         "operationId": "system_flow",
@@ -136,7 +136,7 @@
     "/api/system/fields/{name}/{field}": {
       "get": {
         "tags": [
-          "运行诊断"
+          "运行排查"
         ],
         "summary": "字段来源",
         "operationId": "system_field",
@@ -197,7 +197,7 @@
     "/api/system/runs": {
       "get": {
         "tags": [
-          "运行诊断"
+          "运行排查"
         ],
         "summary": "最近的运行",
         "operationId": "system_runs",
@@ -318,7 +318,7 @@
     "/api/system/runs/{run_id}": {
       "get": {
         "tags": [
-          "运行诊断"
+          "运行排查"
         ],
         "summary": "一次运行的详情",
         "operationId": "system_run",
@@ -370,9 +370,9 @@
     "/api/system/runs/{run_id}/report": {
       "get": {
         "tags": [
-          "运行诊断"
+          "运行排查"
         ],
-        "summary": "一次运行的中文诊断报告",
+        "summary": "一次运行的中文排查报告",
         "operationId": "system_run_report",
         "security": [
           {
@@ -420,7 +420,7 @@
     "/api/system/runtime": {
       "get": {
         "tags": [
-          "运行诊断"
+          "运行排查"
         ],
         "summary": "进程运行状态",
         "operationId": "system_runtime",
@@ -451,7 +451,7 @@
     "/api/system/stats": {
       "get": {
         "tags": [
-          "运行诊断"
+          "运行排查"
         ],
         "summary": "运行统计",
         "operationId": "system_stats",
@@ -643,9 +643,9 @@
     "/api/system/audit": {
       "get": {
         "tags": [
-          "安全审计"
+          "安全操作记录"
         ],
-        "summary": "查询审计记录",
+        "summary": "查询操作记录",
         "operationId": "system_audit",
         "security": [
           {
@@ -698,7 +698,7 @@
     "/api/system/changes": {
       "get": {
         "tags": [
-          "安全审计"
+          "安全操作记录"
         ],
         "summary": "查询数据变更历史",
         "operationId": "system_changes",

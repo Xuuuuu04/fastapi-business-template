@@ -14,6 +14,7 @@ from shared.data.models import Data
 from shared.modules.contract import Contract
 
 
+# 把已验证的接口输入交给业务流程，并转换为接口响应。
 class Run:
     # 绑定当前请求和调用者。
     def __init__(self, request: Request, caller: Caller) -> None:

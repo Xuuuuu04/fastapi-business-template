@@ -29,7 +29,7 @@ uv run python -m app.setup.worker
 | [app](app/) | HTTP 接口、启动组装、模块总目录 |
 | [service](service/) | 业务模块，每个模块结构相同 |
 | [shared](shared/) | 框架：业务代码只从 `shared.public` 导入 |
-| [tools](tools/) | 开发命令：新建模块、全量检查、导出文档、诊断、任务处理 |
+| [tools](tools/) | 开发命令：新建模块、全量检查、导出文档、排查、任务处理 |
 | [tests](tests/) | 测试，按用途分目录 |
 | [migrations](migrations/) | 数据库结构迁移 |
 | [legacy](legacy/) | 旧系统表的独立定义和迁移说明 |
@@ -70,10 +70,10 @@ uv run python -m app.setup.worker
 | 用户和组织 | `service/user_access`、`/api/v1/access` | 管理组织、角色、用户并签发 Bearer 令牌；生产必须设置独立 `APP_JWT_SECRET` |
 | 文件 | `service/file_library`、`/api/v1/files` | 本地目录或 S3 兼容存储；配置大小、扩展名和存储地址 |
 | 流式输出 | `/api/v1/stream/{操作名}` | 操作声明 `stream=True`，异步步骤通过 `emit` 输出 SSE 分段 |
-| 统计和审计 | `/api/system/stats`、`/api/system/audit` | 需 `system.diagnostics`、`system.audit` 权限 |
+| 统计和操作记录 | `/api/system/stats`、`/api/system/audit` | 需 `system.diagnostics`、`system.audit` 权限 |
 | 运行追踪 | `shared/telemetry` | 配置 `APP_OTEL_ENDPOINT` 导出 OTLP HTTP traces |
 
-安全响应头与按调用者限流默认启用。组织隔离表使用 `org_column()`，业务数据库入口会检查组织条件；登录后的权限与组织保存在令牌中，角色或停用状态变化在令牌到期后生效。默认规则见 [用户权限](../doc/user_access/rules.md) 和 [文件管理](../doc/file_library/rules.md)，具体项目启用前要核对组织划分、权限名称和文件类型。
+安全响应头与按调用者限流默认启用。组织隔离表使用 `org_column()`，业务数据库入口会检查组织条件；登录后的权限与组织保存在令牌中，角色或停用状态变化在令牌到期后生效。默认规则见 [用户权限](../doc/user_access/rules.md) 和 [文件管理](../doc/file_library/rules.md)，具体项目启用前要检查组织划分、权限名称和文件类型。
 
 ## 6. 验证情况
 

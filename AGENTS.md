@@ -26,7 +26,7 @@
 
 1. **先改业务文档**：在 `doc/模块名/rules.md` 写清规则、编号、异常情况和确认样例；没有确认的写“待确认”，不要自己补全业务规则。字段含义写在代码的 `meaning()` 中，不在 `rules.md` 重复。
 2. **新模块用命令生成**：`uv run python -m tools.new_module 模块名 --title 中文名`，不要手工复制目录。
-3. **按固定结构写**：字段写在 `data.py` 并用 `meaning()` 写含义；计算写成步骤，声明读写的字段；步骤在 `flow.py` 中连成流程；数据库访问写在 `store/`。
+3. **按固定结构写**：字段写在 `data.py` 并用 `meaning()` 写含义；每个类写中文用途说明；计算写成步骤，声明读写的字段；步骤在 `flow.py` 中连成流程；数据库访问写在 `store/`。
 4. **写测试**：生成器已提供步骤和接口测试，按业务功能集中在对应模块目录中，不到处新建测试文件；用 `uv run python -m tools.check --module 模块名` 单独检查。规则测试的预期值来自 `rules.md` 的确认样例，测试说明中写上规则编号（例如 `# R-03：……`），`doc/progress.md` 按编号统计规则有没有测试；接口测试从 HTTP 入口进入。
 5. **生成迁移和文档**：先 `uv run alembic upgrade head` 把本地数据库升到最新，再 `uv run alembic revision --autogenerate -m "说明"`（检查生成结果），最后 `uv run python -m tools.export_docs`（更新 `doc/` 下的流程、接口描述和进度，一起提交）。
 6. **记录没做完的事**：留到以后的工作写进 `doc/tasks.md`，完成的勾选；用 `uv run python -m tools.impact --base origin/main` 查看这次改动影响了什么。
@@ -55,5 +55,7 @@
 ## 6. 完成时怎样汇报
 
 发布前还需按 [server/tests/browser/README.md](server/tests/browser/README.md) 检查接口文档和运行页面；生产配置验收范围见 [server/deploy/README.md](server/deploy/README.md)。
+
+部署检查只要求启用模块实际使用的配置。迁入用户后台任务前，先读 [server/shared/jobs/README.md](server/shared/jobs/README.md) 的权限限制，并在业务规则中确定执行时的用户状态检查。
 
 说明改了什么、对应哪些业务规则、`tools.check` 的结果（是否在 PostgreSQL 上运行过）、还有哪些没有验证。需要人决定的业务问题单独列出，不要自行假设；同时写进对应 `rules.md` 并标“待确认”，让它出现在 `doc/progress.md` 中。合并请求按 `.github/pull_request_template.md` 填写。

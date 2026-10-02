@@ -16,6 +16,7 @@ from shared.records.models import RunRecord, run_from_dict
 from shared.records.tables import run_records
 
 
+# 查询运行记录的筛选条件，包含模块、状态、时间和请求编号。
 @dataclass(frozen=True)
 class RunFilter:
     module: str = ""
@@ -27,6 +28,7 @@ class RunFilter:
     top_only: bool = True
 
 
+# 运行记录保存位置需要提供的写入、查询、统计和清理操作。
 class RunStore(Protocol):
     immediate: bool
     dropped: int
@@ -50,6 +52,7 @@ class RunStore(Protocol):
     async def stats(self, since: float, module: str = "") -> list[dict[str, object]]: ...
 
 
+# 有数量上限的进程内运行记录，进程退出后不保留。
 class MemoryRunStore:
     immediate = True
 
@@ -126,6 +129,7 @@ def matches(run: RunRecord, rules: RunFilter) -> bool:
     return all(checks)
 
 
+# 数据库中的运行记录，供多个进程查询同一批执行结果。
 class SqlRunStore:
     immediate = False
 

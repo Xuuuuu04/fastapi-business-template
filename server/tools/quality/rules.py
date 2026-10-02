@@ -81,7 +81,7 @@ STEP_VERBS = frozenset(
 CONDITION_WORDS = frozenset({"is", "has", "can", "needs", "should"})
 
 MODULE_README_SECTIONS = (
-    "## 职责",
+    "## 用途",
     "## 公开操作",
     "## 依赖",
     "## 内部组织",
@@ -112,6 +112,7 @@ BLOCKING_CALLS = frozenset(
 TODO_WORDS = ("TODO", "FIXME", "XXX", "HACK")
 
 
+# 明确允许的一项检查例外，注明文件、规则和原因。
 @dataclass(frozen=True)
 class Allowed:
     path: str

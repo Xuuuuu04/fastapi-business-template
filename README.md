@@ -2,7 +2,7 @@
 
 当前代码版本 2.0.0（未发布），变化见 [CHANGELOG.md](CHANGELOG.md)。
 
-方便 AI 开发和迁移业务的单体后端模板：人审查业务和架构，AI 按固定结构逐个模块开发或迁移旧系统；运行时每次执行都留下可以按编号查询的中文记录，出问题时能直接定位到步骤、字段、规则和源码位置。
+方便 AI 开发和迁移业务的单体后端模板：人审查业务和架构，AI 按固定结构逐个模块开发或迁移旧系统；运行时记录执行过程，可以按编号查询中文报告，定位步骤、字段、规则和源码位置。记录保存失败时会显示不完整，业务结果仍以业务数据为准。
 
 ## 目录
 
@@ -52,20 +52,20 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 模块统一登记，模块之间只通过操作约定调用，依赖方向自动检查 | `server/app/setup/catalog.py`、`server/shared/modules` |
 | 流程由步骤组成，步骤声明读写的字段；启动时检查声明，运行时限制越界读写 | `server/shared/flow` |
 | 四种图：模块关系、计算流程、字段来源、实际执行 | `server/shared/graphs`、`/api/system/*` |
-| 每次执行的运行记录和中文摘要、诊断报告 | `server/shared/records`、`tools.diagnose` |
+| 每次执行的运行记录和中文摘要、排查报告 | `server/shared/records`、`tools.diagnose` |
 | 事务按步骤声明安排：只读步骤不能写库，失败整体回滚；先读后写用带条件修改或加锁读取 | `server/shared/db` |
 | 数据变更历史（谁在哪次运行把哪个字段从什么改成什么）；按位置续读的分页 | `server/shared/db`、`/api/system/changes` |
 | 后台任务和定时计划（任务表兼作队列，无需 RabbitMQ） | `server/shared/jobs` |
 | 大模型调用入口：提示词版本、用量记录、并发和重试（OpenAI 兼容接口） | `server/shared/model_calls` |
-| 外部接口调用：声明外部系统、超时与重试、熔断、写入结果待核对、调用概要记录 | `server/shared/remote_calls` |
+| 外部接口调用：声明外部系统、超时与重试、连续失败后暂停调用、写入结果待确认、调用概要记录 | `server/shared/remote_calls` |
 | 导入导出：CSV、Excel 读写，逐行报告问题 | `server/shared/exchange` |
 | 缓存（进程内或 Redis）、文件存储（本地目录或 S3 兼容）、流式输出（SSE） | `server/shared/cache`、`files`、`flow` |
 | 旧系统迁移：旧库只读入口和迁移步骤 | `server/legacy` |
-| 统一错误格式、服务密钥、请求与登录限流、安全响应头、审计、结构化日志 | `server/app/api`、`server/shared/access` |
+| 统一错误格式、服务密钥、请求与登录限流、安全响应头、操作记录、结构化日志 | `server/app/api`、`server/shared/access` |
 | 用户、角色、组织：登录、刷新令牌轮换、修改密码、管理员发放重置码找回密码、两步验证（TOTP）；数据按组织隔离，也可按负责人隔离（行级权限），漏写条件直接报错；敏感字段加密保存 | `server/service/user_access`、`server/shared/db/org.py`、`owner.py`、`server/shared/access/vault.py` |
 | 文件管理：上传、下载、删除和每日清理 | `server/service/file_library` |
-| 运行统计、OpenTelemetry 链路导出、只读诊断网页 | `/api/system/stats`、`server/shared/telemetry`、`/system/console` |
+| 运行统计、OpenTelemetry 调用过程导出、只读排查网页 | `/api/system/stats`、`server/shared/telemetry`、`/system/console` |
 | 质量检查：注释、命名、长度、依赖、README、业务文档，纳入默认测试 | `server/tools/quality` |
-| 开发期观察与把关：测试失败时附运行报告；生成开发进度（待确认问题、规则的测试标注、任务数）、接口描述快照；改动影响报告写到合并请求的检查摘要页 | `doc/progress.md`、`doc/tasks.md`、`doc/api/`、`server/tools/impact.py` |
+| 开发进度与检查：测试失败时附运行报告；生成待确认问题、规则的测试标注、任务数与接口描述；改动影响报告可手动运行，尚未加入持续集成 | `doc/progress.md`、`doc/tasks.md`、`doc/api/`、`server/tools/impact.py` |
 | 新模块生成命令、模块独立检查、框架文件摘要、运行查看与任务处理命令 | `server/tools` |
 | Docker 镜像、单机部署组合配置、环境检查、备份恢复 | `server/deploy` |

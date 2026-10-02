@@ -2,7 +2,7 @@
 const notice = document.querySelector('#notice');
 const results = document.querySelector('#results');
 const states = {ok:'已完成',failed:'失败',refused:'被拒绝',lost:'失去联系',running:'执行中',skipped:'跳过'};
-const kinds = {compute:'计算',read:'读取',save:'保存',call:'模块调用',model:'大模型',remote:'外部接口'};
+const kinds = {compute:'计算',read:'数据访问',save:'保存',call:'模块调用',model:'大模型',remote:'外部接口'};
 let current = 'modules';
 let pending;
 

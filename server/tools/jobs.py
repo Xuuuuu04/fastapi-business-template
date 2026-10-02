@@ -2,7 +2,7 @@
 后台任务的人工处理命令：
   list [--state failed]                      列出任务
   show 任务编号                               查看任务
-  requeue 任务编号 [--accept-version] --yes   把失败、待核对、等待兼容版本的任务重新排队
+  requeue 任务编号 [--accept-version] --yes   把失败、待检查、等待兼容版本的任务重新排队
   cancel 任务编号 --yes                       取消尚未开始的任务
 重新排队可能再次产生外部效果（例如再次发送通知），执行前请确认任务的实际情况；
 修改类命令必须加 --yes。

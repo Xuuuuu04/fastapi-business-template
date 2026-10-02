@@ -28,13 +28,13 @@ def count_total(data: QuoteWork) -> None:
 | [inject.py](inject.py) | 按参数名准备 store、call、model、remote、cache、emit 等 |
 | [runner.py](runner.py) | 按顺序执行步骤并记录 |
 | [runtime.py](runtime.py) | 执行器入口：权限、超时、事务提交与回滚、模块之间的调用 |
-| [streaming.py](streaming.py)、[auditing.py](auditing.py) | 流式事件与审计事务衔接 |
+| [streaming.py](streaming.py)、[auditing.py](auditing.py) | 流式事件与操作记录与事务衔接 |
 | [scope.py](scope.py) | 一次运行共用的事务和剩余时间 |
 | [testing.py](testing.py) | `try_step`：在测试中单独运行一个步骤 |
 
 ## 事务怎样安排
 
-第一个 `saves=True` 的步骤开始写入事务；本次运行和它调用的其他模块共用这个事务；最外层操作成功时提交，任何一步失败都回滚。提交时连接断开，报告“结果待核对”，不声称已回滚。写入事务开始后不能再调用大模型，避免长时间占用连接。
+第一个 `saves=True` 的步骤开始写入事务；本次运行和它调用的其他模块共用这个事务；最外层操作成功时提交，任何一步失败都回滚。提交时连接断开，报告“结果待确认”，不声称已回滚。写入事务开始后不能再调用大模型，避免长时间占用连接。
 
 ## 先读后写时怎样保证一致
 

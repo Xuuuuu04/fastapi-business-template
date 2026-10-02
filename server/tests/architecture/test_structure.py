@@ -1,5 +1,5 @@
 """
-架构测试：依赖方向、模块登记与接线、迁移与表定义一致、框架文件摘要、关闭全部业务模块后框架仍能启动、
+架构测试：依赖方向、模块登记与连接、迁移与表定义一致、框架文件摘要、关闭全部业务模块后框架仍能启动、
 新模块命令能在当前的登记文件中登记。
 """
 
@@ -84,7 +84,7 @@ def test_framework_files_unchanged() -> None:
     )
 
 
-# 不启用任何业务模块时，框架仍能启动、通过健康检查并提供诊断接口。
+# 不启用任何业务模块时，框架仍能启动、通过健康检查并提供排查接口。
 def test_framework_runs_without_modules(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     with TestClient(create_app(settings, build(settings, modules=[]))) as client:

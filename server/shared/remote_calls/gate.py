@@ -12,6 +12,7 @@ from shared.remote_calls.remote import Remote
 from shared.remote_calls.service import RemoteReply, RemoteRequest, RemoteService
 
 
+# 步骤使用的外部接口入口，只允许访问已声明的外部系统。
 class RemoteGate:
     # 绑定调用服务、允许访问的外部系统和本步骤的调用记录。
     def __init__(
@@ -55,7 +56,7 @@ class RemoteGate:
         if self._transaction_started is not None and self._transaction_started():
             raise StepRuleBroken("写入事务开始后不能调用外部接口")
         if target not in self._allowed:
-            raise StepRuleBroken(f"「{self._place}」访问了未声明的外部系统 {target.name}")
+            raise StepRuleBroken(f"“{self._place}”访问了未声明的外部系统 {target.name}")
         if self._service is None:
             raise StepRuleBroken("没有启用外部接口服务")
         return await self._service.send(target, request, self._records)

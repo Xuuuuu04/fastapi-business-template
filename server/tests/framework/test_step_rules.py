@@ -21,14 +21,17 @@ from tests.testing_app import reset_database
 pytestmark = pytest.mark.anyio
 
 
+# 字段读写测试接收的项目列表。
 class Ask(Data):
     items: list[str] = meaning("项目")
 
 
+# 字段读写测试返回的项目数量。
 class Answer(Data):
     count: int = meaning("数量")
 
 
+# 字段读写测试各步骤共享的项目与合计结果。
 class Work(WorkData):
     items: list[str] = meaning("项目")
     total: Decimal = meaning("合计", unit="元")
@@ -68,7 +71,7 @@ def count_items(data: Work) -> None:
 
 # 读取未声明的字段时，指出步骤和字段。
 def test_undeclared_read() -> None:
-    with pytest.raises(StepRuleBroken, match="「偷看合计」读取了未声明的字段 answer（结果）"):
+    with pytest.raises(StepRuleBroken, match="“偷看合计”读取了未声明的字段 answer（结果）"):
         try_step(peek_total, Work, items=["a"])
 
 

@@ -1,6 +1,6 @@
 """
 任务的查询和人工处理：查看任务、按状态列出、人工重新排队、取消尚未执行的任务。
-查询供接口和命令行使用；人工处理只通过命令行进行，不放进只读的诊断接口。
+查询供接口和命令行使用；人工处理只通过命令行进行，不放进只读的排查接口。
 """
 
 import json
@@ -22,12 +22,13 @@ STATE_TEXT = {
     "waiting_retry": "等待重试",
     "done": "已完成",
     "failed": "失败",
-    "unknown": "结果待核对",
+    "unknown": "结果待确认",
     "blocked": "等待兼容版本",
     "cancelled": "已取消",
 }
 
 
+# 供接口或命令行返回的任务状态、执行时间和运行编号。
 @dataclass(frozen=True)
 class JobView:
     id: str
@@ -94,7 +95,7 @@ async def count_jobs(database: Database) -> dict[str, int]:
     return {str(state): int(count) for state, count in rows}
 
 
-# 人工把失败、待核对或等待兼容版本的任务重新排队；accept_version 表示接受按当前版本执行。
+# 人工把失败、待检查或等待兼容版本的任务重新排队；accept_version 表示接受按当前版本执行。
 async def requeue(
     database: Database, catalog: Catalog, job_id: str, *, accept_version: bool
 ) -> str:
@@ -104,7 +105,7 @@ async def requeue(
             return "任务不存在"
         if row["state"] not in ("failed", "unknown", "blocked"):
             state = STATE_TEXT.get(row["state"])
-            return f"任务状态是“{state}”；只有失败、待核对、等待兼容版本的任务可以重新排队"
+            return f"任务状态是“{state}”；只有失败、待检查、等待兼容版本的任务可以重新排队"
         binding, plan = catalog.find(row["contract"]), catalog.plan(row["contract"])
         if binding is None or plan is None:
             return "任务对应的操作当前没有登记"

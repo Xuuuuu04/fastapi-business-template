@@ -23,10 +23,11 @@ from tests.framework.sample_modules import CalcInput, calc, calc_module
 pytestmark = pytest.mark.anyio
 
 
+# 故意保存失败的测试存储，用来检查记录不完整的提示。
 class BrokenStore(MemoryRunStore):
-    # 每次保存都失败，模拟诊断存储不可用。
+    # 每次保存都失败，模拟排查存储不可用。
     async def save(self, runs: list[RunRecord]) -> None:
-        raise OSError("诊断存储不可用")
+        raise OSError("排查存储不可用")
 
 
 # 运行记录保存失败时，业务照常完成，失败次数被记下。
@@ -54,13 +55,13 @@ async def test_memory_store_limit() -> None:
 def test_summaries() -> None:
     run = RunRecord("r", "r", "", "", "c", "创建报价", "m", "1", "dev", "", "", "x", 0.0)
     run.status, run.error_message = "refused", "需要权限 order_quote.write"
-    assert summarize(run) == "「创建报价」没有执行：需要权限 order_quote.write。"
+    assert summarize(run) == "“创建报价”没有执行：需要权限 order_quote.write。"
     step = StepRecord("s", "count", "计算金额", "compute", "R-02", "x.py:1", status="failed")
     step.error_place = "service/order_quote/steps/quote_rules.py:40"
     run.status, run.steps, run.planned = "failed", [step], ["count", "save", "build"]
     run.error_message, run.error_kind, run.writes = "价格缺失", "broken", "rolled_back"
     text = summarize(run)
-    assert "在「计算金额」步骤停止：价格缺失" in text and "之后的 2 个步骤没有执行" in text
+    assert "在“计算金额”步骤停止：价格缺失" in text and "之后的 2 个步骤没有执行" in text
     assert "quote_rules.py:40" in text and "需要修改代码" in text and "数据库回滚" in text
 
 
@@ -83,8 +84,8 @@ def test_flow_graph_and_lineage() -> None:
     graph = flow_graph(binding)
     assert '|"条件：是会员"|' in graph and "计算应付（计算）" in graph
     lines = explain(binding, "result")
-    assert lines[0].startswith("- 结果（result）：由步骤「整理结果」写入")
-    assert any("应付（total）：由步骤「计算应付」写入" in line for line in lines)
+    assert lines[0].startswith("- 结果（result）：由步骤“整理结果”写入")
+    assert any("应付（total）：由步骤“计算应付”写入" in line for line in lines)
 
 
 # 图中的文字会被转义，输入内容不会被当成图语言执行。

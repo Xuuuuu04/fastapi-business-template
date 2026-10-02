@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from shared.flow.runtime import Runtime
 
 
+# 当前调用共同使用的事务状态，注明由哪个操作开启。
 @dataclass
 class Transaction:
     connection: AsyncConnection | None = None
@@ -46,6 +47,7 @@ class Transaction:
             await connection.close()
 
 
+# 一次执行的身份、期限、上下层关系和共享事务信息。
 @dataclass
 class Scope:
     runtime: "Runtime"

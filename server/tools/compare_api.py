@@ -1,7 +1,7 @@
 """
 比较两份 OpenAPI 描述，列出接口的增加、删除和声明变化，供人判断是否需要新版本接口。
 用法：uv run python -m tools.compare_api --before 旧/openapi.json --after ../doc/api/openapi.json
-报告只提示变化，不自动断言兼容。
+报告只提示变化，兼容性由开发者判断。
 """
 
 import argparse

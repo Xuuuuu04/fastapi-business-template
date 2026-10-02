@@ -1,6 +1,6 @@
 """
 登录会话流程的步骤：登录、刷新、退出、修改密码和清理过期刷新令牌。
-先在只读步骤中核对，再在保存步骤中写入，写入的内容能从运行记录中分清。
+先在只读步骤中检查，再在保存步骤中写入，写入的内容能从运行记录中分清。
 """
 
 from service.user_access.data import (
@@ -15,7 +15,7 @@ from service.user_access.store.contract import AccessStore
 from shared.public import Note, Nothing, step
 
 
-# 核对组织、用户名、密码、启用状态和两步验证码，读出角色当前的权限。
+# 检查组织、用户名、密码、启用状态和两步验证码，读出角色当前的权限。
 @step(
     "校验登录",
     reads=["org_code", "username", "password", "otp_code"],
@@ -34,7 +34,7 @@ async def create_session(data: LoginWork, store: AccessStore) -> None:
 
 
 # 查出刷新令牌是否可用，以及用户当前是否启用、有哪些权限。
-@step("核对刷新令牌", reads=["refresh_token"], writes=["check"], rule="R-05")
+@step("检查刷新令牌", reads=["refresh_token"], writes=["check"], rule="R-05")
 async def check_refresh(data: RefreshWork, store: AccessStore) -> None:
     data.check = await store.check_refresh(data.refresh_token)
 
@@ -54,8 +54,8 @@ async def mark_revoked(data: LogoutWork, store: AccessStore) -> None:
     data.result = Nothing()
 
 
-# 核对当前登录用户的原密码。
-@step("核对原密码", reads=["old_password"], writes=["user_id"], rule="R-06")
+# 检查当前登录用户的原密码。
+@step("检查原密码", reads=["old_password"], writes=["user_id"], rule="R-06")
 async def check_old_password(data: PasswordWork, store: AccessStore) -> None:
     data.user_id = await store.check_own_password(data.old_password)
 

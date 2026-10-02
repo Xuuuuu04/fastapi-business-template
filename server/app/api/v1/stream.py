@@ -17,6 +17,7 @@ from shared.errors.kinds import BusinessError, Kind
 router = APIRouter(prefix="/api/v1/stream", tags=["流式操作"])
 
 
+# 表示“没有这个可供流式执行的操作”的失败，由统一错误入口返回给调用方。
 class StreamNotFound(BusinessError):
     code = "stream_not_found"
     kind = Kind.NOT_FOUND

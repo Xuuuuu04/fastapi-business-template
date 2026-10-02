@@ -41,7 +41,7 @@ links = Table(
 async def test_remote_retry_rules() -> None:
     seen: list[httpx2.Request] = []
 
-    # 先返回暂时故障，再返回成功，用于核对重试次数。
+    # 先返回暂时故障，再返回成功，用于检查重试次数。
     def respond(request: httpx2.Request) -> httpx2.Response:
         seen.append(request)
         if len(seen) in (1, 3, 4):
@@ -72,7 +72,7 @@ async def test_remote_retry_rules() -> None:
         await service.close()
 
 
-# 无请求编号的写入超时不能自动重发，调用方必须核对结果。
+# 无请求编号的写入超时不能自动重发，调用方必须检查结果。
 @pytest.mark.anyio
 async def test_remote_write_timeout_result_unknown() -> None:
     # 模拟外部系统在写入时超时。

@@ -22,6 +22,7 @@ from shared.records.models import StepRecord
 Fake = Callable[[Any], Awaitable[Data]]
 
 
+# 独立运行步骤后的结果，供模块测试查看写入字段和任务登记。
 @dataclass
 class StepResult:
     values: dict[str, Any]
@@ -87,7 +88,7 @@ def finish(
 ) -> StepResult:
     missing = missing_writes(view)
     if missing:
-        raise StepRuleBroken(f"步骤「{part.title}」声明会写入 {missing}，但没有写入")
+        raise StepRuleBroken(f"步骤“{part.title}”声明会写入 {missing}，但没有写入")
     written = {name: values[name] for name in part.writes}
     return StepResult(written, list(record.notes), submitted)
 
@@ -97,7 +98,7 @@ def fake_call(part: Step, calls: dict[Contract[Any, Any], Fake]) -> Callable[...
     # 按操作找到测试给出的替身函数并调用。
     async def call(item: Contract[Any, Any], input: Data) -> Data:
         if item not in part.uses:
-            raise StepRuleBroken(f"步骤「{part.title}」调用了未声明的操作 {item.name}")
+            raise StepRuleBroken(f"步骤“{part.title}”调用了未声明的操作 {item.name}")
         if item not in calls:
             raise StepRuleBroken(f"测试没有为 {item.name} 提供替身")
         return await calls[item](input)
@@ -110,7 +111,7 @@ def fake_later(part: Step, submitted: list[tuple[str, Data]]) -> Callable[..., A
     # 记下登记的任务并返回一个假编号。
     async def later(item: Contract[Any, Any], input: Data, *, key: str = "") -> str:
         if item not in part.later:
-            raise StepRuleBroken(f"步骤「{part.title}」登记了未声明的任务 {item.name}")
+            raise StepRuleBroken(f"步骤“{part.title}”登记了未声明的任务 {item.name}")
         submitted.append((item.name, input))
         return f"test-{len(submitted)}"
 

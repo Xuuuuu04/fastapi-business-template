@@ -14,6 +14,7 @@ from shared.records.recorder import LOST_AFTER_SECONDS, Recorder
 from shared.records.stores import MemoryRunStore, RunFilter
 
 
+# 故意延迟保存运行记录，用来检查后台写入和退出等待。
 class SlowStore(MemoryRunStore):
     immediate = False
 
@@ -112,6 +113,7 @@ async def test_background_flush_writes_waiting_runs() -> None:
     assert await store.get("g") is not None and recorder.state().waiting == 0
 
 
+# 可控制保存时机的测试存储，用来验证进度与完成记录的顺序。
 class PausingStore(SlowStore):
     # 保存前先等待一会，模拟停止时正好有一批记录在写入。
     async def save(self, runs: list[RunRecord]) -> None:

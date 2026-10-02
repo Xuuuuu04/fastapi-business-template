@@ -25,6 +25,7 @@ from shared.public import Data, meaning
 pytestmark = pytest.mark.anyio
 
 
+# 缓存格式测试使用的价格数据，单位为分。
 class Price(Data):
     price: int = meaning("价格", unit="分")
 
@@ -95,6 +96,7 @@ async def test_module_cache_prefix_and_data(cache: Cache) -> None:
         await first.set_text("huge", "x" * 1_000_001, 60)
 
 
+# 故意连接失败的测试缓存，用来检查故障返回与健康状态。
 class BrokenCache(MemoryCache):
     # 每个操作都报连接错误，模拟缓存服务不可用。
     async def get(self, key: str) -> str | None:

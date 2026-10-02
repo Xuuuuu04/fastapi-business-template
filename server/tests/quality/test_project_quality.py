@@ -13,7 +13,7 @@ from tools.quality.readmes import check_readmes
 from tools.quality.report import Problem, unused_allowed, without_allowed
 
 
-# 把问题整理成便于阅读的断言信息。
+# 把检查问题整理成便于阅读的失败说明。
 def listed(problems: list[Problem]) -> str:
     return "\n".join(problem.text() for problem in problems)
 

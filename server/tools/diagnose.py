@@ -1,10 +1,10 @@
 """
-诊断命令，供人和 Agent 在能访问数据库的机器上直接查看，不必先读代码：
+排查命令，供人和 Agent 在能访问数据库的机器上直接查看，不必先读代码：
   runs [--status failed] [--module 名称]   最近的运行和中文摘要
-  run 运行编号                             一次运行的中文诊断报告
+  run 运行编号                             一次运行的中文排查报告
   flow 操作名                              操作的计算流程图和字段来源（来自声明，不需要数据库）
   field 操作名 字段名                       逐层说明一个字段怎样得出
-运行记录保存在进程内存时（APP_RUN_RECORDS=memory），命令行看不到服务进程里的记录，请用诊断接口。
+运行记录保存在进程内存时（APP_RUN_RECORDS=memory），命令行看不到服务进程里的记录，请用排查接口。
 """
 
 import argparse
@@ -27,7 +27,7 @@ async def show_runs(store: SqlRunStore, status: str, module: str, limit: int) ->
         print(f"{run.id}  {run.status:<8} {run.title}：{run.summary}")
 
 
-# 打印一次运行的中文诊断报告。
+# 打印一次运行的中文排查报告。
 async def show_run(store: SqlRunStore, run_id: str) -> None:
     found = await store.get(run_id)
     if found is None:

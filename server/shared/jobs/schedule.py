@@ -27,11 +27,12 @@ def latest_slot(schedule: Schedule, now: datetime) -> datetime:
         count = (local - start) // schedule.every
         return start + count * schedule.every
     if schedule.daily_at is None:
-        raise ValueError(f"定时计划「{schedule.title}」需要设置 every 或 daily_at")
+        raise ValueError(f"定时计划“{schedule.title}”需要设置 every 或 daily_at")
     today = datetime.combine(local.date(), schedule.daily_at, tzinfo=zone)
     return today if today <= local else today - timedelta(days=1)
 
 
+# 根据模块登记的定时计划生成任务，避免同一时间重复登记。
 class Scheduler:
     # 记住每个计划上一次处理的时段，避免同一进程反复登记。
     def __init__(self, schedules: list[Schedule], queue: JobQueue, database: Database) -> None:

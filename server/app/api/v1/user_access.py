@@ -22,6 +22,7 @@ from shared.public import Nothing
 router = APIRouter(prefix="/api/v1/access", tags=["用户权限"])
 
 
+# 登录或刷新成功返回的身份令牌及有效时间。
 class TokenReply(BaseModel):
     access_token: str = Field(description="访问令牌，请求时放在 Authorization: Bearer 后面")
     token_type: str = Field(default="Bearer", description="令牌类型，固定为 Bearer")

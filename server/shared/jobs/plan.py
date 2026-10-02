@@ -12,6 +12,7 @@ from shared.data.models import Data
 from shared.modules.contract import Contract
 
 
+# 后台任务的自动重试次数和每次等待时间。
 @dataclass(frozen=True)
 class Retry:
     times: int = 0
@@ -24,6 +25,7 @@ class Retry:
         return self.waits[min(attempt, len(self.waits)) - 1]
 
 
+# 一个操作的后台执行要求，包括重试、重复执行安全性和排队上限。
 @dataclass(frozen=True, eq=False)
 class JobPlan:
     contract: Contract[Any, Any]
@@ -33,6 +35,7 @@ class JobPlan:
     lease_seconds: float = 60.0
 
 
+# 一个定时任务的输入与触发时间，交给调度进程登记执行。
 @dataclass(frozen=True, eq=False)
 class Schedule:
     name: str

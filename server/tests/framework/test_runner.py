@@ -45,7 +45,7 @@ async def test_skipped_step_is_recorded(sample: Services) -> None:
     await sample.runtime.run(calc, CalcInput(amount=Decimal("100")), caller=DEVELOPER)
     run = (await sample.recorder.recent(RunFilter(), 1))[0]
     assert [step.status for step in run.steps] == ["skipped", "ok", "ok", "ok"]
-    assert "条件不满足而跳过：「计算优惠」" in run.summary
+    assert "条件不满足而跳过：“计算优惠”" in run.summary
     assert "写入已提交" in run.summary
 
 
@@ -58,7 +58,7 @@ async def test_failure_after_save_rolls_back(sample: Services) -> None:
     assert await count_notes(sample) == 0
     run = await sample.recorder.get(caught.value.run_id)  # type: ignore[attr-defined]
     assert run is not None and run.status == "failed"
-    assert "在「保存结果」步骤停止" in run.summary
+    assert "在“保存结果”步骤停止" in run.summary
     assert "写入已全部撤销" in run.summary
 
 

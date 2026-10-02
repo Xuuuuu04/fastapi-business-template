@@ -26,7 +26,7 @@ def check_flow(
     prompts: tuple[Prompt, ...],
     remotes: tuple[Remote, ...] = (),
 ) -> list[str]:
-    place = f"流程「{flow.title}」"
+    place = f"流程“{flow.title}”"
     if not (isinstance(flow.work, type) and issubclass(flow.work, WorkData)):
         return [f"{place} 的 work 必须是 WorkData 的子类"]
     if not (issubclass(contract.input, Data) and issubclass(contract.output, Data)):
@@ -38,7 +38,7 @@ def check_flow(
         problems += check_step(item, notes, has_store, prompts, remotes)
         if "emit" in item.params and not contract.stream:
             problems.append(
-                f"步骤「{item.title}」使用 emit，但操作 {contract.name} 没有声明 stream=True"
+                f"步骤“{item.title}”使用 emit，但操作 {contract.name} 没有声明 stream=True"
             )
     problems += check_writers(flow, contract, notes)
     problems += check_sources(flow, contract, notes)
@@ -81,7 +81,7 @@ def check_step(
     prompts: tuple[Prompt, ...],
     remotes: tuple[Remote, ...],
 ) -> list[str]:
-    place = f"步骤「{item.title}」（{item.source}）"
+    place = f"步骤“{item.title}”（{item.source}）"
     problems = [
         f"{place} 读取的字段 {name} 不在流程数据中" for name in item.reads if name not in notes
     ]
@@ -93,11 +93,11 @@ def check_step(
     problems += check_params(item, place, has_store)
     for used in item.prompts:
         if used not in prompts:
-            problems.append(f"{place} 使用的提示词「{used.title}」没有在模块声明的 prompts 中登记")
+            problems.append(f"{place} 使用的提示词“{used.title}”没有在模块声明的 prompts 中登记")
     for target in item.remotes:
         if target not in remotes:
             problems.append(
-                f"{place} 使用的外部系统「{target.title}」没有在模块声明的 remotes 中登记"
+                f"{place} 使用的外部系统“{target.title}”没有在模块声明的 remotes 中登记"
             )
     return problems
 
@@ -105,7 +105,7 @@ def check_step(
 # 检查条件读取的字段是否存在。
 def check_condition(when: Condition, notes: dict[str, FieldNote]) -> list[str]:
     return [
-        f"条件「{when.title}」读取的字段 {name} 不在流程数据中"
+        f"条件“{when.title}”读取的字段 {name} 不在流程数据中"
         for name in when.reads
         if name not in notes
     ]
@@ -165,10 +165,10 @@ def check_writers(
     problems = []
     for name, titles in owners.items():
         if len(titles) > 1:
-            names = "、".join(f"「{title}」" for title in titles)
+            names = "、".join(f"“{title}”" for title in titles)
             problems.append(f"字段 {name} 被{names}同时写入；每个字段只能由一个步骤写入")
         if name in contract.input.model_fields:
-            problems.append(f"步骤「{titles[0]}」覆盖了输入字段 {name}；请写入新的字段")
+            problems.append(f"步骤“{titles[0]}”覆盖了输入字段 {name}；请写入新的字段")
     return problems
 
 
@@ -184,14 +184,13 @@ def check_sources(
     for item in flow.steps:
         if item.when is not None:
             problems += [
-                f"条件「{item.when.title}」读取的字段 {name}，"
-                f"在步骤「{item.title}」之前还没有确定的值"
+                f"条件“{item.when.title}”读取的字段 {name}，在步骤“{item.title}”之前还没有确定的值"
                 for name in item.when.reads
                 if name in notes and name not in sure
             ]
         allowed = sure | under.get(item.when, set()) if item.when is not None else sure
         problems += [
-            f"步骤「{item.title}」读取的字段 {name} 在它之前没有确定的值："
+            f"步骤“{item.title}”读取的字段 {name} 在它之前没有确定的值："
             "它不是输入、没有默认值，也没有被前面不带条件的步骤写入"
             for name in item.reads
             if name in notes and name not in allowed
@@ -199,7 +198,7 @@ def check_sources(
         target = sure if item.when is None else under.setdefault(item.when, set())
         target.update(item.writes)
     if flow.result in notes and flow.result not in sure:
-        problems.append(f"流程「{flow.title}」结束时结果字段 {flow.result} 可能没有值")
+        problems.append(f"流程“{flow.title}”结束时结果字段 {flow.result} 可能没有值")
     return problems
 
 
@@ -212,7 +211,7 @@ def check_model_order(flow: Flow) -> list[str]:
             saving = item
         elif saving is not None and ("model" in item.params or "remote" in item.params):
             problems.append(
-                f"步骤「{item.title}」在写入事务开始（「{saving.title}」）之后调用外部服务，"
+                f"步骤“{item.title}”在写入事务开始（“{saving.title}”）之后调用外部服务，"
                 "事务会在等待时一直占用数据库连接；请把调用移到第一个保存步骤之前"
             )
     return problems

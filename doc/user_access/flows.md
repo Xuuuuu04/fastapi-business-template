@@ -68,7 +68,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：无"])
-    s1["1. 查询组织（读取）<br/>规则 R-04"]:::read
+    s1["1. 查询组织（数据访问）<br/>规则 R-04"]:::read
     start --> s1
     finish(["结果：可访问的组织"])
     s1 --> finish
@@ -131,7 +131,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：要查询的组织代码"])
-    s1["1. 查询角色（读取）<br/>规则 R-04"]:::read
+    s1["1. 查询角色（数据访问）<br/>规则 R-04"]:::read
     start --> s1
     finish(["结果：角色列表"])
     s1 --> finish
@@ -196,7 +196,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：要查询的组织代码、上一页返回的 next_after、本页最多返回多少条"])
-    s1["1. 查询用户（读取）<br/>规则 R-04"]:::read
+    s1["1. 查询用户（数据访问）<br/>规则 R-04"]:::read
     start --> s1
     finish(["结果：一页用户，按编号从小到大，不包含密码摘要"])
     s1 --> finish
@@ -263,7 +263,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：组织代码、用户名、密码、两步验证码"])
-    s1["1. 校验登录（读取）<br/>规则 R-03"]:::read
+    s1["1. 校验登录（数据访问）<br/>规则 R-03"]:::read
     start --> s1
     s2["2. 建立登录会话（保存）<br/>规则 R-05"]:::save
     s1 --> s2
@@ -300,7 +300,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：刷新令牌"])
-    s1["1. 核对刷新令牌（读取）<br/>规则 R-05"]:::read
+    s1["1. 检查刷新令牌（数据访问）<br/>规则 R-05"]:::read
     start --> s1
     s2["2. 轮换刷新令牌（保存）<br/>规则 R-05"]:::save
     s1 --> s2
@@ -322,7 +322,7 @@ flowchart TD
 | 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |
 | --- | --- | --- | --- | --- | --- |
 | refresh_token | 刷新令牌 | 操作输入 |  |  |  |
-| check | 刷新令牌的核对结果 | 步骤 | 核对刷新令牌 | R-05 | refresh_token |
+| check | 刷新令牌的检查结果 | 步骤 | 检查刷新令牌 | R-05 | refresh_token |
 | result | 换得的新会话 | 步骤 | 轮换刷新令牌 | R-05 | check |
 
 ## 退出登录（user_access.logout）
@@ -365,7 +365,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：原密码、新密码"])
-    s1["1. 核对原密码（读取）<br/>规则 R-06"]:::read
+    s1["1. 检查原密码（数据访问）<br/>规则 R-06"]:::read
     start --> s1
     s2["2. 更新密码并作废会话（保存）<br/>规则 R-06"]:::save
     s1 --> s2
@@ -388,7 +388,7 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- |
 | old_password | 原密码 | 操作输入 |  |  |  |
 | new_password | 新密码 | 操作输入 |  |  |  |
-| user_id | 核对过原密码的用户编号 | 步骤 | 核对原密码 | R-06 | old_password |
+| user_id | 检查过原密码的用户编号 | 步骤 | 检查原密码 | R-06 | old_password |
 | result | 没有返回内容 | 步骤 | 更新密码并作废会话 | R-06 | user_id、new_password |
 
 ## 清理过期刷新令牌（user_access.purge_sessions）
@@ -462,7 +462,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：组织代码、用户名、管理员给的重置码、新密码"])
-    s1["1. 核对重置码（读取）<br/>规则 R-08"]:::read
+    s1["1. 检查重置码（数据访问）<br/>规则 R-08"]:::read
     start --> s1
     s2["2. 用重置码设置新密码（保存）<br/>规则 R-08"]:::save
     s1 --> s2
@@ -487,7 +487,7 @@ flowchart TD
 | username | 用户名 | 操作输入 |  |  |  |
 | code | 重置码 | 操作输入 |  |  |  |
 | new_password | 新密码 | 操作输入 |  |  |  |
-| user_id | 重置码对应的用户编号 | 步骤 | 核对重置码 | R-08 | org_code、username、code |
+| user_id | 重置码对应的用户编号 | 步骤 | 检查重置码 | R-08 | org_code、username、code |
 | result | 没有返回内容 | 步骤 | 用重置码设置新密码 | R-08 | code、user_id、new_password |
 
 ## 生成两步验证密钥（user_access.start_otp）

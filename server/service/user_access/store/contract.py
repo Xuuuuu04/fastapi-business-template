@@ -19,6 +19,7 @@ from service.user_access.data import (
 from service.user_access.data_security import OtpSetup, ResetCode
 
 
+# 用户权限步骤允许使用的数据访问操作，数据库细节集中在实现中。
 class AccessStore(Protocol):
     # 创建一个全系统唯一的组织。
     async def create_org(self, code: str, name: str) -> OrgView: ...
@@ -65,7 +66,7 @@ class AccessStore(Protocol):
     # 生成待确认的两步验证密钥（R-09）。
     async def start_otp(self) -> OtpSetup: ...
 
-    # 核对当前用户的验证码，返回用掉的周期。
+    # 检查当前用户的验证码，返回用掉的周期。
     async def check_own_otp(self, code: str) -> int: ...
 
     # 开启或关闭当前用户的两步验证。
@@ -86,7 +87,7 @@ class AccessStore(Protocol):
     # 作废刷新令牌所在的整组会话。
     async def end_session(self, token: str) -> None: ...
 
-    # 登录用户核对自己的原密码，返回用户编号。
+    # 登录用户检查自己的原密码，返回用户编号。
     async def check_own_password(self, password: str) -> int: ...
 
     # 保存新密码并作废这个用户的全部会话。

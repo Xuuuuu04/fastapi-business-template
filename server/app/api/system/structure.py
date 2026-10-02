@@ -14,11 +14,12 @@ from shared.graphs.lineage import explain, field_sources, lineage_graph
 from shared.graphs.static import flow_graph, module_graph
 from shared.modules.catalog import Binding, Catalog
 
-router = APIRouter(prefix="/api/system", tags=["运行诊断"])
+router = APIRouter(prefix="/api/system", tags=["运行排查"])
 
 PERMISSION = "system.diagnostics"
 
 
+# 表示“没有登记这个操作或字段”的失败，由统一错误入口返回给调用方。
 class NotRegistered(BusinessError):
     code = "not_registered"
     kind = Kind.NOT_FOUND
@@ -90,7 +91,7 @@ async def field(name: str, field: str, request: Request, caller: CallerDep) -> d
     require(caller, PERMISSION)
     binding = find(request, name)
     if field not in binding.types.notes:
-        raise NotRegistered(f"流程「{binding.flow.title}」中没有字段 {field}")
+        raise NotRegistered(f"流程“{binding.flow.title}”中没有字段 {field}")
     return {
         "name": name,
         "field": field,

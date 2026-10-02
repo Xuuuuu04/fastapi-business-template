@@ -1,6 +1,6 @@
 """
 外部接口调用服务：按外部系统建立连接池，限制并发，统一超时、重试和错误分类，并记录每次调用。
-读取（GET、HEAD）和带请求编号的写入遇到暂时故障会重试；其他写入不重试，超时报告“结果待核对”。
+读取（GET、HEAD）和带请求编号的写入遇到暂时故障会重试；其他写入不重试，超时报告“结果待确认”。
 """
 
 import asyncio
@@ -28,6 +28,7 @@ SAFE_METHODS = ("GET", "HEAD")
 RETRY_WAITS = (0.5, 2.0, 5.0)
 
 
+# 外部接口返回的状态与内容，供数据访问实现转换为业务数据。
 @dataclass(frozen=True)
 class RemoteReply:
     status: int
@@ -36,6 +37,7 @@ class RemoteReply:
     content: bytes
 
 
+# 发送给外部系统的请求内容，包含方法、路径和请求编号。
 @dataclass(frozen=True)
 class RemoteRequest:
     method: str
@@ -45,6 +47,7 @@ class RemoteRequest:
     key: str = ""
 
 
+# 发送外部请求并记录结果，按请求安全性处理重试。
 class RemoteService:
     # 保存各外部系统的配置；transports 只在测试中替换网络传输。
     def __init__(

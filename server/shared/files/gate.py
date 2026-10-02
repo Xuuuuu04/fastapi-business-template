@@ -10,6 +10,7 @@ from shared.files.storage import FileStorage, SavedFile, StoredObject
 from shared.files.uploads import TempUpload, UploadArea
 
 
+# 模块使用的文件入口，把存储键限定在模块自己的目录范围内。
 class ModuleFiles:
     # 绑定存储、上传临时区和模块名。
     def __init__(self, storage: FileStorage, uploads: UploadArea, module: str) -> None:
@@ -50,7 +51,7 @@ class ModuleFiles:
     async def clean_uploads(self, older_than: float) -> int:
         return await self._uploads.clean(older_than)
 
-    # 逐项列出本模块已保存的对象，供文件记录核对。
+    # 逐项列出本模块已保存的对象，供文件记录检查。
     def list_objects(self) -> AsyncIterator[StoredObject]:
         return self._storage.list_objects(self._prefix)
 

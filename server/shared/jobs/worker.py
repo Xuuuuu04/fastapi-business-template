@@ -29,6 +29,7 @@ RECLAIM_SECONDS = 15.0
 CLEAN_SECONDS = 3600.0
 
 
+# 后台进程的并发、查询间隔、退出等待与记录保留设置。
 @dataclass
 class WorkerOptions:
     concurrency: int = 4
@@ -37,6 +38,7 @@ class WorkerOptions:
     record_days: int = 14
 
 
+# 领取并执行后台任务，保存结果并处理退出和重试。
 class Worker:
     # 绑定执行器、任务表、服务密钥配置和运行参数。
     def __init__(

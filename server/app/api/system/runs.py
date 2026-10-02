@@ -1,5 +1,5 @@
 """
-运行记录查询：最近的运行、一次运行的全部步骤（含下一层调用）、中文诊断报告、进程运行状态。
+运行记录查询：最近的运行、一次运行的全部步骤（含下一层调用）、中文排查报告、进程运行状态。
 只读，不提供重试、清理等修改能力。需要权限 system.diagnostics；每次查询都写一条日志。
 """
 
@@ -22,11 +22,12 @@ from shared.records.stores import RunFilter
 
 log = logging.getLogger("server.diagnostics")
 
-router = APIRouter(prefix="/api/system", tags=["运行诊断"])
+router = APIRouter(prefix="/api/system", tags=["运行排查"])
 
 PERMISSION = "system.diagnostics"
 
 
+# 表示“没有找到这次运行的记录，可能已过期清理或保存时丢失”的失败，由统一错误入口返回给调用方。
 class RunMissing(BusinessError):
     code = "run_missing"
     kind = Kind.NOT_FOUND
@@ -77,10 +78,10 @@ async def run_detail(run_id: str, request: Request, caller: CallerDep) -> dict[s
     return {"summary": root.summary, "runs": runs, "graph": run_graph(tree)}
 
 
-# 返回一次运行的中文诊断报告（Markdown），供人阅读和 Agent 排查。
+# 返回一次运行的中文排查报告（Markdown），供人阅读和 Agent 排查。
 @router.get(
     "/runs/{run_id}/report",
-    summary="一次运行的中文诊断报告",
+    summary="一次运行的中文排查报告",
     operation_id="system_run_report",
     response_class=PlainTextResponse,
 )
@@ -91,7 +92,7 @@ async def run_text(run_id: str, request: Request, caller: CallerDep) -> PlainTex
     return PlainTextResponse(run_report(tree, run_id), media_type="text/markdown; charset=utf-8")
 
 
-# 返回进程和资源的当前状态：内存、在途请求、连接池、运行记录缓冲、任务数量、熔断状态。
+# 返回进程和资源的当前状态：内存、在途请求、连接池、运行记录缓冲、任务数量、连续失败后暂停调用状态。
 @router.get("/runtime", summary="进程运行状态", operation_id="system_runtime")
 async def runtime(request: Request, caller: CallerDep) -> dict[str, Any]:
     require(caller, PERMISSION)

@@ -9,7 +9,7 @@ from shared.records.models import RUN_STATUS_TEXT, WRITES_TEXT, RunRecord, StepR
 # 生成一次运行的中文摘要。
 def summarize(run: RunRecord) -> str:
     if run.status == "refused":
-        return f"「{run.title}」没有执行：{run.error_message}。"
+        return f"“{run.title}”没有执行：{run.error_message}。"
     if run.status in ("running", "lost"):
         return running_text(run)
     parts = [finished_text(run) if run.status == "ok" else failed_text(run)]
@@ -26,9 +26,9 @@ def summarize(run: RunRecord) -> str:
 def finished_text(run: RunRecord) -> str:
     done = [step for step in run.steps if step.status == "ok"]
     skipped = [step for step in run.steps if step.status == "skipped"]
-    text = f"「{run.title}」已完成，执行 {len(done)} 个步骤，用时 {duration(run.elapsed_ms)}。"
+    text = f"“{run.title}”已完成，执行 {len(done)} 个步骤，用时 {duration(run.elapsed_ms)}。"
     if skipped:
-        names = "、".join(f"「{step.title}」" for step in skipped)
+        names = "、".join(f"“{step.title}”" for step in skipped)
         text += f"条件不满足而跳过：{names}。"
     return text
 
@@ -37,8 +37,8 @@ def finished_text(run: RunRecord) -> str:
 def failed_text(run: RunRecord) -> str:
     failed = next((step for step in run.steps if step.status == "failed"), None)
     if failed is None:
-        return f"「{run.title}」失败：{run.error_message}。"
-    text = f"「{run.title}」在「{failed.title}」步骤停止：{run.error_message}。"
+        return f"“{run.title}”失败：{run.error_message}。"
+    text = f"“{run.title}”在“{failed.title}”步骤停止：{run.error_message}。"
     if failed.children:
         text += "失败发生在这一步调用的下一层操作中，可展开查看。"
     if failed.error_place:
@@ -56,13 +56,13 @@ def failed_text(run: RunRecord) -> str:
 def running_text(run: RunRecord) -> str:
     current = next((step for step in reversed(run.steps) if step.status == "running"), None)
     state = RUN_STATUS_TEXT.get(run.status, run.status)
-    where = f"，当前步骤「{current.title}」" if current else ""
-    return f"「{run.title}」{state}{where}，已用时 {duration(run.elapsed_ms)}。"
+    where = f"，当前步骤“{current.title}”" if current else ""
+    return f"“{run.title}”{state}{where}，已用时 {duration(run.elapsed_ms)}。"
 
 
 # 汇总各步骤写下的数据说明。
 def note_text(steps: list[StepRecord]) -> str:
-    lines = [f"「{step.title}」：{'；'.join(step.notes)}" for step in steps if step.notes]
+    lines = [f"“{step.title}”：{'；'.join(step.notes)}" for step in steps if step.notes]
     return "数据说明：" + "；".join(lines) + "。" if lines else ""
 
 

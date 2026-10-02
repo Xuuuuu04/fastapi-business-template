@@ -23,7 +23,7 @@ async def upload_chunks(upload: UploadFile) -> AsyncIterator[bytes]:
         yield chunk
 
 
-# 先保存临时上传，再由模块登记文件并核对组织。
+# 先保存临时上传，再由模块登记文件并检查组织。
 @router.post(
     "/{org_id}",
     summary="上传文件",
@@ -63,7 +63,7 @@ async def list_files(
     return await run(library.list_files, query)
 
 
-# 返回经组织核对后的文件信息，不公开存储键。
+# 返回经组织检查后的文件信息，不公开存储键。
 @router.get(
     "/{org_id}/{file_id}/info",
     summary="文件信息",

@@ -11,6 +11,7 @@ from service.$name.store.tables import records
 from shared.public import Db
 
 
+# $title 的数据库访问实现，不自行提交或回滚事务。
 class Sql${Camel}Store:
     # 使用框架提供的数据库入口。
     def __init__(self, db: Db) -> None:

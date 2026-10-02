@@ -1,6 +1,6 @@
 """
 把异常统一转成错误响应：业务错误、参数校验错误、路由不存在、未预料的程序异常。
-内部异常的细节不返回给调用方，只返回请求编号和运行编号，细节用诊断接口查询。
+内部异常的细节不返回给调用方，只返回请求编号和运行编号，细节用排查接口查询。
 """
 
 import logging
@@ -52,7 +52,7 @@ def error_response(
 async def business_error(request: Request, error: BusinessError) -> JSONResponse:
     message = error.detail
     if error.kind == Kind.BROKEN and request.app.state.settings.env == "production":
-        message = "服务器内部错误，请用运行编号查询诊断信息"
+        message = "服务器内部错误，请用运行编号查询排查信息"
     fields = [FieldProblem(field=name, problem=text) for name, text in error.fields.items()]
     status = STATUS[error.kind]
     return error_response(
@@ -88,7 +88,7 @@ async def http_error(request: Request, error: HTTPException) -> JSONResponse:
 async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
     run_id = str(getattr(error, "run_id", ""))
     log.error("request_failed type=%s run_id=%s", type(error).__name__, run_id, exc_info=error)
-    message = "服务器内部错误，请用请求编号或运行编号查询诊断信息"
+    message = "服务器内部错误，请用请求编号或运行编号查询排查信息"
     return error_response(request, 500, "internal_error", "unexpected", message, run_id=run_id)
 
 

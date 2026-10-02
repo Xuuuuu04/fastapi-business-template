@@ -20,6 +20,7 @@ from shared.remote_calls.remote import Remote
 STORE_PARAMS = ("db", "legacy", "remote", "files", "cache", "caller", "vault")
 
 
+# 模块的公开操作、数据访问入口及外部依赖，统一登记到应用。
 @dataclass(frozen=True, eq=False)
 class Module:
     name: str

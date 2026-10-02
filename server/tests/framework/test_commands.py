@@ -1,5 +1,5 @@
 """
-命令行工具：tools.diagnose 按运行编号打印中文诊断报告，tools.jobs 人工处理后台任务，
+命令行工具：tools.diagnose 按运行编号打印中文排查报告，tools.jobs 人工处理后台任务，
 tools.make_key 生成服务密钥。命令从 APP_ 环境变量读取数据库地址，这里指向测试数据库，
 模块清单换成测试用的示例模块，不依赖可以删除的业务模块。
 """
@@ -18,6 +18,7 @@ import tools.diagnose
 import tools.jobs
 import tools.make_key
 from app.setup.build import build
+from deploy.check_env import check_configuration
 from shared.access.caller import DEVELOPER
 from shared.access.keys import hash_key
 from shared.config.settings import Settings
@@ -36,6 +37,7 @@ from tests.testing_app import make_settings, reset_database_now
 MODULES = [calc_module, outer_module]
 
 
+# 测试命令行工具的输入与输出，避免真实终端交互。
 class Console:
     # 用给定的参数执行命令行入口，返回打印的内容。
     def __init__(self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
@@ -90,7 +92,7 @@ async def set_state(url: str, job_id: str, state: str) -> None:
         await database.close()
 
 
-# 诊断命令能列出运行、打印报告和统计，并说明操作的流程和字段来源。
+# 排查命令能列出运行、打印报告和统计，并说明操作的流程和字段来源。
 def test_diagnose_commands(
     settings: Settings, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -142,3 +144,37 @@ def test_make_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
     config = json.loads(lines[-1])
     assert config["key_sha256"] == hash_key(lines[1])
     assert (config["org_id"], config["permissions"]) == ("north", ["sample_calc.use"])
+
+
+# 关闭用户权限模块后，部署检查不再要求其字段加密配置；文件模块仍检查存储配置。
+def test_deploy_checks_enabled_modules(tmp_path: Path) -> None:
+    settings = make_settings(
+        tmp_path,
+        env="production",
+        database_url="postgresql+psycopg://test:test@127.0.0.1/config-check-only",
+        code_version="release-test",
+        dev_caller=False,
+        run_records="database",
+        jwt_secret="independent-test-secret-with-32-characters",
+        data_keys=[],
+        disabled_modules=["user_access"],
+    )
+    assert check_configuration(settings) == []
+    settings.disabled_modules = []
+    assert any("APP_DATA_KEYS" in problem for problem in check_configuration(settings))
+    settings.disabled_modules = ["user_access"]
+    settings.file_storage = "s3"
+    assert check_configuration(settings) == ["APP_FILE_STORAGE=s3 时必须配置 APP_S3_BUCKET"]
+    settings.disabled_modules = ["user_access", "file_library"]
+    assert check_configuration(settings) == []
+
+
+# 关闭带提示词的模块后，部署检查不再要求大模型配置。
+def test_deploy_ignores_disabled_model_module(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("app.setup.build.MODULES", MODULES)
+    settings = make_settings(tmp_path)
+    assert any("APP_MODEL_BASE_URL" in problem for problem in check_configuration(settings))
+    settings.disabled_modules = [module.name for module in MODULES]
+    assert check_configuration(settings) == []

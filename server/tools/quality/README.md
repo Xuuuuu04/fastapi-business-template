@@ -4,7 +4,7 @@
 
 | 文件 | 检查 |
 | --- | --- |
-| [files.py](files.py) | 文件头多行中文说明、函数前单行中文说明、待办标记、文件 300 行、函数 50 行、嵌套 4 层、函数内连续注释 |
+| [files.py](files.py) | 文件头多行中文说明、类的中文用途说明、函数前单行中文说明、待办标记、文件 300 行、函数 50 行、嵌套 4 层、函数内连续注释 |
 | [naming.py](naming.py) | 小写下划线、含义模糊的名字、模块名至少两个词、步骤名“动词_对象”、条件名 is/has/can 开头 |
 | [imports.py](imports.py) | 依赖方向：业务只用 shared.public 和其他模块的 public.py、数据库库只在 store/、禁止动态和相对导入 |
 | [blocking.py](blocking.py) | async 函数中的阻塞调用 |

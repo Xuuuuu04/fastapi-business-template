@@ -26,15 +26,18 @@ remote_module = Module(
 )
 
 
+# 敏感字段保护测试接收的账号与令牌。
 class Login(Data):
     user: str = meaning("用户名")
     token: str = meaning("访问令牌", secret=True)
 
 
+# 敏感字段保护测试允许返回的账号信息。
 class Checked(Data):
     user: str = meaning("用户名")
 
 
+# 敏感字段保护测试各步骤共享的令牌和公开结果。
 class LoginWork(WorkData):
     user: str = meaning("用户名")
     token: str = meaning("访问令牌", secret=True)
@@ -43,7 +46,7 @@ class LoginWork(WorkData):
 
 
 # 把令牌复制到另一个敏感字段，并在令牌为 boom 时抛出带敏感内容的异常。
-@step("核对令牌", reads=["user", "token"], writes=["copied", "result"])
+@step("检查令牌", reads=["user", "token"], writes=["copied", "result"])
 def check_token(data: LoginWork) -> None:
     if data.token == "boom":
         raise ValueError(f"连接失败，密码是 {data.token}")
@@ -52,18 +55,18 @@ def check_token(data: LoginWork) -> None:
 
 
 login = contract(
-    "secure_demo.login", "核对令牌", input=Login, output=Checked, access="secure_demo.use"
+    "secure_demo.login", "检查令牌", input=Login, output=Checked, access="secure_demo.use"
 )
 secure_module = Module(
     "secure_demo",
     "安全示例",
     "1",
-    provides={login: Flow("核对令牌", work=LoginWork, result="result", steps=[check_token])},
+    provides={login: Flow("检查令牌", work=LoginWork, result="result", steps=[check_token])},
 )
 router = APIRouter()
 
 
-# 测试用接口：执行核对令牌操作。
+# 测试用接口：执行检查令牌操作。
 @router.post("/test/login")
 async def post_login(body: Login, run: RunDep) -> Checked:
     return await run(login, body)
@@ -118,7 +121,7 @@ def test_dev_caller_only_local(tmp_path: Path) -> None:
             assert client.get("/api/system/modules").status_code == status
 
 
-# 敏感字段的内容不进入运行记录和诊断报告。
+# 敏感字段的内容不进入运行记录和排查报告。
 def test_secret_values_stay_out_of_records(secure_client: TestClient) -> None:
     reply = secure_client.post(
         "/test/login", json={"user": "amy", "token": "s3cret-token"}, headers=KEY
@@ -130,7 +133,7 @@ def test_secret_values_stay_out_of_records(secure_client: TestClient) -> None:
     assert "s3cret-token" not in report and "敏感字段，不记录内容" in report
 
 
-# 程序异常的响应只给编号，不回显异常内容；诊断记录中保留原因供排查。
+# 程序异常的响应只给编号，不回显异常内容；排查记录中保留原因供排查。
 def test_unexpected_error_is_not_leaked(secure_client: TestClient) -> None:
     reply = secure_client.post("/test/login", json={"user": "amy", "token": "boom"}, headers=KEY)
     body = reply.json()

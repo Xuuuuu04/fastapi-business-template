@@ -1,6 +1,6 @@
 """
 设置服务日志：生产环境每条日志是一行 JSON，本地开发是易读的文本；每条都带当前请求编号。
-日志不记录请求正文、密钥和业务数据原文；按运行编号查看业务过程请用诊断接口。
+日志不记录请求正文、密钥和业务数据原文；按运行编号查看业务过程请用排查接口。
 """
 
 import json
@@ -14,6 +14,7 @@ request_id: ContextVar[str] = ContextVar("request_id", default="")
 MAX_ERROR_TEXT = 4000
 
 
+# 将一条日志格式化为一行 JSON，方便日志服务读取。
 class JsonLines(logging.Formatter):
     # 把一条日志整理成一行 JSON。
     def format(self, record: logging.LogRecord) -> str:
@@ -29,6 +30,7 @@ class JsonLines(logging.Formatter):
         return json.dumps(data, ensure_ascii=False)
 
 
+# 将日志格式化为本地开发可直接阅读的文本。
 class PlainText(logging.Formatter):
     # 把一条日志整理成便于本地阅读的一行文本。
     def format(self, record: logging.LogRecord) -> str:

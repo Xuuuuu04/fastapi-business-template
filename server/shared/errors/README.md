@@ -1,7 +1,7 @@
 # errors：错误种类
 
 - [kinds.py](kinds.py)：错误种类 `Kind` 和业务错误的写法 `BusinessError`。种类决定 HTTP 状态码和任务能否重试。
-- [framework.py](framework.py)：框架自己抛出的错误，例如未登录、无权限、排队已满、超时、结果待核对、步骤违反声明。
+- [framework.py](framework.py)：框架自己抛出的错误，例如未登录、无权限、排队已满、超时、结果待确认、步骤违反声明。
 
 业务错误写在模块的 data.py：
 

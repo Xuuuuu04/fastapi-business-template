@@ -10,10 +10,11 @@ import sys
 
 from pydantic import ValidationError
 
-from app.setup.catalog import MODULES
+from app.setup.build import enabled_modules, store_requirements, unconfigured_remotes
 from shared.config.settings import Settings, check_production
 from shared.db.database import Database
 from shared.db.schema import current_revision, head_revision
+from shared.errors.framework import ConfigError
 from shared.modules.catalog import Catalog
 
 MIN_FREE_GB = 2.0
@@ -36,13 +37,25 @@ async def check_database(settings: Settings) -> list[str]:
 
 
 # 检查声明了提示词的模块是否配置了大模型服务。
-def check_model(settings: Settings) -> list[str]:
-    prompts = Catalog(MODULES).prompts()
+def check_model(settings: Settings, catalog: Catalog) -> list[str]:
+    prompts = catalog.prompts()
     if prompts and not settings.has_model():
         names = "APP_MODEL_BASE_URL、APP_MODEL_NAME、APP_MODEL_API_KEY"
         text = f"有 {len(prompts)} 个提示词，但没有配置 {names}"
         return [text + ("" if settings.env != "production" else "；生产环境会拒绝启动")]
     return []
+
+
+# 按实际启用的模块检查配置，与接口和后台进程的启动要求一致。
+def check_configuration(settings: Settings) -> list[str]:
+    catalog = Catalog(enabled_modules(settings))
+    needs = store_requirements(catalog)
+    problems = check_production(settings, needs_vault="vault" in needs)
+    problems += unconfigured_remotes(settings, catalog)
+    problems += check_model(settings, catalog)
+    if "files" in needs and settings.file_storage == "s3" and not settings.s3_bucket:
+        problems.append("APP_FILE_STORAGE=s3 时必须配置 APP_S3_BUCKET")
+    return problems
 
 
 # 检查磁盘剩余空间。
@@ -56,11 +69,10 @@ def main() -> None:
     problems = []
     try:
         settings = Settings()
-    except ValidationError as error:
+        problems += check_configuration(settings)
+    except (ValidationError, ConfigError) as error:
         print(f"配置无法读取：\n{error}")
         sys.exit(1)
-    problems += check_production(settings)
-    problems += check_model(settings)
     problems += asyncio.run(check_database(settings))
     problems += check_disk()
     kind = settings.database_url.split("://")[0]

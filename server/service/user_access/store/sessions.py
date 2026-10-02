@@ -28,11 +28,12 @@ SESSION_SECONDS = 30 * 86400  # R-05：一次登录最长保持 30 天，之后�
 KEEP_SECONDS = 86400  # R-07：过期或作废一天后删除记录，留一天供排查
 
 
-# 刷新令牌的摘要；数据库按摘要查找，原文不落库。
+# 刷新令牌的摘要；数据库按摘要查找，原文不写入数据库。
 def digest_of(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+# 保存登录会话并处理刷新、作废和清理。
 class SessionStore:
     db: Db
     caller: Caller
@@ -134,7 +135,7 @@ class SessionStore:
             permissions=json.loads(row["permissions"]),
         )
 
-    # 登录用户核对自己的原密码，返回用户编号。
+    # 登录用户检查自己的原密码，返回用户编号。
     async def check_own_password(self, password: str) -> int:
         if self.caller.kind != "user":
             raise NotAllowed("只有登录用户可以修改自己的密码")

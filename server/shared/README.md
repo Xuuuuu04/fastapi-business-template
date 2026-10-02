@@ -31,15 +31,15 @@
 | [flow](flow/) | 步骤、条件、流程，以及执行器 |
 | [db](db/) | 连接池、只读连接与写入事务、给 store 用的 Db |
 | [records](records/) | 运行记录、中文摘要、记录的保存位置 |
-| [graphs](graphs/) | 模块关系图、流程图、字段来源、实际执行图和诊断报告 |
+| [graphs](graphs/) | 模块关系图、流程图、字段来源、实际执行图和排查报告 |
 | [jobs](jobs/) | 任务表、worker、定时计划 |
 | [model_calls](model_calls/) | 大模型调用入口 |
-| [remote_calls](remote_calls/) | 外部接口连接、重试、熔断和调用记录 |
+| [remote_calls](remote_calls/) | 外部接口连接、重试、连续失败后暂停调用和调用记录 |
 | [cache](cache/) | 进程内和 Redis 缓存 |
 | [files](files/) | 本地和 S3 兼容文件存储、上传临时区 |
 | [exchange](exchange/) | 导入导出用的 CSV、Excel 读写 |
 | [telemetry](telemetry/) | OpenTelemetry 跨度导出 |
-| [access](access/) | 调用者身份、权限、服务密钥、令牌、审计和字段加密 |
+| [access](access/) | 调用者身份、权限、服务密钥、令牌、操作记录和字段加密 |
 | [errors](errors/) | 错误种类和框架错误 |
 | [config](config/) | 运行配置 |
 | [logs](logs/) | 日志格式 |

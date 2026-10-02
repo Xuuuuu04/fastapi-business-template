@@ -28,6 +28,7 @@ MAX_NOTES = 20
 MAX_NOTE_TEXT = 200
 
 
+# 业务步骤登记后台任务时需要的操作约定。
 class JobSubmitter(Protocol):
     # 在给定的写入事务中登记一个后台任务，返回任务编号。
     async def submit(
@@ -42,6 +43,7 @@ class JobSubmitter(Protocol):
     ) -> str: ...
 
 
+# 在步骤内调用已声明的其他模块操作，共享本次执行身份与事务。
 class Call:
     # 绑定本次运行、步骤记录和步骤声明的可调用操作。
     def __init__(self, scope: Scope, run: RunRecord, record: StepRecord, part: Step) -> None:
@@ -52,10 +54,10 @@ class Call:
     async def __call__[In: Data, Out: Data](self, item: Contract[In, Out], input: In) -> Out:
         if item not in self._part.uses:
             raise StepRuleBroken(
-                f"步骤「{self._part.title}」调用了未声明的操作 {item.name}，请在 uses 中声明"
+                f"步骤“{self._part.title}”调用了未声明的操作 {item.name}，请在 uses 中声明"
             )
         if self._busy:
-            raise StepRuleBroken(f"步骤「{self._part.title}」中的模块调用要逐个 await，不能并发")
+            raise StepRuleBroken(f"步骤“{self._part.title}”中的模块调用要逐个 await，不能并发")
         self._busy = True
         try:
             return await self._scope.runtime.call(item, input, self._scope, self._run, self._record)
@@ -63,6 +65,7 @@ class Call:
             self._busy = False
 
 
+# 在步骤内登记已声明的后台任务，随当前事务一起保存。
 class Later:
     # 绑定本次运行的写入事务和步骤声明的可登记任务。
     def __init__(self, scope: Scope, record: StepRecord, part: Step) -> None:
@@ -73,7 +76,7 @@ class Later:
         runtime = self._scope.runtime
         if item not in self._part.later:
             raise StepRuleBroken(
-                f"步骤「{self._part.title}」登记了未声明的任务 {item.name}，请在 later 中声明"
+                f"步骤“{self._part.title}”登记了未声明的任务 {item.name}，请在 later 中声明"
             )
         if runtime.jobs is None:
             raise StepRuleBroken("没有启用后台任务功能")
@@ -81,10 +84,11 @@ class Later:
         job_id = await runtime.jobs.submit(
             connection, item, input, self._scope.caller, key=key, request_id=self._scope.request_id
         )
-        self._record.notes.append(f"登记任务「{item.title}」，编号 {job_id}")
+        self._record.notes.append(f"登记任务“{item.title}”，编号 {job_id}")
         return job_id
 
 
+# 把必要的数据说明写入当前步骤记录，方便排查业务结果。
 class NoteWriter:
     # 绑定要写入说明的步骤记录。
     def __init__(self, record: StepRecord) -> None:
@@ -96,6 +100,7 @@ class NoteWriter:
             self._record.notes.append(text[:MAX_NOTE_TEXT])
 
 
+# 将步骤生成的流式消息发送给接口，同时检查允许发送的格式。
 class Emitter:
     # 把一段文本交给流式响应；等待消费方接收，避免无限积压。
     def __init__(self, scope: Scope, record: StepRecord) -> None:

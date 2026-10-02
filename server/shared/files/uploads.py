@@ -20,6 +20,7 @@ from shared.errors.framework import FileTooLarge, FileTypeNotAllowed, StepRuleBr
 TEMP_ID = re.compile(r"^[0-9a-f]{32}$")
 
 
+# 临时上传的编号和文件信息，供业务步骤接收内容使用。
 @dataclass(frozen=True)
 class TempUpload:
     temp_id: str
@@ -29,6 +30,7 @@ class TempUpload:
     content_type: str
 
 
+# 管理临时上传目录，限制文件类型、大小和临时文件有效时间。
 class UploadArea:
     # 设置临时目录、大小上限和允许的扩展名。
     def __init__(self, root: Path, max_bytes: int, suffixes: list[str]) -> None:

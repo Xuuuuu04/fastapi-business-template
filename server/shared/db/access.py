@@ -32,6 +32,7 @@ READ_WORDS = ("select", "with", "explain", "show", "values")
 WRITE_WORDS = ("insert", "update", "delete", "merge")
 
 
+# 步骤使用的数据库入口，检查写入权限和组织条件并记录变更。
 class Db:
     # 包装框架准备好的连接；place 是使用它的步骤名称，用于报错。
     def __init__(
@@ -116,7 +117,7 @@ class Db:
     async def all_for_update(self, statement: Select[Any]) -> Sequence[RowMapping]:
         if self._read_only:
             raise StepRuleBroken(
-                f"步骤「{self._place}」加锁读取需要声明 saves=True，读和写要在同一事务中"
+                f"步骤“{self._place}”加锁读取需要声明 saves=True，读和写要在同一事务中"
             )
         return await self.all(statement.with_for_update())
 
@@ -132,7 +133,7 @@ class Db:
     async def first_for_update(self, statement: Select[Any]) -> RowMapping | None:
         if self._read_only:
             raise StepRuleBroken(
-                f"步骤「{self._place}」加锁读取需要声明 saves=True，读和写要在同一事务中"
+                f"步骤“{self._place}”加锁读取需要声明 saves=True，读和写要在同一事务中"
             )
         return await self.first(statement.with_for_update())
 
@@ -140,7 +141,7 @@ class Db:
     @asynccontextmanager
     async def savepoint(self) -> AsyncIterator[None]:
         if self._read_only:
-            raise StepRuleBroken(f"步骤「{self._place}」没有声明 saves=True，不能写入数据库")
+            raise StepRuleBroken(f"步骤“{self._place}”没有声明 saves=True，不能写入数据库")
         async with self._connection.begin_nested():
             yield
 
@@ -153,7 +154,7 @@ class Db:
             check_owner(statement, self._caller)
         if self._read_only and is_write(statement):
             raise StepRuleBroken(
-                f"步骤「{self._place}」没有声明 saves=True，不能写入数据库。"
+                f"步骤“{self._place}”没有声明 saves=True，不能写入数据库。"
                 "需要写入时，在 @step 中加上 saves=True。"
             )
 

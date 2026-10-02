@@ -1,6 +1,6 @@
 # 备份与恢复
 
-业务数据、任务表、审计和运行记录在 PostgreSQL 中。使用本地文件存储时，文件内容位于 Compose 的 `files` 卷；使用 S3 时位于对象存储。数据库备份必须与文件备份一起做恢复演练。
+业务数据、任务表、操作记录和运行记录在 PostgreSQL 中。使用本地文件存储时，文件内容位于 Compose 的 `files` 卷；使用 S3 时位于对象存储。数据库备份必须与文件备份一起做恢复演练。
 
 ## 备份
 
@@ -22,7 +22,7 @@ createdb -h 测试库地址 -U app app_restore
 pg_restore -h 测试库地址 -U app -d app_restore --no-owner backup-日期.dump
 ```
 
-恢复后核对：`alembic_version` 与代码版本一致；主要业务表的行数与备份时相近；文件记录对应的对象可以下载；用恢复出的库启动一次服务，`/health/ready` 返回 ready。
+恢复后检查：`alembic_version` 与代码版本一致；主要业务表的行数与备份时相近；文件记录对应的对象可以下载；用恢复出的库启动一次服务，`/health/ready` 返回 ready。
 
 ## 回退代码
 

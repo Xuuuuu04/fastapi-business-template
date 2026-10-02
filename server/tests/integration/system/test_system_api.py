@@ -49,7 +49,7 @@ def test_flow_and_field(sample_client: TestClient) -> None:
     flow = sample_client.get("/api/system/flows/sample_calc.calc", headers=KEY).json()
     assert "4. 整理结果（计算）" in flow["graph"] and flow["doc"] == "doc/sample_calc"
     field = sample_client.get("/api/system/fields/sample_calc.calc/total", headers=KEY).json()
-    assert field["explain"][0].startswith("- 应付（total）：由步骤「计算应付」写入")
+    assert field["explain"][0].startswith("- 应付（total）：由步骤“计算应付”写入")
     missing = sample_client.get("/api/system/fields/sample_calc.calc/nope", headers=KEY)
     assert missing.status_code == 404
 
@@ -58,28 +58,28 @@ def test_flow_and_field(sample_client: TestClient) -> None:
 def test_runs_list(sample_client: TestClient) -> None:
     sample_client.post("/test/calc", json={"amount": "5"}, headers=KEY)
     body = sample_client.get("/api/system/runs?module=sample_calc", headers=KEY).json()
-    assert body["items"][0]["summary"].startswith("「示例计算」已完成")
+    assert body["items"][0]["summary"].startswith("“示例计算”已完成")
     assert body["records"]["note"] == "记录完整"
     assert sample_client.get("/api/system/runs/unknown", headers=KEY).status_code == 404
 
 
-# 失败的运行：响应带运行编号，诊断接口说明停在哪一步。
+# 失败的运行：响应带运行编号，排查接口说明停在哪一步。
 def test_failed_run_detail(sample_client: TestClient) -> None:
     reply = sample_client.post("/test/calc", json={"amount": "5", "fail_at": "total"}, headers=KEY)
     run_id = reply.json()["run_id"]
     assert reply.status_code == 500 and reply.headers["x-run-id"] == run_id
     detail = sample_client.get(f"/api/system/runs/{run_id}", headers=KEY).json()
-    assert "在「计算应付」步骤停止" in detail["summary"] and "flowchart TD" in detail["graph"]
+    assert "在“计算应付”步骤停止" in detail["summary"] and "flowchart TD" in detail["graph"]
 
 
-# 进程状态包含内存、连接池、运行记录、任务数量和熔断状态。
+# 进程状态包含内存、连接池、运行记录、任务数量和连续失败后暂停调用状态。
 def test_runtime(sample_client: TestClient) -> None:
     body = sample_client.get("/api/system/runtime", headers=KEY).json()
     assert body["memory_mb"] > 0 and "Pool size" in body["database_pool"] and body["jobs"] == {}
     assert body["breakers"] == {"model": "正常"}
 
 
-# 运行统计按操作和状态汇总，诊断网页只读取受权限保护的系统接口。
+# 运行统计按操作和状态汇总，排查网页只读取受权限保护的系统接口。
 def test_stats_and_console(sample_client: TestClient) -> None:
     assert sample_client.post("/test/calc", json={"amount": "5"}, headers=KEY).status_code == 200
     failed = sample_client.post("/test/calc", json={"amount": "5", "fail_at": "busy"}, headers=KEY)
@@ -105,7 +105,7 @@ def test_security_headers_and_rate_limit(sample_client: TestClient) -> None:
     assert limited.status_code == 429
 
 
-# 诊断接口需要 system.diagnostics 权限。
+# 排查接口需要 system.diagnostics 权限。
 def test_diagnostics_need_permission(sample_client: TestClient) -> None:
     assert sample_client.get("/api/system/modules").status_code == 401
     assert sample_client.get("/api/system/modules", headers=READER).status_code == 403
@@ -126,6 +126,7 @@ def test_openapi(sample_client: TestClient) -> None:
     assert fields["amount"]["description"] == "金额；单位：元"
 
 
+# 故意连接失败的测试缓存，用来检查故障返回与健康状态。
 class BrokenCache:
     # 模拟连不上的 Redis：每次读取都报连接错误。
     async def get(self, key: str) -> str | None:

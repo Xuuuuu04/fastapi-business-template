@@ -100,7 +100,7 @@ async def test_bug_is_not_retried(sample: Services) -> None:
     )
 
 
-# 执行期限过期：可安全重复的任务重新排队，其他任务标为结果待核对。
+# 执行期限过期：可安全重复的任务重新排队，其他任务标为结果待确认。
 async def test_expired_lease(sample: Services) -> None:
     safe = await sample.runtime.submit(slow, SlowInput(mark="x"), caller=DEVELOPER)
     unsafe = await sample.runtime.submit(calc, CalcInput(amount=Decimal("1")), caller=DEVELOPER)

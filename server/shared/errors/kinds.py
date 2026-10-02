@@ -7,6 +7,7 @@ from enum import StrEnum
 from typing import ClassVar
 
 
+# 统一错误类型，用于决定接口状态码及错误处理方式。
 class Kind(StrEnum):
     INVALID = "invalid"
     NOT_FOUND = "not_found"
@@ -36,6 +37,7 @@ KIND_TEXT = {
 RETRY_KINDS = frozenset({Kind.TEMPORARY, Kind.TIMEOUT})
 
 
+# 可预期失败的共同格式，携带稳定错误码和中文原因。
 class BusinessError(Exception):
     code: ClassVar[str] = ""
     kind: ClassVar[Kind] = Kind.INVALID

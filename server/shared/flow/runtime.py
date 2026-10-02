@@ -1,7 +1,7 @@
 """
 执行器 Runtime：接口、后台任务和模块之间的调用都经过这里。
 入口调用检查权限，成功结束时提交写入、失败时回滚；模块之间的调用沿用上层的事务和剩余时间。
-每次运行都留下运行记录，异常会带上运行编号，方便按编号查询诊断信息。
+每次运行都留下运行记录，异常会带上运行编号，方便按编号查询排查信息。
 """
 
 import asyncio
@@ -47,6 +47,7 @@ Hook = Callable[[AsyncConnection, Data, str], Awaitable[None]]
 MAX_DEPTH = 8
 
 
+# 执行已登记的业务操作，管理步骤、事务、模块调用与运行记录。
 class Runtime:
     # 汇总执行所需的模块目录、数据库、记录器、大模型服务和任务登记入口。
     def __init__(
@@ -125,7 +126,7 @@ class Runtime:
                     otel_context.detach(token)
                     span.end()
 
-    # 执行入口并在同一事务中写成功审计；失败时回滚并单独写失败审计。
+    # 执行入口并在同一事务中写成功操作记录；失败时回滚并单独写失败操作记录。
     async def execute_entry(
         self,
         binding: Binding,
@@ -223,7 +224,7 @@ class Runtime:
             )
 
     # 提交写入；hook 与业务写入同一事务执行，没有业务写入时单独开一个短事务。
-    # 提交本身出错时无法确认是否已保存，报告“结果待核对”。
+    # 提交本身出错时无法确认是否已保存，报告“结果待确认”。
     async def commit(
         self, tx: Transaction, run: RunRecord, hook: Hook | None, result: Data
     ) -> None:

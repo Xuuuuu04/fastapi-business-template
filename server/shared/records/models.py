@@ -8,7 +8,7 @@ from typing import Any
 
 STEP_KIND_TEXT = {
     "compute": "计算",
-    "read": "读取",
+    "read": "数据访问",
     "save": "保存",
     "call": "调用",
     "model": "大模型",
@@ -40,6 +40,7 @@ WRITES_TEXT = {
 }
 
 
+# 一次大模型调用的版本、耗时、用量和失败信息。
 @dataclass
 class ModelCallRecord:
     prompt: str
@@ -55,6 +56,7 @@ class ModelCallRecord:
     reply_text: str = ""
 
 
+# 一次外部接口请求的耗时、状态、大小和重试记录。
 @dataclass
 class RemoteCallRecord:
     remote: str
@@ -68,6 +70,7 @@ class RemoteCallRecord:
     error: str = ""
 
 
+# 一次步骤执行的状态、字段摘要、外部调用与失败位置。
 @dataclass
 class StepRecord:
     id: str
@@ -95,6 +98,7 @@ class StepRecord:
     error_place: str = ""
 
 
+# 一个公开操作的完整执行记录，关联请求、任务和上下层调用。
 @dataclass
 class RunRecord:
     id: str

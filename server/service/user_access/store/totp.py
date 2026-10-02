@@ -29,7 +29,7 @@ def code_at(secret: str, step: int) -> str:
     return str(number % 10**DIGITS).zfill(DIGITS)
 
 
-# 核对验证码，返回匹配的周期编号；不匹配或不晚于 after（已用过的周期）时返回 None。
+# 检查验证码，返回匹配的周期编号；不匹配或不晚于 after（已用过的周期）时返回 None。
 def matched_step(secret: str, code: str, now: float, after: int | None) -> int | None:
     current = int(now // PERIOD)
     for step in range(current - WINDOW, current + WINDOW + 1):

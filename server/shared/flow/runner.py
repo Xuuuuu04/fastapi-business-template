@@ -34,7 +34,7 @@ async def execute(binding: Binding, input: Data, scope: Scope, run: RunRecord) -
     item = binding.contract
     if not isinstance(input, item.input):
         raise StepRuleBroken(
-            f"调用「{item.title}」需要 {item.input.__name__}，实际传入 {type(input).__name__}"
+            f"调用“{item.title}”需要 {item.input.__name__}，实际传入 {type(input).__name__}"
         )
     values = start_values(binding.flow, input)
     for part in binding.flow.steps:
@@ -42,7 +42,7 @@ async def execute(binding: Binding, input: Data, scope: Scope, run: RunRecord) -
     result = values.get(binding.flow.result)
     if not isinstance(result, item.output):
         raise StepRuleBroken(
-            f"流程「{binding.flow.title}」没有得到 {item.output.__name__} 类型的结果"
+            f"流程“{binding.flow.title}”没有得到 {item.output.__name__} 类型的结果"
         )
     return result
 
@@ -105,10 +105,10 @@ async def run_part(
 
 # 计算条件的结果；条件只能读取声明的字段，必须返回 True 或 False。
 def decide(when: Condition, values: dict[str, Any], types: FieldTypes) -> bool:
-    view = StepView(values, when.reads, (), types, f"条件「{when.title}」")
+    view = StepView(values, when.reads, (), types, f"条件“{when.title}”")
     result = when.func(view)
     if not isinstance(result, bool):
-        raise StepRuleBroken(f"条件「{when.title}」必须返回 True 或 False")
+        raise StepRuleBroken(f"条件“{when.title}”必须返回 True 或 False")
     return result
 
 
@@ -135,12 +135,12 @@ async def run_step(
         if asyncio.iscoroutine(returned) and callable(close):
             close()
         raise StepRuleBroken(
-            f"步骤「{part.title}」返回了值；步骤的结果要写到 data 的字段上，不要 return"
+            f"步骤“{part.title}”返回了值；步骤的结果要写到 data 的字段上，不要 return"
         )
     missing = missing_writes(view)
     if missing:
         labels = "、".join(binding.types.label(name) for name in missing)
-        raise StepRuleBroken(f"步骤「{part.title}」声明会写入 {labels}，但结束时没有写入")
+        raise StepRuleBroken(f"步骤“{part.title}”声明会写入 {labels}，但结束时没有写入")
     if before is not None:
         check_unchanged(part, values, before, binding.types)
     record.values = [
@@ -167,7 +167,7 @@ def check_unchanged(
     if changed:
         labels = "、".join(types.label(name) for name in changed)
         raise StepRuleBroken(
-            f"步骤「{part.title}」原地修改了只读字段 {labels}；需要修改时请写入新的字段"
+            f"步骤“{part.title}”原地修改了只读字段 {labels}；需要修改时请写入新的字段"
         )
 
 

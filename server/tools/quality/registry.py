@@ -11,7 +11,7 @@ from tools.quality.report import Problem
 from tools.quality.rules import ROOT
 
 
-# 检查模块登记和接线情况。
+# 检查模块登记和连接情况。
 def check_registry(catalog: Catalog, root: Path = ROOT) -> list[Problem]:
     problems = check_listed(catalog, root)
     routes = text_of(root / "app" / "api")

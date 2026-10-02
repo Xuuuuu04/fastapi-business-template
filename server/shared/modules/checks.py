@@ -124,7 +124,7 @@ def check_prompts(module: Module) -> list[str]:
         try:
             load_prompt(item)
         except (OSError, ValueError) as error:
-            problems.append(f"模块 {module.name} 的提示词「{item.title}」无法读取：{error}")
+            problems.append(f"模块 {module.name} 的提示词“{item.title}”无法读取：{error}")
     return problems
 
 
@@ -140,7 +140,7 @@ def check_jobs(module: Module) -> list[str]:
                 f"任务 {plan.contract.name} 是内部操作（entry=False），不能作为任务运行"
             )
     for schedule in module.schedules:
-        place = f"定时计划「{schedule.title}」"
+        place = f"定时计划“{schedule.title}”"
         if schedule.contract not in planned:
             problems.append(f"{place} 的操作 {schedule.contract.name} 需要先在 jobs 中声明")
         if (schedule.every is None) == (schedule.daily_at is None):
@@ -159,7 +159,7 @@ def check_uses(modules: Sequence[Module], provided: Provided) -> list[str]:
     problems = []
     planned = {plan.contract for module in modules for plan in module.jobs}
     for module, item in steps_of(modules):
-        place = f"模块 {module.name} 的步骤「{item.title}」"
+        place = f"模块 {module.name} 的步骤“{item.title}”"
         problems += [
             f"{place} 调用了 {used.name}，但提供它的模块没有登记或已关闭"
             for used in item.uses
@@ -242,7 +242,7 @@ def check_model_in_save(provided: Provided) -> list[str]:
                 uses_model(used, flows, memo, set()) for used in part.uses
             ):
                 problems.append(
-                    f"操作 {item.name} 的步骤「{part.title}」在写入事务开始后，"
+                    f"操作 {item.name} 的步骤“{part.title}”在写入事务开始后，"
                     "调用了会使用大模型的操作；"
                     "请把它移到第一个保存步骤之前"
                 )

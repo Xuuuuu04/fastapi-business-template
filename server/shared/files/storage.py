@@ -24,6 +24,7 @@ CHUNK = 64 * 1024
 KEY = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]*$")
 
 
+# 内容保存后的存储键、大小与摘要，供文件记录登记使用。
 @dataclass(frozen=True)
 class SavedFile:
     key: str
@@ -31,12 +32,14 @@ class SavedFile:
     sha256: str
 
 
+# 存储对象的键和修改时间，供查找长时间无记录的文件使用。
 @dataclass(frozen=True)
 class StoredObject:
     key: str
     modified_at: float
 
 
+# 文件存储实现需要提供的保存、读取、删除和枚举操作。
 class FileStorage(Protocol):
     # 把本地文件保存到存储中的指定键。
     async def save_path(self, key: str, source: Path) -> SavedFile: ...
@@ -71,6 +74,7 @@ async def digest_of(path: Path) -> tuple[int, str]:
     return size, digest.hexdigest()
 
 
+# 将正式文件保存到本地目录，按存储键读取和删除。
 class LocalFiles:
     # 使用本地目录保存文件。
     def __init__(self, root: Path) -> None:
@@ -121,6 +125,7 @@ async def walk_files(folder: anyio.Path) -> AsyncIterator[anyio.Path]:
             yield item
 
 
+# 连接 S3 兼容服务所需的桶、地址、区域和访问密钥。
 @dataclass(frozen=True)
 class S3Options:
     bucket: str
@@ -130,6 +135,7 @@ class S3Options:
     secret_key: str
 
 
+# 将正式文件保存到 S3 兼容服务，实现与本地存储相同的操作。
 class S3Files:
     # 使用 S3 兼容存储；boto3 是同步库，所有调用放到线程中执行。
     def __init__(self, options: S3Options) -> None:

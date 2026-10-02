@@ -1,5 +1,5 @@
 """
-只读审计查询和数据变更历史。普通组织管理员只能看本组织；全组织调用者可看全部。
+只读操作记录查询和数据变更历史。普通组织管理员只能看本组织；全组织调用者可看全部。
 """
 
 from typing import Annotated, Any
@@ -10,11 +10,11 @@ from app.api.identity import CallerDep, require
 from shared.access.audit import recent
 from shared.db.history import recent_changes
 
-router = APIRouter(prefix="/api/system", tags=["安全审计"])
+router = APIRouter(prefix="/api/system", tags=["安全操作记录"])
 
 
-# 查询最近的审计元数据，不返回业务正文或密码。
-@router.get("/audit", summary="查询审计记录", operation_id="system_audit")
+# 查询最近的操作记录的身份、状态和时间，不返回业务正文或密码。
+@router.get("/audit", summary="查询操作记录", operation_id="system_audit")
 async def audit(
     request: Request,
     caller: CallerDep,

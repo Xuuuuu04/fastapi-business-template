@@ -29,6 +29,7 @@ PARAMS = (
 )
 
 
+# 流程中的判断节点，声明读取字段和满足条件后执行的步骤。
 @dataclass(frozen=True, eq=False)
 class Condition:
     func: Callable[[Any], bool]
@@ -38,6 +39,7 @@ class Condition:
     source: str
 
 
+# 流程中的一个计算节点，声明读写字段及使用的外部能力。
 @dataclass(frozen=True, eq=False)
 class Step:
     func: Callable[..., Any]

@@ -18,6 +18,7 @@ MAX_TTL = 7 * 86400
 MAX_VALUE = 1_000_000
 
 
+# 为业务模块提供独立的缓存范围，并记录缓存服务故障。
 class ModuleCache:
     # 绑定缓存实现、模块名和当前步骤记录。
     def __init__(self, cache: Cache, module: str, record: StepRecord | None) -> None:

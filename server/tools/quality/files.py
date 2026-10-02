@@ -1,5 +1,5 @@
 """
-检查 Python 文件的写法：文件头多行中文说明、函数前单行中文说明、待办标记、
+检查 Python 文件的写法：文件头多行中文说明、类的用途说明、函数前单行中文说明、待办标记、
 文件和函数长度、嵌套层数、函数体内的连续注释。
 """
 
@@ -47,14 +47,26 @@ def check_file(path: Path, root: Path = ROOT) -> list[Problem]:
                 0,
                 "file_lines",
                 f"文件有 {len(lines)} 行，超过 {MAX_FILE_LINES} 行",
-                "按职责拆成几个文件，相近的函数放在一起",
+                "按用途拆成几个文件，相近的函数放在一起",
             )
         )
     problems += check_todo(name, source)
     for node in ast.walk(tree):
         if isinstance(node, Function):
             problems += check_function(name, node, lines)
+        elif isinstance(node, ast.ClassDef):
+            problems += check_class(name, node, lines)
     return problems
+
+
+# 检查类的用途说明，可以写在类或装饰器前，也可以写成类内文档字符串。
+def check_class(name: str, node: ast.ClassDef, lines: list[str]) -> list[Problem]:
+    start = min([node.lineno, *[item.lineno for item in node.decorator_list]])
+    above = lines[start - 2].strip() if start >= 2 else ""
+    doc = ast.get_docstring(node) or ""
+    if CHINESE.search(doc) or (above.startswith("# ") and CHINESE.search(above)):
+        return []
+    return [Problem(name, node.lineno, "class_comment", f"类 {node.name} 缺少中文用途说明")]
 
 
 # 检查文件头说明：必须是多行中文文档字符串。

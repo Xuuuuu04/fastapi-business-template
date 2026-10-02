@@ -19,10 +19,12 @@ from tests.framework.sample_modules import NoteStore, notes, sample_metadata
 from tests.testing_app import KEY, READER, make_settings, reset_database_now
 
 
+# 流式输出测试返回的已保存记录数。
 class StreamResult(Data):
     saved: int = meaning("保存后的记录数")
 
 
+# 流式输出测试各步骤共享的执行结果。
 class StreamWork(WorkData):
     result: StreamResult = meaning("操作结果")
 
@@ -99,10 +101,12 @@ async def test_stream_disconnect_rolls_back(services: Services) -> None:
     assert recorded.status == "failed" and recorded.error_code == "cancelled"
 
 
+# 流式大模型测试接收的主题。
 class Topic(Data):
     topic: str = meaning("主题", min_length=1)
 
 
+# 流式大模型测试各步骤共享的主题和执行结果。
 class TalkWork(WorkData):
     topic: str = meaning("主题")
     result: StreamResult = meaning("操作结果")

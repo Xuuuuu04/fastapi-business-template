@@ -46,7 +46,7 @@ def check_paths(root: Path) -> list[Problem]:
                         0,
                         "name_vague",
                         f"名字 {part} 含义模糊",
-                        "用说明职责的名字，例如 read_source、save_result",
+                        "用说明用途的名字，例如 read_source、save_result",
                     )
                 )
     return sorted(set(problems), key=lambda item: (item.path, item.message))

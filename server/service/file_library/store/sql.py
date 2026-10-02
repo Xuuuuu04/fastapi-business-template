@@ -16,6 +16,7 @@ from shared.public import Caller, Db, ModuleFiles, NotAllowed
 log = logging.getLogger("server.files")
 
 
+# 通过数据库和文件服务完成文件管理，执行组织与系统身份检查。
 class SqlFileStore:
     # 取得数据库、模块文件入口和经过验证的调用者。
     def __init__(self, db: Db, files: ModuleFiles, caller: Caller) -> None:

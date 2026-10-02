@@ -22,6 +22,7 @@ RETRY_WAITS = (1.0, 3.0)
 KEPT_TEXT = 2000
 
 
+# 执行已登记的提示词，检查输出格式并管理并发与失败重试。
 class ModelService:
     # 设置服务商实现、并发上限、是否保存截断后的原文，以及暂时故障后的重试等待秒数。
     def __init__(
@@ -70,7 +71,7 @@ class ModelService:
             record.prompt_text, record.reply_text = user[:KEPT_TEXT], reply.text[:KEPT_TEXT]
         return reply
 
-    # 在并发上限内发送请求；连续失败时熔断，暂停期间直接失败。
+    # 在并发上限内发送请求；连续失败时连续失败后暂停调用，暂停期间直接失败。
     async def send(self, request: ModelRequest, record: ModelCallRecord) -> ModelReply:
         wait = self.breaker.blocked()
         if wait:

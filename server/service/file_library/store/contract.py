@@ -7,6 +7,7 @@ from typing import Protocol
 from service.file_library.data import FileEntry, FilePage, FileStage, FileView, PendingFile
 
 
+# 文件步骤允许使用的数据访问操作，具体存储实现可单独替换。
 class FileStore(Protocol):
     # 把临时上传放进正式存储。
     async def stage(self, org_id: str, temp_id: str) -> FileStage: ...

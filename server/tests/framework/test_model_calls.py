@@ -27,10 +27,12 @@ from tests.framework.sample_modules import describe
 pytestmark = pytest.mark.anyio
 
 
+# 大模型格式检查测试使用的结构化输出。
 class Verdict(Data):
     passed: bool = meaning("是否通过")
 
 
+# 先失败再成功的模拟大模型服务，用来验证重试行为。
 class Flaky:
     name = "flaky"
 

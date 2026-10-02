@@ -23,7 +23,7 @@
 ```mermaid
 flowchart TD
     start(["输入：文件所属组织、上传临时区返回的文件编号"])
-    s1["1. 保存文件内容（读取）<br/>规则 R-01"]:::read
+    s1["1. 保存文件内容（数据访问）<br/>规则 R-01"]:::read
     start --> s1
     s2["2. 登记文件（保存）<br/>规则 R-01"]:::save
     s1 --> s2
@@ -58,7 +58,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：文件所属组织、文件编号"])
-    s1["1. 读取文件（读取）<br/>规则 R-02"]:::read
+    s1["1. 读取文件（数据访问）<br/>规则 R-02"]:::read
     start --> s1
     finish(["结果：授权后的文件信息和存储键"])
     s1 --> finish
@@ -90,7 +90,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：要查询的组织、从第几条开始，从 0 计数、本页最多返回多少条"])
-    s1["1. 查询文件（读取）<br/>规则 R-02"]:::read
+    s1["1. 查询文件（数据访问）<br/>规则 R-02"]:::read
     start --> s1
     finish(["结果：一页文件，按保存时间从新到旧"])
     s1 --> finish
@@ -155,9 +155,9 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：无"])
-    s1["1. 查找待清理文件（读取）<br/>规则 R-03"]:::read
+    s1["1. 查找待清理文件（数据访问）<br/>规则 R-03"]:::read
     start --> s1
-    s2["2. 清理文件内容（读取）<br/>规则 R-03"]:::read
+    s2["2. 清理文件内容（数据访问）<br/>规则 R-03"]:::read
     s1 --> s2
     s3["3. 清理文件记录（保存）<br/>规则 R-03"]:::save
     s2 --> s3
@@ -217,7 +217,7 @@ flowchart TD
 
 | 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |
 | --- | --- | --- | --- | --- | --- | --- |
-| view | FileView | 是 | 经组织权限核对后的文件信息 |  |  |  |
+| view | FileView | 是 | 经组织权限检查后的文件信息 |  |  |  |
 | key | str | 是 | 正式存储键，只供服务端读取 |  |  |  |
 
 ### FileListQuery

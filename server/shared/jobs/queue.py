@@ -27,6 +27,7 @@ READY = ("queued", "waiting_retry")
 ACTIVE = ("queued", "running", "waiting_retry")
 
 
+# 后台进程取到的任务信息，包含本次尝试编号和输入。
 @dataclass(frozen=True)
 class Ticket:
     id: str
@@ -38,6 +39,7 @@ class Ticket:
     request_id: str
 
 
+# 通过数据库登记、领取和更新任务，保证状态变化有明确条件。
 class JobQueue:
     # 使用模块目录查找任务声明，使用数据库保存任务。
     def __init__(self, catalog: Catalog, database: Database) -> None:
@@ -147,7 +149,7 @@ class JobQueue:
         await release(connection, ticket.contract)
         return True
 
-    # 记录一次失败：进入等待重试、失败、结果待核对或等待兼容版本。
+    # 记录一次失败：进入等待重试、失败、结果待确认或等待兼容版本。
     async def fail(
         self,
         ticket: Ticket,
@@ -194,7 +196,7 @@ class JobQueue:
             )
             return (await connection.execute(change)).rowcount == 1
 
-    # 处理执行期限已过的任务：可安全重复的重新排队，其他的标为结果待核对。
+    # 处理执行期限已过的任务：可安全重复的重新排队，其他的标为结果待确认。
     async def reclaim(self, now: float) -> int:
         async with self.database.write() as connection:
             expired = (
@@ -243,7 +245,7 @@ async def reserve(connection: AsyncConnection, item: Contract[Any, Any], limit: 
         except IntegrityError:
             if (await connection.execute(change)).rowcount == 1:
                 return
-    raise QueueFull(f"「{item.title}」排队已满（上限 {limit}），请稍后再试")
+    raise QueueFull(f"“{item.title}”排队已满（上限 {limit}），请稍后再试")
 
 
 # 释放一个排队名额。
@@ -267,7 +269,7 @@ async def expire(
     else:
         values |= {"state": "unknown", "finished_at": now, "error_code": "lease_expired"}
         values["error_message"] = (
-            "执行期限已过，无法确认是否已经产生效果，请人工核对后再决定是否重试"
+            "执行期限已过，无法确认是否已经产生效果，请人工检查后再决定是否重试"
         )
     await connection.execute(update(jobs).where(jobs.c.id == job_id).values(**values))
     if values["state"] == "unknown":

@@ -12,6 +12,7 @@ from shared.data.models import Data
 from shared.errors.framework import StepRuleBroken
 
 
+# 一个提示词的版本、文件和输出要求，用于登记与运行记录。
 @dataclass(frozen=True, eq=False)
 class Prompt:
     name: str
@@ -23,6 +24,7 @@ class Prompt:
     temperature: float = 0.2
 
 
+# 读取后的提示词正文及占位字段，用于检查调用输入。
 @dataclass(frozen=True)
 class PromptText:
     system: str
@@ -69,6 +71,6 @@ def fill_prompt(item: Prompt, text: PromptText, values: dict[str, object]) -> tu
     extra = values.keys() - text.names
     if missing or extra:
         raise StepRuleBroken(
-            f"提示词「{item.title}」的变量不一致：缺少 {sorted(missing)}，多出 {sorted(extra)}"
+            f"提示词“{item.title}”的变量不一致：缺少 {sorted(missing)}，多出 {sorted(extra)}"
         )
     return text.system.format(**values), text.user.format(**values)

@@ -10,6 +10,7 @@ from shared.data.models import Data
 from shared.errors.kinds import BusinessError
 
 
+# 一个模块公开操作的输入、输出、权限和允许失败类型。
 @dataclass(frozen=True, eq=False)
 class Contract[In: Data, Out: Data]:
     name: str
