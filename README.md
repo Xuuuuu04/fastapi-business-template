@@ -40,6 +40,7 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 
 先在 [project-plan.json](project-plan.json) 写产品名称、业务线、开发包与预期操作，未实现的开发包也可先列入。
 分组只用于理解和分工，`service/模块名` 的代码位置保持一致。
+下面的命令在 `server/` 下运行。
 
 ```bash
 uv run python -m tools.project                         # 项目根、业务线、模块与最近测试

@@ -12,7 +12,7 @@
 
 ## 2. 开工前按顺序读
 
-1. `uv run python -m tools.project --json`：一次取得业务线、开发包、模块结构与真实测试情况。
+1. 在 `server/` 下运行 `uv run python -m tools.project --json`：一次取得业务线、开发包、模块结构与真实测试情况。
    [doc/development.md](doc/development.md)、[doc/progress.md](doc/progress.md) 和 [doc/tasks.md](doc/tasks.md)：设计、规则与未完事项。
 2. [doc/README.md](doc/README.md) 和相关模块的 `needs.md`、`rules.md`、`flows.md`：业务是什么、规则怎么算；字段含义、接口路径、数据表在自动生成的 `flows.md` 中。
 3. [server/service/README.md](server/service/README.md)：模块的固定结构和必须遵守的规则。

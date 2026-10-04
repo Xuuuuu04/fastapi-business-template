@@ -83,6 +83,7 @@ def native_documents(source: Path, target: Path, name: str) -> None:
     product_entry(target, name)
     product_history(target, name)
     product_metadata(source, target)
+    product_configuration(target, name)
 
 
 # 产品入口明确指向本产品的业务计划和可执行工具。
@@ -159,6 +160,20 @@ def product_metadata(source: Path, target: Path) -> None:
         lock,
         lock.read_text(encoding="utf-8").replace(
             original, 'name = "product-server"\nversion = "0.1.0"', 1
+        ),
+    )
+
+
+# 配置示例使用产品名称，保留通用配置项；不复制或生成实际环境。
+def product_configuration(target: Path, name: str) -> None:
+    configuration = target / "server/.env.example"
+    write(
+        configuration,
+        "".join(
+            f"APP_NAME={json.dumps(name, ensure_ascii=False)}\n"
+            if line.startswith("APP_NAME=")
+            else line
+            for line in configuration.read_text(encoding="utf-8").splitlines(keepends=True)
         ),
     )
 

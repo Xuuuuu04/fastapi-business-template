@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from dotenv import dotenv_values
 
 from tools.development.history import read_checks
 from tools.quality.rules import PROJECT
@@ -26,6 +27,7 @@ def test_native_product_copy(tmp_path: Path) -> None:
     assert "验收记录" not in (target / "server/deploy/README.md").read_text(encoding="utf-8")
     plan = json.loads((target / "project-plan.json").read_text(encoding="utf-8"))
     assert plan["lines"] == [] and plan["name"] == "客户联系产品"
+    assert dotenv_values(target / "server/.env.example")["APP_NAME"] == "客户联系产品"
     assert read_checks(target) == []
     check_base(target, PROJECT)
     result = subprocess.run(

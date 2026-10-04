@@ -111,3 +111,5 @@ def test_new_project_path(tmp_path: Path) -> None:
         assert done.returncode == 0, (
             f"{' '.join(step)}\n{done.stdout[-3000:]}\n{done.stderr[-3000:]}"
         )
+    schema = json.loads((copy / "doc/api/openapi.json").read_text(encoding="utf-8"))
+    assert schema["info"]["title"] == "客户联系样例"

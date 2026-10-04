@@ -22,8 +22,11 @@ LIMITS = {
 
 
 # 用于生成文档的应用：测试配置、开放接口文档，不连接外部服务。
-def docs_app() -> FastAPI:
-    return create_app(Settings(_env_file=None, env="test", docs=True))
+def docs_app(name: str | None = None) -> FastAPI:
+    settings = Settings(_env_file=None, env="test", docs=True)
+    if name is not None:
+        settings.name = name
+    return create_app(settings)
 
 
 # 生成 OpenAPI 描述和中文接口清单。
