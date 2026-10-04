@@ -36,7 +36,7 @@
 ```mermaid
 flowchart TD
     start(["输入：组织代码、组织名称"])
-    s1["1. 创建组织（保存）<br/>规则 R-01"]:::save
+    s1["1. 创建组织（保存）<br/>规则 R-01<br/>create_org · service/user_access/steps/access.py:19<br/>读：code、name → 写：result"]:::save
     start --> s1
     finish(["结果：新建的组织"])
     s1 --> finish
@@ -68,7 +68,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：无"])
-    s1["1. 查询组织（数据访问）<br/>规则 R-04"]:::read
+    s1["1. 查询组织（数据访问）<br/>规则 R-04<br/>list_orgs · service/user_access/steps/access.py:25<br/>读：无 → 写：result"]:::read
     start --> s1
     finish(["结果：可访问的组织"])
     s1 --> finish
@@ -98,7 +98,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：角色所属组织代码、角色名称，在组织内唯一、角色拥有的权限名"])
-    s1["1. 创建角色（保存）<br/>规则 R-02"]:::save
+    s1["1. 创建角色（保存）<br/>规则 R-02<br/>create_role · service/user_access/steps/access.py:31<br/>读：org_id、name、permissions → 写：result"]:::save
     start --> s1
     finish(["结果：新建的角色"])
     s1 --> finish
@@ -131,7 +131,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：要查询的组织代码"])
-    s1["1. 查询角色（数据访问）<br/>规则 R-04"]:::read
+    s1["1. 查询角色（数据访问）<br/>规则 R-04<br/>list_roles · service/user_access/steps/access.py:39<br/>读：org_id → 写：result"]:::read
     start --> s1
     finish(["结果：角色列表"])
     s1 --> finish
@@ -162,7 +162,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：用户所属组织代码、用户名，在组织内唯一、登录密码、角色编号"])
-    s1["1. 创建用户（保存）<br/>规则 R-02"]:::save
+    s1["1. 创建用户（保存）<br/>规则 R-02<br/>create_user · service/user_access/steps/access.py:45<br/>读：org_id、username、password、role_id → 写：result"]:::save
     start --> s1
     finish(["结果：新建的用户"])
     s1 --> finish
@@ -196,7 +196,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：要查询的组织代码、上一页返回的 next_after、本页最多返回多少条"])
-    s1["1. 查询用户（数据访问）<br/>规则 R-04"]:::read
+    s1["1. 查询用户（数据访问）<br/>规则 R-04<br/>list_users · service/user_access/steps/access.py:57<br/>读：org_id、after、limit → 写：result"]:::read
     start --> s1
     finish(["结果：一页用户，按编号从小到大，不包含密码摘要"])
     s1 --> finish
@@ -229,7 +229,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：用户所属组织代码、要修改的用户编号、修改后的角色编号、修改后是否允许登录"])
-    s1["1. 调整用户（保存）<br/>规则 R-02"]:::save
+    s1["1. 调整用户（保存）<br/>规则 R-02<br/>update_user · service/user_access/steps/access.py:63<br/>读：org_id、user_id、role_id、active → 写：result"]:::save
     start --> s1
     finish(["结果：修改后的用户"])
     s1 --> finish
@@ -263,9 +263,9 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：组织代码、用户名、密码、两步验证码"])
-    s1["1. 校验登录（数据访问）<br/>规则 R-03"]:::read
+    s1["1. 校验登录（数据访问）<br/>规则 R-03<br/>check_login · service/user_access/steps/sessions.py:19<br/>读：org_code、username、password、otp_code → 写：account"]:::read
     start --> s1
-    s2["2. 建立登录会话（保存）<br/>规则 R-05"]:::save
+    s2["2. 建立登录会话（保存）<br/>规则 R-05<br/>create_session · service/user_access/steps/sessions.py:30<br/>读：account → 写：result"]:::save
     s1 --> s2
     finish(["结果：新建的登录会话"])
     s2 --> finish
@@ -300,9 +300,9 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：刷新令牌"])
-    s1["1. 检查刷新令牌（数据访问）<br/>规则 R-05"]:::read
+    s1["1. 检查刷新令牌（数据访问）<br/>规则 R-05<br/>check_refresh · service/user_access/steps/sessions.py:37<br/>读：refresh_token → 写：check"]:::read
     start --> s1
-    s2["2. 轮换刷新令牌（保存）<br/>规则 R-05"]:::save
+    s2["2. 轮换刷新令牌（保存）<br/>规则 R-05<br/>update_session · service/user_access/steps/sessions.py:43<br/>读：check → 写：result"]:::save
     s1 --> s2
     finish(["结果：换得的新会话"])
     s2 --> finish
@@ -334,7 +334,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：刷新令牌"])
-    s1["1. 作废登录会话（保存）<br/>规则 R-05"]:::save
+    s1["1. 作废登录会话（保存）<br/>规则 R-05<br/>mark_revoked · service/user_access/steps/sessions.py:51<br/>读：refresh_token → 写：result"]:::save
     start --> s1
     finish(["结果：没有返回内容"])
     s1 --> finish
@@ -365,9 +365,9 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：原密码、新密码"])
-    s1["1. 检查原密码（数据访问）<br/>规则 R-06"]:::read
+    s1["1. 检查原密码（数据访问）<br/>规则 R-06<br/>check_old_password · service/user_access/steps/sessions.py:58<br/>读：old_password → 写：user_id"]:::read
     start --> s1
-    s2["2. 更新密码并作废会话（保存）<br/>规则 R-06"]:::save
+    s2["2. 更新密码并作废会话（保存）<br/>规则 R-06<br/>update_password · service/user_access/steps/sessions.py:64<br/>读：user_id、new_password → 写：result"]:::save
     s1 --> s2
     finish(["结果：没有返回内容"])
     s2 --> finish
@@ -400,7 +400,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：无"])
-    s1["1. 清理过期刷新令牌（保存）<br/>规则 R-07"]:::save
+    s1["1. 清理过期刷新令牌（保存）<br/>规则 R-07<br/>clean_sessions · service/user_access/steps/sessions.py:77<br/>读：无 → 写：result"]:::save
     start --> s1
     finish(["结果：清理结果"])
     s1 --> finish
@@ -430,7 +430,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：用户所属组织代码、用户编号"])
-    s1["1. 生成重置码（保存）<br/>规则 R-08"]:::save
+    s1["1. 生成重置码（保存）<br/>规则 R-08<br/>create_reset_code · service/user_access/steps/security.py:17<br/>读：org_id、user_id → 写：result"]:::save
     start --> s1
     finish(["结果：新的重置码"])
     s1 --> finish
@@ -462,9 +462,9 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：组织代码、用户名、管理员给的重置码、新密码"])
-    s1["1. 检查重置码（数据访问）<br/>规则 R-08"]:::read
+    s1["1. 检查重置码（数据访问）<br/>规则 R-08<br/>check_reset_code · service/user_access/steps/security.py:23<br/>读：org_code、username、code → 写：user_id"]:::read
     start --> s1
-    s2["2. 用重置码设置新密码（保存）<br/>规则 R-08"]:::save
+    s2["2. 用重置码设置新密码（保存）<br/>规则 R-08<br/>update_reset_password · service/user_access/steps/security.py:29<br/>读：code、user_id、new_password → 写：result"]:::save
     s1 --> s2
     finish(["结果：没有返回内容"])
     s2 --> finish
@@ -499,7 +499,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：无"])
-    s1["1. 生成两步验证密钥（保存）<br/>规则 R-09"]:::save
+    s1["1. 生成两步验证密钥（保存）<br/>规则 R-09<br/>create_otp_secret · service/user_access/steps/security.py:43<br/>读：无 → 写：result"]:::save
     start --> s1
     finish(["结果：待确认的两步验证密钥"])
     s1 --> finish
@@ -529,7 +529,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：身份验证器应用显示的 6 位验证码"])
-    s1["1. 确认并开启两步验证（保存）<br/>规则 R-09"]:::save
+    s1["1. 确认并开启两步验证（保存）<br/>规则 R-09<br/>update_otp_on · service/user_access/steps/security.py:49<br/>读：code → 写：result"]:::save
     start --> s1
     finish(["结果：没有返回内容"])
     s1 --> finish
@@ -560,7 +560,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：身份验证器应用显示的 6 位验证码"])
-    s1["1. 确认并关闭两步验证（保存）<br/>规则 R-09"]:::save
+    s1["1. 确认并关闭两步验证（保存）<br/>规则 R-09<br/>update_otp_off · service/user_access/steps/security.py:56<br/>读：code → 写：result"]:::save
     start --> s1
     finish(["结果：没有返回内容"])
     s1 --> finish
@@ -591,7 +591,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：用户所属组织代码、用户编号"])
-    s1["1. 管理员关闭两步验证（保存）<br/>规则 R-09"]:::save
+    s1["1. 管理员关闭两步验证（保存）<br/>规则 R-09<br/>remove_user_otp · service/user_access/steps/security.py:63<br/>读：org_id、user_id → 写：result"]:::save
     start --> s1
     finish(["结果：没有返回内容"])
     s1 --> finish

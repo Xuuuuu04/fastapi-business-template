@@ -151,7 +151,14 @@ function runDetail(data) {
       const details = element('details'); details.append(element('summary','字段、调用和源码位置'));
       details.append(element('p',`读取：${part.reads.join('、') || '无'}；写入：${part.writes.join('、') || '无'}`));
       part.values.forEach(value => details.append(element('p',value)));
-      details.append(element('code',part.error_place || part.source));
+      if (part.outputs_recorded) details.append(element('p',`实际产出：${Object.keys(part.outputs).length}/${part.writes.length} 个字段`));
+      details.append(element('code',`${part.error_place || part.source} · ${part.name}`));
+      if (part.condition_source) details.append(element('p',`条件 ${part.condition_name}：${part.condition_result === null ? '未知' : part.condition_result ? '执行' : '跳过'}；${duration(part.condition_elapsed_ms)}；${part.condition_source}`));
+      if (part.database_count) {
+        details.append(element('p',`数据库调用 ${part.database_count} 次，合计 ${duration(part.database_elapsed_ms)}，保留 ${part.database.length} 次细节。`));
+        table(details,['调用','表或视图','状态','耗时','行数','函数与位置'],part.database.map(call => [
+          `${call.target}.${call.method}`,call.tables.join('、') || '未知',call.status,duration(call.elapsed_ms),call.rows === null ? '未知' : call.rows,`${call.source} · ${call.function}`]));
+      }
       [...part.models,...part.remotes].forEach(call => details.append(element('p',`${call.prompt || call.remote}：${duration(call.elapsed_ms)}${call.error ? `；${call.error}` : ''}`)));
       part.children.forEach(id => { const link = element('a',`查看下层调用 ${id}`); link.href = `#run-${id}`; row.append(link); });
       row.append(details); list.append(row);

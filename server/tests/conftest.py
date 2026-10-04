@@ -23,7 +23,7 @@ from tests.framework.sample_modules import calc_module, outer_module, sample_met
 from tests.framework.sample_routes import sample_router
 from tests.testing_app import make_settings, on_postgres, reset_database, reset_database_now
 
-pytest_plugins = ["tests.failure_reports"]
+pytest_plugins = ["tests.failure_reports", "tests.development_history"]
 
 EXECUTED: set[str] = set()
 

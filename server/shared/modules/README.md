@@ -8,6 +8,7 @@
 | [module.py](module.py) | `Module`：模块声明，写在模块的 module.py |
 | [checks.py](checks.py) | 启动时检查全部模块声明 |
 | [catalog.py](catalog.py) | `Catalog`：检查通过后固定下来的模块目录 |
+| [layout.py](layout.py) | 固定文件位置和结构说明；生成器、旧包采用命令与默认启动共用 |
 
 ## 为什么这样登记
 

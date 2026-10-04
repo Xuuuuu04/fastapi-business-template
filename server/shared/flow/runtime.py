@@ -81,6 +81,7 @@ class Runtime:
         self.telemetry = telemetry
         self.vault = vault
         self.code_version = code_version
+        self.source_version = ""
         self.step_checks = step_checks
 
     # 从接口或任务入口执行一个操作：检查权限，结束时提交或回滚写入。
@@ -273,6 +274,7 @@ class Runtime:
             module=binding.module.name,
             module_version=binding.module.version,
             code_version=self.code_version,
+            source_version=self.source_version,
             request_id=scope.request_id,
             job_id=scope.job_id,
             caller=f"{scope.caller.kind}:{scope.caller.id}",

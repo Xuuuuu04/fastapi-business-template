@@ -16,6 +16,7 @@ from app.setup.catalog import MODULES
 from shared.graphs.static import module_graph
 from shared.modules.catalog import Catalog
 from tools.api_doc import api_markdown, docs_app
+from tools.development.design import design_doc
 from tools.flow_doc import HEADER, module_doc, route_map
 from tools.progress_doc import progress_doc
 from tools.quality.rules import PROJECT
@@ -42,6 +43,7 @@ def generated(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
     files = {
         project / "doc" / "modules.md": modules_doc(catalog),
         project / "doc" / "progress.md": progress_doc(catalog, project),
+        project / "doc" / "development.md": design_doc(catalog, project),
         project / "doc" / "api" / "openapi.json": json.dumps(schema, ensure_ascii=False, indent=2)
         + "\n",
         project / "doc" / "api" / "index.md": markdown + "\n",

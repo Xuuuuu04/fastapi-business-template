@@ -5,7 +5,6 @@
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +15,7 @@ from tools.api_doc import api_markdown, docs_app
 from tools.compare_api import compare
 from tools.framework_lock import differences, digests
 from tools.quality.rules import PROJECT
+from tools.template.initialization import initialize
 
 COPY_FLAG = "TEMPLATE_COPY_RUN"
 
@@ -87,18 +87,7 @@ def test_new_project_path(tmp_path: Path) -> None:
     if os.environ.get(COPY_FLAG):
         pytest.skip("已经在项目副本中运行，不再复制")
     copy = tmp_path / "project"
-    ignored = (
-        ".venv",
-        "__pycache__",
-        ".mypy_cache",
-        ".ruff_cache",
-        ".pytest_cache",
-        "var",
-        "out",
-        ".agent",
-        ".env",
-    )
-    shutil.copytree(PROJECT, copy, ignore=shutil.ignore_patterns(*ignored, ".git"))
+    initialize(PROJECT, copy, "客户联系样例")
     env = {name: value for name, value in os.environ.items() if not name.startswith("APP_")}
     env |= {COPY_FLAG: "1", "APP_DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path}/copy.db"}
     steps = [
