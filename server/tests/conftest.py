@@ -21,7 +21,12 @@ from shared.flow.runtime import Runtime
 from shared.model_calls.providers import FakeModel, ModelRequest
 from tests.framework.sample_modules import calc_module, outer_module, sample_metadata
 from tests.framework.sample_routes import sample_router
-from tests.testing_app import make_settings, on_postgres, reset_database, reset_database_now
+from tests.testing_app import (
+    make_settings,
+    on_postgres,
+    prepare_test_database,
+    prepare_test_database_now,
+)
 
 pytest_plugins = ["tests.failure_reports", "tests.development_history"]
 
@@ -85,7 +90,7 @@ def settings(tmp_path: Path) -> Settings:
 # 从真实的应用工厂启动，返回 HTTP 客户端。
 @pytest.fixture
 def client(settings: Settings) -> Iterator[TestClient]:
-    reset_database_now(settings.database_url)
+    prepare_test_database_now(settings.database_url)
     with TestClient(create_app(settings), raise_server_exceptions=False) as test_client:
         yield test_client
 
@@ -93,7 +98,7 @@ def client(settings: Settings) -> Iterator[TestClient]:
 # 组装好的服务（使用模拟大模型），用于直接调用执行器的测试。
 @pytest.fixture
 async def services(settings: Settings) -> AsyncIterator[Services]:
-    await reset_database(settings.database_url)
+    await prepare_test_database(settings.database_url)
     built = build(settings, provider=FakeModel())
     try:
         yield built
@@ -109,7 +114,7 @@ def echo(request: ModelRequest) -> str:
 # 用框架测试的示例模块组装的服务，并建好示例表。
 @pytest.fixture
 async def sample(settings: Settings) -> AsyncIterator[Services]:
-    await reset_database(settings.database_url)
+    await prepare_test_database(settings.database_url)
     built = build(
         settings, modules=[calc_module, outer_module], provider=FakeModel({"describe_mark": echo})
     )
@@ -130,7 +135,7 @@ async def create_sample_tables(services: Services) -> None:
 # 只启用示例模块的应用，系统接口和安全测试使用它，不依赖可删除的示例业务。
 @pytest.fixture
 def sample_client(settings: Settings) -> Iterator[TestClient]:
-    reset_database_now(settings.database_url)
+    prepare_test_database_now(settings.database_url)
     modules = [calc_module, outer_module]
     built = build(settings, modules=modules, provider=FakeModel({"describe_mark": echo}))
     asyncio.run(create_sample_tables(built))
