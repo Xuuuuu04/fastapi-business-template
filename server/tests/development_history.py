@@ -5,6 +5,7 @@
 
 import json
 import os
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -22,16 +23,54 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     CASES.clear()
 
 
-# 测试完成后保存状态；失败和跳过不会被记为通过。
+# 明确标记对应的样例；只保存编号，不读取参数值或业务数据。
+def scenario_ids(item: pytest.Item) -> list[str]:
+    identities = []
+    for marker in item.iter_markers("rule_case"):
+        if (
+            marker.kwargs
+            or len(marker.args) != 1
+            or not isinstance(marker.args[0], str)
+            or not re.fullmatch(r"[a-z][a-z0-9_]*\.R-\d+-C\d+", marker.args[0])
+        ):
+            raise pytest.UsageError(f"{item.nodeid}: rule_case 需要一个 module.R-规则-C样例 编号")
+        identities.append(marker.args[0])
+    return sorted(set(identities))
+
+
+# 收集时就暴露标记格式错误，不能留到测试结束再悄悄丢弃。
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    for item in items:
+        scenario_ids(item)
+
+
+# 全部阶段完成才记为通过；非严格 XPASS 也不能作为规则通过证据。
+def case_outcome(phases: dict[str, str]) -> str:
+    if "failed" in phases.values():
+        return "failed"
+    if "skipped" in phases.values():
+        return "skipped"
+    return "passed" if len(phases) == 3 else "unrecorded"
+
+
+# 测试完成后保存状态；失败、跳过和预期失败不会被记为通过。
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[Any]) -> Iterator[None]:
     outcome = yield
     report = outcome.get_result()
     if not os.environ.get("APP_DEVELOPMENT_RESULT"):
         return
-    case = CASES.setdefault(item.nodeid, {"nodeid": item.nodeid, "outcome": "passed", "runs": []})
-    if report.failed or report.skipped:
-        case["outcome"] = "failed" if report.failed else "skipped"
+    case = CASES.setdefault(
+        item.nodeid,
+        {"nodeid": item.nodeid, "runs": [], "scenario_ids": scenario_ids(item), "phases": {}},
+    )
+    expected_failure = hasattr(report, "wasxfail")
+    case["phases"][report.when] = (
+        "failed" if report.failed else "skipped" if report.skipped or expected_failure else "passed"
+    )
+    if expected_failure:
+        case["xfail"] = "xpassed" if report.passed else "xfailed"
+    case["outcome"] = case_outcome(case["phases"])
     if report.when == "call":
         case["runs"] = [run_evidence(run) for run in FINISHED]
 

@@ -113,5 +113,6 @@ def module_checks(checks: list[dict[str, Any]], module: str, current: str) -> di
                 "finished_at": check["finished_at"],
                 "current": check["fingerprints"][module] == current and not check["source_changed"],
                 "checks_passed": check["passed"],
+                "source_changed": check["source_changed"],
             }
     return {"rounds": len(selected), "latest": latest}
