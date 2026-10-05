@@ -166,13 +166,14 @@ class SqlAccessStore(SessionStore, SecurityStore):
         if beyond:
             raise NotAllowed(f"只能授予自己拥有的权限，缺少：{'、'.join(beyond)}")
 
-    # 检查角色存在且属于目标组织。
+    # 分配已有角色时检查存在、组织归属与授予者的权限范围。
     async def require_role(self, org_id: str, role_id: int) -> None:
         found = await self.db.first(
-            select(roles.c.id).where(roles.c.id == role_id, roles.c.org_id == org_id)
+            select(roles.c.permissions).where(roles.c.id == role_id, roles.c.org_id == org_id)
         )
         if found is None:
             raise AccessMissing(f"组织 {org_id} 中没有角色 {role_id}")
+        self.require_grantable(json.loads(found["permissions"]))
 
 
 # 数据库行转成公开角色信息。
