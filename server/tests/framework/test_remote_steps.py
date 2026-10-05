@@ -11,6 +11,7 @@ import pytest
 from app.setup.build import Services, build
 from shared.access.caller import SYSTEM
 from shared.errors.framework import DeclarationError
+from shared.graphs.observed import run_graph
 from shared.model_calls.providers import FakeModel
 from shared.modules.catalog import Catalog
 from shared.public import (
@@ -107,6 +108,9 @@ async def services_with(tmp_path: Path, seen: list[str]) -> Services:
     # 按路径返回固定报价，并记下收到的请求路径。
     def respond(request: httpx2.Request) -> httpx2.Response:
         seen.append(request.url.path)
+        graph = run_graph(list(services.recorder.active.values()))
+        calls = [line for line in graph.splitlines() if "_external" in line and '["' in line]
+        assert calls and all(line.endswith(":::running") for line in calls)
         return httpx2.Response(200, json={"price": 1200})
 
     settings = make_settings(tmp_path)

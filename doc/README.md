@@ -16,6 +16,7 @@
 | 文件 | 内容 | 谁维护 |
 | --- | --- | --- |
 | [progress.md](progress.md) | 各模块的操作数、规则数、有测试标注的规则、待确认的业务问题 | `tools.export_docs` 自动生成；每次提交都更新，差异就是这次的进度变化 |
+| [development.md](development.md) | 项目根、业务线、开发包、计划操作与已登记数量 | 计划写在根目录 project-plan.json；`tools.export_docs` 从计划和代码生成 |
 | [tasks.md](tasks.md) | 还没做完的开发事项 | 人和 AI 共同维护；代码中不留 TODO |
 | [api/](api/) | 接口描述 `openapi.json` 和中文接口清单 `index.md` | `tools.export_docs` 自动生成；接口的增删改在提交差异中可见 |
 

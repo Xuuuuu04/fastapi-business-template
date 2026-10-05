@@ -25,8 +25,10 @@ from shared.access.caller import SYSTEM, Caller
 from shared.db.history import history_rows, save_history
 from shared.db.org import check_org
 from shared.db.owner import check_owner
+from shared.db.tracing import query_record
 from shared.errors.framework import InvalidInput, StepRuleBroken
 from shared.errors.kinds import BusinessError
+from shared.records.models import StepRecord
 
 READ_WORDS = ("select", "with", "explain", "show", "values")
 WRITE_WORDS = ("insert", "update", "delete", "merge")
@@ -43,41 +45,58 @@ class Db:
         place: str,
         caller: Caller | None = None,
         run_id: str = "",
+        record: StepRecord | None = None,
+        target: str = "database",
     ) -> None:
         self._connection = connection
         self._read_only = read_only
         self._place = place
         self._caller = caller
         self._run_id = run_id
+        self._record, self._target = record, target
 
     # 执行查询并返回全部行，每行可以按列名取值。
     async def all(self, statement: Executable) -> Sequence[RowMapping]:
-        self._check(statement)
-        result = await self._connection.execute(statement)
-        return result.mappings().all()
+        with query_record(self._record, statement, "all", self._target) as call:
+            self._check(statement)
+            rows = (await self._connection.execute(statement)).mappings().all()
+            if call is not None:
+                call.rows = len(rows)
+            return rows
 
     # 执行查询并返回第一行，没有结果时返回 None。
     async def first(self, statement: Executable) -> RowMapping | None:
-        self._check(statement)
-        result = await self._connection.execute(statement)
-        return result.mappings().first()
+        with query_record(self._record, statement, "first", self._target) as call:
+            self._check(statement)
+            row = (await self._connection.execute(statement)).mappings().first()
+            if call is not None:
+                call.rows = int(row is not None)
+            return row
 
     # 执行语句并返回恰好一行；没有或多于一行时报错，适合 insert ... returning。
     async def one(self, statement: Executable) -> RowMapping:
-        self._check(statement)
-        result = await self._connection.execute(statement)
-        return result.mappings().one()
+        with query_record(self._record, statement, "one", self._target) as call:
+            self._check(statement)
+            row = (await self._connection.execute(statement)).mappings().one()
+            if call is not None:
+                call.rows = 1
+            return row
 
     # 执行查询并返回第一行第一列的值。
     async def scalar(self, statement: Executable) -> Any:
-        self._check(statement)
-        return await self._connection.scalar(statement)
+        with query_record(self._record, statement, "scalar", self._target):
+            self._check(statement)
+            return await self._connection.scalar(statement)
 
     # 执行插入、修改或删除，返回受影响的行数。
     async def change(self, statement: Executable) -> int:
-        self._check(statement)
-        result = await self._connection.execute(statement)
-        return int(getattr(result, "rowcount", 0) or 0)
+        with query_record(self._record, statement, "change", self._target) as call:
+            self._check(statement)
+            result = await self._connection.execute(statement)
+            count = int(getattr(result, "rowcount", 0) or 0)
+            if call is not None:
+                call.rows = count if count >= 0 else None
+            return count
 
     # 按位置续读一页：按唯一且可排序的列 key 排序，after 是上一页返回的位置；
     # 数据量大时不必跳过前面的行，越往后也一样快。返回本页的行和下一页的位置（没有下一页为空）。
@@ -110,7 +129,7 @@ class Db:
         count = await self.change(statement)
         caller = self._caller or SYSTEM
         rows = history_rows(table, key, before, values, caller, self._run_id)
-        await save_history(self._connection, rows)
+        await save_history(self._connection, rows, self._record, self._target)
         return count
 
     # 加锁读取全部行：只能在 saves=True 的步骤中使用。

@@ -15,3 +15,7 @@ __pycache__/
 .env
 var/
 out/
+
+# 本机协作资料；项目专用 Skill 可以提交
+.agents/*
+!.agents/skills/

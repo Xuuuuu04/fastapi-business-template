@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "name": "FastAPI 通用后端模板",
+  "lines": [
+    {
+      "name": "通用能力",
+      "packages": [
+        {"module": "user_access", "title": "用户权限", "operations": ["create_org", "list_orgs", "create_role", "list_roles", "create_user", "list_users", "change_user", "login", "refresh", "logout", "change_password", "purge_sessions", "issue_reset", "reset_password", "start_otp", "enable_otp", "disable_otp", "reset_otp"]},
+        {"module": "file_library", "title": "文件管理", "operations": ["save_file", "get_file", "list_files", "delete_file", "clean_files"]}
+      ]
+    }
+  ]
+}

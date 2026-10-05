@@ -6,11 +6,15 @@
 """
 
 import argparse
+import json
 import os
 import subprocess
 import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from tools.quality.rules import ROOT
+from tools.development.history import fingerprints, save_check
+from tools.quality.rules import PROJECT, ROOT
 
 TYPED = ("app", "service", "shared", "tools", "deploy")
 
@@ -37,6 +41,59 @@ def run(title: str, command: list[str], env: dict[str, str]) -> bool:
     return subprocess.run(runner, cwd=ROOT, env=env, check=False).returncode == 0
 
 
+# 测试结果从 pytest 的结束钩子读取，启动失败时也留下明确失败记录。
+def run_tests(
+    title: str, command: list[str], env: dict[str, str], database: str
+) -> tuple[bool, dict[str, object]]:
+    with TemporaryDirectory(prefix="template-check-") as folder:
+        result = Path(folder) / "tests.json"
+        passed = run(title, command, {**env, "APP_DEVELOPMENT_RESULT": str(result)})
+        evidence = (
+            json.loads(result.read_text(encoding="utf-8"))
+            if result.exists()
+            else {"exit_code": 1, "cases": []}
+        )
+    return passed, {"database": database, **evidence}
+
+
+# 保存每轮的检查结果；检查期间源码改变时，该轮不能证明当前版本。
+def execute(module: str, postgres: str) -> list[tuple[str, bool]]:
+    from app.setup.catalog import MODULES
+
+    modules = [module] if module else [item.name for item in MODULES]
+    before = fingerprints(PROJECT, modules)
+    env = dict(os.environ)
+    selected = steps(module)
+    results = [(title, run(title, command, env)) for title, command in selected[:-1]]
+    database = (
+        "postgresql" if env.get("APP_TEST_DATABASE_URL", "").startswith("postgres") else "sqlite"
+    )
+    passed, evidence = run_tests(*selected[-1], env, database)
+    results.append((selected[-1][0], passed))
+    suites = [evidence]
+    if postgres:
+        passed, evidence = run_tests(
+            "PostgreSQL 测试",
+            selected[-1][1],
+            {**env, "APP_TEST_DATABASE_URL": postgres},
+            "postgresql",
+        )
+        results.append(("PostgreSQL 测试", passed))
+        suites.append(evidence)
+    path = save_check(
+        PROJECT,
+        {
+            "fingerprints": before,
+            "source_changed": before != fingerprints(PROJECT, modules),
+            "passed": all(passed for _, passed in results),
+            "checks": dict(results),
+            "suites": suites,
+        },
+    )
+    print(f"\n本轮检查记录：{path.relative_to(PROJECT)}")
+    return results
+
+
 # 依次运行全部检查并汇总结果。
 def main() -> None:
     parser = argparse.ArgumentParser(description="运行全部必需检查")
@@ -55,12 +112,7 @@ def main() -> None:
         for group in ("modules", "integration"):
             if not list((ROOT / "tests" / group / args.module).glob("test_*.py")):
                 parser.error(f"模块缺少 tests/{group}/{args.module}/test_*.py")
-    env = dict(os.environ)
-    selected = steps(args.module)
-    results = [(title, run(title, command, env)) for title, command in selected]
-    if args.postgres:
-        env["APP_TEST_DATABASE_URL"] = args.postgres
-        results.append(("PostgreSQL 测试", run("PostgreSQL 测试", selected[-1][1], env)))
+    results = execute(args.module, args.postgres)
     print("\n检查结果：")
     for title, passed in results:
         print(f"  {'通过' if passed else '失败'}  {title}")

@@ -19,27 +19,111 @@ from shared.records.summary import duration
 # 生成一次运行（含下一层调用）的实际执行图。
 def run_graph(runs: list[RunRecord]) -> str:
     lines = ["flowchart TD"]
-    first_step: dict[str, str] = {}
+    entries = {run.id: f"entry_{run.id}" for run in runs}
     for run in runs:
         state = RUN_STATUS_TEXT.get(run.status, run.status)
         lines.append(f'    subgraph run_{run.id}["{label(run.title)}（{state}）"]')
-        previous = ""
+        entry = entries[run.id]
+        text = label(f"{run.contract} · {duration(run.elapsed_ms)}")
+        style = run.status if run.status in ("ok", "running") else "failed"
+        lines.append(f'        {entry}["{text}"]:::{style}')
+        previous = entry
         for index, step in enumerate(run.steps, start=1):
             node = f"n_{run.id}_{index}"
-            first_step.setdefault(run.id, node)
-            status = STEP_STATUS_TEXT.get(step.status, step.status)
-            text = f"{index}. {step.title} | {status} | {duration(step.elapsed_ms)}"
-            lines.append(f'        {node}["{label(text)}"]:::{step.status}')
-            if previous:
-                lines.append(f"        {previous} --> {node}")
+            lines += condition_node(node, previous, step)
+            lines += step_node(node, index, step)
+            lines.append(
+                f"        {previous if not step.condition else node + '_condition'} --> {node}"
+            )
+            lines += database_nodes(node, step)
+            lines += external_nodes(node, step)
             previous = node
         lines.append("    end")
     for run in runs:
         for index, step in enumerate(run.steps, start=1):
             for child in step.children:
-                if child in first_step:
-                    lines.append(f"    n_{run.id}_{index} -.-> {first_step[child]}")
+                if child in entries:
+                    lines.append(f"    n_{run.id}_{index} -.-> {entries[child]}")
     return "\n".join(lines + STYLES)
+
+
+# 条件有独立的函数、时间和结果；抛错时结果仍是未知。
+def condition_node(node: str, previous: str, step: StepRecord) -> list[str]:
+    if not step.condition:
+        return []
+    result = {True: "执行", False: "跳过", None: "未知"}[step.condition_result]
+    parts = [
+        step.condition,
+        f"{result} · {duration(step.condition_elapsed_ms)}",
+        step.condition_name,
+        step.condition_source,
+    ]
+    text = "<br/>".join(label(part, limit=None) for part in parts)
+    return [f'        {node}_condition{{"{text}"}}', f"        {previous} --> {node}_condition"]
+
+
+# 位置和产出直接写在节点中；完整字段形状保留在结构化记录中。
+def step_node(node: str, index: int, step: StepRecord) -> list[str]:
+    status = STEP_STATUS_TEXT.get(step.status, step.status)
+    parts = [
+        f"{index}. {step.title} | {status} | {duration(step.elapsed_ms)}",
+        step.name,
+        step.error_place or step.source,
+    ]
+    text = "<br/>".join(label(part, limit=None) for part in parts)
+    outputs = "、".join(step.outputs) or "无"
+    text += (
+        f"<br/>产出 {len(step.outputs)}/{len(step.writes)}：{label(outputs)}"
+        if step.outputs_recorded
+        else "<br/>产出未知（旧记录）"
+    )
+    if step.error_code:
+        text += f"<br/>错误：{label(step.error_code)}"
+    return [f'        {node}["{text}"]:::{step.status}']
+
+
+# SQL 节点深入到存储函数和调用行；超出保留数量时标出未保留的细节。
+def database_nodes(node: str, step: StepRecord) -> list[str]:
+    lines = []
+    for index, call in enumerate(step.database, start=1):
+        current = f"{node}_db{index}"
+        parts = [
+            f"{call.target}.{call.method} · {call.status} · {duration(call.elapsed_ms)}",
+            ", ".join(call.tables) or "表名未知",
+            f"行数：{call.rows if call.rows is not None else '未知'}",
+            call.function,
+            call.source,
+        ]
+        text = "<br/>".join(label(part, limit=None) for part in parts)
+        lines += [f'        {current}["{text}"]:::{call.status}', f"        {node} -.-> {current}"]
+    missing = step.database_count - len(step.database)
+    if missing or not step.database_complete:
+        text = f"另 {missing} 次 SQL 仅统计次数和耗时" if missing else "旧记录未采集 SQL 细节"
+        lines += [f'        {node}_db_unknown["{text}"]', f"        {node} -.-> {node}_db_unknown"]
+    return lines
+
+
+# 外部接口与模型调用的时间也显示在步骤下面，业务正文不进入图。
+def external_nodes(node: str, step: StepRecord) -> list[str]:
+    calls = [(call.prompt, call.status, call.elapsed_ms) for call in step.models]
+    calls += [
+        (
+            call.remote,
+            "failed"
+            if call.error or call.status >= 400
+            else "running"
+            if call.status == 0
+            else "ok",
+            call.elapsed_ms,
+        )
+        for call in step.remotes
+    ]
+    lines = []
+    for index, (name, status, elapsed) in enumerate(calls, start=1):
+        target = f"{node}_external{index}"
+        text = label(f"{name} · {status} · {duration(elapsed)}")
+        lines += [f'        {target}["{text}"]:::{status}', f"        {node} -.-> {target}"]
+    return lines
 
 
 # 生成一次运行的中文排查报告（Markdown）。
@@ -89,6 +173,15 @@ def info_table(run: RunRecord) -> list[str]:
     ]
     if run.gaps:
         rows.append(("记录完整性", "；".join(run.gaps)))
+    if run.steps:
+        slowest = max(run.steps, key=lambda step: step.elapsed_ms)
+        rows.append(
+            (
+                "最长步骤",
+                f"{slowest.title} · {duration(slowest.elapsed_ms)} · "
+                f"{slowest.source} · {slowest.name}",
+            )
+        )
     return [
         "| 项目 | 内容 |",
         "| --- | --- |",
@@ -107,6 +200,7 @@ def run_section(run: RunRecord, is_root: bool) -> list[str]:
     lines += ["| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for index, step in enumerate(run.steps, start=1):
         lines.append(step_row(index, step))
+    lines += database_table(run)
     models = [(step.title, call) for step in run.steps for call in step.models]
     if models:
         lines += [
@@ -134,6 +228,11 @@ def step_row(index: int, step: StepRecord) -> str:
     if step.condition:
         status += f"（条件：{step.condition}）"
     notes = list(step.notes)
+    if step.condition:
+        notes.append(
+            f"条件 {step.condition_name}：{step.condition_result}，"
+            f"{duration(step.condition_elapsed_ms)}，{step.condition_source}"
+        )
     if step.error_message:
         notes.insert(0, f"错误：{step.error_message}")
     place = step.error_place or step.source
@@ -141,11 +240,42 @@ def step_row(index: int, step: StepRecord) -> str:
     values += [
         duration(step.elapsed_ms),
         step.rule or "",
-        "；".join(step.values),
+        (f"产出 {len(step.outputs)}/{len(step.writes)}；" if step.outputs_recorded else "")
+        + "；".join(step.values),
         "；".join(notes),
-        place,
+        f"{place} · {step.name}",
     ]
     return "| " + " | ".join(cell(value) for value in values) + " |"
+
+
+# 数据库时间属于步骤时间的一部分，不与步骤时间相加。
+def database_table(run: RunRecord) -> list[str]:
+    if not any(step.database_count for step in run.steps):
+        return []
+    lines = [
+        "",
+        "| 步骤 | 数据库调用 | 表或视图 | 状态 | 耗时 | 行数 | 函数与位置 |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    summaries = []
+    for step in run.steps:
+        for call in step.database:
+            values = [
+                step.title,
+                f"{call.target}.{call.method} ({call.statement})",
+                ", ".join(call.tables) or "未知",
+                call.status,
+                duration(call.elapsed_ms),
+                call.rows,
+                f"{call.source} · {call.function}",
+            ]
+            lines.append("| " + " | ".join(cell(value) for value in values) + " |")
+        if step.database_count:
+            summaries.append(
+                f"\n{cell(step.title)}：SQL 共 {step.database_count} 次，"
+                f"合计 {duration(step.database_elapsed_ms)}，保留 {len(step.database)} 次细节。"
+            )
+    return lines + summaries
 
 
 # 整理表格单元格，避免破坏 Markdown 表格。

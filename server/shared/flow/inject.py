@@ -171,12 +171,15 @@ async def build_store(
             place=part.title,
             caller=scope.caller,
             run_id=scope.root_id,
+            record=record,
         )
     if "legacy" in names:
         if scope.runtime.legacy is None:
             raise StepRuleBroken("旧系统数据库没有配置 APP_LEGACY_DATABASE_URL")
         old = await stack.enter_async_context(scope.runtime.legacy.read())
-        available["legacy"] = Db(old, read_only=True, place="旧系统只读库")
+        available["legacy"] = Db(
+            old, read_only=True, place="旧系统只读库", record=record, target="legacy"
+        )
     missing = names - set(available)
     if missing:
         raise StepRuleBroken(f"存储实现 {factory.__name__} 有不认识的构造参数 {sorted(missing)}")

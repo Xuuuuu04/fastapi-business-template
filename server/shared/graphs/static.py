@@ -25,7 +25,7 @@ def module_graph(catalog: Catalog) -> str:
 
 
 # 生成一个操作的计算流程图：输入、各步骤、条件、调用和结果。
-def flow_graph(binding: Binding) -> str:
+def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str:
     flow, item = binding.flow, binding.contract
     notes = notes_of(item.input)
     inputs = "、".join(note.meaning or name for name, note in notes.items()) or "无"
@@ -36,7 +36,18 @@ def flow_graph(binding: Binding) -> str:
         current = f"s{index}"
         rule = f"<br/>规则 {label(part.rule)}" if part.rule else ""
         kind = STEP_KIND_TEXT.get(part.kind, part.kind)
-        lines.append(f'    {current}["{index}. {label(part.title)}（{kind}）{rule}"]:::{part.kind}')
+        location = f"<br/>{label(part.name)} · {label(part.source, limit=None)}"
+        fields = (
+            f"<br/>读：{label('、'.join(part.reads) or '无')} → "
+            f"写：{label('、'.join(part.writes) or '无')}"
+        )
+        record = execution.get(part.name) if execution is not None else None
+        detail = execution_text(record) if execution is not None else ""
+        style = record["status"] if record else part.kind
+        lines.append(
+            f'    {current}["{index}. {label(part.title)}（{kind}）'
+            f'{rule}{location}{fields}{detail}"]:::{style}'
+        )
         edge = f' -->|"条件：{label(part.when.title)}"| ' if part.when else " --> "
         lines.append(f"    {previous}{edge}{current}")
         lines += call_lines(current, part.uses, part.prompts)
@@ -48,6 +59,17 @@ def flow_graph(binding: Binding) -> str:
     lines.append(f'    finish(["结果：{label(result_note.meaning or flow.result)}"])')
     lines.append(f"    {previous} --> finish")
     return "\n".join(lines + STYLES)
+
+
+# 同一测试运行的状态可以直接叠在计算图上，未经过的节点保持明确。
+def execution_text(record: dict[str, Any] | None) -> str:
+    if record is None:
+        return "<br/>该运行未执行"
+    elapsed = record.get("elapsed_ms")
+    text = f"{elapsed:.2f} ms" if elapsed is not None else "耗时未知"
+    outputs = record.get("outputs", {})
+    produced = "、".join(outputs) if record.get("outputs_recorded") else "未知"
+    return f"<br/>最近测试：{label(record['status'])} · {text}<br/>产出：{label(produced or '无')}"
 
 
 # 画出步骤调用的其他操作和使用的提示词。

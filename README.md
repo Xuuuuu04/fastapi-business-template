@@ -28,11 +28,57 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 
 ## 用这个模板开始新项目
 
-1. 在 GitHub 上点“Use this template”建立新仓库，或者复制本仓库。
+1. 在模板的 `server/` 下运行 `uv run python -m tools.start_project /新项目目录 --name 产品名称`。
+   它创建干净副本，重新生成产品入口、任务与空业务计划，不复制模板讨论、验收、环境、数据库或测试历史。
+   也可先在 GitHub 上点“Use this template”建立仓库，再从该副本运行初始化并提交生成的新产品。
 2. 模板只保留用户权限和文件管理两个通用模块，不需要时在配置中设置 `APP_DISABLED_MODULES=["user_access","file_library"]`；代码和历史数据保留，接口与执行入口一起关闭。
 3. 在根目录 `AGENTS.md` 第 1 节写清产品名称、使用者和主要模块。
 4. 每个业务模块先运行 `uv run python -m tools.new_module 模块名 --title 中文名` 生成固定目录和测试，再在 `doc/模块名/` 写清真实需求和规则，按 `AGENTS.md` 第 3 节开发。
 5. 开发时用 `uv run python -m tools.check --module 模块名` 单独检查；每次完成后运行 `uv run python -m tools.check`；生产使用 PostgreSQL 时加 `--postgres 数据库地址`。
+
+## 一次查看开发状态
+
+先在 [project-plan.json](project-plan.json) 写产品名称、业务线、开发包与预期操作，未实现的开发包也可先列入。
+分组只用于理解和分工，`service/模块名` 的代码位置保持一致。
+下面的命令在 `server/` 下运行。
+
+```bash
+uv run python -m tools.project                         # 项目根、业务线、模块与最近测试
+uv run python -m tools.project --json                  # 给主干 Agent 的完整结构化状态
+uv run python -m tools.project --module file_library   # 操作、条件、计算图、规则、源码和步骤测试状态
+uv run python -m tools.project --runs                  # 按需读取近期数据库运行记录
+```
+
+[doc/development.md](doc/development.md) 是可提交的设计与结构视图。
+`tools.check` 每轮保存实际结果到本机 `server/var/development/checks/`，支持模块测试和不同数据库；
+源码改动后旧结果显示过期。登记比例与测试成功执行比例分别计算，不等同于业务验收；
+没有设计目标时比例未知。`--runs` 比较真实源码摘要，计算近期成功样例覆盖，并保留旧版本记录；
+未执行的操作是否正确仍未知。主干 Agent 可用 `--checks /分支检查目录` 汇集其他 Agent 或 CI 的检查。
+
+## 固定结构与运行细节
+
+新包由 `tools.new_module` 生成。默认服务与 worker 启动前检查登记、`module.json`、固定文件位置、
+步骤函数位置、依赖方向和框架摘要；误建业务目录、越过模块公开入口或无意修改框架会拒绝启动。
+步骤和存储文件可按用途增加，包根只接受固定文件与 `data_主题.py`。这限制意外偏离，开发者的文件权限仍由工作环境管理。
+
+计算图直接显示文件、函数、规则与读写字段。实际执行图进一步显示条件判断的结果与耗时、每步耗时与产出，
+下层模块、SQL、外部接口与模型调用的时间；SQL 定位到存储函数和调用行，列出表或视图、行数和失败状态。
+运行页面与中文报告提供相同细节。大段计算需要更细时间时拆成有意义的步骤，函数内时间包含在所属步骤中。
+SQL 每步骤保留前 200 次细节，超出后继续统计次数和总耗时，图中明确标出省略数量；不保存 SQL 参数或查询结果。
+旧项目升级后先运行 `tools.adopt_modules`，结构不合格时先调整文件，再检查和启动。
+
+## 已有产品接收模板更新
+
+准备产品上次采用的旧模板和准备升级的新模板，在产品的 `server/` 下运行：
+
+```bash
+uv run python -m tools.update_framework --base /旧模板目录 --source /新模板目录
+uv run python -m tools.update_framework --base /旧模板目录 --source /新模板目录 --apply
+```
+
+默认只预览；文本独立改动可合并，有冲突时全部保留原样。产品业务、登记、依赖、配置与数据库迁移历史
+不自动覆盖，相关上游变化另列出。新产品保存 `template-source.json` 记录来源；
+旧产品没有共同 Git 祖先也可使用。首次接入、版本不兼容与检查步骤见 [更新说明](server/tools/template/UPGRADING.md)。
 
 ## 持续集成
 

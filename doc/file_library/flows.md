@@ -23,9 +23,9 @@
 ```mermaid
 flowchart TD
     start(["输入：文件所属组织、上传临时区返回的文件编号"])
-    s1["1. 保存文件内容（数据访问）<br/>规则 R-01"]:::read
+    s1["1. 保存文件内容（数据访问）<br/>规则 R-01<br/>prepare_file · service/file_library/steps/files.py:19<br/>读：org_id、temp_id → 写：staged"]:::read
     start --> s1
-    s2["2. 登记文件（保存）<br/>规则 R-01"]:::save
+    s2["2. 登记文件（保存）<br/>规则 R-01<br/>save_file · service/file_library/steps/files.py:25<br/>读：staged → 写：result"]:::save
     s1 --> s2
     finish(["结果：保存后的文件信息"])
     s2 --> finish
@@ -58,7 +58,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：文件所属组织、文件编号"])
-    s1["1. 读取文件（数据访问）<br/>规则 R-02"]:::read
+    s1["1. 读取文件（数据访问）<br/>规则 R-02<br/>read_file · service/file_library/steps/files.py:31<br/>读：org_id、file_id → 写：result"]:::read
     start --> s1
     finish(["结果：授权后的文件信息和存储键"])
     s1 --> finish
@@ -90,7 +90,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：要查询的组织、从第几条开始，从 0 计数、本页最多返回多少条"])
-    s1["1. 查询文件（数据访问）<br/>规则 R-02"]:::read
+    s1["1. 查询文件（数据访问）<br/>规则 R-02<br/>list_files · service/file_library/steps/files.py:40<br/>读：org_id、offset、limit → 写：result"]:::read
     start --> s1
     finish(["结果：一页文件，按保存时间从新到旧"])
     s1 --> finish
@@ -123,7 +123,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：文件所属组织、文件编号"])
-    s1["1. 标记删除（保存）<br/>规则 R-03"]:::save
+    s1["1. 标记删除（保存）<br/>规则 R-03<br/>delete_file · service/file_library/steps/files.py:46<br/>读：org_id、file_id → 写：result"]:::save
     start --> s1
     finish(["结果：标记删除完成"])
     s1 --> finish
@@ -155,11 +155,11 @@ flowchart TD
 ```mermaid
 flowchart TD
     start(["输入：无"])
-    s1["1. 查找待清理文件（数据访问）<br/>规则 R-03"]:::read
+    s1["1. 查找待清理文件（数据访问）<br/>规则 R-03<br/>find_deleted · service/file_library/steps/files.py:54<br/>读：无 → 写：pending、orphans"]:::read
     start --> s1
-    s2["2. 清理文件内容（数据访问）<br/>规则 R-03"]:::read
+    s2["2. 清理文件内容（数据访问）<br/>规则 R-03<br/>remove_objects · service/file_library/steps/files.py:61<br/>读：pending、orphans → 写：deleted_ids、temp_removed、orphan_removed"]:::read
     s1 --> s2
-    s3["3. 清理文件记录（保存）<br/>规则 R-03"]:::save
+    s3["3. 清理文件记录（保存）<br/>规则 R-03<br/>delete_rows · service/file_library/steps/files.py:74<br/>读：deleted_ids、temp_removed、orphan_removed → 写：result"]:::save
     s2 --> s3
     finish(["结果：清理结果"])
     s3 --> finish

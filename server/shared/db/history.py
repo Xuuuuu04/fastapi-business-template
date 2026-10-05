@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from shared.access.caller import Caller
 from shared.db.database import Database
 from shared.db.tables import metadata
+from shared.db.tracing import query_record
+from shared.records.models import StepRecord
 
 HIDDEN = "（已隐藏）"
 MAX_VALUE = 1000
@@ -76,9 +78,18 @@ def text_of(value: Any) -> str:
 
 
 # 在给定事务中写入历史行。
-async def save_history(connection: AsyncConnection, rows: list[dict[str, Any]]) -> None:
+async def save_history(
+    connection: AsyncConnection,
+    rows: list[dict[str, Any]],
+    record: StepRecord | None = None,
+    target: str = "database",
+) -> None:
     if rows:
-        await connection.execute(insert(change_history), rows)
+        statement = insert(change_history)
+        with query_record(record, statement, "history", target) as call:
+            await connection.execute(statement, rows)
+            if call is not None:
+                call.rows = len(rows)
 
 
 # 查询变更历史；org_id 为空表示全部组织，table 和 key 为空表示不筛选。

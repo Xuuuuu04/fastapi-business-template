@@ -17,6 +17,7 @@
 
 ## 内部组织
 
+- `module.json`：生成器提供的标准结构说明，不能自行扩展允许的文件范围。
 - `data.py`：公开数据、流程数据、业务错误。
 - `flow.py`：每个操作的步骤顺序。
 - `steps/`：`check_record.py` 整理输入；`store_records.py` 读写数据库。

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.setup.catalog import MODULES
+from app.setup.structure import ROOT, check_structure
 from shared.access.vault import Vault
 from shared.cache.backends import Cache, MemoryCache, RedisCache
 from shared.config.settings import Settings, check_production
@@ -26,6 +27,7 @@ from shared.modules.catalog import Catalog
 from shared.modules.module import Module
 from shared.records.recorder import Recorder
 from shared.records.stores import MemoryRunStore, RunStore, SqlRunStore
+from shared.records.version import source_version
 from shared.remote_calls.service import RemoteService
 from shared.telemetry.service import Telemetry
 
@@ -68,6 +70,8 @@ def build(
     modules: Sequence[Module] | None = None,
     provider: ModelProvider | None = None,
 ) -> Services:
+    if modules is None:
+        check_structure(MODULES)
     catalog = Catalog(enabled_modules(settings) if modules is None else modules)
     problems = check_production(settings, needs_vault="vault" in store_requirements(catalog))
     problems += unconfigured_remotes(settings, catalog)
@@ -85,7 +89,10 @@ def build(
     )
     recorder = Recorder(store, buffer=settings.run_record_buffer)
     models = model_service(settings, catalog, provider)
-    return finish_build(settings, catalog, database, recorder, models)
+    services = finish_build(settings, catalog, database, recorder, models)
+    if modules is None:
+        services.runtime.source_version = source_version(ROOT)
+    return services
 
 
 # 关闭模块只影响接口和执行入口，保留其数据库表与历史数据。

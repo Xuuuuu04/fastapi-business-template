@@ -28,6 +28,7 @@ def targets(name: str) -> dict[str, Path]:
         "service/public.py.txt": service / "public.py",
         "service/flow.py.txt": service / "flow.py",
         "service/module.py.txt": service / "module.py",
+        "service/module.json.txt": service / "module.json",
         "service/steps_README.md.txt": service / "steps" / "README.md",
         "service/steps/check_record.py.txt": service / "steps" / "check_record.py",
         "service/steps/store_records.py.txt": service / "steps" / "store_records.py",

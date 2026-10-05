@@ -26,7 +26,7 @@ from shared.flow.step import Condition, Step
 from shared.flow.view import FieldTypes, StepView, missing_writes
 from shared.modules.catalog import Binding
 from shared.records.models import RunRecord, StepRecord
-from shared.records.values import describe_value
+from shared.records.values import describe_value, shape_text
 
 
 # 执行一个操作的流程并返回结果。
@@ -69,6 +69,8 @@ async def run_part(
         source=part.source,
         reads=list(part.reads),
         writes=list(part.writes),
+        database_complete=True,
+        outputs_recorded=True,
         started_at=time.time(),
     )
     run.steps.append(record)
@@ -82,11 +84,9 @@ async def run_part(
     run.updated_at = record.started_at
     started = time.perf_counter()
     try:
-        if part.when is not None:
-            record.condition = part.when.title
-            if not decide(part.when, values, binding.types):
-                record.status = "skipped"
-                return
+        if part.when is not None and not run_condition(part.when, values, binding.types, record):
+            record.status = "skipped"
+            return
         await run_step(part, values, scope, run, record, binding)
         record.status = "ok"
     except BaseException as error:
@@ -112,6 +112,23 @@ def decide(when: Condition, values: dict[str, Any], types: FieldTypes) -> bool:
     return result
 
 
+# 条件也是计算节点，单独记录函数位置、用时和是否执行下一步。
+def run_condition(
+    when: Condition, values: dict[str, Any], types: FieldTypes, record: StepRecord
+) -> bool:
+    record.condition, record.condition_name, record.condition_source = (
+        when.title,
+        when.name,
+        when.source,
+    )
+    started = time.perf_counter()
+    try:
+        record.condition_result = decide(when, values, types)
+        return record.condition_result
+    finally:
+        record.condition_elapsed_ms = (time.perf_counter() - started) * 1000
+
+
 # 执行一个步骤并检查它是否按声明写入。
 async def run_step(
     part: Step,
@@ -123,13 +140,27 @@ async def run_step(
 ) -> None:
     view = StepView(values, part.reads, part.writes, binding.types, part.title)
     before = fingerprints(values, part.reads) if scope.runtime.step_checks else None
-    async with tools_for(part, scope, run, record, binding.module) as tools:
-        if part.is_async:
-            returned = await part.func(view, **tools)
-        elif part.heavy:
-            returned = await asyncio.to_thread(part.func, view, **tools)
-        else:
-            returned = part.func(view, **tools)
+    try:
+        async with tools_for(part, scope, run, record, binding.module) as tools:
+            if part.is_async:
+                returned = await part.func(view, **tools)
+            elif part.heavy:
+                returned = await asyncio.to_thread(part.func, view, **tools)
+            else:
+                returned = part.func(view, **tools)
+        check_return(returned, part)
+        missing = missing_writes(view)
+        if missing:
+            labels = "、".join(binding.types.label(name) for name in missing)
+            raise StepRuleBroken(f"步骤“{part.title}”声明会写入 {labels}，但结束时没有写入")
+        if before is not None:
+            check_unchanged(part, values, before, binding.types)
+    finally:
+        record_outputs(part, view, values, binding.types, record)
+
+
+# 意外返回的协程需要关闭，随后明确报错，不能把它当成正常产出。
+def check_return(returned: Any, part: Step) -> None:
     if returned is not None:
         close = getattr(returned, "close", None)
         if asyncio.iscoroutine(returned) and callable(close):
@@ -137,15 +168,21 @@ async def run_step(
         raise StepRuleBroken(
             f"步骤“{part.title}”返回了值；步骤的结果要写到 data 的字段上，不要 return"
         )
-    missing = missing_writes(view)
-    if missing:
-        labels = "、".join(binding.types.label(name) for name in missing)
-        raise StepRuleBroken(f"步骤“{part.title}”声明会写入 {labels}，但结束时没有写入")
-    if before is not None:
-        check_unchanged(part, values, before, binding.types)
-    record.values = [
-        describe_value(values.get(name), binding.types.notes[name]) for name in part.writes
-    ]
+
+
+# 失败时也保留已经写出的字段，不能把部分产出误记为全部完成。
+def record_outputs(
+    part: Step, view: StepView, values: dict[str, Any], types: FieldTypes, record: StepRecord
+) -> None:
+    missing = set(missing_writes(view))
+    written = [name for name in part.writes if name not in missing]
+    record.values = [describe_value(values[name], types.notes[name]) for name in written]
+    record.outputs = {
+        name: "已写入（敏感字段，不记录内容）"
+        if types.notes[name].secret
+        else shape_text(values[name])
+        for name in written
+    }
 
 
 # 计算只读字段内容的摘要，用于发现原地修改。

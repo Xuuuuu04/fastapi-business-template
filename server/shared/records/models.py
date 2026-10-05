@@ -70,6 +70,21 @@ class RemoteCallRecord:
     error: str = ""
 
 
+# 一次业务数据库调用的位置、耗时和行数；不保存 SQL 文本、参数或查询结果。
+@dataclass
+class DatabaseCallRecord:
+    method: str
+    target: str
+    statement: str
+    tables: list[str]
+    source: str
+    function: str
+    status: str = "running"
+    elapsed_ms: float = 0.0
+    rows: int | None = None
+    error_code: str = ""
+
+
 # 一次步骤执行的状态、字段摘要、外部调用与失败位置。
 @dataclass
 class StepRecord:
@@ -83,13 +98,23 @@ class StepRecord:
     writes: list[str] = field(default_factory=list)
     status: str = "running"
     condition: str = ""
+    condition_source: str = ""
+    condition_name: str = ""
+    condition_elapsed_ms: float = 0.0
+    condition_result: bool | None = None
     started_at: float = 0.0
     elapsed_ms: float = 0.0
     values: list[str] = field(default_factory=list)
+    outputs: dict[str, str] = field(default_factory=dict)
+    outputs_recorded: bool = False
     notes: list[str] = field(default_factory=list)
     children: list[str] = field(default_factory=list)
     models: list[ModelCallRecord] = field(default_factory=list)
     remotes: list[RemoteCallRecord] = field(default_factory=list)
+    database: list[DatabaseCallRecord] = field(default_factory=list)
+    database_count: int = 0
+    database_elapsed_ms: float = 0.0
+    database_complete: bool = False
     cache_hits: int = 0
     cache_misses: int = 0
     emitted: int = 0
@@ -127,6 +152,7 @@ class RunRecord:
     writes: str = "none"
     summary: str = ""
     gaps: list[str] = field(default_factory=list)
+    source_version: str = ""
 
     # 转成可以保存为 JSON 的字典。
     def to_dict(self) -> dict[str, Any]:
@@ -139,5 +165,8 @@ def run_from_dict(data: dict[str, Any]) -> RunRecord:
     for raw in data.get("steps", []):
         models = [ModelCallRecord(**item) for item in raw.get("models", [])]
         remotes = [RemoteCallRecord(**item) for item in raw.get("remotes", [])]
-        steps.append(StepRecord(**{**raw, "models": models, "remotes": remotes}))
+        database = [DatabaseCallRecord(**item) for item in raw.get("database", [])]
+        steps.append(
+            StepRecord(**{**raw, "models": models, "remotes": remotes, "database": database})
+        )
     return RunRecord(**{**data, "steps": steps})

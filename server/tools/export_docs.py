@@ -16,6 +16,8 @@ from app.setup.catalog import MODULES
 from shared.graphs.static import module_graph
 from shared.modules.catalog import Catalog
 from tools.api_doc import api_markdown, docs_app
+from tools.development.design import design_doc
+from tools.development.plan import read_plan
 from tools.flow_doc import HEADER, module_doc, route_map
 from tools.progress_doc import progress_doc
 from tools.quality.rules import PROJECT
@@ -36,12 +38,14 @@ def modules_doc(catalog: Catalog) -> str:
 
 # 列出全部应生成的文档及其内容。
 def generated(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
-    app = docs_app()
+    plan = read_plan(project)
+    app = docs_app(plan["name"] if plan else None)
     schema, markdown = api_markdown(app)
     routes = route_map(app)
     files = {
         project / "doc" / "modules.md": modules_doc(catalog),
         project / "doc" / "progress.md": progress_doc(catalog, project),
+        project / "doc" / "development.md": design_doc(catalog, project),
         project / "doc" / "api" / "openapi.json": json.dumps(schema, ensure_ascii=False, indent=2)
         + "\n",
         project / "doc" / "api" / "index.md": markdown + "\n",

@@ -1,0 +1,64 @@
+"""
+开发视图只把相同源码的成功运行计入当前样例，旧版本与缺失记录仍可见。
+源码摘要忽略文档和运行历史，在代码变化时改变。
+"""
+
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+from app.setup.build import Services
+from service.file_library.public import FileListQuery, list_files
+from shared.access.caller import DEVELOPER
+from shared.records.stores import RunFilter, SqlRunStore
+from shared.records.version import source_version
+from tools.development.runtime import recent_runs
+from tools.quality.rules import PROJECT, ROOT
+from tools.template.initialization import initialize
+
+
+# 从真实操作取得记录，再验证版本与记录完整性筛选，而不是只检查标签。
+@pytest.mark.anyio
+async def test_current_success_samples_require_matching_source(services: Services) -> None:
+    await services.runtime.run(list_files, FileListQuery(org_id="version-test"), caller=DEVELOPER)
+    run = (await services.recorder.recent(RunFilter(), 1))[0]
+    assert run.source_version == source_version(ROOT)
+    store = SqlRunStore(services.database)
+    await store.save(
+        [
+            replace(
+                run, id="old", root_id="old", contract="old_package.calculate", source_version="old"
+            ),
+            replace(
+                run,
+                id="lost",
+                root_id="lost",
+                contract="lost_package.calculate",
+                gaps=["部分记录缺失"],
+            ),
+            run,
+        ]
+    )
+    settings = services.settings.model_copy(update={"run_records": "database"})
+    status = await recent_runs(settings, 10)
+    assert status["current_successful"] == ["file_library.list_files"]
+    assert "old_package.calculate" in status["successful"]
+    assert "lost_package.calculate" not in status["successful"]
+    assert all("graph" in item and item["steps"][0]["source"] for item in status["runs"])
+    assert "caller" not in str(status) and "version-test" not in str(status)
+
+
+# 阅读和编辑说明不会改变运行代码版本，真正改业务源码会改变。
+def test_source_version_tracks_code_not_history(tmp_path: Path) -> None:
+    target = tmp_path / "product"
+    initialize(PROJECT, target, "版本样例")
+    root = target / "server"
+    before = source_version(root)
+    (target / "doc/tasks.md").write_text("# 新工作\n", encoding="utf-8")
+    (root / "var").mkdir()
+    (root / "var/check.json").write_text("{}", encoding="utf-8")
+    assert source_version(root) == before
+    source = root / "service/file_library/data.py"
+    source.write_text(source.read_text() + "\n# 代码变化样例\n", encoding="utf-8")
+    assert source_version(root) != before

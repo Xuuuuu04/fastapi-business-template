@@ -21,10 +21,10 @@ STYLES = [
 
 
 # 转义节点标签中的特殊字符，并限制长度。
-def label(text: str) -> str:
+def label(text: str, *, limit: int | None = MAX_LABEL) -> str:
     clean = " ".join(str(text).split())
-    if len(clean) > MAX_LABEL:
-        clean = clean[:MAX_LABEL] + "……"
+    if limit is not None and len(clean) > limit:
+        clean = clean[:limit] + "……"
     for old, new in (("&", "&amp;"), ('"', "&quot;"), ("<", "&lt;"), (">", "&gt;"), ("`", "'")):
         clean = clean.replace(old, new)
     return clean

@@ -100,6 +100,15 @@ jobs:
       - name: 全量检查（风格、格式、类型、生成文档、SQLite 与 PostgreSQL 测试）
         run: uv run --no-sync python -m tools.check --postgres "$POSTGRES_URL"
 
+      - name: 保存实际检查轮次（不含数据库地址和业务数据）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: development-checks
+          path: server/var/development/checks/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
   image:
     name: 部署镜像与配置
     runs-on: ubuntu-24.04
@@ -113,8 +122,13 @@ jobs:
       - name: 构建部署镜像
         run: docker build --file deploy/Dockerfile --tag template-server:ci .
 
-      - name: 确认镜像中的接口和 worker 能导入
-        run: docker run --rm template-server:ci python -c "import app.setup.web, app.setup.worker"
+      - name: 确认镜像中的接口、worker 和默认服务结构（不连接数据库）
+        run: >-
+          docker run --rm template-server:ci python -c
+          "import app.setup.web, app.setup.worker;
+          from app.setup.build import build;
+          from shared.config.settings import Settings;
+          build(Settings(_env_file=None, env='test'))"
 
       # compose 固定读取 server/.env，并要求设置数据库密码；这里只校验配置能否展开。
       - name: 校验单机部署配置
