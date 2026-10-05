@@ -2,8 +2,11 @@
 
 > 由 tools.export_docs 生成。计划来自 project-plan.json；登记数量来自代码，不能表示测试通过。
 
-实际检查轮次与操作成功执行情况：`uv run python -m tools.project`。
-模块内部步骤、条件、源码与上轮测试：`uv run python -m tools.project --module 模块名`。
+主代理先读摘要：`uv run python -m tools.project --summary --json`。
+单包操作与规则样例：`uv run python -m tools.project --module 模块名 --summary --json`。
+单操作步骤与证据：`uv run python -m tools.project --operation 模块.操作 --json`。
+修改后的调用方范围：`uv run python -m tools.impact --base origin/main --json`。
+完整 JSON 仍保留供按需读取；局部检查不代替全量检查，登记和测试执行不等于业务验收。
 
 ```mermaid
 flowchart TD

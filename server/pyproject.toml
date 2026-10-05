@@ -44,7 +44,10 @@ testpaths = [
 ]
 addopts = "--strict-markers --strict-config --import-mode=importlib -p no:cacheprovider"
 pythonpath = ["."]
-markers = ["postgres_only: 只在 PostgreSQL 上有意义的检查，SQLite 下自动跳过"]
+markers = [
+  "postgres_only: 只在 PostgreSQL 上有意义的检查，SQLite 下自动跳过",
+  "rule_case(id): 对应业务规则表声明的确认样例，如 user_access.R-05-C01",
+]
 filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
 
 [tool.ruff]

@@ -1,6 +1,5 @@
 """
-从 HTTP 入口验证登录会话（R-05 至 R-07）：刷新令牌轮换、重复使用时整组作废、
-停用用户与修改密码后立即失效、角色变化在刷新时生效、退出登录和清理过期记录。
+从 HTTP 入口验证登录会话（R-05 至 R-07）及相关用户管理规则。
 """
 
 import asyncio
@@ -51,9 +50,8 @@ def prepare(client: TestClient) -> tuple[int, int, int]:
 
 # 用 alice 的密码登录，返回令牌响应。
 def sign_in(client: TestClient, password: str = "correct-password") -> dict[str, object]:
-    reply = client.post(
-        LOGIN, json={"org_code": "north", "username": "alice", "password": password}
-    )
+    body = {"org_code": "north", "username": "alice", "password": password}
+    reply = client.post(LOGIN, json=body)
     assert reply.status_code == 200, reply.text
     return dict(reply.json())
 
@@ -64,6 +62,8 @@ def bearer(tokens: dict[str, object]) -> dict[str, str]:
 
 
 # R-05：每次刷新换新刷新令牌；旧令牌再次提交时，连同新令牌一起作废。
+@pytest.mark.rule_case("user_access.R-05-C01")
+@pytest.mark.rule_case("user_access.R-05-C02")
 def test_refresh_rotates_and_detects_reuse(client: TestClient) -> None:
     prepare(client)
     first = sign_in(client)
@@ -74,7 +74,6 @@ def test_refresh_rotates_and_detects_reuse(client: TestClient) -> None:
     renewed = second.json()
     assert renewed["refresh_token"] != first["refresh_token"]
     assert client.get("/api/v1/files/north", headers=bearer(renewed)).status_code == 200
-
     reused = client.post(REFRESH, json={"refresh_token": first["refresh_token"]})
     assert reused.status_code == 401 and reused.json()["code"] == "refresh_rejected"
     stolen = client.post(REFRESH, json={"refresh_token": renewed["refresh_token"]})
@@ -120,6 +119,7 @@ async def refresh_after_both_checks(
 
 
 # R-05：两个请求先读到 active，竞争失败仍需提交整组作废，首次返回的新令牌也不能刷新。
+@pytest.mark.rule_case("user_access.R-05-C05")
 def test_concurrent_refresh_reuse_revokes_family(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -149,14 +149,18 @@ def test_concurrent_refresh_reuse_revokes_family(
 
     assert client.portal.call(revoked_family) == [True, True]
     assert client.post(REFRESH, json={"refresh_token": renewed["refresh_token"]}).status_code == 401
-    assert (
-        client.post(REFRESH, json={"refresh_token": other_login["refresh_token"]}).status_code
-        == 200
-    )
+    other = client.post(REFRESH, json={"refresh_token": other_login["refresh_token"]})
+    assert other.status_code == 200
 
 
 # R-05：检查后发生过期或退出作废时，保存拒绝刷新，不额外作废或签发令牌。
-@pytest.mark.parametrize("field", ["expires_at", "revoked_at"])
+@pytest.mark.parametrize(
+    "field",
+    [
+        pytest.param("expires_at", marks=pytest.mark.rule_case("user_access.R-05-C06")),
+        pytest.param("revoked_at", marks=pytest.mark.rule_case("user_access.R-05-C07")),
+    ],
+)
 def test_refresh_rechecks_expiry_and_revocation(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, field: str
 ) -> None:
@@ -194,19 +198,16 @@ def test_refresh_rechecks_expiry_and_revocation(
 
 
 # R-02、R-05：停用用户后刷新立即失败；角色变化在下一次刷新时写进新令牌。
+@pytest.mark.rule_case("user_access.R-05-C03")
 def test_disable_and_role_change(client: TestClient) -> None:
     viewer, manager, user_id = prepare(client)
     tokens = sign_in(client)
-    assert (
-        client.get("/api/v1/access/users?org_id=north", headers=bearer(tokens)).status_code == 403
-    )
+    url = "/api/v1/access/users?org_id=north"
+    assert client.get(url, headers=bearer(tokens)).status_code == 403
     change = {"org_id": "north", "user_id": user_id, "role_id": manager, "active": True}
     assert client.put("/api/v1/access/users", json=change, headers=KEY).status_code == 200
     tokens = client.post(REFRESH, json={"refresh_token": tokens["refresh_token"]}).json()
-    assert (
-        client.get("/api/v1/access/users?org_id=north", headers=bearer(tokens)).status_code == 200
-    )
-
+    assert client.get(url, headers=bearer(tokens)).status_code == 200
     change |= {"role_id": viewer, "active": False}
     assert client.put("/api/v1/access/users", json=change, headers=KEY).status_code == 200
     refused = client.post(REFRESH, json={"refresh_token": tokens["refresh_token"]})
@@ -237,6 +238,7 @@ def test_change_password(client: TestClient) -> None:
 
 
 # R-05、R-07：退出登录后刷新令牌失效；系统任务删除作废超过一天的记录。
+@pytest.mark.rule_case("user_access.R-05-C04")
 def test_logout_and_purge(client: TestClient) -> None:
     prepare(client)
     tokens = sign_in(client)

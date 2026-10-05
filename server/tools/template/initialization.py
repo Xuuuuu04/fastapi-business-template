@@ -94,7 +94,8 @@ def product_entry(target: Path, name: str) -> None:
         "开发入口见 [AGENTS.md](AGENTS.md)。\n\n```bash\ncd server\nuv sync\n"
         "cp .env.example .env\nuv run alembic upgrade head\n"
         "uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log\n```\n\n"
-        "开发状态：`uv run python -m tools.project`；完整检查：`uv run python -m tools.check`。\n"
+        "开发摘要：`uv run python -m tools.project --summary --json`；"
+        "完整检查：`uv run python -m tools.check`。\n"
         "框架来源见 [template-source.json](template-source.json)，"
         "更新方法见 [UPGRADING](server/tools/template/UPGRADING.md)。\n",
     )
@@ -114,10 +115,11 @@ def product_entry(target: Path, name: str) -> None:
         "- [ ] 上线前：按实际环境验证数据库、权限、容量和恢复过程\n",
     )
     agents = (target / "AGENTS.md").read_text(encoding="utf-8")
-    start, end = agents.index("## 1."), agents.index("## 2.")
+    end = agents.index("## 怎么运行")
     agents = (
-        agents[:start] + f"## 1. 产品业务\n\n- 产品：{name}\n- 使用者：（待填写）\n"
-        "- 主要模块：见 [doc/README.md](doc/README.md)；"
+        f"# {name}\n\n"
+        + f"## 这个项目是什么\n\n- 产品：{name}\n- 使用者：（待填写）\n"
+        + "- 主要模块：见 [doc/README.md](doc/README.md)；"
         "预先设计见 [project-plan.json](project-plan.json)\n\n"
         "通用模块的规则已继承，采用前请按本产品确认。\n\n" + agents[end:]
     )

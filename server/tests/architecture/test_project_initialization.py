@@ -22,7 +22,9 @@ def test_native_product_copy(tmp_path: Path) -> None:
     initialize(PROJECT, target, "客户联系产品")
     for name in ("design", ".git", ".agents", "server/.env", "server/.venv", "server/var"):
         assert not (target / name).exists()
-    assert "客户联系产品" in (target / "AGENTS.md").read_text(encoding="utf-8")
+    agents = (target / "AGENTS.md").read_text(encoding="utf-8")
+    assert agents.startswith("# 客户联系产品\n")
+    assert "tools.project --summary --json" in (target / "README.md").read_text(encoding="utf-8")
     assert "已完成" not in (target / "doc/tasks.md").read_text(encoding="utf-8")
     assert "验收记录" not in (target / "server/deploy/README.md").read_text(encoding="utf-8")
     plan = json.loads((target / "project-plan.json").read_text(encoding="utf-8"))

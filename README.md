@@ -32,8 +32,8 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
    它创建干净副本，重新生成产品入口、任务与空业务计划，不复制模板讨论、验收、环境、数据库或测试历史。
    也可先在 GitHub 上点“Use this template”建立仓库，再从该副本运行初始化并提交生成的新产品。
 2. 模板只保留用户权限和文件管理两个通用模块，不需要时在配置中设置 `APP_DISABLED_MODULES=["user_access","file_library"]`；代码和历史数据保留，接口与执行入口一起关闭。
-3. 在根目录 `AGENTS.md` 第 1 节写清产品名称、使用者和主要模块。
-4. 每个业务模块先运行 `uv run python -m tools.new_module 模块名 --title 中文名` 生成固定目录和测试，再在 `doc/模块名/` 写清真实需求和规则，按 `AGENTS.md` 第 3 节开发。
+3. 在 [项目入口](AGENTS.md#这个项目是什么) 写清产品名称、使用者和主要模块。
+4. 每个业务模块先运行 `uv run python -m tools.new_module 模块名 --title 中文名` 生成固定目录和测试，再在本包业务说明中写清真实需求和规则，按 [项目约定](AGENTS.md#本项目的约定) 开发。
 5. 开发时用 `uv run python -m tools.check --module 模块名` 单独检查；每次完成后运行 `uv run python -m tools.check`；生产使用 PostgreSQL 时加 `--postgres 数据库地址`。
 
 ## 一次查看开发状态
@@ -43,17 +43,23 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 下面的命令在 `server/` 下运行。
 
 ```bash
-uv run python -m tools.project                         # 项目根、业务线、模块与最近测试
-uv run python -m tools.project --json                  # 给主干 Agent 的完整结构化状态
-uv run python -m tools.project --module file_library   # 操作、条件、计算图、规则、源码和步骤测试状态
-uv run python -m tools.project --runs                  # 按需读取近期数据库运行记录
+uv run python -m tools.project --summary --json         # 主代理先看缺项、待确认、失败与过期
+uv run python -m tools.project --module file_library --summary --json # 单包操作与确认样例
+uv run python -m tools.project --operation file_library.save_file --json # 单操作步骤与证据
+uv run python -m tools.project --test '准确pytest测试编号' --json # 单测试最近记录
+uv run python -m tools.impact --base origin/main --json  # 直接修改、调用方与建议检查
+uv run python -m tools.project --json                   # 保留旧完整入口，按需使用
+uv run python -m tools.project --runs --limit 10         # 明确读取配置数据库，默认不读取
 ```
 
 [doc/development.md](doc/development.md) 是可提交的设计与结构视图。
 `tools.check` 每轮保存实际结果到本机 `server/var/development/checks/`，支持模块测试和不同数据库；
 源码改动后旧结果显示过期。登记比例与测试成功执行比例分别计算，不等同于业务验收；
 没有设计目标时比例未知。`--runs` 比较真实源码摘要，计算近期成功样例覆盖，并保留旧版本记录；
-未执行的操作是否正确仍未知。主干 Agent 可用 `--checks /分支检查目录` 汇集其他 Agent 或 CI 的检查。
+未执行的操作是否正确仍未知。主干 Agent 可用 `--checks /分支检查目录` 汇集其他 Agent 或 CI 的检查，生成的下一步命令保留这些目录。
+摘要只预览少量问题和缺项，保留准确数量与省略数量；完整检查单独保留，之后的局部成功不会遮住框架失败。
+被调用模块或跨包测试来源改变后，相关旧证据不计为当前通过。影响范围包含直接和传递调用及后台任务；仅按当前声明判断，历史删除和系统外调用仍需人工确认。
+重要确认样例在原规则表给编号，用 pytest `rule_case` 标记对应实际测试；各数据库、源码版本、测试结果与整轮检查分别显示。规则标注、样例声明或历史通过都不代表业务已验收。
 
 ## 固定结构与运行细节
 

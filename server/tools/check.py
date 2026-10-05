@@ -59,9 +59,11 @@ def run_tests(
 # 保存每轮的检查结果；检查期间源码改变时，该轮不能证明当前版本。
 def execute(module: str, postgres: str) -> list[tuple[str, bool]]:
     from app.setup.catalog import MODULES
+    from shared.modules.catalog import Catalog
 
     modules = [module] if module else [item.name for item in MODULES]
-    before = fingerprints(PROJECT, modules)
+    links = Catalog(MODULES).links()
+    before = fingerprints(PROJECT, modules, links)
     env = dict(os.environ)
     selected = steps(module)
     results = [(title, run(title, command, env)) for title, command in selected[:-1]]
@@ -84,7 +86,8 @@ def execute(module: str, postgres: str) -> list[tuple[str, bool]]:
         PROJECT,
         {
             "fingerprints": before,
-            "source_changed": before != fingerprints(PROJECT, modules),
+            "scope": {"kind": "module", "module": module} if module else {"kind": "all"},
+            "source_changed": before != fingerprints(PROJECT, modules, links),
             "passed": all(passed for _, passed in results),
             "checks": dict(results),
             "suites": suites,

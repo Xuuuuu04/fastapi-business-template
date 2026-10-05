@@ -10,11 +10,20 @@ import json
 import re
 import subprocess
 from collections.abc import Iterable
+from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from app.setup.catalog import MODULES
+from shared.config.settings import Settings
+from shared.modules.catalog import Catalog
 from tools.compare_api import compare
-from tools.framework_lock import LOCKED
+from tools.development.impact import (
+    framework_files,
+    impact_scope,
+    module_area,
+    scope_markdown,
+)
 from tools.progress_doc import PENDING, RULE_HEADING
 from tools.quality.rules import PROJECT
 
@@ -42,9 +51,9 @@ class Repo:
 
     # 列出与基准相比改动过的文件（相对仓库根目录），包括还没有提交的改动。
     def changed_files(self, base: str) -> list[str]:
-        output = self.git("diff", "--name-only", base)
-        untracked = self.git("ls-files", "--others", "--exclude-standard")
-        return sorted({line for line in (output + untracked).splitlines() if line})
+        output = self.git("diff", "--name-only", "--no-renames", "-z", base)
+        untracked = self.git("ls-files", "--others", "--exclude-standard", "-z")
+        return sorted({path for path in (output + untracked).split("\0") if path})
 
     # 当前分支与基准分支的分叉点，只比较这个分支自己的改动。
     def fork_point(self, base: str) -> str:
@@ -89,12 +98,7 @@ def section_changes(before: dict[str, str], after: dict[str, str]) -> list[str]:
 
 # 框架文件：受 framework.lock 保护的路径中改动过的文件。
 def framework_part(files: list[str]) -> list[str]:
-    locked = [
-        path
-        for path in files
-        if path.startswith("server/")
-        and any(path[len("server/") :].startswith(entry) for entry in LOCKED)
-    ]
+    locked = framework_files(files)
     if not locked:
         return ["没有改动框架文件。"]
     return ["以下框架文件有改动，原因应写在提交说明中：", "", *[f"- `{path}`" for path in locked]]
@@ -103,7 +107,9 @@ def framework_part(files: list[str]) -> list[str]:
 # 涉及的模块：每个模块改动了代码、业务文档、接口还是测试。
 def modules_part(files: list[str], modules: Iterable[str]) -> list[str]:
     rows = []
-    for name in modules:
+    names = set(modules)
+    owners = {owner[0] for path in files if (owner := module_area(path, names))}
+    for name in sorted(names | owners):
         areas = [
             label
             for prefix, label in AREAS
@@ -116,10 +122,10 @@ def modules_part(files: list[str], modules: Iterable[str]) -> list[str]:
     return ["| 模块 | 改动 |", "| --- | --- |", *rows]
 
 
-# 判断文件是否属于某个模块：路径中有以模块名命名的目录或文件。
+# 判断文件是否在模块的约定位置，避免内部同名目录误归属。
 def belongs(path: str, name: str) -> bool:
-    parts = path.split("/")
-    return name in parts[:-1] or parts[-1].split(".")[0] == name
+    owner = module_area(path, [name])
+    return owner is not None and owner[0] == name
 
 
 # 业务规则和待确认问题的变化。
@@ -163,31 +169,58 @@ def migrations_part(files: list[str]) -> list[str]:
     return [f"- `{path}`" for path in found] or ["没有数据库迁移。"]
 
 
-# 生成完整报告。
-def report(target: str, modules: Iterable[str], repo: Repo | None = None) -> str:
+# 机器报告保留原有各部分，并固定检查范围字段；所有内容来自同一份 Git 差异。
+def report_data(
+    target: str,
+    catalog: Catalog,
+    repo: Repo | None = None,
+    disabled_modules: Iterable[str] = (),
+) -> dict[str, Any]:
     repo = repo or Repo()
     base = repo.fork_point(target)
     files = repo.changed_files(base)
-    parts = [
-        ("框架文件", framework_part(files)),
-        ("涉及的模块", modules_part(files, modules)),
-        ("业务规则与待确认", rules_part(repo, base, files)),
-        ("操作流程", flows_part(repo, base, files)),
-        ("接口", api_part(repo, base)),
-        ("数据库迁移", migrations_part(files)),
-    ]
-    lines = [f"# 改动影响（与 {target} 相比，共 {len(files)} 个文件）", ""]
-    for title, body in parts:
+    scope = impact_scope(files, catalog, disabled_modules)
+    parts = {
+        "框架文件": framework_part(files),
+        "涉及的模块": modules_part(files, catalog.modules),
+        "业务规则与待确认": rules_part(repo, base, files),
+        "操作流程": flows_part(repo, base, files),
+        "接口": api_part(repo, base),
+        "数据库迁移": migrations_part(files),
+        "检查范围": scope_markdown(scope),
+    }
+    return {
+        "schema_version": 1,
+        "base": target,
+        "fork_point": base,
+        "files": files,
+        **asdict(scope),
+        "sections": parts,
+    }
+
+
+# Markdown 在原报告末尾追加检查范围，接口与迁移比较仍完整保留。
+def markdown(data: dict[str, Any]) -> str:
+    lines = [f"# 改动影响（与 {data['base']} 相比，共 {len(data['files'])} 个文件）", ""]
+    for title, body in data["sections"].items():
         lines += [f"## {title}", "", *body, ""]
     return "\n".join(lines)
 
 
-# 命令行入口。
+# 保留原调用入口；传入 Catalog 时也可用于独立模块声明测试。
+def report(target: str, modules: Iterable[str] | Catalog, repo: Repo | None = None) -> str:
+    catalog = modules if isinstance(modules, Catalog) else Catalog(MODULES)
+    return markdown(report_data(target, catalog, repo))
+
+
+# 命令行只读取启用配置用于展示；依赖图始终来自完整登记范围。
 def main() -> None:
     parser = argparse.ArgumentParser(description="列出与基准分支相比的改动影响")
     parser.add_argument("--base", default="origin/main", help="基准分支或提交，默认 origin/main")
+    parser.add_argument("--json", action="store_true", help="输出 schema_version=1 的稳定 JSON")
     args = parser.parse_args()
-    print(report(args.base, [module.name for module in MODULES]))
+    data = report_data(args.base, Catalog(MODULES), disabled_modules=Settings().disabled_modules)
+    print(json.dumps(data, ensure_ascii=False, indent=2) if args.json else markdown(data))
 
 
 if __name__ == "__main__":
