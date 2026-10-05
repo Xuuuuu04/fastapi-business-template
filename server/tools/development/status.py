@@ -59,7 +59,8 @@ def test_status(
     fingerprint: str,
     versions: dict[str, str] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    result = module_checks(checks, name, fingerprint)
+    formal = [check for check in checks if check_scope(check)["kind"] != "quick"]
+    result = module_checks(formal, name, fingerprint)
     current: list[dict[str, Any]] = []
     for suite in result["latest"].values():
         cases = [
@@ -200,6 +201,8 @@ def latest_check_status(check: dict[str, Any]) -> dict[str, Any]:
     result = {key: check[key] for key in ("finished_at", "checks", "passed", "source_changed")}
     result["recorded_modules"] = sorted(check["fingerprints"])
     result["scope"] = check_scope(check)
+    result["timings"] = check.get("timings")
+    result["elapsed_seconds"] = check.get("elapsed_seconds")
     result["suites"] = test_summary({"rounds": 1, "latest": suites})["latest"]
     # 全局摘要仅知道该轮运行期间是否改过源码；当前适用性由各模块的版本判断。
     for suite in result["suites"].values():
@@ -209,11 +212,11 @@ def latest_check_status(check: dict[str, Any]) -> dict[str, Any]:
 
 # 完整检查独立保留，之后的局部成功不能遮住框架失败。
 def full_check_status(
-    checks: list[dict[str, Any]], versions: dict[str, str]
+    checks: list[dict[str, Any]], versions: dict[str, str], project: Path | None = None
 ) -> dict[str, Any] | None:
     check = latest_full_check(checks)
     return (
-        {**latest_check_status(check), "current": full_check_current(check, versions)}
+        {**latest_check_status(check), "current": full_check_current(check, versions, project)}
         if check
         else None
     )
@@ -259,7 +262,7 @@ def project_status(
         "dependencies": catalog.links(),
         "check_rounds": len(checks),
         "latest_check": latest_check_status(checks[-1]) if checks else None,
-        "latest_full_check": full_check_status(checks, codes),
+        "latest_full_check": full_check_status(checks, codes, project),
         "runtime": None,
     }
 

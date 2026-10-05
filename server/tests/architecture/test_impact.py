@@ -111,7 +111,7 @@ def test_reverse_transitive_calls_and_background(catalog: Catalog, leaf: str) ->
     assert "beta" in scope.registered and "beta" not in scope.enabled
     assert any("alpha 调用 beta" in reason for reason in scope.reasons["alpha"])
     assert any("后台任务：丙操作" in reason for reason in scope.reasons["background"])
-    assert scope.commands == [f"{CHECK} --module {name}" for name in scope.affected]
+    assert scope.commands == [CHECK + " " + " ".join(f"--module {name}" for name in scope.affected)]
     assert not scope.full_check
     assert "当前启用范围" in "\n".join(scope_markdown(scope))
 

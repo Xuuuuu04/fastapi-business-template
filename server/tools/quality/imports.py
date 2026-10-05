@@ -7,6 +7,7 @@ shared 不导入 app、service、tools；接口层只导入模块的 public.py�
 
 import ast
 from collections.abc import Iterator
+from functools import lru_cache
 from pathlib import Path
 
 from tools.quality.report import Problem, files_under, relative
@@ -34,17 +35,31 @@ def check_imports(root: Path = ROOT) -> list[Problem]:
 
 # 列出一个文件导入的全部模块名和行号；相对导入的名称以点开头。
 def imported(path: Path) -> Iterator[tuple[str, int]]:
-    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+    yield from analyzed(path.read_text(encoding="utf-8"))[0]
+
+
+# 按实际内容缓存不可变结果，每次仍读取文件；不依赖时间戳，也不缓存检查结论。
+@lru_cache(maxsize=4096)
+def analyzed(source: str) -> tuple[tuple[tuple[str, int], ...], tuple[int, ...]]:
+    imports = []
+    dynamic = []
+    for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                yield alias.name, node.lineno
+                imports.append((alias.name, node.lineno))
         elif isinstance(node, ast.ImportFrom):
             module = "." * node.level + (node.module or "")
             if module.startswith("service.") and module.count(".") == 1:
                 for alias in node.names:
-                    yield f"{module}.{alias.name}", node.lineno
+                    imports.append((f"{module}.{alias.name}", node.lineno))
             else:
-                yield module, node.lineno
+                imports.append((module, node.lineno))
+        elif isinstance(node, ast.Call) and call_name(node) in (
+            "importlib.import_module",
+            "__import__",
+        ):
+            dynamic.append(node.lineno)
+    return tuple(imports), tuple(dynamic)
 
 
 # 检查业务模块中的一个文件。
@@ -117,14 +132,10 @@ def check_dynamic(path: Path, root: Path) -> list[Problem]:
         for module, line in imported(path)
         if module.startswith(".")
     ]
-    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-        if isinstance(node, ast.Call) and call_name(node) in (
-            "importlib.import_module",
-            "__import__",
-        ):
-            problems.append(
-                Problem(name, node.lineno, "import_dynamic", "使用了动态导入", "直接写 import 语句")
-            )
+    for line in analyzed(path.read_text(encoding="utf-8"))[1]:
+        problems.append(
+            Problem(name, line, "import_dynamic", "使用了动态导入", "直接写 import 语句")
+        )
     return problems
 
 

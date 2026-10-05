@@ -3,6 +3,7 @@
 """
 
 import re
+from pathlib import Path
 from typing import Any
 
 
@@ -19,7 +20,7 @@ def case_current(case: dict[str, Any], suite: dict[str, Any], versions: dict[str
 
 
 # 老检查通过明确的检查项目识别范围，不用模块数量猜测一次局部测试是不是全量。
-def check_scope(check: dict[str, Any]) -> dict[str, str]:
+def check_scope(check: dict[str, Any]) -> dict[str, Any]:
     if "scope" in check:
         return check["scope"]
     if "默认测试" in check["checks"]:
@@ -35,7 +36,26 @@ def latest_full_check(checks: list[dict[str, Any]]) -> dict[str, Any] | None:
 
 
 # 全量结果只有包含全部当前模块且版本一致时，才适用于目前源码。
-def full_check_current(check: dict[str, Any], versions: dict[str, str]) -> bool:
-    return not check["source_changed"] and all(
-        check["fingerprints"].get(name) == code for name, code in versions.items()
+def full_check_current(
+    check: dict[str, Any], versions: dict[str, str], project: Path | None = None
+) -> bool:
+    modules_match = check["fingerprints"] == versions
+    system_matches = project is None or check.get("system_fingerprint") == system_fingerprint(
+        project
+    )
+    return not check["source_changed"] and modules_match and system_matches
+
+
+# 全局登记、路由和系统测试单独记录，避免它们使所有业务包的结果无差别过期。
+def system_fingerprint(project: Path) -> str:
+    from tools.development.history import fingerprint
+
+    server = project / "server"
+    return fingerprint(
+        [
+            server / "app/setup/catalog.py",
+            server / "app/api/routers.py",
+            server / "tests/integration/system",
+        ],
+        project,
     )

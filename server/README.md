@@ -41,10 +41,13 @@ uv run python -m app.setup.worker
 
 | 做什么 | 命令 |
 | --- | --- |
-| 全量检查（提交前必须通过） | `uv run python -m tools.check` |
+| 完整检查（整批交付和发布前） | `uv run python -m tools.check` |
 | 在 PostgreSQL 上再跑测试 | `uv run python -m tools.check --postgres postgresql+psycopg://用户:密码@主机:端口/库` |
 | 新建业务模块 | `uv run python -m tools.new_module 模块名 --title 中文名` |
 | 单独检查一个模块 | `uv run python -m tools.check --module file_library` |
+| 子代理快速调试（不代替验收） | `uv run python -m tools.check --quick --module file_library` |
+| 一次验收整层多个模块 | `uv run python -m tools.check --module file_library --module user_access` |
+| 根据新旧依赖检查受影响包 | `uv run python -m tools.check --affected --base origin/main` |
 | 生成迁移 | 先 `uv run alembic upgrade head`，再 `uv run alembic revision --autogenerate -m "说明"` |
 | 生成文档 | `uv run python -m tools.export_docs` |
 | 查看运行记录 | `uv run python -m tools.diagnose runs --status failed` |
@@ -52,6 +55,10 @@ uv run python -m app.setup.worker
 | 查看运行统计 | `uv run python -m tools.diagnose stats --hours 24` |
 | 查看操作的流程和字段来源 | `uv run python -m tools.diagnose flow file_library.list_files` |
 | 生成服务密钥 | `uv run python -m tools.make_key --name 名称 --org-id 组织 --permissions 权限` |
+
+快速检查只做所选包的风格、格式和业务测试。正式单包或多包检查还做完整风格、增量类型、生成文档，以及一次导入、登记和迁移一致性检查，不重跑全部框架测试。`--affected` 对公共或未知变化保守执行完整检查；没有改动时报告未执行。每轮保存各项耗时，测试另列最慢的准备、执行与清理阶段；旧记录没有耗时则保持未知。并行测试必须使用独立数据库。
+
+批量迁移前主代理先读 [分层开发指南](../doc/agent-development.md)。
 
 ## 4. 出问题时怎样查
 

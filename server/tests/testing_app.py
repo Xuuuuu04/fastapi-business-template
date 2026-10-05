@@ -102,6 +102,20 @@ def _schema_key() -> str:
     return hashlib.sha256("\n".join(statements).encode()).hexdigest()
 
 
+# 自定义建表动作可能产生触发器或初始数据，不能仅凭静态 DDL 沿用快照。
+def _has_create_hooks() -> bool:
+    targets = [metadata, *metadata.sorted_tables]
+    table_hooks = any(
+        target.dispatch.before_create or target.dispatch.after_create for target in targets
+    )
+    index_hooks = any(
+        index.dispatch.before_create or index.dispatch.after_create
+        for table in metadata.sorted_tables
+        for index in table.indexes
+    )
+    return table_hooks or index_hooks
+
+
 # 仅为默认 SQLite 的新文件复制空结构；已有文件可能仍被其他连接使用，不能替换。
 # PostgreSQL 与显式指定的数据库仍完整重建，共享地址不支持并行测试。
 async def prepare_test_database(url: str) -> None:
@@ -117,6 +131,7 @@ async def prepare_test_database(url: str) -> None:
         or path.exists()
         or Path(f"{path}-wal").exists()
         or Path(f"{path}-shm").exists()
+        or _has_create_hooks()
     ):
         await reset_database(url)
         return

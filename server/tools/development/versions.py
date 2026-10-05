@@ -76,6 +76,8 @@ def _is_registration(node: ast.stmt, names: tuple[str, ...]) -> bool:
 
 # 找到对指定名字的直接赋值并返回它的值；没有时返回 None。
 def _registration_value(body: list[ast.stmt], names: tuple[str, ...]) -> ast.expr | None:
+    if sum(_is_registration(node, names) for node in body) != 1:
+        return None
     for node in body:
         if (
             _is_registration(node, names)
@@ -110,6 +112,10 @@ def _registration_rest(
     try:
         tree = ast.parse(source)
     except SyntaxError:
+        return None
+    if (names == ("MODULES",) and catalog_bindings(source) is None) or (
+        names == ("MODULE_ROUTERS",) and route_ownership(source) is None
+    ):
         return None
     body = [node for node in tree.body if not _is_registration(node, names)]
     used = {
@@ -169,13 +175,74 @@ def route_ownership(source: str | None) -> dict[str, list[str]] | None:
     }
     mapping: dict[str, list[str]] = {}
     for key, element in zip(value.keys, value.values, strict=True):
-        if not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
+        if (
+            not (isinstance(key, ast.Constant) and isinstance(key.value, str))
+            or key.value in mapping
+        ):
             return None
         stems = _router_stems(element, aliases)
         if stems is None:
             return None
         mapping[key.value] = sorted(stems)
     return mapping
+
+
+# 总目录按导入的业务包归属，同时保留真正绑定的导入名称，替换实现不能沿用旧检查。
+def catalog_bindings(source: str) -> dict[str, str] | None:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+    value = _registration_value(tree.body, ("MODULES",))
+    if not isinstance(value, ast.List | ast.Tuple):
+        return None
+    aliases = {
+        alias.asname or alias.name: (node.module.split(".")[1], node.module, alias.name)
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and node.module is not None
+        and node.module.startswith("service.")
+        for alias in node.names
+    }
+    result = {}
+    for item in value.elts:
+        if not isinstance(item, ast.Name) or item.id not in aliases:
+            return None
+        name, module, imported_name = aliases[item.id]
+        if name in result:
+            return None
+        result[name] = f"{module}:{imported_name}:{ast.dump(item)}"
+    return result
+
+
+# 路由归属之外还记录属性与绑定表达式；同文件 router 改为 other_router 也要过期。
+def router_bindings(source: str) -> dict[str, str] | None:
+    ownership = route_ownership(source)
+    if ownership is None:
+        return None
+    tree = ast.parse(source)
+    value = _registration_value(tree.body, ("MODULE_ROUTERS",))
+    if not isinstance(value, ast.Dict):
+        return None
+    return {
+        key.value: ast.dump(element)
+        for key, element in zip(value.keys, value.values, strict=True)
+        if isinstance(key, ast.Constant) and isinstance(key.value, str)
+    }
+
+
+# 两份登记的各包部分单独计入版本；未知写法已由公共部分保守保留原始内容。
+def registration_parts(reader: Reader, project: Path) -> dict[str, bytes]:
+    result: dict[str, bytes] = {}
+    for relative in REGISTRATIONS:
+        source = reader.source(project / "server" / relative)
+        if source is None:
+            continue
+        bindings = catalog_bindings(source) if relative != ROUTERS_FILE else router_bindings(source)
+        for name, text in (bindings or {}).items():
+            result[name] = result.get(name, b"") + relative.encode() + b"\0" + text.encode() + b"\0"
+    return result
 
 
 # 每个模块在 app/api/v1 下自己拥有的接口文件；读不出静态归属时返回 None。

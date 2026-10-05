@@ -83,6 +83,7 @@ def test_framework_lock_pyproject(tmp_path: Path) -> None:
 
 
 # 新项目的起步路径：删除示例、生成新模块、升级并生成迁移、导出文档后，副本中的全部测试通过。
+@pytest.mark.sqlite_template
 def test_new_project_path(tmp_path: Path) -> None:
     if os.environ.get(COPY_FLAG):
         pytest.skip("已经在项目副本中运行，不再复制")

@@ -2,7 +2,7 @@
 
 | 命令 | 用途 |
 | --- | --- |
-| `uv run python -m tools.check` | 全量检查：代码风格、格式、类型、生成文档、默认测试；加 `--module 模块名` 只跑该模块的步骤和接口测试，其他代码检查保留；加 `--postgres 地址` 在 PostgreSQL 上再跑测试 |
+| `uv run python -m tools.check` | 整批交付完整检查；`--quick --module 包` 用于包内调试；`--module A --module B` 一次验收整层及受影响调用方；`--affected --base 分支` 按新旧依赖选择范围；`--postgres 地址` 增加真实数据库测试；每轮记录范围与耗时 |
 | `uv run python -m tools.project --summary --json` | 主代理先看计划缺项、待确认、失败与过期；`--module 模块名 --summary` 展开单包，`--operation 模块.操作` 或 `--test 准确pytest编号` 按需读取；旧 `--json` 保留完整视图，`--checks 目录` 汇集记录，`--runs --limit 数量` 才查询数据库 |
 | `uv run python -m tools.start_project /新项目目录 --name 产品名称` | 生成产品原生的干净副本，保留框架来源，重新开始业务计划与任务 |
 | `uv run python -m tools.update_framework --base /旧模板 --source /新模板 [--apply]` | 三份文件比较，只接收框架变化；默认预览，冲突时全部保留；旧产品可加 `--target /产品目录` |

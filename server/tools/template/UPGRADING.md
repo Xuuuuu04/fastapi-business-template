@@ -53,6 +53,8 @@ uv run python -m tools.update_framework --base /tmp/template-old --source /tmp/t
 4. 审查框架差异后运行 `uv run python -m tools.framework_lock --update`，
    再运行 `uv run python -m tools.export_docs` 和 `uv run python -m tools.check`。
 5. 使用 PostgreSQL 的产品再加 `--postgres 测试数据库地址`，验证真实模块的接口和业务样例。
+6. 批量迁移指南和 AGENTS.md 属于人工接收内容，按 `manual_review` 接入主代理入口，参见新模板的 `doc/agent-development.md`。检查工具升级后旧结果可能过期，首次完整检查通过后，日常改用包内快速检查和整层多包验收。
+   同时接收 `pyproject.toml` 中新增的 `sqlite_template` 测试标记，否则严格标记检查会拒绝新模板测试。它只避免同轮第二数据库重复固定 SQLite 的生成用例，不替代真实数据库验证。
 
 工具不会自动重写依赖与 `uv.lock`，也不会批准不兼容接口或执行迁移。
 `framework.lock` 保持原样，确保框架改动仍需要审查。没有共同历史并不妨碍文件比较，

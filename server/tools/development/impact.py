@@ -143,9 +143,7 @@ def impact_scope(
         name: sorted(direct_reasons.get(name, []) + dependencies.get(name, []) + full_reasons)
         for name in affected
     }
-    commands = (
-        [CHECK] if full_reasons else [f"{CHECK} --module {shlex.quote(name)}" for name in affected]
-    )
+    commands = check_commands(affected, bool(full_reasons))
     return ImpactScope(
         direct,
         dependents,
@@ -159,6 +157,15 @@ def impact_scope(
         unknown,
         unmapped,
     )
+
+
+# 同一层只给一个多包命令，避免每个包重复执行公共检查。
+def check_commands(affected: list[str], full: bool) -> list[str]:
+    if full:
+        return [CHECK]
+    if not affected:
+        return []
+    return [CHECK + " " + " ".join(f"--module {shlex.quote(name)}" for name in affected)]
 
 
 # 原变化报告之后追加建议；建议不是检查已通过的证明。

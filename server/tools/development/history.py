@@ -17,6 +17,7 @@ from tools.development.versions import (
     V1_FOLDER,
     Reader,
     registration_entry,
+    registration_parts,
     route_ownership,
 )
 
@@ -112,11 +113,15 @@ def _module_digest(
     common: str,
     owned: dict[str, list[Path]],
     reader: Reader,
+    registrations: dict[str, bytes],
 ) -> str:
     digest = hashlib.sha256()
     digest.update(b"common\0" + common.encode() + b"\0")
     files: set[Path] = set()
     for dependency in dependency_modules(name, links):
+        digest.update(
+            dependency.encode() + b"\0" + registrations.get(dependency, b"<missing>") + b"\0"
+        )
         for path in module_paths(project, dependency):
             files.update(reader.files_under(path, project))
         files.update(owned.get(dependency, []))
@@ -143,8 +148,10 @@ def fingerprints(
         else {}
     )
     common = _common_digest(project, reader, {path for paths in owned.values() for path in paths})
+    registrations = registration_parts(reader, project)
     return {
-        name: _module_digest(project, name, links or {}, common, owned, reader) for name in modules
+        name: _module_digest(project, name, links or {}, common, owned, reader, registrations)
+        for name in modules
     }
 
 

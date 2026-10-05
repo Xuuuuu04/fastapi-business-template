@@ -7,6 +7,7 @@ import shlex
 from typing import Any
 
 from tools.development.attention import attention, plan_summary
+from tools.development.evidence import check_scope
 
 PROBLEM_LIMIT = 5
 
@@ -194,6 +195,7 @@ def selected_test(
                 "database": suite["database"],
                 "finished_at": check["finished_at"],
                 "checks_passed": check["passed"],
+                "scope": check_scope(check),
                 "exit_code": suite["exit_code"],
                 "source_changed": check["source_changed"],
                 "modules": versions,
@@ -256,6 +258,11 @@ def summary_markdown(summary: dict[str, Any]) -> str:
             f"源码在检查中{'发生变化' if check['source_changed'] else '未改变'}。"
         )
         lines.append(f"检查项目：{check['checks']}")
+        lines.append(
+            f"检查范围：{check.get('scope', {'kind': 'unknown'})}；快速检查不代表正式验收。"
+        )
+        if check.get("elapsed_seconds") is not None:
+            lines.append(f"本轮耗时：{check['elapsed_seconds']} 秒。")
     lines.extend(
         f"需处理：{item['module']} {item['message']}" for item in summary.get("attention", [])
     )

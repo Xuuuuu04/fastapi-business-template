@@ -68,6 +68,7 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[Any]) -> 
     case["phases"][report.when] = (
         "failed" if report.failed else "skipped" if report.skipped or expected_failure else "passed"
     )
+    case.setdefault("durations", {})[report.when] = round(report.duration, 6)
     if expected_failure:
         case["xfail"] = "xpassed" if report.passed else "xfailed"
     case["outcome"] = case_outcome(case["phases"])

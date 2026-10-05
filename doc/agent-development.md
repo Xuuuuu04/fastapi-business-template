@@ -33,17 +33,21 @@ uv run python -m tools.impact --base origin/main --json            # 直接修�
 
 - 被别的包调用的底层包先做；同一层里的包之间没有互相调用。
 - 规划表列：开发包 / 公开操作 / 依赖（调用了谁）/ 层 / 验收样例 / 观察入口。这张表是分工用的工作记录，写在 `.agents/tasks/<任务名>.md`，不进入提交。
+- 开包前按规划表画一张调用图（可用 Mermaid，箭头表示调用方指向被调用方），说明本层在哪里、哪些包要等待、整层要观察哪些接口或后台结果。未实现的依赖先标为计划；实现后用生成图检查实际声明，不把计划图当成已有功能。
 - 包登记后，依赖和观察入口可以用 `tools.project` 重新读取，不用在表里重复维护。
 - 依赖方向不明确时先问用户或在规划里标“待确认”，不要靠猜决定先做谁。
+- 出现循环依赖时先查清规则与调用归属，消除循环或按一个需要共同验收的工作组处理，不假装能分成独立层。
 
 观察入口指一次真实运行怎么看：对应的接口路径或后台任务，加 `/system/console`、`/api/system/runs/{run_id}/report` 或 `tools.diagnose run 运行编号`。
 
 ## 并行开发与隔离
 
 - 每个并行子代理用一个独立 worktree 和一个独立分支；主代理已建好 worktree 时沿用。
+- 主代理先用 `tools.new_module` 准备本层骨架和公共登记，保存一个共同起点，再建立各子代理分支。生成器会改公共登记，子代理不要各自重复生成同一批骨架。
 - 各自独立的虚拟环境；测试数据库也各自独立。不要共用虚拟环境，也不要对同一个 PostgreSQL 测试库并行运行会建表删表的测试。
 - 并行数量按同层独立包的数量、当前工具可用的容量或限额、上一轮实际返工和耗时来定，不默认全部铺开。先小批试跑一两个包，看质量和返工情况再决定加不加。
 - 模型按本次实际可用的能力说明和实测结果选（响应速度、返工次数、剩余额度），需要时可先问用户推荐。不要把型号排名或提供商固定写进项目文档。
+- 查询额度前先确认该模型实际使用的供应商、套餐和账号。只有代号或缺少账号信息时，额度保持未知；不能随便选一个供应商查询，也不能拿其他账号的余额替代。工具限制优先，用户推荐不等于当前可以调用。
 
 ## 子代理每个包的应得结果
 
@@ -56,7 +60,7 @@ uv run python -m tools.impact --base origin/main --json            # 直接修�
 
 ## 整层验收（主代理）
 
-一层里的包都合并到主干后再整层检查：先对每个包正式单包检查 `uv run python -m tools.check --module 包`，再做整层检查（受影响模块一起检查，或按改动范围检查）。
+一层里的包合并到统一整合分支后，主代理生成文档，再用 `uv run python -m tools.check --module A --module B` 一次检查本层及受影响调用方，不先逐包重复跑公共检查。全部通过后合入主干，再开下一层。正式多包检查包含一次导入、登记和迁移一致性检查；跨包流程测试应放在对应调用方的接口测试目录，整层必须选中它。
 
 层验收标准：
 
@@ -68,20 +72,24 @@ uv run python -m tools.impact --base origin/main --json            # 直接修�
 
 ## 检查入口
 
-现在可用：
+在 `server/` 执行：
 
 ```bash
 uv run python -m tools.check                          # 完整检查
 uv run python -m tools.check --module 模块名          # 单包测试，其余检查仍完整
 uv run python -m tools.check --postgres 连接地址      # 在 PostgreSQL 上再跑一遍测试
+uv run python -m tools.check --quick --module A       # 子代理包内调试
+uv run python -m tools.check --module A --module B    # 整层一次验收
+uv run python -m tools.check --affected --base origin/main  # 按改动与新旧依赖选范围
 ```
 
-`--module` 多值、`--quick`、`--affected` 是批量开发追加的检查方式；在实现并验证可用之前，先按现有单值写法和完整检查执行。
+`--module` 支持重复参数和逗号列表。新增包会修改公共登记、迁移；`--affected` 目前对这类变化保守执行完整检查。已经明确本层与调用方范围时，用显式多包命令验收，不为每个新增包各跑一次完整检查。
 
 - `--module A --module B` 或 `--module A,B`：一次检查多个包，其余检查仍完整。
 - `--quick --module A`：只做局部代码风格、格式和所选测试，不做完整类型检查和生成文档检查；结果记为“快速、非完整”。
 - `--affected --base origin/main`：取改动前后依赖的并集，只检查受影响的模块；公共改动或影响范围不明确时退回完整检查。
 - `--postgres 连接地址` 可以和上面组合。
+- 快速结果独立标记，不计为正式包验收；`tools.project` 中的 `latest_check.scope` 表示最近一轮的层次，`latest_full_check` 独立保留。旧检查因版本计算改进可能过期，首次升级需做完整检查。
 
 “交付完整检查”指整批交付或发布前跑完整检查，不是每个文件、每次本地提交都要完整检查。
 
@@ -91,6 +99,7 @@ uv run python -m tools.check --postgres 连接地址      # 在 PostgreSQL 上�
 - 合并前跑导入与依赖检查、登记检查（`server/tests/architecture` 里的导入和登记用例），确认 `tools.project --summary` 没有缺项。
 - 改动 `framework.lock` 覆盖的框架文件时单独说明用途、影响和检查，再运行 `uv run python -m tools.framework_lock --update`；业务开发不要顺手改框架。
 - 生成文档由主代理统一运行 `uv run python -m tools.export_docs`，各包不单独导出。
+- 生成数据库迁移统一由主代理串行处理，不把多个分支自动生成的迁移头直接堆在一起。使用隔离数据验证升级和表结构，保留既有产品迁移历史。
 - 合并到主干后再跑整层或完整检查，通过后才进入下一层。
 
 ## 记录

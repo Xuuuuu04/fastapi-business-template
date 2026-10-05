@@ -6,6 +6,8 @@ SQLite 上自动跳过标记 postgres_only 的测试。
 """
 
 import asyncio
+import json
+import os
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
@@ -52,9 +54,20 @@ def track_operations() -> Iterator[None]:
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     config = session.config
     partial = [arg for arg in config.invocation_params.args if not str(arg).startswith("-")]
-    if exitstatus != 0 or partial or config.option.keyword or config.option.markexpr:
+    selected = json.loads(os.environ.get("APP_DEVELOPMENT_MODULES", "[]"))
+    if (
+        exitstatus != 0
+        or config.option.keyword
+        or config.option.markexpr
+        or (partial and not selected)
+    ):
         return
-    registered = {item.name for module in MODULES for item in module.provides}
+    registered = {
+        item.name
+        for module in MODULES
+        if not selected or module.name in selected
+        for item in module.provides
+    }
     missing = sorted(registered - EXECUTED)
     if missing:
         reporter = config.pluginmanager.get_plugin("terminalreporter")
@@ -67,6 +80,13 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 
 # 在 SQLite 上跳过只对 PostgreSQL 有意义的测试。
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    if os.environ.get("APP_DEVELOPMENT_REPEAT_DATABASE") == "1":
+        once = pytest.mark.skip(
+            reason="此模板测试固定使用 SQLite，已在本轮默认检查成功执行，不在第二数据库重复"
+        )
+        for item in items:
+            if "sqlite_template" in item.keywords:
+                item.add_marker(once)
     if on_postgres():
         return
     skip = pytest.mark.skip(reason="只在 PostgreSQL 上运行，设置 APP_TEST_DATABASE_URL 后执行")

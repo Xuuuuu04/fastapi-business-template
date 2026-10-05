@@ -1,10 +1,22 @@
-"""空结构快照只加速新 SQLite 文件，测试数据、结构变化和连接行为保持独立。"""
+"""
+空结构快照只加速新 SQLite 文件，测试数据、结构变化和连接行为保持独立。
+"""
 
 import asyncio
 from pathlib import Path
 
 import pytest
-from sqlalchemy import Column, ForeignKey, Integer, MetaData, Table, inspect, text
+from sqlalchemy import (
+    Column,
+    Connection,
+    ForeignKey,
+    Integer,
+    MetaData,
+    Table,
+    event,
+    inspect,
+    text,
+)
 from sqlalchemy.exc import IntegrityError
 
 from shared.db.database import Database
@@ -168,6 +180,28 @@ async def test_explicit_database_address_uses_full_reset(
     monkeypatch.setenv("APP_TEST_DATABASE_URL", url)
     await testing_app.prepare_test_database(url)
     assert testing_app._SNAPSHOTS == {}
+
+
+# 自定义建表事件每份数据库都执行，不能把第一次的初始数据当成空结构缓存。
+async def test_custom_create_hooks_do_not_reuse_snapshots(tmp_path: Path, schema: MetaData) -> None:
+    calls: list[str] = []
+
+    # 每次实际建表写入不同样例，检测是否重复使用第一次的数据。
+    def seed(target: Table, connection: Connection, **kwargs: object) -> None:
+        calls.append(str(connection.engine.url))
+        connection.execute(text("INSERT INTO parent VALUES (:id)"), {"id": len(calls)})
+
+    event.listen(schema.tables["parent"], "after_create", seed)
+    for expected in (1, 2):
+        url = url_at(tmp_path / str(expected))
+        await testing_app.prepare_test_database(url)
+        database = Database(url)
+        try:
+            async with database.read() as connection:
+                assert await connection.scalar(text("SELECT id FROM parent")) == expected
+        finally:
+            await database.close()
+    assert len(calls) == 2 and testing_app._SNAPSHOTS == {}
 
 
 # 不同路径异步同时准备时，生成者彼此独立，随后写入也互不影响。

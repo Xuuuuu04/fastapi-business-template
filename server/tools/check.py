@@ -1,8 +1,7 @@
 """
-全量检查，一条命令跑完每次提交前必须通过的全部检查：
-代码风格与格式（ruff）、类型检查（mypy）、生成文档是否过期、默认测试（含架构、质量、安全、恢复测试）。
-用法：uv run python -m tools.check；加 --postgres 地址，会在 PostgreSQL 上再跑一遍测试。
-压力测试和浏览器测试不在这里，见 tests/load 和 tests/browser。
+分层检查：快速调试、多包验收与整批交付完整检查，实际耗时和范围随结果保存。
+默认运行完整检查；--module 可重复或使用逗号列表；--quick 仅用于包内调试。
+--affected --base 分支根据新旧依赖选择范围；压力和浏览器测试仍需另行执行。
 """
 
 import argparse
@@ -12,25 +11,51 @@ import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from time import perf_counter
 
+from tools.development.evidence import system_fingerprint
 from tools.development.history import fingerprints, save_check
+from tools.development.selection import (
+    Selection,
+    module_files,
+    module_names,
+    select_affected,
+    validate_modules,
+)
 from tools.quality.rules import PROJECT, ROOT
 
 TYPED = ("app", "service", "shared", "tools", "deploy")
+INTEGRITY = (
+    "tests/architecture/test_structure.py::test_import_rules",
+    "tests/architecture/test_structure.py::test_registry_is_complete",
+    "tests/architecture/test_structure.py::test_migrations_match_tables",
+)
 
 
 # 列出全部检查；类型检查只包含有 Python 文件的目录（未添加业务时 service 可能暂时为空）。
-def steps(module: str = "") -> list[tuple[str, list[str]]]:
+def steps(selection: Selection | None = None) -> list[tuple[str, list[str]]]:
+    selection = selection or Selection()
     typed = [name for name in TYPED if any((ROOT / name).rglob("*.py"))]
-    tests = ["-m", "pytest", "-q"]
-    if module:
+    tests = ["-m", "pytest", "-q", "--durations=10"]
+    for module in selection.modules:
         tests += [f"tests/modules/{module}", f"tests/integration/{module}"]
+    if selection.quick:
+        files = module_files(selection.modules)
+        if not files:
+            raise ValueError("快速检查没有可检查的 Python 文件")
+        return [
+            ("局部代码风格", ["ruff", "check", *files]),
+            ("局部代码格式", ["ruff", "format", "--check", *files]),
+            ("快速模块测试", tests),
+        ]
+    if selection.modules:
+        tests += list(INTEGRITY)
     return [
         ("代码风格", ["ruff", "check", "."]),
         ("代码格式", ["ruff", "format", "--check", "."]),
         ("类型检查", ["mypy", *typed]),
         ("生成文档", ["-m", "tools.export_docs", "--check"]),
-        ("模块测试" if module else "默认测试", tests),
+        ("模块测试" if selection.modules else "默认测试", tests),
     ]
 
 
@@ -53,69 +78,148 @@ def run_tests(
             if result.exists()
             else {"exit_code": 1, "cases": []}
         )
-    return passed, {"database": database, **evidence}
+    return passed and evidence["exit_code"] == 0, {"database": database, **evidence}
 
 
 # 保存每轮的检查结果；检查期间源码改变时，该轮不能证明当前版本。
-def execute(module: str, postgres: str) -> list[tuple[str, bool]]:
+def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
     from app.setup.catalog import MODULES
     from shared.modules.catalog import Catalog
 
-    modules = [module] if module else [item.name for item in MODULES]
+    started = perf_counter()
+    modules = list(selection.modules) or [item.name for item in MODULES]
     links = Catalog(MODULES).links()
     before = fingerprints(PROJECT, modules, links)
-    env = dict(os.environ)
-    selected = steps(module)
-    results = [(title, run(title, command, env)) for title, command in selected[:-1]]
+    system_before = system_fingerprint(PROJECT)
+    env = {**os.environ, "APP_DISABLED_MODULES": "[]", "APP_DEVELOPMENT_REPEAT_DATABASE": "0"}
+    env["APP_DEVELOPMENT_MODULES"] = json.dumps([] if selection.quick else list(selection.modules))
+    selected = steps(selection)
+    timings: dict[str, float] = {}
+    results = []
+    for title, command in selected[:-1]:
+        start = perf_counter()
+        results.append((title, run(title, command, env)))
+        timings[title] = round(perf_counter() - start, 3)
     database = (
         "postgresql" if env.get("APP_TEST_DATABASE_URL", "").startswith("postgres") else "sqlite"
     )
+    start = perf_counter()
     passed, evidence = run_tests(*selected[-1], env, database)
+    timings[selected[-1][0]] = round(perf_counter() - start, 3)
     results.append((selected[-1][0], passed))
     suites = [evidence]
     if postgres:
+        start = perf_counter()
         passed, evidence = run_tests(
             "PostgreSQL 测试",
             selected[-1][1],
-            {**env, "APP_TEST_DATABASE_URL": postgres},
+            {
+                **env,
+                "APP_TEST_DATABASE_URL": postgres,
+                "APP_DEVELOPMENT_REPEAT_DATABASE": "1" if passed else "0",
+            },
             "postgresql",
         )
         results.append(("PostgreSQL 测试", passed))
         suites.append(evidence)
+        timings["PostgreSQL 测试"] = round(perf_counter() - start, 3)
+    finish_check(
+        selection, before, system_before, modules, links, results, suites, timings, started
+    )
+    return results
+
+
+# 版本在执行前后比较，计时包括版本读取；记录不保存连接地址或测试数据。
+def finish_check(
+    selection: Selection,
+    before: dict[str, str],
+    system_before: str,
+    modules: list[str],
+    links: dict[str, dict[str, list[str]]],
+    results: list[tuple[str, bool]],
+    suites: list[dict[str, object]],
+    timings: dict[str, float],
+    started: float,
+) -> None:
+    changed = before != fingerprints(
+        PROJECT, modules, links
+    ) or system_before != system_fingerprint(PROJECT)
+    elapsed = round(perf_counter() - started, 3)
     path = save_check(
         PROJECT,
         {
             "fingerprints": before,
-            "scope": {"kind": "module", "module": module} if module else {"kind": "all"},
-            "source_changed": before != fingerprints(PROJECT, modules, links),
+            "scope": selection.scope(),
+            "source_changed": changed,
+            "system_fingerprint": system_before,
             "passed": all(passed for _, passed in results),
             "checks": dict(results),
             "suites": suites,
+            "timings": timings,
+            "elapsed_seconds": elapsed,
+            "selection_reasons": list(selection.reasons),
         },
     )
     print(f"\n本轮检查记录：{path.relative_to(PROJECT)}")
-    return results
+    print(
+        f"本轮耗时：{elapsed:.3f} 秒；"
+        + "；".join(f"{title} {seconds:.3f}s" for title, seconds in timings.items())
+    )
 
 
 # 依次运行全部检查并汇总结果。
-def main() -> None:
-    parser = argparse.ArgumentParser(description="运行全部必需检查")
+def arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="快速调试、分层验收或完整检查")
     parser.add_argument(
-        "--module", default="", help="只跑指定模块的步骤与接口测试，其余代码检查保持完整"
+        "--module",
+        action="append",
+        default=[],
+        help="指定模块，可重复或用逗号分隔；公共检查只执行一次",
     )
     parser.add_argument(
         "--postgres", default="", help="PostgreSQL 连接地址，用于在真实数据库上再跑测试"
     )
+    parser.add_argument(
+        "--quick", action="store_true", help="仅局部风格、格式及模块测试，不代替验收"
+    )
+    parser.add_argument("--affected", action="store_true", help="按改动及新旧依赖检查受影响模块")
+    parser.add_argument(
+        "--base", default="origin/main", help="--affected 的比较分支，默认 origin/main"
+    )
     args = parser.parse_args()
-    if args.module:
-        from app.setup.catalog import MODULES
+    if args.affected and (args.module or args.quick):
+        parser.error("--affected 不能与 --module 或 --quick 同时使用")
+    if args.quick and not module_names(args.module):
+        parser.error("--quick 必须指定 --module，避免把局部检查误用为完整检查")
+    if args.module and not module_names(args.module):
+        parser.error("--module 不能为空")
+    return args
 
-        if args.module not in {module.name for module in MODULES}:
-            parser.error(f"模块没有登记：{args.module}")
-        for group in ("modules", "integration"):
-            if not list((ROOT / "tests" / group / args.module).glob("test_*.py")):
-                parser.error(f"模块缺少 tests/{group}/{args.module}/test_*.py")
-    results = execute(args.module, args.postgres)
+
+# 范围选择与实际执行分开；没有改动明确报告未执行，不写一条成功记录。
+def main() -> None:
+    from app.setup.catalog import MODULES
+    from shared.modules.catalog import Catalog
+
+    args = arguments()
+    catalog = Catalog(MODULES)
+    try:
+        selection = (
+            select_affected(catalog, args.base)
+            if args.affected
+            else Selection(module_names(args.module), args.quick)
+        )
+        validate_modules(selection.modules, catalog)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    for reason in selection.reasons:
+        print(reason, flush=True)
+    if selection.unchanged:
+        return
+    print(f"检查范围：{'、'.join(selection.modules) or '全部登记模块'}", flush=True)
+    if selection.quick:
+        print("快速调试：未执行完整类型、生成文档及整合检查，不能代替包验收。", flush=True)
+    results = execute(selection, args.postgres)
     print("\n检查结果：")
     for title, passed in results:
         print(f"  {'通过' if passed else '失败'}  {title}")

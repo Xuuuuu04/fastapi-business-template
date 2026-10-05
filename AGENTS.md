@@ -20,7 +20,7 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 uv run python -m tools.check
 ```
 
-配置说明见 [环境样例](server/.env.example)，完整命令见 [后端说明](server/README.md)。开发时用 `tools.check --module 模块名`；它只缩小测试范围，风格、类型、生成文档等检查仍完整。生产使用 PostgreSQL 时加 `--postgres 数据库地址`。每次交付必须完整检查；推送后 [GitHub Actions](.github/workflows/check.yml) 的 PostgreSQL、Redis、S3 与镜像检查也必须通过。
+配置说明见 [环境样例](server/.env.example)，完整命令见 [后端说明](server/README.md)。子代理开发时用 `tools.check --quick --module 模块名`；主代理每层用 `--module A --module B` 一次验收全层与受影响调用方，公共检查只做一次。生产使用 PostgreSQL 时加 `--postgres 测试数据库地址`。整批交付和发布前必须完整检查，不要求每个包或每次本地提交重跑全部测试；推送后适用的 [GitHub Actions](.github/workflows/check.yml) 检查也必须通过。
 
 ## 目录地图
 
