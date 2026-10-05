@@ -3,10 +3,16 @@
 停用用户与修改密码后立即失效、角色变化在刷新时生效、退出登录和清理过期记录。
 """
 
+import asyncio
+
+import httpx2 as httpx
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select, update
 
+from service.user_access.data import TokenCheck
 from service.user_access.public import purge_sessions
+from service.user_access.store.sessions import SessionStore, digest_of
 from service.user_access.store.tables import refresh_tokens
 from shared.access.caller import SYSTEM
 from shared.public import Nothing
@@ -76,6 +82,115 @@ def test_refresh_rotates_and_detects_reuse(client: TestClient) -> None:
     report = client.get(f"/api/system/runs/{reused.headers['x-run-id']}/report", headers=KEY)
     assert "整组登录会话已作废" in report.text
     assert first["refresh_token"] not in report.text
+
+
+# 两次真实只读检查都完成后，允许第一个 HTTP 请求提交，再允许第二个进入真实写事务。
+async def refresh_after_both_checks(
+    client: TestClient, token: str, monkeypatch: pytest.MonkeyPatch
+) -> list[httpx.Response]:
+    original = SessionStore.check_refresh
+    both_checked, first_committed = asyncio.Event(), asyncio.Event()
+    statuses: list[str] = []
+
+    # 保留真实查询，只控制读取完成后的顺序，不替代 Runtime 或保存操作。
+    async def checked(store: SessionStore, value: str) -> TokenCheck:
+        result = await original(store, value)
+        statuses.append(result.status)
+        position = len(statuses)
+        if position == 2:
+            both_checked.set()
+        await asyncio.wait_for(both_checked.wait(), timeout=5)
+        if position == 2:
+            await asyncio.wait_for(first_committed.wait(), timeout=5)
+        return result
+
+    monkeypatch.setattr(SessionStore, "check_refresh", checked)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=client.app), base_url="http://testserver"
+    ) as http:
+        # 第一个响应只有在 Runtime 的写事务提交后才返回。
+        async def request() -> httpx.Response:
+            reply = await http.post(REFRESH, json={"refresh_token": token})
+            first_committed.set()
+            return reply
+
+        replies = await asyncio.wait_for(asyncio.gather(request(), request()), timeout=10)
+    assert statuses == ["active", "active"]
+    return replies
+
+
+# R-05：两个请求先读到 active，竞争失败仍需提交整组作废，首次返回的新令牌也不能刷新。
+def test_concurrent_refresh_reuse_revokes_family(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prepare(client)
+    initial = sign_in(client)
+    other_login = sign_in(client)
+    with monkeypatch.context() as patch:
+        replies = client.portal.call(
+            refresh_after_both_checks, client, initial["refresh_token"], patch
+        )
+    assert sorted(reply.status_code for reply in replies) == [200, 401]
+    renewed = next(reply.json() for reply in replies if reply.status_code == 200)
+    rejected = next(reply for reply in replies if reply.status_code == 401)
+    assert rejected.json()["code"] == "refresh_rejected"
+    database = client.app.state.services.database
+    digests = [digest_of(str(initial["refresh_token"])), digest_of(renewed["refresh_token"])]
+
+    # 直接读取真实保存结果，确认旧令牌和新令牌均已作废，而不是只检查一次 HTTP 拒绝。
+    async def revoked_family() -> list[bool]:
+        async with database.read() as connection:
+            rows = await connection.execute(
+                select(refresh_tokens.c.revoked_at).where(
+                    refresh_tokens.c.token_sha256.in_(digests)
+                )
+            )
+            return [value is not None for value in rows.scalars()]
+
+    assert client.portal.call(revoked_family) == [True, True]
+    assert client.post(REFRESH, json={"refresh_token": renewed["refresh_token"]}).status_code == 401
+    assert (
+        client.post(REFRESH, json={"refresh_token": other_login["refresh_token"]}).status_code
+        == 200
+    )
+
+
+# R-05：检查后发生过期或退出作废时，保存拒绝刷新，不额外作废或签发令牌。
+@pytest.mark.parametrize("field", ["expires_at", "revoked_at"])
+def test_refresh_rechecks_expiry_and_revocation(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, field: str
+) -> None:
+    prepare(client)
+    token = str(sign_in(client)["refresh_token"])
+    database = client.app.state.services.database
+    original = SessionStore.check_refresh
+
+    # 真实检查已读到 active 后，用独立写事务模拟过期或退出先完成。
+    async def changed_before_save(store: SessionStore, value: str) -> TokenCheck:
+        check = await original(store, value)
+        assert check.status == "active"
+        async with database.write() as connection:
+            await connection.execute(
+                update(refresh_tokens)
+                .where(refresh_tokens.c.token_sha256 == digest_of(value))
+                .values({field: 1.0})
+            )
+        return check
+
+    with monkeypatch.context() as patch:
+        patch.setattr(SessionStore, "check_refresh", changed_before_save)
+        reply = client.post(REFRESH, json={"refresh_token": token})
+    assert reply.status_code == 401 and reply.json()["code"] == "refresh_rejected"
+
+    # 写事务只保留原记录与原作废状态；过期不能被误判为重复使用。
+    async def saved_state() -> list[tuple[object, object]]:
+        async with database.read() as connection:
+            rows = await connection.execute(
+                select(refresh_tokens.c.used_at, refresh_tokens.c.revoked_at)
+            )
+            return [tuple(row) for row in rows]
+
+    assert client.portal.call(saved_state) == [(None, 1.0 if field == "revoked_at" else None)]
 
 
 # R-02、R-05：停用用户后刷新立即失败；角色变化在下一次刷新时写进新令牌。

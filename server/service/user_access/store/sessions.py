@@ -93,13 +93,28 @@ class SessionStore:
                 refresh_tokens.c.token_sha256 == check.digest,
                 refresh_tokens.c.used_at.is_(None),
                 refresh_tokens.c.revoked_at.is_(None),
+                refresh_tokens.c.expires_at > now,
             )
             .values(used_at=now)
         )
         if claimed == 0:
+            await self.revoke_reused(check.digest, now)
             return SessionRenewal(grant=None)
         grant = await self.issue(check.account, check.family_id, check.started_at, now)
         return SessionRenewal(grant=grant)
+
+    # 在当前写事务中确认竞争失败是否源于重复使用，只作废仍有效的相应会话。
+    async def revoke_reused(self, digest: str, now: float) -> None:
+        row = await self.db.first(
+            select(refresh_tokens).where(refresh_tokens.c.token_sha256 == digest)
+        )
+        if (
+            row is not None
+            and row["used_at"] is not None
+            and row["revoked_at"] is None
+            and row["expires_at"] > now
+        ):
+            await self.revoke(refresh_tokens.c.family_id == row["family_id"])
 
     # 退出登录：作废这个刷新令牌所在的整组会话；令牌不存在时什么也不做。
     async def end_session(self, token: str) -> None:
