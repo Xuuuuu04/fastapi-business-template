@@ -10,7 +10,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-EXCLUDED = {"__pycache__", ".venv", ".mypy_cache", ".ruff_cache", ".pytest_cache"}
+from tools.development.versions import (
+    EXCLUDED,
+    REGISTRATIONS,
+    ROUTERS_FILE,
+    V1_FOLDER,
+    Reader,
+    registration_entry,
+    route_ownership,
+)
+
 COMMON = (
     "shared",
     "tools",
@@ -68,22 +77,74 @@ def module_paths(project: Path, name: str) -> list[Path]:
     ]
 
 
+# 把一个文件的内容计入摘要；路径和内容都参与，删除文件会少一条记录。
+def _feed(digest: "hashlib._Hash", path: Path, project: Path, content: bytes) -> None:
+    digest.update(path.relative_to(project).as_posix().encode() + b"\0")
+    digest.update(content + b"\0")
+
+
+# 公共部分的摘要：公共目录全部文件、非模块路由和登记文件的剩余公共部分。
+# 读不出模块归属时，全部接口文件保守地算公共，登记文件按原始内容参与。
+def _common_digest(project: Path, reader: Reader, owned: set[Path]) -> str:
+    server = project / "server"
+    files: set[Path] = set()
+    for name in COMMON:
+        files.update(reader.files_under(server / name, project))
+    routes = set(reader.files_under(server / V1_FOLDER, project))
+    files = (files - routes) | (routes - owned)
+    files -= {server / relative for relative in REGISTRATIONS}
+    digest = hashlib.sha256()
+    for path in sorted(files):
+        content = reader.read(path)
+        if content is not None:
+            _feed(digest, path, project, content)
+    for relative, (names, prefixes) in sorted(REGISTRATIONS.items()):
+        digest.update(relative.encode() + b"\0")
+        digest.update(registration_entry(reader, server / relative, names, prefixes) + b"\0")
+    return digest.hexdigest()
+
+
+# 一个模块的版本 = 公共摘要 + 自身与全部声明依赖的业务文件、规则、测试和接口文件。
+def _module_digest(
+    project: Path,
+    name: str,
+    links: dict[str, dict[str, list[str]]],
+    common: str,
+    owned: dict[str, list[Path]],
+    reader: Reader,
+) -> str:
+    digest = hashlib.sha256()
+    digest.update(b"common\0" + common.encode() + b"\0")
+    files: set[Path] = set()
+    for dependency in dependency_modules(name, links):
+        for path in module_paths(project, dependency):
+            files.update(reader.files_under(path, project))
+        files.update(owned.get(dependency, []))
+    for path in sorted(files):
+        content = reader.read(path)
+        if content is not None:
+            _feed(digest, path, project, content)
+    return digest.hexdigest()
+
+
 # 公共代码与全部声明依赖参与版本计算；没有依赖参数时保留独立模块用法。
+# 公共文件一轮只读一次；总登记清单与模块自己的接口文件按归属参与对应模块的版本。
 def fingerprints(
     project: Path, modules: list[str], links: dict[str, dict[str, list[str]]] | None = None
 ) -> dict[str, str]:
-    common = [project / "server" / name for name in COMMON]
+    reader = Reader()
+    stems = route_ownership(reader.source(project / "server" / ROUTERS_FILE))
+    owned = (
+        {
+            name: [project / "server" / V1_FOLDER / f"{stem}.py" for stem in names]
+            for name, names in stems.items()
+        }
+        if stems is not None
+        else {}
+    )
+    common = _common_digest(project, reader, {path for paths in owned.values() for path in paths})
     return {
-        name: fingerprint(
-            common
-            + [
-                path
-                for dependency in dependency_modules(name, links or {})
-                for path in module_paths(project, dependency)
-            ],
-            project,
-        )
-        for name in modules
+        name: _module_digest(project, name, links or {}, common, owned, reader) for name in modules
     }
 
 
