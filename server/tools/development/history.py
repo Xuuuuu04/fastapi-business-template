@@ -44,19 +44,42 @@ def fingerprint(paths: list[Path], root: Path) -> str:
     return digest.hexdigest()
 
 
-# 模块测试同时受公共代码、模块代码、业务规则及本模块测试影响。
-def fingerprints(project: Path, modules: list[str]) -> dict[str, str]:
+# 调用方包含被调用模块的版本，间接调用与后台任务也不能沿用旧检查。
+def dependency_modules(name: str, links: dict[str, dict[str, list[str]]]) -> list[str]:
+    pending = [name]
+    found: set[str] = set()
+    while pending:
+        module = pending.pop()
+        if module not in found:
+            found.add(module)
+            pending.extend(links.get(module, {}))
+    return sorted(found)
+
+
+# 每个模块的业务代码、确认规则和测试共同决定它的检查版本。
+def module_paths(project: Path, name: str) -> list[Path]:
     server = project / "server"
-    common = [server / name for name in COMMON]
+    return [
+        server / "service" / name,
+        project / "doc" / name / "rules.md",
+        project / "doc" / name / "needs.md",
+        server / "tests/modules" / name,
+        server / "tests/integration" / name,
+    ]
+
+
+# 公共代码与全部声明依赖参与版本计算；没有依赖参数时保留独立模块用法。
+def fingerprints(
+    project: Path, modules: list[str], links: dict[str, dict[str, list[str]]] | None = None
+) -> dict[str, str]:
+    common = [project / "server" / name for name in COMMON]
     return {
         name: fingerprint(
             common
             + [
-                server / "service" / name,
-                project / "doc" / name / "rules.md",
-                project / "doc" / name / "needs.md",
-                server / "tests/modules" / name,
-                server / "tests/integration" / name,
+                path
+                for dependency in dependency_modules(name, links or {})
+                for path in module_paths(project, dependency)
             ],
             project,
         )
@@ -114,5 +137,6 @@ def module_checks(checks: list[dict[str, Any]], module: str, current: str) -> di
                 "current": check["fingerprints"][module] == current and not check["source_changed"],
                 "checks_passed": check["passed"],
                 "source_changed": check["source_changed"],
+                "fingerprints": check["fingerprints"],
             }
     return {"rounds": len(selected), "latest": latest}

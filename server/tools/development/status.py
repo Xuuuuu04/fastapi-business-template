@@ -9,8 +9,15 @@ from typing import Any
 
 from shared.graphs.static import flow_graph, module_graph
 from shared.modules.catalog import Catalog
+from tools.development.evidence import (
+    case_current,
+    check_scope,
+    full_check_current,
+    latest_full_check,
+)
 from tools.development.history import fingerprints, module_checks, read_checks
 from tools.development.plan import read_plan
+from tools.development.scenarios import scenario_status
 from tools.progress_doc import pending_of, rules_of, tested_rules
 
 
@@ -21,6 +28,7 @@ def relevant_cases(suite: dict[str, Any], module: str) -> list[dict[str, Any]]:
         case
         for case in suite["cases"]
         if case["nodeid"].startswith(prefixes)
+        or any(identity.startswith(module + ".") for identity in case.get("scenario_ids", []))
         or any(run["operation"].startswith(module + ".") for run in case["runs"])
     ]
 
@@ -46,19 +54,25 @@ def execution_counts(cases: list[dict[str, Any]], operation: str, step: str = ""
 
 # 返回本模块最近的各数据库测试与适用于当前代码的测试记录。
 def test_status(
-    checks: list[dict[str, Any]], name: str, fingerprint: str
+    checks: list[dict[str, Any]],
+    name: str,
+    fingerprint: str,
+    versions: dict[str, str] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     result = module_checks(checks, name, fingerprint)
     current: list[dict[str, Any]] = []
     for suite in result["latest"].values():
-        cases = relevant_cases(suite, name)
+        cases = [
+            {**case, "current": case_current(case, suite, versions or {name: fingerprint})}
+            for case in relevant_cases(suite, name)
+        ]
         suite["counts"] = {
             status: sum(case["outcome"] == status for case in cases)
             for status in ("passed", "failed", "skipped")
         }
         suite["cases"] = cases
         if suite["current"]:
-            current += cases
+            current += [case for case in cases if case["current"]]
     return result, current
 
 
@@ -129,19 +143,22 @@ def module_status(
     checks: list[dict[str, Any]],
     fingerprint: str,
     disabled: set[str],
+    versions: dict[str, str],
 ) -> dict[str, Any]:
     module = catalog.modules[name]
-    tests, current = test_status(checks, name, fingerprint)
+    tests, current = test_status(checks, name, fingerprint, versions)
     rules = rules_of(project / module.doc / "rules.md")
     return {
         "name": name,
         "title": module.title,
         "enabled": name not in disabled,
         "code": f"server/service/{name}",
+        "fingerprint": fingerprint,
         "rules": rules,
         "test_annotations": tested_rules(project, name),
         "pending": [item.text for item in pending_of(project, name)],
         "tests": tests,
+        "scenarios": scenario_status(project, name, tests),
         "operations": [operation_status(catalog, item.name, current) for item in module.provides],
     }
 
@@ -164,6 +181,44 @@ def package_status(package: dict[str, Any], modules: dict[str, Any]) -> dict[str
     }
 
 
+# 全局失败包含框架与质量测试，不仅是业务模块中的测试。
+def latest_check_status(check: dict[str, Any]) -> dict[str, Any]:
+    from tools.development.summary import test_summary
+
+    suites = {}
+    for suite in check["suites"]:
+        suites[suite["database"]] = {
+            **suite,
+            "finished_at": check["finished_at"],
+            "current": not check["source_changed"],
+            "checks_passed": check["passed"],
+            "counts": {
+                status: sum(case["outcome"] == status for case in suite["cases"])
+                for status in ("passed", "failed", "skipped")
+            },
+        }
+    result = {key: check[key] for key in ("finished_at", "checks", "passed", "source_changed")}
+    result["recorded_modules"] = sorted(check["fingerprints"])
+    result["scope"] = check_scope(check)
+    result["suites"] = test_summary({"rounds": 1, "latest": suites})["latest"]
+    # 全局摘要仅知道该轮运行期间是否改过源码；当前适用性由各模块的版本判断。
+    for suite in result["suites"].values():
+        del suite["current"]
+    return result
+
+
+# 完整检查独立保留，之后的局部成功不能遮住框架失败。
+def full_check_status(
+    checks: list[dict[str, Any]], versions: dict[str, str]
+) -> dict[str, Any] | None:
+    check = latest_full_check(checks)
+    return (
+        {**latest_check_status(check), "current": full_check_current(check, versions)}
+        if check
+        else None
+    )
+
+
 # 从项目根开始汇总；计划外模块另外列出，避免它们被遗漏。
 def project_status(
     catalog: Catalog,
@@ -173,9 +228,9 @@ def project_status(
 ) -> dict[str, Any]:
     plan = read_plan(project)
     checks = read_checks(project, extra_checks)
-    codes = fingerprints(project, list(catalog.modules))
+    codes = fingerprints(project, list(catalog.modules), catalog.links())
     modules = {
-        name: module_status(catalog, project, name, checks, codes[name], disabled or set())
+        name: module_status(catalog, project, name, checks, codes[name], disabled or set(), codes)
         for name in catalog.modules
     }
     lines = plan_lines(plan, modules)
@@ -201,12 +256,10 @@ def project_status(
         "unplanned_modules": sorted(modules.keys() - expected),
         "modules": modules,
         "module_graph": module_graph(catalog),
+        "dependencies": catalog.links(),
         "check_rounds": len(checks),
-        "latest_check": {
-            key: checks[-1][key] for key in ("finished_at", "checks", "passed", "source_changed")
-        }
-        if checks
-        else None,
+        "latest_check": latest_check_status(checks[-1]) if checks else None,
+        "latest_full_check": full_check_status(checks, codes),
         "runtime": None,
     }
 

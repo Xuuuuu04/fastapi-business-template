@@ -164,7 +164,6 @@ def test_shared_changes_check_all_registered(catalog: Catalog, path: str) -> Non
         "server/service/future/public.py",
         "doc/future/rules.md",
         "server/tests/modules/future/test_rules.py",
-        "server/app/api/v1/future.py",
     ],
 )
 def test_unknown_modules_remain_visible(catalog: Catalog, path: str) -> None:

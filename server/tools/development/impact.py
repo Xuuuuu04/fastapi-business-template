@@ -38,17 +38,30 @@ class ImpactScope:
 
 
 # 只认项目约定的模块位置，不把测试文件内部的同名目录当成模块归属。
-def module_area(path: str) -> tuple[str, str] | None:
+def module_area(path: str, modules: Iterable[str] = ()) -> tuple[str, str] | None:
     for prefix, area in MODULE_AREAS:
         if not path.startswith(prefix):
             continue
         parts = PurePosixPath(path[len(prefix) :]).parts
+        if prefix == "server/app/api/v1/":
+            if not parts or PurePosixPath(parts[-1]).suffix != ".py":
+                return None
+            stem = PurePosixPath(parts[0]).stem
+            owner = next(
+                (
+                    name
+                    for name in sorted(modules, key=len, reverse=True)
+                    if stem == name or stem.startswith(name + "_")
+                ),
+                None,
+            )
+            return (owner, area) if owner is not None else None
         if len(parts) > 1:
-            if prefix == "doc/" and parts[0] == "api":
+            if (prefix == "doc/" and parts[0] == "api") or (
+                prefix == "server/tests/integration/" and parts[0] == "system"
+            ):
                 return None
             return parts[0], area
-        if prefix == "server/app/api/v1/" and parts and parts[0] != "__init__.py":
-            return PurePosixPath(parts[0]).stem, area
     return None
 
 
@@ -63,14 +76,16 @@ def framework_files(files: Iterable[str]) -> list[str]:
 
 
 # 公共接口、迁移和无法归属的应用代码不能安全缩小到某一个模块。
-def shared_reason(path: str, framework: set[str]) -> str:
+def shared_reason(path: str, framework: set[str], modules: Iterable[str] = ()) -> str:
     if path in framework:
         return f"框架改动：{path}；需检查全部登记模块"
     if path.startswith("server/migrations/"):
         return f"数据库迁移改动：{path}；可能影响共用数据库"
     if path.startswith("doc/api/"):
         return f"公共接口描述改动：{path}；无法仅凭路径确定调用方"
-    if path.startswith(("server/app/", "server/service/")) and module_area(path) is None:
+    if path.startswith("server/tests/") and module_area(path, modules) is None:
+        return f"公共测试改动：{path}；需检查全部登记模块"
+    if path.startswith(("server/app/", "server/service/")) and module_area(path, modules) is None:
         return f"未归属模块的公共代码：{path}；保守检查全部登记模块"
     if path in ("server/uv.lock", "server/framework.lock"):
         return f"项目共用依赖或框架摘要改动：{path}"
@@ -106,7 +121,7 @@ def impact_scope(
     direct_reasons: dict[str, list[str]] = {}
     unmapped = []
     for path in paths:
-        owner = module_area(path)
+        owner = module_area(path, registered)
         if owner is None:
             unmapped.append(path)
         else:
@@ -115,7 +130,9 @@ def impact_scope(
     direct = sorted(direct_reasons)
     unknown = sorted(set(direct) - set(registered))
     framework = set(framework_files(paths))
-    full_reasons = [reason for path in paths if (reason := shared_reason(path, framework))]
+    full_reasons = [
+        reason for path in paths if (reason := shared_reason(path, framework, registered))
+    ]
     full_reasons += [
         f"模块 {name} 未登记；无法确定完整调用方，需先登记或确认删除" for name in unknown
     ]

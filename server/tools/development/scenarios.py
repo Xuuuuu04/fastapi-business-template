@@ -95,9 +95,10 @@ def evidence_status(evidence: list[dict[str, Any]]) -> str:
 # 保留准确测试名称与旧结果，但旧结果不计为当前样例通过。
 def database_case(identity: str, suite: dict[str, Any]) -> dict[str, Any]:
     evidence = [case for case in suite["cases"] if identity in case.get("scenario_ids", [])]
+    current = suite["current"] and all(case.get("current", True) for case in evidence)
     return {
-        "current": suite["current"],
-        "status": evidence_status(evidence) if suite["current"] else "unrecorded",
+        "current": current,
+        "status": evidence_status(evidence) if current else "unrecorded",
         "nodeids": sorted({case["nodeid"] for case in evidence}),
         "outcomes": {case["nodeid"]: case["outcome"] for case in evidence},
     }

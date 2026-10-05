@@ -1,68 +1,82 @@
-# 项目说明（AI 开发者先读这里）
+# FastAPI 通用后端模板
 
-## 1. 产品业务
+## 这个项目是什么
 
-> 用模板开发具体产品时，在这里用三到五句话写清：产品叫什么、给谁用、解决什么问题、有哪些主要模块。详细业务写在 `doc/`，不要写在这里。
+当前是供 AI 开发和迁移业务的模板，只带用户权限和文件管理两个可关闭的通用模块，不带商品、报价等演示业务。采用本模板后，在这里写清具体产品、使用者与主要模块；详细业务放在 [doc/](doc/)。
 
 - 产品：（待填写）
 - 使用者：（待填写）
-- 主要模块：见 [doc/README.md](doc/README.md)
+- 主要模块：见 [业务目录](doc/README.md)
+- 预先设计：根目录 [项目计划](project-plan.json)，可先列尚未实现的开发包与操作。
 
-当前仓库是供 AI 开发和迁移业务的模板，只带用户权限和文件管理两个可关闭的通用模块；不带商品、报价等演示业务。
+## 怎么运行
 
-## 2. 开工前按顺序读
+在 [server/](server/) 下运行：
 
-1. 在 `server/` 下运行 `uv run python -m tools.project --json`：一次取得业务线、开发包、模块结构与真实测试情况。
-   [doc/development.md](doc/development.md)、[doc/progress.md](doc/progress.md) 和 [doc/tasks.md](doc/tasks.md)：设计、规则与未完事项。
-2. [doc/README.md](doc/README.md) 和相关模块的 `needs.md`、`rules.md`、`flows.md`：业务是什么、规则怎么算；字段含义、接口路径、数据表在自动生成的 `flows.md` 中。
-3. [server/service/README.md](server/service/README.md)：模块的固定结构和必须遵守的规则。
-4. 一个完整模块：[server/service/file_library/](server/service/file_library/) 的 README、`flow.py`、`steps/`。
-5. [server/shared/flow/README.md](server/shared/flow/README.md)：步骤怎样写、事务怎样安排。
+```bash
+uv sync --locked
+uv run alembic upgrade head
+uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
+uv run python -m tools.check
+```
 
-用 `APP_DISABLED_MODULES` 关闭不需要的业务模块，接口与后台入口随模块一起关闭，历史数据保留。旧项目升级前先读 [CHANGELOG.md](CHANGELOG.md) 的不兼容变化；模块协作使用明确调用或后台任务，存储和缓存使用内置实现。
+配置说明见 [环境样例](server/.env.example)，完整命令见 [后端说明](server/README.md)。开发时用 `tools.check --module 模块名`；它只缩小测试范围，风格、类型、生成文档等检查仍完整。生产使用 PostgreSQL 时加 `--postgres 数据库地址`。每次交付必须完整检查；推送后 [GitHub Actions](.github/workflows/check.yml) 的 PostgreSQL、Redis、S3 与镜像检查也必须通过。
 
-不需要通读全部代码。每个目录都有 README，先读 README 再决定读哪个文件。
+## 目录地图
 
-## 3. 开发一个功能
+- [server/service/](server/service/)：固定业务包；入口、步骤与存储各有用途，先看 [业务结构说明](server/service/README.md)。
+- [server/shared/](server/shared/)：事务、执行、模块调用、后台任务和运行记录等公共能力。
+- [server/app/](server/app/)：模块登记、HTTP 与启动；[server/tools/](server/tools/)：生成、检查与项目阅读入口。
+- [server/tests/](server/tests/)：模块、HTTP、框架、质量、安全与恢复测试；[server/migrations/](server/migrations/)：数据库历史。
+- [doc/](doc/)：需求、规则、变化、生成的字段/接口/流程及任务；[server/deploy/](server/deploy/)：部署与恢复说明。
 
-1. **先改业务文档**：在 `doc/模块名/rules.md` 写清规则、编号、异常情况和确认样例；没有确认的写“待确认”，不要自己补全业务规则。字段含义写在代码的 `meaning()` 中，不在 `rules.md` 重复。预先设计的业务线、开发包和操作写在根目录 `project-plan.json`，可以先列出未实现的目标。
-2. **新模块用命令生成**：`uv run python -m tools.new_module 模块名 --title 中文名`，不要手工复制目录。
-3. **按固定结构写**：字段写在 `data.py` 并用 `meaning()` 写含义；每个类写中文用途说明；计算写成步骤，声明读写的字段；步骤在 `flow.py` 中连成流程；数据库访问写在 `store/`。
-4. **写测试**：生成器已提供步骤和接口测试，按业务功能集中在对应模块目录中，不到处新建测试文件；用 `uv run python -m tools.check --module 模块名` 单独检查。规则测试的预期值来自 `rules.md` 的确认样例，测试说明中写上规则编号（例如 `# R-03：……`），`doc/progress.md` 按编号统计规则有没有测试；接口测试从 HTTP 入口进入。
-5. **生成迁移和文档**：先 `uv run alembic upgrade head` 把本地数据库升到最新，再 `uv run alembic revision --autogenerate -m "说明"`（检查生成结果），最后 `uv run python -m tools.export_docs`（更新 `doc/` 下的流程、接口描述和进度，一起提交）。
-6. **记录没做完的事**：留到以后的工作写进 `doc/tasks.md`，完成的勾选；用 `uv run python -m tools.impact --base origin/main` 查看这次改动影响了什么。
-7. **全量检查**：在 `server/` 运行 `uv run python -m tools.check`，全部通过才算完成。推送后 GitHub Actions（`.github/workflows/check.yml`）会在 PostgreSQL、Redis、S3 服务上重跑同一检查并生成部署镜像，也必须通过。
+## 去哪里找
 
-## 4. 不能做的事
+主代理开工先读摘要，不先展开完整测试记录。下面命令均在 `server/` 执行：
 
-| 不要做 | 原因 |
-| --- | --- |
-| 业务代码导入 `shared` 下 `public.py` 以外的文件，或导入其他模块 `public.py` 以外的文件 | 模块之间只靠约定连接，内部才能随时重构 |
-| 在步骤里直接写 SQL、调用 HTTP 库，或绕过 `model` 参数调用大模型 | 数据访问、外部调用必须经过框架，才能记录、限流、控制事务 |
-| 读写没有声明的字段，或把结果 `return` 出来 | 字段来源图依赖读写声明 |
-| 用 `try/except` 吞掉异常后返回空值或零，或加没有必要的防御代码 | 错误要在运行记录中看得见，悄悄变成零的结果最难排查 |
-| 留 TODO、写修错经过的注释 | 未完成的事写进 `doc/tasks.md`，修改经过写进提交说明 |
-| 为了通过检查修改阈值、删检查、删业务文档内容 | 检查失败说明结构有问题，应该改代码或整理文档 |
-| 修改 `shared/`、`tools/`、`app/setup/`、检查规则等框架文件 | 这些受 `server/framework.lock` 保护；确需修改时单独说明原因，交给人审查 |
+```bash
+uv run python -m tools.project --summary --json
+uv run python -m tools.project --module file_library --summary --json
+uv run python -m tools.project --operation file_library.save_file --json
+uv run python -m tools.project --test '准确的pytest测试编号' --json
+uv run python -m tools.impact --base origin/main --json
+```
 
-## 5. 出问题怎样查
+摘要列计划缺项、待确认、各数据库检查版本与问题预览；缺项或问题过多时明确省略数量，并给继续读取的入口。单包摘要展开操作与规则样例；已计划但未登记的包也能读取。旧 `tools.project --json` 与 `--module 模块名` 仍提供完整结构，只在需要完整证据时使用。
 
-1. 测试失败时，失败输出中已附上失败运行的中文报告：停在哪一步、为什么、源码位置、每一步写了什么，先读它。
-   手动调用接口出错时，错误响应里有 `run_id`，可在 `/system/console` 查看步骤、上下层调用和耗时；运行 `uv run python -m tools.diagnose run 运行编号`（本地默认把运行记录写进 SQLite）或调用 `/api/system/runs/{run_id}/report`。
-2. 按报告中的规则编号读 `rules.md`，确认预期。
-3. 不要从其他目录复制 `.venv`；移动项目后重新安装依赖。单独执行检查时使用 `uv run python -m pytest`，避免旧命令脚本仍指向原目录。
-4. 再读出错位置的源码和测试。不要一开始就从头读代码，也不要写临时脚本到处试。
+相关业务从 [doc/README.md](doc/README.md) 找到各包的需求、规则与生成流程；设计见 [开发图](doc/development.md)，规则标注与待确认见 [进度](doc/progress.md)，未完事项见 [任务](doc/tasks.md)。字段含义、接口路径和表结构在生成流程中，不在规则里重复维护。
 
-## 6. 完成时怎样汇报
+影响报告列直接修改、传递调用方与后台任务调用方，给出建议检查命令；关闭模块仍在检查范围内。它读取当前声明，删除的历史依赖和系统外调用需要人工确认。建议命令尚未执行，不能据此汇报通过。
 
-发布前还需按 [server/tests/browser/README.md](server/tests/browser/README.md) 检查接口文档和运行页面；生产配置验收范围见 [server/deploy/README.md](server/deploy/README.md)。
+## 数据怎么流动
 
-部署检查只要求启用模块实际使用的配置。迁入用户后台任务前，先读 [server/shared/jobs/README.md](server/shared/jobs/README.md) 的权限限制，并在业务规则中确定执行时的用户状态检查。
+HTTP 或后台任务进入已登记操作，输入由数据模型检查，执行器按流程调用声明读写字段的步骤。数据库与外部动作通过模块存储和公共能力完成；事务按保存步骤安排，先读后写要在保存时用条件修改或加锁读取保护业务规则。
 
-说明改了什么、对应哪些业务规则、`tools.check` 的结果（是否在 PostgreSQL 上运行过）、还有哪些没有验证。需要人决定的业务问题单独列出，不要自行假设；同时写进对应 `rules.md` 并标“待确认”，让它出现在 `doc/progress.md` 中。合并请求按 `.github/pull_request_template.md` 填写。
+计算写在步骤，步骤在流程中连接，SQL 写在存储中。跨包只用已声明的公开操作或后台任务。计算图来自声明；运行图来自一次实际执行，包含条件、时间、产出形状和 SQL 位置，未知信息保持未知。写法先看 [步骤与事务](server/shared/flow/README.md) 和 [文件管理样板](server/service/file_library/README.md)。
 
-检查轮次保存在本机 `server/var/development/`，不提交；代码改变后旧结果标为过期。模块详情用 `tools.project --module 模块名`。
-新产品用 `tools.start_project` 生成干净副本，已有产品的框架更新步骤见 [UPGRADING](server/tools/template/UPGRADING.md)。
-默认启动检查固定文件位置、步骤函数位置、依赖方向和框架摘要；旧项目用 `tools.adopt_modules` 采用标准结构。
-`tools.project --module 模块名 --runs` 显示运行图、字段产出、SQL 耗时和存储函数位置；近期样例覆盖不等同业务验收。
-`.agents/` 是本机协作资料；项目专用 Skill 是唯一允许提交的子目录。
+## 本项目的约定
+
+1. 先在业务规则中写编号、异常与确认样例；未确定的标“待确认”，让它进入进度。不要自行补业务含义。新模块用 `tools.new_module 模块名 --title 中文名`，不复制目录。
+2. 字段写在数据模型并用 `meaning()` 说明含义；类和关键计算写中文用途。计算步骤声明读写字段，固定业务包的文件位置和依赖方向保持不变。
+3. 测试按业务功能集中在对应包。普通规则标注只能说明测试文件提过规则；重要确认样例可在同一规则表增加“样例编号、情况、结果”列，并用 `@pytest.mark.rule_case("模块.R-05-C01")` 对应实际测试。参数化不同样例在各 `pytest.param` 标记；没有当前执行证据、失败或跳过不记为通过。
+4. 主代理给局部代理明确修改范围和应得结果；并行工作用独立分支与工作目录。总登记、公共框架和最终生成文档由主代理统一整合，检查共同影响。
+5. 修改数据表先升级本地数据库，再生成并人工检查迁移。之后运行 `tools.export_docs`；生成文档与源代码一起提交。后续工作写入任务，业务变化写入本包变化记录。
+6. 检查记录保存在本机 [开发记录目录](server/var/development/)，不提交、不进入模板副本。调用方版本包含直接与间接声明依赖；被调用能力改变后，旧调用方检查也过期。规则样例与整轮检查分别判断，全部测试通过仍需要业务验收。
+7. 用 `APP_DISABLED_MODULES` 关闭不用的模块，接口与后台入口随之关闭，历史数据保留。新产品用 `tools.start_project`；已有产品更新前看 [版本记录](CHANGELOG.md) 与 [更新说明](server/tools/template/UPGRADING.md)。
+
+## 不要做的事
+
+- 不导入公共入口以外的业务内部文件，不在步骤里直接执行 SQL、调用 HTTP 库或绕过声明的大模型入口。
+- 不读写未声明字段，不靠步骤 `return` 传业务结果，不吞异常返回空值或零。
+- 不为通过检查改阈值、删检查或删业务文档；不在源码留 TODO 和修错经过。
+- 不无意改公共框架、检查或工具；它们由 [框架摘要](server/framework.lock) 保护。本次工作确需修改时，单独说明用途、影响和检查，再审查并更新摘要。
+- 不把登记数量、规则标注、历史成功或建议命令写成业务已验收。报告检查、合并、部署和实际使用的不同状态，未验证部分明确保留。
+
+## 已知的坑
+
+- 测试失败先读自动附带的中文运行报告，再按规则确认预期，最后读出错源码。HTTP 错误含 `run_id`；可在 `/system/console`、`/api/system/runs/{run_id}/report` 或 `tools.diagnose run 运行编号` 查看。
+- `tools.project --module 模块名 --runs --limit 数量` 明确读取当前配置数据库，显示运行图、产出与 SQL；默认摘要不访问数据库。`--limit` 仅限制数据库运行，不限制完整测试 JSON。近期成功样例覆盖不等同业务验收。
+- 旧源码的测试即使通过，也不能证明当前代码。可用 `--checks /分支或CI记录目录` 汇集记录；规则样例表无编号时，样例执行情况未知。
+- 不从其他目录复制虚拟环境；移动项目后重新安装，独立测试用 `uv run python -m pytest`，避免旧命令脚本指向原目录。
+- 发布前按 [浏览器检查](server/tests/browser/README.md) 检查接口与运行页面，按 [部署说明](server/deploy/README.md) 确认实际环境；后台任务使用用户权限时先读 [任务权限限制](server/shared/jobs/README.md)。
+- 本机任务、决定和记录放 `.agents/`，项目专用 Skill 是唯一允许提交的子目录。只读图和命令存在，不代表 Agent 在长任务中始终正确使用。

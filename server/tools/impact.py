@@ -107,8 +107,9 @@ def framework_part(files: list[str]) -> list[str]:
 # 涉及的模块：每个模块改动了代码、业务文档、接口还是测试。
 def modules_part(files: list[str], modules: Iterable[str]) -> list[str]:
     rows = []
-    owners = {owner[0] for path in files if (owner := module_area(path))}
-    for name in sorted(set(modules) | owners):
+    names = set(modules)
+    owners = {owner[0] for path in files if (owner := module_area(path, names))}
+    for name in sorted(names | owners):
         areas = [
             label
             for prefix, label in AREAS
@@ -123,7 +124,7 @@ def modules_part(files: list[str], modules: Iterable[str]) -> list[str]:
 
 # 判断文件是否在模块的约定位置，避免内部同名目录误归属。
 def belongs(path: str, name: str) -> bool:
-    owner = module_area(path)
+    owner = module_area(path, [name])
     return owner is not None and owner[0] == name
 
 
