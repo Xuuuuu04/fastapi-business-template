@@ -46,6 +46,7 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 运行局部检查、联合检查、完整检查 | `fastapi-check` |
 | 查运行报告、处理后台任务、生成服务密钥 | `fastapi-operations` |
 | 把旧系统业务逐项迁进来 | `fastapi-migration` |
+| 给 Vue3 前端提供接口、前后端字段对不上、前端出错查后端 | `fastapi-frontend` |
 
 ## 复制项目时
 
