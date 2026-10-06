@@ -2,16 +2,16 @@
 
 ## 这个项目是什么
 
-当前是供 AI 开发和迁移业务的模板，只保留公共框架，不预置业务模块。采用本模板后，在这里写清具体产品、使用者与主要模块；详细业务放在 [doc/](doc/)。
+这是给 AI 开发和迁移业务用的模板，只有公共框架，没有预置业务。用这个模板开始做产品后，在这里写清楚产品是什么、谁来用、有哪些主要模块；详细业务放在 [doc/](doc/)。
 
 - 产品：（待填写）
 - 使用者：（待填写）
 - 主要模块：见 [业务目录](doc/README.md)
-- 预先设计：根目录 [项目计划](project-plan.json)，可先列尚未实现的开发包与操作。
+- 提前设计：根目录的 [项目计划](project-plan.json)，可以先列出还没实现的开发包和操作。
 
 ## 怎么运行
 
-在 [server/](server/) 下运行：
+在 [server/](server/) 下执行：
 
 ```bash
 uv sync --locked
@@ -20,64 +20,77 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check
 ```
 
-配置见 [环境样例](server/.env.example)，开发检查与范围选择见 [项目检查 Skill](.agents/skills/fastapi-check/SKILL.md)。生产使用 PostgreSQL 时增加真实隔离数据库检查。整批交付和发布前完整检查；适用的 GitHub Actions 也须通过。
+配置看 [环境样例](server/.env.example)。开发时怎么选检查范围，看 [项目检查 Skill](.agents/skills/fastapi-check/SKILL.md)。生产用 PostgreSQL 的话，要另外在真实的隔离数据库上检查一遍。整批交付和发布前跑完整检查；有 GitHub Actions 的也要通过。
 
 ## 目录地图
 
-- [server/service/](server/service/)：固定业务包；入口、步骤与存储各有用途，先看 [业务结构说明](server/service/README.md)。
-- [server/shared/](server/shared/)：事务、执行、模块调用、后台任务和运行记录等公共能力。
-- [server/app/](server/app/)：模块登记、HTTP 与启动；[项目 Skill](.agents/skills/fastapi-guide/SKILL.md)：开发方法、脚本与代码模板。
-- [server/tests/](server/tests/)：模块、HTTP、框架、质量、安全与恢复测试；[server/migrations/](server/migrations/)：数据库历史。
-- [doc/](doc/)：需求、规则、变化、生成的字段/接口/流程及任务；[server/deploy/](server/deploy/)：部署与恢复说明。
+- [server/service/](server/service/)：业务包，目录结构固定。每个文件做什么，见 [业务结构说明](server/service/README.md)。
+- [server/shared/](server/shared/)：所有业务共用的能力，如事务、流程执行、模块间调用、后台任务、运行记录。
+- [server/app/](server/app/)：模块登记、HTTP 接口和启动。
+- [项目 Skill](.agents/skills/fastapi-guide/SKILL.md)：开发方法、脚本和代码模板。
+- [server/tests/](server/tests/)：测试，包括模块、HTTP、框架、质量、安全和恢复。
+- [server/migrations/](server/migrations/)：数据库迁移历史。
+- [doc/](doc/)：需求、规则、变化记录，以及自动生成的字段、接口、流程文档和任务。
+- [server/deploy/](server/deploy/)：部署和恢复说明。
 
-## 去哪里找
+## 去哪里找信息
 
-主代理开工先读摘要，不先展开完整测试记录。下面命令均在 `server/` 执行：
+开工先读摘要，不要一上来就展开完整的测试记录。下面的命令都在 `server/` 执行：
 
 ```bash
+# 全项目摘要
 uv run python ../.agents/skills/fastapi-project/scripts/run_project.py project --summary --json
+# 一个业务包的摘要
 uv run python ../.agents/skills/fastapi-project/scripts/run_project.py project --module customer_contact --summary --json
+# 一个操作的详情
 uv run python ../.agents/skills/fastapi-project/scripts/run_project.py project --operation customer_contact.create_record --json
+# 一个测试的详情（要用准确的 pytest 编号）
 uv run python ../.agents/skills/fastapi-project/scripts/run_project.py project --test '准确的pytest测试编号' --json
+# 当前改动会影响哪些地方
 uv run python ../.agents/skills/fastapi-project/scripts/run_project.py impact --base origin/main --json
 ```
 
-摘要列计划缺项、待确认、各数据库检查版本与问题预览；缺项或问题过多时明确省略数量，并给继续读取的入口。单包摘要展开操作与规则样例；已计划但未登记的包也能读取。旧 `fastapi_project.project --json` 与 `--module 模块名` 仍提供完整结构，只在需要完整证据时使用。
+摘要会列出：计划里缺的部分、待确认的事、各数据库的检查版本、问题预览。缺项或问题太多时，会写明省略了多少条，并告诉你去哪里继续看。单个业务包的摘要会展开它的操作和规则样例；已计划但还没登记的包也能查。
 
-相关业务从 [doc/README.md](doc/README.md) 找到各包的需求、规则与生成流程；设计见 [开发图](doc/development.md)，规则标注与待确认见 [进度](doc/progress.md)，未完事项使用已有产品任务记录或本机任务记录。字段含义、接口路径和表结构在生成流程中，不在规则里重复维护。
+旧的 `fastapi_project.project --json` 和 `--module 模块名` 仍然能给出完整结构，只在需要完整证据时用。
 
-迁移旧系统先读 [业务迁移 Skill](.agents/skills/fastapi-migration/SKILL.md)。默认一个代理持续推进，每次完成一项从输入到页面的业务，开工固定完成条件；依赖顺序用于当前业务，不要求全项目逐层完成。
-影响报告列直接修改、传递调用方与后台任务调用方，给出建议检查命令；关闭模块仍在检查范围内。它读取当前声明，删除的历史依赖和系统外调用需要人工确认。建议命令尚未执行，不能据此汇报通过。
+影响报告会列出：直接修改的部分、间接调用它的部分、用到它的后台任务，并给出建议的检查命令。已关闭的模块也在范围内。报告读取的是当前代码里的声明，所以已经删掉的历史依赖和系统之外的调用，要人工确认。建议命令还没执行，不能据此说"通过了"。
+
+相关业务文档从 [doc/README.md](doc/README.md) 进入，每个包都有需求、规则和自动生成的流程。设计看 [开发图](doc/development.md)，规则标注和待确认事项看 [进度](doc/progress.md)。没做完的事用现有的产品任务记录，或本机任务记录。字段含义、接口路径、表结构都在自动生成的流程文档里，规则文档里不重复写。
+
+要迁移旧系统，先读 [业务迁移 Skill](.agents/skills/fastapi-migration/SKILL.md)。默认由一个代理持续推进，每次完成一项从输入到页面都能用的业务，开工前先定好完成条件。依赖顺序只用来安排当前这项业务，不要求整个项目先把底层全做完。
 
 ## 数据怎么流动
 
-HTTP 或后台任务进入已登记操作，输入由数据模型检查，执行器按流程调用声明读写字段的步骤。数据库与外部动作通过模块存储和公共能力完成；事务按保存步骤安排，先读后写要在保存时用条件修改或加锁读取保护业务规则。
+请求（HTTP 或后台任务）进入已登记的操作。输入先由数据模型检查，然后执行器按流程依次调用各个步骤，每个步骤声明自己读写哪些字段。数据库和外部动作通过业务包的存储和公共能力完成。事务按"保存步骤"来安排。先读后写的场景，在保存时要用条件修改或加锁读取，保证业务规则不被并发破坏。
 
-计算写在步骤，步骤在流程中连接，SQL 写在存储中。跨包只用已声明的公开操作或后台任务。计算图来自声明；运行图来自一次实际执行，包含条件、时间、产出形状和 SQL 位置，未知信息保持未知。写法先看 [步骤与事务](server/shared/flow/README.md) 和 [模块开发 Skill](.agents/skills/fastapi-module/SKILL.md)。
+计算写在步骤里，步骤在流程里连接，SQL 写在存储里。包与包之间只能调用对方声明过的公开操作或后台任务。
+
+文档里有两种图：计算图来自代码里的声明；运行图来自一次真实运行，包含条件、时间、产出数据的形状和 SQL 的位置，不知道的信息就标未知。写法先看 [步骤与事务](server/shared/flow/README.md) 和 [模块开发 Skill](.agents/skills/fastapi-module/SKILL.md)。
 
 ## 本项目的约定
 
-1. 先在业务规则中写编号、异常与确认样例；未确定的标“待确认”，让它进入进度。不要自行补业务含义。新模块按 [模块开发 Skill](.agents/skills/fastapi-module/SKILL.md) 生成，不复制目录。
-2. 字段写在数据模型并用 `meaning()` 说明含义；类和关键计算写中文用途。计算步骤声明读写字段，固定业务包的文件位置和依赖方向保持不变。
-3. 测试按业务功能集中在对应包。普通规则标注只能说明测试文件提过规则；重要确认样例可在同一规则表增加“样例编号、情况、结果”列，并用 `@pytest.mark.rule_case("模块.R-05-C01")` 对应实际测试。参数化不同样例在各 `pytest.param` 标记；没有当前执行证据、失败或跳过不记为通过。
-4. 默认单代理持续负责共同版本和完整业务结果。仅在用户或适用规则明确要求时分工；共享接口与数据库变化串行处理，尽早共同验证，不等全部包开发完才整合。
-5. 修改数据表先升级本地数据库，再生成并人工检查迁移。之后按 [文档生成 Skill](.agents/skills/fastapi-docs/SKILL.md) 导出；生成文档与源代码一起提交。后续工作写入任务，业务变化写入本包变化记录。
-6. 检查记录保存在本机 [开发记录目录](server/var/development/)，不提交、不进入模板副本。调用方版本包含直接与间接声明依赖；被调用能力改变后，旧调用方检查也过期。规则样例与整轮检查分别判断，全部测试通过仍需要业务验收。
-7. `APP_DISABLED_MODULES` 控制模块入口，关闭时保留历史数据；新产品与框架更新按 [模板管理 Skill](.agents/skills/fastapi-template/SKILL.md) 执行。
+1. **先写规则再写代码。** 先在业务规则里写编号、异常和确认样例。没定的标"待确认"，它会出现在进度里。不要自己补业务含义。新业务包按 [模块开发 Skill](.agents/skills/fastapi-module/SKILL.md) 生成，不要复制已有目录。
+2. **字段和注释。** 字段写在数据模型里，用 `meaning()` 写含义；类和关键计算写中文用途。计算步骤声明读写的字段。业务包的文件位置和依赖方向保持固定。
+3. **测试按业务功能放在对应的包里。** 规则标注只能说明"这个测试文件提到过这条规则"。重要的确认样例，在同一张规则表里加"样例编号、情况、结果"三列，并用 `@pytest.mark.rule_case("模块.R-05-C01")` 对应到具体测试。参数化的不同样例，在各自的 `pytest.param` 上标。没有本次运行证据的、失败的、跳过的，都不能算通过。
+4. **默认一个代理负责到底。** 同一个代理负责共同的代码版本和完整的业务结果。只有用户或适用的规则明确要求时才分工。共享的接口和数据库变化要一个接一个处理，尽早放在一起验证，不要等所有包都写完才合并。
+5. **改数据表的顺序：** 先升级本地数据库，再生成迁移并人工检查，然后按 [文档生成 Skill](.agents/skills/fastapi-docs/SKILL.md) 导出文档，生成的文档和源代码一起提交。后续工作写进任务，业务变化写进本包的变化记录。
+6. **检查记录只放本机。** 保存在 [开发记录目录](server/var/development/)，不提交，也不会进入模板副本。调用方的检查版本包含它直接和间接依赖的声明；被调用的能力一改，旧调用方的检查也算过期。规则样例和整轮检查分开看；全部测试通过，也还需要业务验收。
+7. **关闭模块用 `APP_DISABLED_MODULES`。** 关闭后接口和后台入口一起关闭，历史数据保留。新产品用模板管理 Skill 创建；已有产品更新前，先看 [版本记录](CHANGELOG.md) 和 [模板管理 Skill](.agents/skills/fastapi-template/SKILL.md)。
 
 ## 不要做的事
 
-- 不导入公共入口以外的业务内部文件，不在步骤里直接执行 SQL、调用 HTTP 库或绕过声明的大模型入口。
-- 不读写未声明字段，不靠步骤 `return` 传业务结果，不吞异常返回空值或零。
-- 不为通过检查改阈值、删检查或删业务文档；不在源码留 TODO 和修错经过。
-- 不无意改公共框架、检查或项目 Skill；它们由 [框架摘要](server/framework.lock) 保护。本次工作确需修改时，单独说明用途、影响和检查，再审查并更新摘要。
-- 不把登记数量、规则标注、历史成功或建议命令写成业务已验收。报告检查、合并、部署和实际使用的不同状态，未验证部分明确保留。
+- 不要导入业务包公共入口以外的内部文件；不要在步骤里直接写 SQL、调用 HTTP 库，或绕开声明过的大模型入口。
+- 不要读写没声明的字段；不要用步骤的 `return` 传业务结果；不要吞掉异常去返回空值或零。
+- 不要为了通过检查去改阈值、删检查或删业务文档；源码里不要留 TODO 和修错经过。
+- 不要随手改公共框架、检查和项目 Skill，它们由 [框架摘要](server/framework.lock) 保护。确实要改时，单独说明用途、影响和检查，审查后更新摘要。
+- 不要把"登记了多少个"、"规则有标注"、"以前成功过"、"建议的命令"说成业务已经验收。检查、合并、部署和实际使用是不同的状态，没验证过的部分要明说。
 
 ## 已知的坑
 
-- 测试失败先读自动附带的中文运行报告，再按规则确认预期。HTTP 错误含 `run_id`；按 [系统操作 Skill](.agents/skills/fastapi-operations/SKILL.md) 查该编号的运行过程。
-- `fastapi_project.project --module 模块名 --runs --limit 数量` 明确读取当前配置数据库，显示运行图、产出与 SQL；默认摘要不访问数据库。`--limit` 仅限制数据库运行，不限制完整测试 JSON。近期成功样例覆盖不等同业务验收。
-- 旧源码的测试即使通过，也不能证明当前代码。可用 `--checks /分支或CI记录目录` 汇集记录；规则样例表无编号时，样例执行情况未知。
-- 不从其他目录复制虚拟环境；移动项目后重新安装，独立测试用 `uv run python -m pytest`，避免旧命令脚本指向原目录。
-- 发布前按 [浏览器检查](server/tests/browser/README.md) 检查接口与运行页面，按 [部署说明](server/deploy/README.md) 确认实际环境；后台任务使用用户权限时先读 [任务权限限制](server/shared/jobs/README.md)。
-- 本机任务、决定和记录放 `.agents/`，项目专用 Skill 是唯一允许提交的子目录。只读图和命令存在，不代表 Agent 在长任务中始终正确使用。
+- **测试失败：** 先读自动附带的中文运行报告，再对照规则确认预期，最后才读出错的源码。HTTP 错误里有 `run_id`，可以在 `/system/console`、`/api/system/runs/{run_id}/report` 或 `fastapi_operations.diagnose run 运行编号` 查看。
+- **查运行记录：** `fastapi_project.project --module 模块名 --runs --limit 数量` 会明确读取当前配置的数据库，显示运行图、产出和 SQL；默认摘要不访问数据库。`--limit` 只限制数据库里的运行条数，不限制完整测试 JSON。最近成功的样例，不等于业务已经验收。
+- **旧源码的测试：** 测试通过也不能证明当前代码是对的。用 `--checks /分支或CI记录目录` 可以汇集记录；规则样例表里没有编号时，样例有没有跑过是未知的。
+- **虚拟环境：** 不要从别的目录复制。项目移动位置后重新安装。单独运行测试用 `uv run python -m pytest`，避免旧的命令脚本还指向原来的目录。
+- **发布前：** 按 [浏览器检查](server/tests/browser/README.md) 检查接口和运行页面，按 [部署说明](server/deploy/README.md) 确认实际环境。后台任务要使用用户权限时，先读 [任务权限限制](server/shared/jobs/README.md)。
+- **本机资料：** 本机的任务、决定和记录放在 `.agents/`，其中只有项目专用 Skill 可以提交。有只读的图和命令，不代表 Agent 在长任务中一直会正确使用它们。
