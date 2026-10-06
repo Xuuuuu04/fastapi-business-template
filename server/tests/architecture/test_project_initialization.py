@@ -9,22 +9,24 @@ from pathlib import Path
 
 import pytest
 from dotenv import dotenv_values
-
-from tools.development.history import read_checks
-from tools.quality.rules import PROJECT
-from tools.template.files import check_base
-from tools.template.initialization import initialize
+from fastapi_check.quality.rules import PROJECT
+from fastapi_project.development.history import read_checks
+from fastapi_template.template.files import check_base
+from fastapi_template.template.initialization import initialize
 
 
 # 真实模板副本包含可复用代码，产品入口和计划原生，历史结果不进入新产品。
 def test_native_product_copy(tmp_path: Path) -> None:
     target = tmp_path / "product"
     initialize(PROJECT, target, "客户联系产品")
-    for name in ("design", ".git", ".agents", "server/.env", "server/.venv", "server/var"):
+    for name in ("design", ".git", "server/.env", "server/.venv", "server/var"):
         assert not (target / name).exists()
+    assert (target / ".agents/skills/fastapi-template/SKILL.md").is_file()
     agents = (target / "AGENTS.md").read_text(encoding="utf-8")
     assert agents.startswith("# 客户联系产品\n")
-    assert "tools.project --summary --json" in (target / "README.md").read_text(encoding="utf-8")
+    assert "run_project.py project --summary --json" in (target / "README.md").read_text(
+        encoding="utf-8"
+    )
     assert "已完成" not in (target / "doc/tasks.md").read_text(encoding="utf-8")
     assert "验收记录" not in (target / "server/deploy/README.md").read_text(encoding="utf-8")
     plan = json.loads((target / "project-plan.json").read_text(encoding="utf-8"))

@@ -10,8 +10,8 @@ from shared.errors.framework import ConfigError
 from shared.flow.step import Condition, Step
 from shared.modules.layout import check_layout
 from shared.modules.module import Module
-from tools.framework_lock import differences
-from tools.quality.imports import check_imports
+from shared.modules.validation.framework_lock import differences
+from shared.modules.validation.imports import check_imports
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -21,7 +21,7 @@ def check_structure(modules: Sequence[Module], root: Path = ROOT) -> None:
     problems = check_layout(root, (module.name for module in modules))
     problems += step_locations(modules)
     problems += [problem.text() for problem in check_imports(root)]
-    changes = differences(root)
+    changes = differences(root, include_skills=False)
     if changes:
         problems += ["框架文件与已确认的摘要不一致：" + change for change in changes]
     if problems:

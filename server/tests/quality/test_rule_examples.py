@@ -5,16 +5,17 @@
 
 from pathlib import Path
 
+from fastapi_check.quality.blocking import check_blocking
+from fastapi_check.quality.docs import check_files as check_doc_files
+from fastapi_check.quality.docs import check_rule_ids
+from fastapi_check.quality.files import check_files
+from fastapi_check.quality.naming import check_naming
+from fastapi_check.quality.readmes import check_readmes
+from fastapi_check.quality.registry import check_listed
+
 from shared.modules.catalog import Catalog
+from shared.modules.validation.imports import check_imports
 from tests.framework.sample_modules import calc_module
-from tools.quality.blocking import check_blocking
-from tools.quality.docs import check_files as check_doc_files
-from tools.quality.docs import check_rule_ids
-from tools.quality.files import check_files
-from tools.quality.imports import check_imports
-from tools.quality.naming import check_naming
-from tools.quality.readmes import check_readmes
-from tools.quality.registry import check_listed
 
 GOOD_HEAD = '"""\n示例文件。\n"""\n\n'
 

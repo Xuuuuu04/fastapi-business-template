@@ -29,4 +29,4 @@
 
 服务密钥任务在执行前按当前配置重新读取权限；用户任务沿用登记时的身份与权限。业务要求停用用户或撤销角色后立即阻止排队任务时，执行步骤必须重新读取用户状态，不能只依赖任务中的旧身份。
 
-使用 SQLite 时只能运行一个 worker；多个 worker 需要 PostgreSQL。人工处理用 `uv run python -m tools.jobs`。
+使用 SQLite 时只能运行一个 worker；多个 worker 需要 PostgreSQL。人工处理用 `uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py jobs`。

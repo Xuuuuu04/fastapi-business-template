@@ -1,4 +1,4 @@
-# 项目依赖与统一检查配置。框架检查规则的阈值写在 tools/quality/rules.py。
+# 项目依赖与统一检查配置。框架检查规则的阈值写在 ../.agents/skills/fastapi-check/scripts/fastapi_check/quality/rules.py。
 [project]
 name = "fastapi-server-template"
 version = "2.0.0"
@@ -43,7 +43,15 @@ testpaths = [
   "tests/architecture", "tests/quality", "tests/security", "tests/recovery",
 ]
 addopts = "--strict-markers --strict-config --import-mode=importlib -p no:cacheprovider"
-pythonpath = ["."]
+pythonpath = [".",
+  "../.agents/skills/fastapi-check/scripts",
+  "../.agents/skills/fastapi-docs/scripts",
+  "../.agents/skills/fastapi-migration/scripts",
+  "../.agents/skills/fastapi-module/scripts",
+  "../.agents/skills/fastapi-operations/scripts",
+  "../.agents/skills/fastapi-project/scripts",
+  "../.agents/skills/fastapi-template/scripts",
+]
 markers = [
   "sqlite_template: 固定使用 SQLite 的模板生成测试，两数据库检查时在前轮成功后不重复",
   "postgres_only: 只在 PostgreSQL 上有意义的检查，SQLite 下自动跳过",
@@ -66,6 +74,15 @@ max-complexity = 10
 [tool.mypy]
 python_version = "3.12"
 explicit_package_bases = true
+mypy_path = [
+  "../.agents/skills/fastapi-check/scripts",
+  "../.agents/skills/fastapi-docs/scripts",
+  "../.agents/skills/fastapi-migration/scripts",
+  "../.agents/skills/fastapi-module/scripts",
+  "../.agents/skills/fastapi-operations/scripts",
+  "../.agents/skills/fastapi-project/scripts",
+  "../.agents/skills/fastapi-template/scripts",
+]
 disallow_untyped_defs = true
 check_untyped_defs = true
 warn_unused_ignores = true

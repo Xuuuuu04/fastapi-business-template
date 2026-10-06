@@ -13,6 +13,9 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from fastapi.testclient import TestClient
+from fastapi_check.quality.registry import check_registry
+from fastapi_check.quality.rules import ROOT
+from fastapi_module.new_module import add_module, add_route
 from sqlalchemy import Connection, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -21,13 +24,10 @@ from app.setup.catalog import MODULES
 from app.setup.web import create_app
 from shared.db.tables import metadata
 from shared.modules.catalog import Catalog
+from shared.modules.validation.framework_lock import differences
+from shared.modules.validation.imports import check_imports
 from tests.framework.sample_modules import sample_metadata
 from tests.testing_app import KEY, database_url, make_settings
-from tools.framework_lock import differences
-from tools.new_module import add_module, add_route
-from tools.quality.imports import check_imports
-from tools.quality.registry import check_registry
-from tools.quality.rules import ROOT
 
 
 # 依赖方向符合规则：业务只用 shared.public 和其他模块的 public.py。
@@ -80,7 +80,8 @@ def compare(connection: Connection) -> list[object]:
 def test_framework_files_unchanged() -> None:
     changes = differences()
     assert changes == [], (
-        "框架文件有改动，审查后运行 tools.framework_lock --update：\n" + "\n".join(changes)
+        "框架文件有改动，审查后运行 shared.modules.validation.framework_lock --update：\n"
+        + "\n".join(changes)
     )
 
 

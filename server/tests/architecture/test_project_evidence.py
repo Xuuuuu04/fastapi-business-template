@@ -9,14 +9,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi_check.quality.rules import ROOT
+from fastapi_project.development.commands import with_check_directories
+from fastapi_project.development.history import fingerprints, save_check
+from fastapi_project.development.status import project_status
+from fastapi_project.development.summary import project_summary
+from fastapi_project.development.summary import test_summary as summarize_tests
 
 from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
-from tools.development.history import fingerprints, save_check
-from tools.development.status import project_status
-from tools.development.summary import project_summary
-from tools.development.summary import test_summary as summarize_tests
-from tools.quality.rules import ROOT
 
 
 # 独立规则和源码只用于元数据检查，不执行任何业务写入。
@@ -24,8 +25,9 @@ def prepare(project: Path) -> None:
     doc = project / "doc/sample_records/rules.md"
     doc.parent.mkdir(parents=True)
     doc.write_text(
-        "### R-01 文件规则\n\n| 样例编号 | 情况 | 结果 |\n| --- | --- | --- |\n"
-        "| R-01-C01 | 指定文件 | 返回指定文件 |\n",
+        "### R-01 文件规则\n\n| 样例编号 | 情况 | 结果 |\n"
+        "| --- | --- | --- |\n| R-01-C01 | 指定文件 "
+        "| 返回指定文件 |\n",
         encoding="utf-8",
     )
     for module in ("sample_records", "sample_accounts"):
@@ -162,6 +164,7 @@ def test_imported_check_next_command_keeps_its_source_directory(tmp_path: Path) 
     for path in source.glob("*.json"):
         path.rename(folder / path.name)
     status = project_summary(project_status(Catalog(MODULES), tmp_path, extra_checks=[folder]))
+    status = with_check_directories(status, [folder])
     module = status["modules"]["sample_accounts"]
     command = module["tests"]["latest"]["sqlite"]["problems"][0]["next"]
     assert "--checks" in shlex.split(command)

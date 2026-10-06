@@ -1,7 +1,7 @@
 """
 服务密钥：给其他系统或脚本调用接口使用。
 配置里只保存密钥的 SHA-256 摘要和权限，不保存密钥原文；比较时使用固定时间比较。
-新密钥用 `uv run python -m tools.make_key` 生成。
+新密钥按项目 fastapi-operations Skill 生成。
 """
 
 import hashlib

@@ -17,7 +17,7 @@ from shared.errors.framework import NotAllowed, NotSignedIn, TooManyRequests
 key_header = APIKeyHeader(
     name="X-API-Key",
     scheme_name="服务密钥",
-    description="服务密钥，由 tools.make_key 生成并配置到 APP_API_KEYS",
+    description="服务密钥，由 fastapi_operations.make_key 生成并配置到 APP_API_KEYS",
     auto_error=False,
 )
 bearer_header = HTTPBearer(

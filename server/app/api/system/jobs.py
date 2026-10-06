@@ -1,6 +1,6 @@
 """
 任务查询：调用方查看自己登记的任务；拥有 system.jobs 权限的调用方可以列出全部任务。
-重试、取消等人工处理只通过命令行 tools.jobs 进行，这里不提供。
+重试、取消等人工处理只通过命令行 fastapi_operations.jobs 进行，这里不提供。
 """
 
 from dataclasses import asdict

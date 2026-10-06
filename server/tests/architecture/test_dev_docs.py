@@ -7,14 +7,15 @@ import json
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi_docs.api_doc import docs_app
+from fastapi_docs.flow_doc import route_map
+from fastapi_docs.progress_doc import RULE_HEADING, progress_doc
+from fastapi_project.impact import Repo, belongs, framework_part, report, section_changes, sections
 
+from app.setup.catalog import MODULES as PROJECT_MODULES
 from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
 from tests.framework.sample_routes import sample_router
-from tools.api_doc import docs_app
-from tools.flow_doc import route_map
-from tools.impact import Repo, belongs, framework_part, report, section_changes, sections
-from tools.progress_doc import RULE_HEADING, progress_doc
 
 RULES = """# 示例：规则
 
@@ -30,7 +31,10 @@ RULES = """# 示例：规则
 
 # 接口路径按接口函数实际引用的操作得出；一个操作可以对应多个接口，定时任务不经接口。
 def test_route_map_reads_real_routes() -> None:
-    assert route_map(docs_app()) == {}
+    actual = route_map(docs_app())
+    declared = {contract.name for contract in Catalog(PROJECT_MODULES).bindings}
+    assert set(actual).issubset(declared)
+    assert "sample_calc.calc" not in actual
     app = FastAPI()
     app.include_router(sample_router)
     assert route_map(app)["sample_calc.calc"] == ["POST /test/calc"]

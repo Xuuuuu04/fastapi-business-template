@@ -6,10 +6,9 @@
 from pathlib import Path
 
 import pytest
-
-from tools.development.history import fingerprints
-from tools.development.versions import module_api_files
-from tools.quality.rules import PROJECT
+from fastapi_check.quality.rules import PROJECT
+from fastapi_project.development.history import fingerprints
+from fastapi_project.development.versions import module_api_files
 
 LINKS: dict[str, dict[str, list[str]]] = {"sample_records": {"sample_accounts": ["调用"]}}
 

@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 
 import pytest
+from fastapi_project.development.impact import CHECK, framework_files, impact_scope, scope_markdown
+from fastapi_project.impact import Repo, belongs, main, report, report_data
 
 from shared.modules.catalog import Catalog
 from shared.public import (
@@ -20,8 +22,6 @@ from shared.public import (
     meaning,
     step,
 )
-from tools.development.impact import CHECK, framework_files, impact_scope, scope_markdown
-from tools.impact import Repo, belongs, main, report, report_data
 
 
 # 独立模块间传递的空输入和结果，无业务数据。
@@ -139,7 +139,7 @@ def test_docs_tests_and_api_are_direct_changes(catalog: Catalog, path: str) -> N
     "path",
     [
         "server/shared/flow/runner.py",
-        "server/tools/impact.py",
+        ".agents/skills/fastapi-project/scripts/fastapi_project/impact.py",
         "server/app/setup/catalog.py",
         "server/migrations/versions/new_table.py",
         "server/app/api/v1/__init__.py",
@@ -283,10 +283,10 @@ def test_cli_json_respects_disabled_only_for_display(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     write(repo.root / "server/service/gamma/public.py", "AFTER = 2\n")
-    monkeypatch.setattr("tools.impact.MODULES", list(catalog.modules.values()))
-    monkeypatch.setattr("tools.impact.Repo", lambda: repo)
+    monkeypatch.setattr("fastapi_project.impact.MODULES", list(catalog.modules.values()))
+    monkeypatch.setattr("fastapi_project.impact.Repo", lambda: repo)
     monkeypatch.setenv("APP_DISABLED_MODULES", '["beta"]')
-    monkeypatch.setattr("sys.argv", ["tools.impact", "--base", "main", "--json"])
+    monkeypatch.setattr("sys.argv", ["fastapi_project.impact", "--base", "main", "--json"])
     main()
     data = json.loads(capsys.readouterr().out)
     assert data["direct"] == ["gamma"] and data["dependents"] == ["alpha", "background", "beta"]

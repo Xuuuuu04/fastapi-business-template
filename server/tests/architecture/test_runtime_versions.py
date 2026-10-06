@@ -7,15 +7,15 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from fastapi_check.quality.rules import PROJECT, ROOT
+from fastapi_project.development.runtime import recent_runs
+from fastapi_template.template.initialization import initialize
 
 from app.setup.build import Services
 from shared.access.caller import DEVELOPER
 from shared.records.stores import RunFilter, SqlRunStore
 from shared.records.version import source_version
 from tests.framework.sample_modules import CalcInput, calc
-from tools.development.runtime import recent_runs
-from tools.quality.rules import PROJECT, ROOT
-from tools.template.initialization import initialize
 
 
 # 从真实操作取得记录，再验证版本与记录完整性筛选，而不是只检查标签。

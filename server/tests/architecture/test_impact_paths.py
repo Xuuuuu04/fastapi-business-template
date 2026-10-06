@@ -3,11 +3,11 @@
 """
 
 import pytest
+from fastapi_project.development.impact import CHECK, impact_scope, module_area
+from fastapi_project.impact import belongs, modules_part
 
 from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
-from tools.development.impact import CHECK, impact_scope, module_area
-from tools.impact import belongs, modules_part
 
 
 # 公共接口说明、流式入口与系统测试不产生虚假模块，同时保留完整检查。

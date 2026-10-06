@@ -10,12 +10,12 @@ import sys
 from pathlib import Path
 
 import pytest
+from fastapi_check.quality.rules import PROJECT
+from fastapi_docs.api_doc import api_markdown, docs_app
+from fastapi_migration.compare_api import compare
+from fastapi_template.template.initialization import initialize
 
-from tools.api_doc import api_markdown, docs_app
-from tools.compare_api import compare
-from tools.framework_lock import differences, digests
-from tools.quality.rules import PROJECT
-from tools.template.initialization import initialize
+from shared.modules.validation.framework_lock import differences, digests
 
 COPY_FLAG = "TEMPLATE_COPY_RUN"
 
@@ -92,17 +92,28 @@ def test_new_project_path(tmp_path: Path) -> None:
     env = {name: value for name, value in os.environ.items() if not name.startswith("APP_")}
     env |= {COPY_FLAG: "1", "APP_DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path}/copy.db"}
     steps = [
-        ["tools.new_module", "customer_contact", "--title", "客户联系人"],
+        [
+            "../.agents/skills/fastapi-module/scripts/run_module.py",
+            "new_module",
+            "customer_contact",
+            "--title",
+            "客户联系人",
+        ],
         ["alembic", "upgrade", "head"],
         ["alembic", "revision", "--autogenerate", "-m", "add customer_contact tables"],
-        ["tools.export_docs"],
+        ["../.agents/skills/fastapi-docs/scripts/run_docs.py", "export_docs"],
         ["ruff", "format", "--quiet", "migrations"],
-        ["tools.check", "--module", "customer_contact"],
+        [
+            ("../.agents/skills/fastapi-check/scripts/run_check.py"),
+            "check",
+            "--module",
+            "customer_contact",
+        ],
         ["pytest", "-q", "-p", "no:cacheprovider"],
     ]
     for step in steps:
         done = subprocess.run(
-            [sys.executable, "-m", *step],
+            [sys.executable, *step] if step[0].endswith(".py") else [sys.executable, "-m", *step],
             cwd=copy / "server",
             env=env,
             capture_output=True,

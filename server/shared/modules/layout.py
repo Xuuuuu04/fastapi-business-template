@@ -85,7 +85,7 @@ def check_marker(folder: Path) -> list[str]:
     except (OSError, ValueError):
         return [
             f"service/{folder.name}/module.json：缺少有效的结构说明；"
-            "新包用 tools.new_module，旧包用 tools.adopt_modules"
+            "新包用 fastapi_module.new_module，旧包用 fastapi_module.adopt_modules"
         ]
     if content != descriptor(folder.name):
         return [f"service/{folder.name}/module.json：结构说明与标准业务包不一致"]

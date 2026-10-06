@@ -7,10 +7,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-from tools import check
-from tools.development.selection import Selection
-from tools.development.status import test_status as package_test_status
+from fastapi_check import check
+from fastapi_project.development.selection import Selection
+from fastapi_project.development.status import test_status as package_test_status
 
 
 # 用独立项目路径与内存结果验证执行，不真正启动检查子进程。
@@ -127,7 +126,7 @@ def test_failed_primary_does_not_skip_template(
     ],
 )
 def test_invalid_arguments_fail(arguments: list[str], monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("sys.argv", ["tools.check", *arguments])
+    monkeypatch.setattr("sys.argv", ["fastapi_check.check", *arguments])
     with pytest.raises(SystemExit) as failure:
         check.arguments()
     assert failure.value.code == 2

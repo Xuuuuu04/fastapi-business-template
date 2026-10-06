@@ -1,5 +1,5 @@
 """
-记录 tools.check 实际执行的测试及操作状态，供项目开发视图查看。
+记录 fastapi_check.check 实际执行的测试及操作状态，供项目开发视图查看。
 只在 APP_DEVELOPMENT_RESULT 指定临时输出时启用，直接运行 pytest 不会保存开发历史。
 """
 

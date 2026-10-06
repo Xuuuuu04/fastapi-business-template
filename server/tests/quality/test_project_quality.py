@@ -3,14 +3,15 @@
 任何一项有问题都会列出文件、行号、规则和整理建议。
 """
 
+from fastapi_check.quality.blocking import check_blocking
+from fastapi_check.quality.docs import check_business_docs
+from fastapi_check.quality.files import check_files
+from fastapi_check.quality.naming import check_naming
+from fastapi_check.quality.readmes import check_readmes
+from fastapi_check.quality.report import Problem, unused_allowed, without_allowed
+
 from app.setup.catalog import MODULES
 from shared.modules.catalog import Catalog
-from tools.quality.blocking import check_blocking
-from tools.quality.docs import check_business_docs
-from tools.quality.files import check_files
-from tools.quality.naming import check_naming
-from tools.quality.readmes import check_readmes
-from tools.quality.report import Problem, unused_allowed, without_allowed
 
 
 # 把检查问题整理成便于阅读的失败说明。

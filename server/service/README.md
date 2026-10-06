@@ -5,8 +5,8 @@
 每个子目录是一个业务模块，按“一个人能完整说清的业务能力”划分，例如“客户联系”“订单退款”。模块之间只通过操作约定互相调用。
 
 从产品业务线到开发包的层次见 [项目设计](../../doc/development.md)，分组在根目录 `project-plan.json` 中填写。
-代码保留统一模块路径，避免改变生成器、模块导入和已有产品。开发时用 `tools.project --module 模块名` 一次查看本模块的操作、条件分支、计算图、源码和最近测试情况。
-一次开发多个模块或迁移大批旧代码时，依赖分层、独立工作目录并行和整层验收的做法见 [批量开发指南](../../doc/agent-development.md)。
+代码保留统一模块路径，避免改变生成器、模块导入和已有产品。开发时用 `fastapi_project.project --module 模块名` 一次查看本模块的操作、条件分支、计算图、源码和最近测试情况。
+开发按一项完整业务推进；迁移旧系统见 [业务迁移 Skill](../../.agents/skills/fastapi-migration/SKILL.md)。
 
 ## 每个模块的固定结构
 
@@ -29,14 +29,14 @@
 ## 新建模块
 
 ```bash
-uv run python -m tools.new_module customer_contact --title 客户联系人
+uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_module customer_contact --title 客户联系人
 ```
 
-它会生成完整骨架、业务文档、接口和测试，并登记到 `app/setup/catalog.py`。不要手工复制其他模块，也不要自己发明目录结构。生成器准备步骤测试、接口测试、权限与非法输入检查；真实业务的预期值仍须来自确认的规则。开发时运行 `uv run python -m tools.check --module customer_contact`，交付前运行全量检查。
+它会生成完整骨架、业务文档、接口和测试，并登记到 `app/setup/catalog.py`。不要手工复制其他模块，也不要自己发明目录结构。生成器准备步骤测试、接口测试、权限与非法输入检查；真实业务的预期值仍须来自确认的规则。开发时运行 `uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check --module customer_contact`，交付前运行全量检查。
 
 默认服务与 worker 在创建资源前检查目录和登记、生成说明、文件位置、步骤函数位置、依赖方向和框架摘要。
 不合格时拒绝启动，关闭模块不会跳过结构检查。包根不接受任意辅助文件；步骤和存储可增加一层 `.py` 文件，
-`prompts/` 只接受 Markdown 或文本。旧项目先运行 `tools.adopt_modules`；全部包通过检查才写入结构说明。
+`prompts/` 只接受 Markdown 或文本。旧项目先运行 `fastapi_module.adopt_modules`；全部包通过检查才写入结构说明。
 这套检查发现意外偏离；同一账号的文件修改权限由开发环境控制，说明文件不证明创建者身份。
 
 每个步骤是运行图的一个计算节点，直接显示函数、文件与行号、用时、实际产出的字段及其形状；

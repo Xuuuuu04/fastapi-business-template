@@ -10,10 +10,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-from tools.development.history import module_checks
-from tools.development.scenarios import scenario_status
-from tools.quality.rules import ROOT
+from fastapi_check.quality.rules import ROOT
+from fastapi_project.development.history import module_checks
+from fastapi_project.development.scenarios import scenario_status
 
 TABLE = "### R-05 会话\n\n| 样例编号 | 情况 | 结果 |\n| --- | --- | --- |\n"
 PYTEST_SOURCE = """import pytest

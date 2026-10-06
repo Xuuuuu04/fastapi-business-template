@@ -6,12 +6,13 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
-from shared.modules.catalog import Catalog
-from tests.architecture.sample_catalog import MODULES
-from tools.check import INTEGRITY, steps
-from tools.development.evidence import full_check_current, latest_full_check, system_fingerprint
-from tools.development.selection import (
+from fastapi_check.check import INTEGRITY, steps
+from fastapi_project.development.evidence import (
+    full_check_current,
+    latest_full_check,
+    system_fingerprint,
+)
+from fastapi_project.development.selection import (
     Selection,
     affected_modules,
     module_files,
@@ -21,6 +22,9 @@ from tools.development.selection import (
     validate_modules,
 )
 
+from shared.modules.catalog import Catalog
+from tests.architecture.sample_catalog import MODULES
+
 
 # 本例输入明确要求同一个包只测试一次，不重复四项公共检查。
 def test_multi_package_plan_runs_common_checks_once(
@@ -28,7 +32,7 @@ def test_multi_package_plan_runs_common_checks_once(
 ) -> None:
     names = module_names(["sample_accounts,sample_records", "sample_records"])
     assert names == ("sample_accounts", "sample_records")
-    monkeypatch.setattr("tools.check.module_files", lambda names: ["sample.py"])
+    monkeypatch.setattr("fastapi_check.check.module_files", lambda names: ["sample.py"])
     plan = steps(Selection(names))
     assert [title for title, _ in plan] == [
         "代码风格",
@@ -48,10 +52,12 @@ def test_quick_plan_is_local_and_not_acceptance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     selection = Selection(("sample_records",), quick=True)
-    monkeypatch.setattr("tools.check.module_files", lambda names: ["sample.py"])
+    monkeypatch.setattr("fastapi_check.check.module_files", lambda names: ["sample.py"])
     plan = steps(selection)
     assert len(plan) == 3
-    assert all("mypy" not in command and "tools.export_docs" not in command for _, command in plan)
+    assert all(
+        "mypy" not in command and "fastapi_docs.export_docs" not in command for _, command in plan
+    )
     assert not any(test in plan[-1][1] for test in INTEGRITY)
     assert selection.scope() == {"kind": "quick", "modules": ["sample_records"]}
     assert latest_full_check([{"scope": selection.scope()}]) is None
@@ -86,12 +92,12 @@ def test_affected_selection_and_unknown_old_caller(
 ) -> None:
     path = repository / "server/service/sample_records/steps/files.py"
     path.write_text("VALUE = 2\n", encoding="utf-8")
-    monkeypatch.setattr("tools.development.selection.previous_graph", lambda *args: {})
+    monkeypatch.setattr("fastapi_project.development.selection.previous_graph", lambda *args: {})
     catalog = Catalog(MODULES)
     selected = select_affected(catalog, "HEAD", repository)
     assert selected.modules == ("sample_records",)
     monkeypatch.setattr(
-        "tools.development.selection.previous_graph",
+        "fastapi_project.development.selection.previous_graph",
         lambda *args: {"old_caller": ["sample_records"]},
     )
     selected = select_affected(catalog, "HEAD", repository)

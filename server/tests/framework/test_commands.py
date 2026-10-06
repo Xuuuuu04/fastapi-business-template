@@ -1,6 +1,6 @@
 """
-命令行工具：tools.diagnose 按运行编号打印中文排查报告，tools.jobs 人工处理后台任务，
-tools.make_key 生成服务密钥。命令从 APP_ 环境变量读取数据库地址，这里指向测试数据库，
+命令行功能：按运行编号打印报告、人工处理后台任务，
+fastapi_operations.make_key 生成服务密钥。命令从 APP_ 环境变量读取数据库地址，这里指向测试数据库，
 模块清单换成测试用的示例模块，不依赖可以删除的业务模块。
 """
 
@@ -11,12 +11,12 @@ from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
 
+import fastapi_operations.diagnose
+import fastapi_operations.jobs
+import fastapi_operations.make_key
 import pytest
 from sqlalchemy import update
 
-import tools.diagnose
-import tools.jobs
-import tools.make_key
 from app.setup.build import build
 from deploy.check_env import check_configuration
 from shared.access.caller import DEVELOPER
@@ -59,8 +59,8 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
     reset_database_now(settings.database_url)
     monkeypatch.setenv("APP_DATABASE_URL", settings.database_url)
     monkeypatch.setenv("APP_RUN_RECORDS", "database")
-    monkeypatch.setattr(tools.diagnose, "MODULES", MODULES)
-    monkeypatch.setattr(tools.jobs, "MODULES", MODULES)
+    monkeypatch.setattr(fastapi_operations.diagnose, "MODULES", MODULES)
+    monkeypatch.setattr(fastapi_operations.jobs, "MODULES", MODULES)
     return settings
 
 
@@ -98,7 +98,7 @@ def test_diagnose_commands(
     settings: Settings, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     run_id, _ = asyncio.run(prepare(settings))
-    console, main = Console(monkeypatch, capsys), tools.diagnose.main
+    console, main = Console(monkeypatch, capsys), fastapi_operations.diagnose.main
     assert run_id in console(main, "runs")
     report = console(main, "run", run_id)
     assert run_id in report and "计算" in report
@@ -114,7 +114,7 @@ def test_job_commands(
     settings: Settings, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _, job_id = asyncio.run(prepare(settings))
-    console, main = Console(monkeypatch, capsys), tools.jobs.main
+    console, main = Console(monkeypatch, capsys), fastapi_operations.jobs.main
     assert job_id in console(main, "list")
     assert job_id in console(main, "show", job_id)
     assert "需要加 --yes" in console(main, "cancel", job_id)
@@ -133,7 +133,7 @@ def test_job_commands(
 # 生成的密钥原文与配置中的摘要对应，组织和权限按参数写入。
 def test_make_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     printed = Console(monkeypatch, capsys)(
-        tools.make_key.main,
+        fastapi_operations.make_key.main,
         "--name",
         "reporting",
         "--permissions",

@@ -11,7 +11,7 @@
 
 ```bash
 cp .env.example .env              # 按注释填写生产配置，设置 DATABASE_PASSWORD 和独立的 APP_JWT_SECRET
-uv run python -m tools.make_key --name admin --org-id "*" --permissions "*"   # 生成服务密钥，写入 APP_API_KEYS
+uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py make_key --name admin --org-id "*" --permissions "*"   # 生成服务密钥，写入 APP_API_KEYS
 docker compose -f deploy/compose.yaml --env-file .env up -d --build
 curl http://127.0.0.1:8000/health/ready
 ```

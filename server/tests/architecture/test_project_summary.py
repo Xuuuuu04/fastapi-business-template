@@ -11,18 +11,20 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
-from shared.modules.catalog import Catalog
-from tests.architecture.sample_catalog import MODULES
-from tools.development.history import fingerprints, read_checks, save_check
-from tools.development.status import project_status
-from tools.development.summary import (
+from fastapi_check.quality.rules import ROOT
+from fastapi_project.development.history import fingerprints, read_checks, save_check
+from fastapi_project.development.status import project_status
+from fastapi_project.development.summary import (
     project_summary,
     selected_operation,
     selected_test,
     summary_markdown,
 )
-from tools.quality.rules import ROOT
+
+from shared.modules.catalog import Catalog
+from tests.architecture.sample_catalog import MODULES
+
+PROJECT_SCRIPT = "../.agents/skills/fastapi-project/scripts/run_project.py"
 
 
 # 长运行与框架失败样例用于检查摘要保留问题但省略运行详情。
@@ -210,7 +212,7 @@ def test_real_cli_keeps_old_json_and_does_not_open_database(tmp_path: Path) -> N
         (["--summary", "--json"], "summary"),
     ):
         run = subprocess.run(
-            [sys.executable, "-m", "tools.project", *args],
+            [sys.executable, PROJECT_SCRIPT, "project", *args],
             cwd=ROOT,
             env=env,
             capture_output=True,
@@ -238,7 +240,7 @@ def test_real_cli_keeps_old_json_and_does_not_open_database(tmp_path: Path) -> N
 )
 def test_real_cli_rejects_ambiguous_or_invalid_scope(args: list[str]) -> None:
     run = subprocess.run(
-        [sys.executable, "-m", "tools.project", *args],
+        [sys.executable, PROJECT_SCRIPT, "project", *args],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -268,7 +270,7 @@ def test_dependency_versions_include_transitive_providers(tmp_path: Path) -> Non
 
 # 依赖表即使包含重复或循环，也只计算一次路径；缺省依赖保留旧独立用法。
 def test_dependency_versions_are_finite_and_optional(tmp_path: Path) -> None:
-    from tools.development.history import dependency_modules
+    from fastapi_project.development.history import dependency_modules
 
     links = {
         "first_package": {"second_package": ["调用"]},

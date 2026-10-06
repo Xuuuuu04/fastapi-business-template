@@ -11,17 +11,18 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from fastapi_check.quality.rules import PROJECT
+from fastapi_template.template.initialization import initialize
 
+from app.setup.catalog import MODULES as PROJECT_MODULES
 from app.setup.structure import check_structure, step_locations
 from shared.errors.framework import ConfigError
 from shared.flow.flow import Flow
 from shared.modules.layout import check_layout
 from tests.architecture.sample_catalog import MODULES as SAMPLE_MODULES
 from tests.testing_app import make_settings
-from tools.quality.rules import PROJECT
-from tools.template.initialization import initialize
 
-MODULES = [replace(module, provides={}) for module in SAMPLE_MODULES]
+MODULES = [*PROJECT_MODULES, *(replace(module, provides={}) for module in SAMPLE_MODULES)]
 
 
 # 从真实模板生成独立产品，避免在工作目录里故意破坏源码。
@@ -31,7 +32,14 @@ def product(tmp_path: Path) -> Path:
     initialize(PROJECT, target, "结构检查样例")
     for name, title in (("sample_records", "记录样例"), ("sample_accounts", "身份样例")):
         result = subprocess.run(
-            [sys.executable, "-m", "tools.new_module", name, "--title", title],
+            [
+                sys.executable,
+                "../.agents/skills/fastapi-module/scripts/run_module.py",
+                "new_module",
+                name,
+                "--title",
+                title,
+            ],
             cwd=target / "server",
             text=True,
             capture_output=True,
@@ -73,10 +81,13 @@ def test_unexpected_files_block_startup(product: Path, name: str) -> None:
 def test_missing_marker_requires_explicit_adoption(product: Path) -> None:
     marker = product / "service/sample_records/module.json"
     marker.unlink()
-    with pytest.raises(ConfigError, match="tools.adopt_modules"):
+    with pytest.raises(ConfigError, match="fastapi_module.adopt_modules"):
         check_structure(MODULES, product)
     result = subprocess.run(
-        [sys.executable, "-m", "tools.adopt_modules"], cwd=product, text=True, capture_output=True
+        [sys.executable, "../.agents/skills/fastapi-module/scripts/run_module.py", "adopt_modules"],
+        cwd=product,
+        text=True,
+        capture_output=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert json.loads(marker.read_text())["module"] == "sample_records"

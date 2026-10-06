@@ -6,9 +6,8 @@
 from pathlib import Path
 
 import pytest
-
-from tools.template.files import check_base, managed_files, save_provenance
-from tools.template.merge import apply_plan, update_plan
+from fastapi_template.template.files import check_base, managed_files, save_provenance
+from fastapi_template.template.merge import apply_plan, update_plan
 
 
 # 新版改公共文件，产品自己的模块、迁移、依赖与环境必须保持。

@@ -5,10 +5,10 @@
 from pathlib import Path
 
 import pytest
+from fastapi_project.development.history import fingerprints
+from fastapi_project.development.selection import module_files
 
 from tests.architecture.test_history_versions import LINKS, sample_project, write
-from tools.development.history import fingerprints
-from tools.development.selection import module_files
 
 
 # 同文件里改 router 属性不是单纯新增登记，所属包与调用方必须重测。

@@ -12,15 +12,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fastapi_check.quality.rules import ROOT
+from fastapi_project.development.design import design_doc
+from fastapi_project.development.history import fingerprints, module_checks, read_checks, save_check
+from fastapi_project.development.plan import check_plan
+from fastapi_project.development.status import project_status
+from fastapi_project.development.views import project_graph, project_markdown
 
 from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
-from tools.development.design import design_doc
-from tools.development.history import fingerprints, module_checks, read_checks, save_check
-from tools.development.plan import check_plan
-from tools.development.status import project_status
-from tools.development.views import project_graph, project_markdown
-from tools.quality.rules import ROOT
 
 
 # 在真实模块之外预先设计另一个开发包，它应显示未实现而不是消失。
@@ -177,8 +177,8 @@ def test_collected_rounds_are_deduplicated(tmp_path: Path) -> None:
 def test_pytest_records_real_outcomes(tmp_path: Path) -> None:
     tests = tmp_path / "test_outcomes.py"
     tests.write_text(
-        "import pytest\ndef test_ok():\n    pass\ndef test_failed():\n    assert False\n"
-        "@pytest.mark.skip(reason='样例跳过')\ndef test_skipped():\n    pass\n",
+        "import pytest\ndef test_ok():\n    pass\ndef test_failed():\n    assert "
+        "False\n@pytest.mark.skip(reason='样例跳过')\ndef test_skipped():\n    pass\n",
         encoding="utf-8",
     )
     output = tmp_path / "result.json"
@@ -208,7 +208,7 @@ def test_pytest_records_real_outcomes(tmp_path: Path) -> None:
 
 # 近期样例比例包含计划中未实现的操作，无数据库证据时保持未知。
 def test_runtime_sample_ratio_includes_missing_packages() -> None:
-    from tools.development.status import runtime_progress
+    from fastapi_project.development.status import runtime_progress
 
     status = {
         "lines": [

@@ -896,7 +896,7 @@
     "securitySchemes": {
       "服务密钥": {
         "type": "apiKey",
-        "description": "服务密钥，由 tools.make_key 生成并配置到 APP_API_KEYS",
+        "description": "服务密钥，由 fastapi_operations.make_key 生成并配置到 APP_API_KEYS",
         "in": "header",
         "name": "X-API-Key"
       },

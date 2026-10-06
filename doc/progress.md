@@ -1,6 +1,6 @@
 # 开发进度与质量
 
-> 本文件由 `uv run python -m tools.export_docs` 根据业务文档、测试和任务清单生成，不要手工修改。
+> 本文件由 `uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs` 根据业务文档、测试和任务清单生成，不要手工修改。
 
 任务清单（[tasks.md](tasks.md)）：未完成 0 项，已完成 0 项。
 

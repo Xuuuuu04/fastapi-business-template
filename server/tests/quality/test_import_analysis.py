@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.quality.imports import analyzed, check_dynamic, check_service_file, imported
+from shared.modules.validation.imports import analyzed, check_dynamic, check_service_file, imported
 
 
 # 同一内容只解析一次；两处路径的诊断位置仍各自正确。
