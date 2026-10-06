@@ -89,7 +89,10 @@ def add_module(text: str, name: str) -> str:
 def add_route(text: str, name: str) -> str:
     head = "MODULE_ROUTERS: dict[str, tuple[APIRouter, ...]]"
     position = text.index(head)
-    end = text.index("\n}", position)
+    match = re.search(re.escape(head) + r" = \{(.*?)\}", text[position:], re.DOTALL)
+    if match is None:
+        raise SystemExit("找不到模块路由清单，请检查 app/api/routers.py")
+    end = position + match.end() - 1
     text = text[:end] + f'\n    "{name}": ({name}.router,),' + text[end:]
     imports_end = text.index("ROUTERS: list[APIRouter]")
     return text[:imports_end] + f"from app.api.v1 import {name}\n\n" + text[imports_end:]

@@ -4,11 +4,6 @@
 关闭模块使用 APP_DISABLED_MODULES；依赖它的其他模块会在启动检查时报错。
 """
 
-from service.file_library.module import module as file_library
-from service.user_access.module import module as user_access
 from shared.modules.module import Module
 
-MODULES: list[Module] = [
-    user_access,
-    file_library,
-]
+MODULES: list[Module] = []

@@ -2,7 +2,7 @@
 
 ## 这个项目是什么
 
-当前是供 AI 开发和迁移业务的模板，只带用户权限和文件管理两个可关闭的通用模块，不带商品、报价等演示业务。采用本模板后，在这里写清具体产品、使用者与主要模块；详细业务放在 [doc/](doc/)。
+当前是供 AI 开发和迁移业务的模板，只保留公共框架，不预置业务模块。采用本模板后，在这里写清具体产品、使用者与主要模块；详细业务放在 [doc/](doc/)。
 
 - 产品：（待填写）
 - 使用者：（待填写）
@@ -36,8 +36,8 @@ uv run python -m tools.check
 
 ```bash
 uv run python -m tools.project --summary --json
-uv run python -m tools.project --module file_library --summary --json
-uv run python -m tools.project --operation file_library.save_file --json
+uv run python -m tools.project --module customer_contact --summary --json
+uv run python -m tools.project --operation customer_contact.create_record --json
 uv run python -m tools.project --test '准确的pytest测试编号' --json
 uv run python -m tools.impact --base origin/main --json
 ```
@@ -54,7 +54,7 @@ uv run python -m tools.impact --base origin/main --json
 
 HTTP 或后台任务进入已登记操作，输入由数据模型检查，执行器按流程调用声明读写字段的步骤。数据库与外部动作通过模块存储和公共能力完成；事务按保存步骤安排，先读后写要在保存时用条件修改或加锁读取保护业务规则。
 
-计算写在步骤，步骤在流程中连接，SQL 写在存储中。跨包只用已声明的公开操作或后台任务。计算图来自声明；运行图来自一次实际执行，包含条件、时间、产出形状和 SQL 位置，未知信息保持未知。写法先看 [步骤与事务](server/shared/flow/README.md) 和 [文件管理样板](server/service/file_library/README.md)。
+计算写在步骤，步骤在流程中连接，SQL 写在存储中。跨包只用已声明的公开操作或后台任务。计算图来自声明；运行图来自一次实际执行，包含条件、时间、产出形状和 SQL 位置，未知信息保持未知。写法先看 [步骤与事务](server/shared/flow/README.md) 和 [模块生成器](server/tools/new_module.py)。
 
 ## 本项目的约定
 

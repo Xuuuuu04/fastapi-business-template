@@ -13,8 +13,8 @@ from typing import Any
 
 import pytest
 
-from app.setup.catalog import MODULES
 from shared.modules.catalog import Catalog
+from tests.architecture.sample_catalog import MODULES
 from tools.development.design import design_doc
 from tools.development.history import fingerprints, module_checks, read_checks, save_check
 from tools.development.plan import check_plan
@@ -33,9 +33,9 @@ def test_planned_packages_and_unplanned_modules(tmp_path: Path) -> None:
                 "name": "文件业务",
                 "packages": [
                     {
-                        "module": "file_library",
+                        "module": "sample_records",
                         "title": "文件管理",
-                        "operations": ["save_file", "future_file"],
+                        "operations": ["create_record", "future_record"],
                     },
                     {"module": "customer_contact", "title": "客户", "operations": ["save_contact"]},
                 ],
@@ -43,12 +43,12 @@ def test_planned_packages_and_unplanned_modules(tmp_path: Path) -> None:
         ],
     }
     (tmp_path / "project-plan.json").write_text(json.dumps(plan), encoding="utf-8")
-    status = project_status(Catalog(MODULES), tmp_path, {"file_library"})
+    status = project_status(Catalog(MODULES), tmp_path, {"sample_records"})
     assert status["totals"] == {"planned": 3, "registered": 1, "test_successful": 0}
     assert status["ratios"]["registered"] == 0.3333
-    assert status["unplanned_modules"] == ["user_access"]
+    assert status["unplanned_modules"] == ["sample_accounts"]
     packages = status["lines"][0]["packages"]
-    assert packages[0]["missing"] == ["file_library.future_file"]
+    assert packages[0]["missing"] == ["sample_records.future_record"]
     assert packages[0]["enabled"] is False
     assert packages[1]["missing"] == ["customer_contact.save_contact"]
     assert "登记 1/2" in project_graph(status)
@@ -68,7 +68,9 @@ def test_missing_and_empty_plan_have_unknown_progress(tmp_path: Path) -> None:
 
 
 # 重复开发包、空操作和重复操作都会使比例失去意义，应拒绝读取。
-@pytest.mark.parametrize("operations", [[], ["save_file", "save_file"], ["other.save_file"], [1]])
+@pytest.mark.parametrize(
+    "operations", [[], ["create_record", "create_record"], ["other.create_record"], [1]]
+)
 def test_invalid_design_is_visible(operations: list[Any]) -> None:
     with pytest.raises(ValueError):
         check_plan(
@@ -79,7 +81,7 @@ def test_invalid_design_is_visible(operations: list[Any]) -> None:
                     {
                         "name": "文件",
                         "packages": [
-                            {"module": "file_library", "title": "文件", "operations": operations}
+                            {"module": "sample_records", "title": "文件", "operations": operations}
                         ],
                     }
                 ],
@@ -96,7 +98,7 @@ def test_test_evidence_and_changed_source(tmp_path: Path) -> None:
         sample_case("failed", "ok"),
         sample_case("skipped", "ok"),
     ]
-    codes = fingerprints(tmp_path, ["file_library"])
+    codes = fingerprints(tmp_path, ["sample_records"])
     save_check(
         tmp_path,
         {
@@ -109,17 +111,19 @@ def test_test_evidence_and_changed_source(tmp_path: Path) -> None:
     )
     status = project_status(catalog, tmp_path)
     assert "失败项目：默认测试" in project_markdown(status)
-    module = status["modules"]["file_library"]
+    module = status["modules"]["sample_records"]
     assert module["tests"]["rounds"] == 1
     suite = module["tests"]["latest"]["sqlite"]
     assert suite["counts"] == {"passed": 2, "failed": 1, "skipped": 1}
     assert suite["checks_passed"] is False
-    operation = next(item for item in module["operations"] if item["name"].endswith("save_file"))
+    operation = next(
+        item for item in module["operations"] if item["name"].endswith("create_record")
+    )
     assert operation["test_executions"] == {"ok": 1, "refused": 1}
-    code = tmp_path / "server/service/file_library/new_step.py"
+    code = tmp_path / "server/service/sample_records/new_step.py"
     code.parent.mkdir(parents=True)
     code.write_text("CHANGED = True\n", encoding="utf-8")
-    module = project_status(catalog, tmp_path)["modules"]["file_library"]
+    module = project_status(catalog, tmp_path)["modules"]["sample_records"]
     assert not module["tests"]["latest"]["sqlite"]["current"]
     assert all(not item["test_executions"] for item in module["operations"])
 
@@ -128,7 +132,7 @@ def test_test_evidence_and_changed_source(tmp_path: Path) -> None:
 def test_history_keeps_database_and_scope_separate() -> None:
     checks = [
         {
-            "fingerprints": {"file_library": "current"},
+            "fingerprints": {"sample_records": "current"},
             "source_changed": False,
             "passed": True,
             "finished_at": "2026-10-05T00:00:00+00:00",
@@ -138,14 +142,14 @@ def test_history_keeps_database_and_scope_separate() -> None:
             ],
         },
         {
-            "fingerprints": {"user_access": "other"},
+            "fingerprints": {"sample_accounts": "other"},
             "source_changed": False,
             "passed": False,
             "finished_at": "2026-10-05T00:01:00+00:00",
             "suites": [],
         },
     ]
-    result = module_checks(checks, "file_library", "current")
+    result = module_checks(checks, "sample_records", "current")
     assert result["rounds"] == 1
     assert set(result["latest"]) == {"sqlite", "postgresql"}
 
@@ -155,7 +159,7 @@ def test_collected_rounds_are_deduplicated(tmp_path: Path) -> None:
     path = save_check(
         tmp_path,
         {
-            "fingerprints": {"file_library": "same"},
+            "fingerprints": {"sample_records": "same"},
             "source_changed": True,
             "passed": True,
             "suites": [],
@@ -210,16 +214,16 @@ def test_runtime_sample_ratio_includes_missing_packages() -> None:
         "lines": [
             {
                 "packages": [
-                    {"module": "file_library", "planned": ["file_library.save_file"]},
+                    {"module": "sample_records", "planned": ["sample_records.create_record"]},
                     {"module": "future_package", "planned": ["future_package.calculate"]},
                 ]
             }
         ],
-        "runtime": {"available": True, "current_successful": ["file_library.save_file"]},
+        "runtime": {"available": True, "current_successful": ["sample_records.create_record"]},
     }
     runtime_progress(status, set())
     assert status["runtime"]["sample_ratio"] == 0.5
-    runtime_progress(status, set(), "file_library")
+    runtime_progress(status, set(), "sample_records")
     assert status["runtime"]["sample_ratio"] == 1.0
     status["runtime"]["available"] = False
     runtime_progress(status, set())
@@ -229,7 +233,7 @@ def test_runtime_sample_ratio_includes_missing_packages() -> None:
 # 一条测试样例可以模拟运行状态，不携带业务取值。
 def sample_case(outcome: str, status: str) -> dict[str, Any]:
     return {
-        "nodeid": f"tests/integration/file_library/test_files.py::{outcome}_{status}",
+        "nodeid": f"tests/integration/sample_records/test_files.py::{outcome}_{status}",
         "outcome": outcome,
-        "runs": [{"operation": "file_library.save_file", "status": status, "steps": []}],
+        "runs": [{"operation": "sample_records.create_record", "status": status, "steps": []}],
     }

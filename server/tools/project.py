@@ -37,7 +37,7 @@ def arguments() -> argparse.Namespace:
         "--summary", action="store_true", help="只读决策摘要，不展开全部步骤和测试运行"
     )
     parser.add_argument(
-        "--operation", default="", help="只展开一个完整操作名，例如 file_library.save_file"
+        "--operation", default="", help="只展开一个完整操作名，例如 customer_contact.create_record"
     )
     parser.add_argument("--test", default="", help="按准确 pytest 测试编号读取最近记录")
     parser.add_argument("--runs", action="store_true", help="只读查询当前配置数据库的近期运行")

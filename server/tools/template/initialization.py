@@ -1,6 +1,6 @@
 """
 从模板生成干净的新项目。只复制可复用的代码与说明，不携带历史讨论、测试结果、环境和数据库。
-产品文档与计划重新建立，通用模块的需求与规则保留供产品明确采用或调整。
+产品文档与计划重新建立，业务模块由产品按需要生成。
 """
 
 import json
@@ -111,7 +111,7 @@ def product_entry(target: Path, name: str) -> None:
     )
     write(
         target / "doc/tasks.md",
-        "# 任务清单\n\n- [ ] 产品：填写业务线与开发包，确认通用模块是否适用\n"
+        "# 任务清单\n\n- [ ] 产品：填写业务线与开发包，生成所需业务模块\n"
         "- [ ] 上线前：按实际环境验证数据库、权限、容量和恢复过程\n",
     )
     agents = (target / "AGENTS.md").read_text(encoding="utf-8")
@@ -121,7 +121,7 @@ def product_entry(target: Path, name: str) -> None:
         + f"## 这个项目是什么\n\n- 产品：{name}\n- 使用者：（待填写）\n"
         + "- 主要模块：见 [doc/README.md](doc/README.md)；"
         "预先设计见 [project-plan.json](project-plan.json)\n\n"
-        "通用模块的规则已继承，采用前请按本产品确认。\n\n" + agents[end:]
+        "业务模块由产品按需要生成，规则须按本产品确认。\n\n" + agents[end:]
     )
     write(target / "AGENTS.md", agents)
 

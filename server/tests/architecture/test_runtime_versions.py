@@ -9,10 +9,10 @@ from pathlib import Path
 import pytest
 
 from app.setup.build import Services
-from service.file_library.public import FileListQuery, list_files
 from shared.access.caller import DEVELOPER
 from shared.records.stores import RunFilter, SqlRunStore
 from shared.records.version import source_version
+from tests.framework.sample_modules import CalcInput, calc
 from tools.development.runtime import recent_runs
 from tools.quality.rules import PROJECT, ROOT
 from tools.template.initialization import initialize
@@ -20,11 +20,11 @@ from tools.template.initialization import initialize
 
 # 从真实操作取得记录，再验证版本与记录完整性筛选，而不是只检查标签。
 @pytest.mark.anyio
-async def test_current_success_samples_require_matching_source(services: Services) -> None:
-    await services.runtime.run(list_files, FileListQuery(org_id="version-test"), caller=DEVELOPER)
-    run = (await services.recorder.recent(RunFilter(), 1))[0]
+async def test_current_success_samples_require_matching_source(sample: Services) -> None:
+    await sample.runtime.run(calc, CalcInput(amount=5), caller=DEVELOPER)
+    run = (await sample.recorder.recent(RunFilter(), 1))[0]
     assert run.source_version == source_version(ROOT)
-    store = SqlRunStore(services.database)
+    store = SqlRunStore(sample.database)
     await store.save(
         [
             replace(
@@ -40,9 +40,9 @@ async def test_current_success_samples_require_matching_source(services: Service
             run,
         ]
     )
-    settings = services.settings.model_copy(update={"run_records": "database"})
+    settings = sample.settings.model_copy(update={"run_records": "database"})
     status = await recent_runs(settings, 10)
-    assert status["current_successful"] == ["file_library.list_files"]
+    assert status["current_successful"] == ["sample_calc.calc"]
     assert "old_package.calculate" in status["successful"]
     assert "lost_package.calculate" not in status["successful"]
     assert all("graph" in item and item["steps"][0]["source"] for item in status["runs"])
@@ -59,6 +59,6 @@ def test_source_version_tracks_code_not_history(tmp_path: Path) -> None:
     (root / "var").mkdir()
     (root / "var/check.json").write_text("{}", encoding="utf-8")
     assert source_version(root) == before
-    source = root / "service/file_library/data.py"
+    source = root / "app/setup/catalog.py"
     source.write_text(source.read_text() + "\n# 代码变化样例\n", encoding="utf-8")
     assert source_version(root) != before

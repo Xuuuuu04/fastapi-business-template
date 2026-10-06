@@ -4,8 +4,8 @@
 
 import pytest
 
-from app.setup.catalog import MODULES
 from shared.modules.catalog import Catalog
+from tests.architecture.sample_catalog import MODULES
 from tools.development.impact import CHECK, impact_scope, module_area
 from tools.impact import belongs, modules_part
 
@@ -35,15 +35,15 @@ def test_shared_paths_do_not_invent_modules(path: str) -> None:
 
 # 模块名互为前缀时，主题接口必须选最长的完整登记模块名。
 def test_topic_api_uses_longest_registered_prefix() -> None:
-    path = "server/app/api/v1/user_access_security.py"
-    assert module_area(path, ["user", "user_access"]) == ("user_access", "接口")
+    path = "server/app/api/v1/sample_accounts_security.py"
+    assert module_area(path, ["user", "sample_accounts"]) == ("sample_accounts", "接口")
 
 
 # 按目录约定拆出的主题接口仍属于对应业务包，不能当成新模块。
 def test_topic_api_belongs_to_registered_module() -> None:
-    path = "server/app/api/v1/user_access_security.py"
+    path = "server/app/api/v1/sample_accounts_security.py"
     scope = impact_scope([path], Catalog(MODULES))
-    assert scope.direct == scope.affected == ["user_access"]
+    assert scope.direct == scope.affected == ["sample_accounts"]
     assert not scope.unknown and not scope.full_check
-    assert belongs(path, "user_access")
-    assert "user_access" in "\n".join(modules_part([path], ["user_access"]))
+    assert belongs(path, "sample_accounts")
+    assert "sample_accounts" in "\n".join(modules_part([path], ["sample_accounts"]))

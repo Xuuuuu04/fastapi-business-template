@@ -30,7 +30,7 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 1. 在模板的 `server/` 下运行 `uv run python -m tools.start_project /新项目目录 --name 产品名称`。
    它创建干净副本，重新生成产品入口、任务与空业务计划，不复制模板讨论、验收、环境、数据库或测试历史。
    也可先在 GitHub 上点“Use this template”建立仓库，再从该副本运行初始化并提交生成的新产品。
-2. 模板只保留用户权限和文件管理两个通用模块，不需要时在配置中设置 `APP_DISABLED_MODULES=["user_access","file_library"]`；代码和历史数据保留，接口与执行入口一起关闭。
+2. 模板不预置业务模块；使用 `tools.new_module` 按产品需要生成。下方客户模块命令是写法示例，生成后才能执行。
 3. 在 [项目入口](AGENTS.md#这个项目是什么) 写清产品名称、使用者和主要模块。
 4. 每个业务模块先运行 `uv run python -m tools.new_module 模块名 --title 中文名` 生成固定目录和测试，再在本包业务说明中写清真实需求和规则，按 [项目约定](AGENTS.md#本项目的约定) 开发。
 5. 开发时用 `uv run python -m tools.check --module 模块名` 单独检查；每次完成后运行 `uv run python -m tools.check`；生产使用 PostgreSQL 时加 `--postgres 数据库地址`。
@@ -43,8 +43,8 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 
 ```bash
 uv run python -m tools.project --summary --json         # 主代理先看缺项、待确认、失败与过期
-uv run python -m tools.project --module file_library --summary --json # 单包操作与确认样例
-uv run python -m tools.project --operation file_library.save_file --json # 单操作步骤与证据
+uv run python -m tools.project --module customer_contact --summary --json # 单包操作与确认样例
+uv run python -m tools.project --operation customer_contact.create_record --json # 单操作步骤与证据
 uv run python -m tools.project --test '准确pytest测试编号' --json # 单测试最近记录
 uv run python -m tools.impact --base origin/main --json  # 直接修改、调用方与建议检查
 uv run python -m tools.project --json                   # 保留旧完整入口，按需使用
@@ -113,8 +113,6 @@ uv run python -m tools.update_framework --base /旧模板目录 --source /新模
 | 缓存（进程内或 Redis）、文件存储（本地目录或 S3 兼容）、流式输出（SSE） | `server/shared/cache`、`files`、`flow` |
 | 旧系统迁移：旧库只读入口和迁移步骤 | `server/legacy` |
 | 统一错误格式、服务密钥、请求与登录限流、安全响应头、操作记录、结构化日志 | `server/app/api`、`server/shared/access` |
-| 用户、角色、组织：登录、刷新令牌轮换、修改密码、管理员发放重置码找回密码、两步验证（TOTP）；数据按组织隔离，也可按负责人隔离（行级权限），漏写条件直接报错；敏感字段加密保存 | `server/service/user_access`、`server/shared/db/org.py`、`owner.py`、`server/shared/access/vault.py` |
-| 文件管理：上传、下载、删除和每日清理 | `server/service/file_library` |
 | 运行统计、OpenTelemetry 调用过程导出、只读排查网页 | `/api/system/stats`、`server/shared/telemetry`、`/system/console` |
 | 质量检查：注释、命名、长度、依赖、README、业务文档，纳入默认测试 | `server/tools/quality` |
 | 开发进度与检查：测试失败时附运行报告；生成待确认问题、规则的测试标注、任务数与接口描述；改动影响报告可手动运行，尚未加入持续集成 | `doc/progress.md`、`doc/tasks.md`、`doc/api/`、`server/tools/impact.py` |

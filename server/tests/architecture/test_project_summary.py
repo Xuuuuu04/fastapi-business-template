@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 
-from app.setup.catalog import MODULES
 from shared.modules.catalog import Catalog
+from tests.architecture.sample_catalog import MODULES
 from tools.development.history import fingerprints, read_checks, save_check
 from tools.development.status import project_status
 from tools.development.summary import (
@@ -29,11 +29,11 @@ from tools.quality.rules import ROOT
 def sample_cases() -> list[dict[str, Any]]:
     cases = [
         {
-            "nodeid": f"tests/integration/file_library/test_sample.py::test_{number}",
+            "nodeid": f"tests/integration/sample_records/test_sample.py::test_{number}",
             "outcome": "failed" if number < 8 else "passed",
             "runs": [
                 {
-                    "operation": "file_library.save_file",
+                    "operation": "sample_records.create_record",
                     "status": "ok",
                     "steps": [],
                     "detail": "DETAIL_ONLY" * 1000,
@@ -62,9 +62,9 @@ def sample_status(tmp_path: Path) -> dict[str, Any]:
                 "name": "文件业务",
                 "packages": [
                     {
-                        "module": "file_library",
+                        "module": "sample_records",
                         "title": "文件",
-                        "operations": ["save_file", "future_file"],
+                        "operations": ["create_record", "future_record"],
                     },
                     {"module": "future_package", "title": "未来包", "operations": ["prepare"]},
                 ],
@@ -72,7 +72,7 @@ def sample_status(tmp_path: Path) -> dict[str, Any]:
         ],
     }
     (tmp_path / "project-plan.json").write_text(json.dumps(plan), encoding="utf-8")
-    folder = tmp_path / "doc/file_library"
+    folder = tmp_path / "doc/sample_records"
     folder.mkdir(parents=True)
     (folder / "rules.md").write_text(
         "# 文件\n\n### R-01 测试规则\n\n业务期限：待确认。\n", encoding="utf-8"
@@ -88,7 +88,7 @@ def sample_status(tmp_path: Path) -> dict[str, Any]:
             "suites": [{"database": "sqlite", "exit_code": 1, "cases": cases}],
         },
     )
-    return project_status(Catalog(MODULES), tmp_path, {"user_access"})
+    return project_status(Catalog(MODULES), tmp_path, {"sample_accounts"})
 
 
 # 摘要减少输入，但不能删掉失败、禁用、待确认和未实现目标。
@@ -101,9 +101,9 @@ def test_summary_is_small_and_keeps_decision_facts(tmp_path: Path) -> None:
     assert "DETAIL_ONLY" not in output
     assert result["latest_check"]["passed"] is False
     assert result["latest_check"]["checks"]["类型检查"] is False
-    assert result["modules"]["user_access"]["enabled"] is False
-    assert result["modules"]["file_library"]["pending"]
-    assert result["lines"][0]["packages"][0]["missing"] == ["file_library.future_file"]
+    assert result["modules"]["sample_accounts"]["enabled"] is False
+    assert result["modules"]["sample_records"]["pending"]
+    assert result["lines"][0]["packages"][0]["missing"] == ["sample_records.future_record"]
     assert result["lines"][0]["packages"][1]["missing"] == ["future_package.prepare"]
     assert status == before
 
@@ -111,7 +111,7 @@ def test_summary_is_small_and_keeps_decision_facts(tmp_path: Path) -> None:
 # 问题只预览少量，失败总数和准确继续入口必须保留。
 def test_problem_list_is_bounded_but_counts_and_next_steps_remain(tmp_path: Path) -> None:
     status = sample_status(tmp_path)
-    suite = project_summary(status)["modules"]["file_library"]["tests"]["latest"]["sqlite"]
+    suite = project_summary(status)["modules"]["sample_records"]["tests"]["latest"]["sqlite"]
     assert suite["counts"] == {"passed": 12, "failed": 8, "skipped": 0}
     assert suite["problem_count"] == 8 and suite["omitted_problems"] == 3
     assert len(suite["problems"]) == 5
@@ -125,17 +125,17 @@ def test_problem_list_is_bounded_but_counts_and_next_steps_remain(tmp_path: Path
 # 源码变化后摘要必须提醒过期，操作不沿用旧成功。
 def test_changed_source_is_visible_in_summary(tmp_path: Path) -> None:
     sample_status(tmp_path)
-    code = tmp_path / "server/service/file_library/store.py"
+    code = tmp_path / "server/service/sample_records/store.py"
     code.parent.mkdir(parents=True)
     code.write_text("VALUE = 'changed'\n", encoding="utf-8")
     status = project_status(Catalog(MODULES), tmp_path)
     result = project_summary(status)
-    module = result["modules"]["file_library"]
+    module = result["modules"]["sample_records"]
     assert not module["tests"]["latest"]["sqlite"]["current"]
     assert module["operation_count"] == 5 and "operations" not in module
     assert all(
         not item["test_executions"]
-        for item in project_summary(status, "file_library")["operations"]
+        for item in project_summary(status, "sample_records")["operations"]
     )
     assert "过期" in summary_markdown(result)
 
@@ -143,16 +143,16 @@ def test_changed_source_is_visible_in_summary(tmp_path: Path) -> None:
 # 按需入口只展开所选范围，不重复其他操作详情。
 def test_module_and_operation_views_do_not_expand_other_operations(tmp_path: Path) -> None:
     status = sample_status(tmp_path)
-    result = project_summary(status, "file_library")
+    result = project_summary(status, "sample_records")
     assert result["view"] == "summary" and "modules" not in result
     assert len(result["operations"]) == 5
-    operation = selected_operation(status, "file_library.save_file")
-    assert operation["module"] == "file_library"
-    assert operation["name"] == "file_library.save_file"
+    operation = selected_operation(status, "sample_records.create_record")
+    assert operation["module"] == "sample_records"
+    assert operation["name"] == "sample_records.create_record"
     assert operation["steps"] and "graph" in operation
     assert "operations" not in operation
     with pytest.raises(ValueError, match="尚未登记"):
-        selected_operation(status, "file_library.future_file")
+        selected_operation(status, "sample_records.future_record")
 
 
 # 单测试入口保留框架失败，并避免跨模块重复记录。
@@ -187,7 +187,7 @@ def test_optional_runtime_summary_keeps_ids_without_execution_payloads(tmp_path:
         "runs": [
             {
                 "id": "one",
-                "operation": "file_library.save_file",
+                "operation": "sample_records.create_record",
                 "status": "ok",
                 "steps": ["DETAIL_ONLY"],
             }
@@ -195,7 +195,7 @@ def test_optional_runtime_summary_keeps_ids_without_execution_payloads(tmp_path:
     }
     result = project_summary(status)
     assert result["runtime"]["runs"] == [
-        {"id": "one", "operation": "file_library.save_file", "status": "ok"}
+        {"id": "one", "operation": "sample_records.create_record", "status": "ok"}
     ]
     assert "FULL_GRAPH" not in json.dumps(result)
     assert "DETAIL_ONLY" not in json.dumps(result)
@@ -208,7 +208,6 @@ def test_real_cli_keeps_old_json_and_does_not_open_database(tmp_path: Path) -> N
     for args, view in (
         (["--json"], None),
         (["--summary", "--json"], "summary"),
-        (["--operation", "file_library.save_file", "--json"], "operation"),
     ):
         run = subprocess.run(
             [sys.executable, "-m", "tools.project", *args],
@@ -231,8 +230,8 @@ def test_real_cli_keeps_old_json_and_does_not_open_database(tmp_path: Path) -> N
 @pytest.mark.parametrize(
     "args",
     [
-        ["--summary", "--operation", "file_library.save_file"],
-        ["--operation", "file_library.save_file", "--module", "user_access"],
+        ["--summary", "--operation", "sample_records.create_record"],
+        ["--operation", "sample_records.create_record", "--module", "sample_accounts"],
         ["--test", "sample", "--runs"],
         ["--summary", "--limit", "0"],
     ],

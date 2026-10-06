@@ -1,7 +1,7 @@
 """
 create framework tables
 
-版本：fb7f89fe8685，上一版本：，生成时间：2026-10-01 19:01:50.807422
+仅用于新项目空数据库；只创建公共框架表。已有项目保留自己的迁移历史。
 """
 
 from collections.abc import Sequence
@@ -9,9 +9,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-import shared.db.types
-
-revision: str = "fb7f89fe8685"
+revision: str = "7e03c1a0b624"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -19,36 +17,11 @@ depends_on: str | Sequence[str] | None = None
 
 # 升级到本版本。
 def upgrade() -> None:
-    create_files()
     create_actions()
     create_changes()
     create_counts()
     create_jobs()
     create_runs()
-    create_orgs()
-    create_roles()
-    create_users()
-    create_tokens()
-    create_codes()
-
-
-# 保存文件信息。
-def create_files() -> None:
-    op.create_table(
-        "file_library_files",
-        sa.Column("id", sa.String(length=32), nullable=False),
-        sa.Column("org_id", sa.String(length=64), nullable=False),
-        sa.Column("name", sa.String(length=200), nullable=False),
-        sa.Column("size", sa.BigInteger(), nullable=False),
-        sa.Column("sha256", sa.String(length=64), nullable=False),
-        sa.Column("content_type", sa.String(length=120), nullable=False),
-        sa.Column("storage_key", sa.String(length=300), nullable=False),
-        sa.Column("created_at", shared.db.types.UtcTime(timezone=True), nullable=False),
-        sa.Column("deleted_at", sa.Float(), nullable=True),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_file_library_files")),
-    )
-    with op.batch_alter_table("file_library_files", schema=None) as batch_op:
-        batch_op.create_index(batch_op.f("ix_file_library_files_org_id"), ["org_id"], unique=False)
 
 
 # 保存操作记录。
@@ -166,141 +139,8 @@ def create_runs() -> None:
         batch_op.create_index("ix_system_run_records_started", ["started_at"], unique=False)
 
 
-# 保存组织。
-def create_orgs() -> None:
-    op.create_table(
-        "user_access_orgs",
-        sa.Column("code", sa.String(length=32), nullable=False),
-        sa.Column("name", sa.String(length=80), nullable=False),
-        sa.PrimaryKeyConstraint("code", name=op.f("pk_user_access_orgs")),
-    )
-
-
-# 保存角色权限。
-def create_roles() -> None:
-    op.create_table(
-        "user_access_roles",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("org_id", sa.String(length=32), nullable=False),
-        sa.Column("name", sa.String(length=64), nullable=False),
-        sa.Column("permissions", sa.Text(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["org_id"],
-            ["user_access_orgs.code"],
-            name=op.f("fk_user_access_roles_org_id_user_access_orgs"),
-        ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_user_access_roles")),
-        sa.UniqueConstraint("org_id", "name", name="uq_user_access_role_name"),
-    )
-
-
-# 保存用户。
-def create_users() -> None:
-    op.create_table(
-        "user_access_users",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("org_id", sa.String(length=32), nullable=False),
-        sa.Column("username", sa.String(length=64), nullable=False),
-        sa.Column("password_hash", sa.String(length=192), nullable=False),
-        sa.Column("role_id", sa.Integer(), nullable=False),
-        sa.Column("active", sa.Boolean(), nullable=False),
-        sa.Column("otp_secret", sa.Text(), nullable=True),
-        sa.Column("otp_enabled", sa.Boolean(), server_default=sa.text("(false)"), nullable=False),
-        sa.Column("otp_last_step", sa.Integer(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["org_id"],
-            ["user_access_orgs.code"],
-            name=op.f("fk_user_access_users_org_id_user_access_orgs"),
-        ),
-        sa.ForeignKeyConstraint(
-            ["role_id"],
-            ["user_access_roles.id"],
-            name=op.f("fk_user_access_users_role_id_user_access_roles"),
-        ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_user_access_users")),
-        sa.UniqueConstraint("org_id", "username", name="uq_user_access_username"),
-    )
-
-
-# 保存登录刷新令牌。
-def create_tokens() -> None:
-    op.create_table(
-        "user_access_refresh_tokens",
-        sa.Column("token_sha256", sa.String(length=64), nullable=False),
-        sa.Column("family_id", sa.String(length=32), nullable=False),
-        sa.Column("org_id", sa.String(length=32), nullable=False),
-        sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column("started_at", sa.Float(), nullable=False),
-        sa.Column("expires_at", sa.Float(), nullable=False),
-        sa.Column("used_at", sa.Float(), nullable=True),
-        sa.Column("revoked_at", sa.Float(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["org_id"],
-            ["user_access_orgs.code"],
-            name=op.f("fk_user_access_refresh_tokens_org_id_user_access_orgs"),
-        ),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["user_access_users.id"],
-            name=op.f("fk_user_access_refresh_tokens_user_id_user_access_users"),
-        ),
-        sa.PrimaryKeyConstraint("token_sha256", name=op.f("pk_user_access_refresh_tokens")),
-    )
-    with op.batch_alter_table("user_access_refresh_tokens", schema=None) as batch_op:
-        batch_op.create_index(
-            batch_op.f("ix_user_access_refresh_tokens_expires_at"), ["expires_at"], unique=False
-        )
-        batch_op.create_index(
-            batch_op.f("ix_user_access_refresh_tokens_family_id"), ["family_id"], unique=False
-        )
-        batch_op.create_index(
-            batch_op.f("ix_user_access_refresh_tokens_user_id"), ["user_id"], unique=False
-        )
-
-
-# 保存密码重置码。
-def create_codes() -> None:
-    op.create_table(
-        "user_access_reset_codes",
-        sa.Column("code_sha256", sa.String(length=64), nullable=False),
-        sa.Column("org_id", sa.String(length=32), nullable=False),
-        sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column("created_by", sa.String(length=120), nullable=False),
-        sa.Column("expires_at", sa.Float(), nullable=False),
-        sa.Column("used_at", sa.Float(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["org_id"],
-            ["user_access_orgs.code"],
-            name=op.f("fk_user_access_reset_codes_org_id_user_access_orgs"),
-        ),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["user_access_users.id"],
-            name=op.f("fk_user_access_reset_codes_user_id_user_access_users"),
-        ),
-        sa.PrimaryKeyConstraint("code_sha256", name=op.f("pk_user_access_reset_codes")),
-    )
-    with op.batch_alter_table("user_access_reset_codes", schema=None) as batch_op:
-        batch_op.create_index(
-            batch_op.f("ix_user_access_reset_codes_user_id"), ["user_id"], unique=False
-        )
-
-
 # 回退到上一版本。
 def downgrade() -> None:
-    with op.batch_alter_table("user_access_reset_codes", schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f("ix_user_access_reset_codes_user_id"))
-
-    op.drop_table("user_access_reset_codes")
-    with op.batch_alter_table("user_access_refresh_tokens", schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f("ix_user_access_refresh_tokens_user_id"))
-        batch_op.drop_index(batch_op.f("ix_user_access_refresh_tokens_family_id"))
-        batch_op.drop_index(batch_op.f("ix_user_access_refresh_tokens_expires_at"))
-
-    op.drop_table("user_access_refresh_tokens")
-    op.drop_table("user_access_users")
-    op.drop_table("user_access_roles")
-    op.drop_table("user_access_orgs")
     with op.batch_alter_table("system_run_records", schema=None) as batch_op:
         batch_op.drop_index("ix_system_run_records_started")
         batch_op.drop_index("ix_system_run_records_root")
@@ -327,7 +167,3 @@ def downgrade() -> None:
         batch_op.drop_index("ix_system_audit_created")
 
     op.drop_table("system_audit_records")
-    with op.batch_alter_table("file_library_files", schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f("ix_file_library_files_org_id"))
-
-    op.drop_table("file_library_files")

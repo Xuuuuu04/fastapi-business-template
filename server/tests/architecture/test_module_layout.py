@@ -12,14 +12,16 @@ from pathlib import Path
 
 import pytest
 
-from app.setup.catalog import MODULES
 from app.setup.structure import check_structure, step_locations
 from shared.errors.framework import ConfigError
 from shared.flow.flow import Flow
 from shared.modules.layout import check_layout
+from tests.architecture.sample_catalog import MODULES as SAMPLE_MODULES
 from tests.testing_app import make_settings
 from tools.quality.rules import PROJECT
 from tools.template.initialization import initialize
+
+MODULES = [replace(module, provides={}) for module in SAMPLE_MODULES]
 
 
 # 从真实模板生成独立产品，避免在工作目录里故意破坏源码。
@@ -27,6 +29,15 @@ from tools.template.initialization import initialize
 def product(tmp_path: Path) -> Path:
     target = tmp_path / "product"
     initialize(PROJECT, target, "结构检查样例")
+    for name, title in (("sample_records", "记录样例"), ("sample_accounts", "身份样例")):
+        result = subprocess.run(
+            [sys.executable, "-m", "tools.new_module", name, "--title", title],
+            cwd=target / "server",
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
     return target / "server"
 
 
@@ -42,9 +53,9 @@ def test_existing_standard_modules(product: Path) -> None:
     [
         "stray_module",
         "loose.py",
-        "file_library/helpers.py",
-        "file_library/steps/nested/broken.py",
-        "file_library/prompts/execute.py",
+        "sample_records/helpers.py",
+        "sample_records/steps/nested/broken.py",
+        "sample_records/prompts/execute.py",
     ],
 )
 def test_unexpected_files_block_startup(product: Path, name: str) -> None:
@@ -60,7 +71,7 @@ def test_unexpected_files_block_startup(product: Path, name: str) -> None:
 
 # 手工复制模块却遗漏生成说明时不能启动，旧包可显式采用结构再检查。
 def test_missing_marker_requires_explicit_adoption(product: Path) -> None:
-    marker = product / "service/file_library/module.json"
+    marker = product / "service/sample_records/module.json"
     marker.unlink()
     with pytest.raises(ConfigError, match="tools.adopt_modules"):
         check_structure(MODULES, product)
@@ -68,13 +79,13 @@ def test_missing_marker_requires_explicit_adoption(product: Path) -> None:
         [sys.executable, "-m", "tools.adopt_modules"], cwd=product, text=True, capture_output=True
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert json.loads(marker.read_text())["module"] == "file_library"
+    assert json.loads(marker.read_text())["module"] == "sample_records"
     check_structure(MODULES, product)
 
 
 # 不能靠在说明文件里增加任意允许文件列表绕过固定结构。
 def test_marker_cannot_expand_layout(product: Path) -> None:
-    path = product / "service/file_library/module.json"
+    path = product / "service/sample_records/module.json"
     data = json.loads(path.read_text())
     data["allowed"] = ["helpers.py"]
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -86,7 +97,11 @@ def test_marker_cannot_expand_layout(product: Path) -> None:
 @pytest.mark.parametrize(
     "name,text,reason",
     [
-        ("service/file_library/steps/files.py", "\nimport shared.flow.runtime\n", "import_shared"),
+        (
+            "service/sample_records/steps/store_records.py",
+            "\nimport shared.flow.runtime\n",
+            "import_shared",
+        ),
         ("shared/flow/runner.py", "\n# 意外修改框架\n", "摘要"),
     ],
 )
@@ -112,9 +127,11 @@ def test_default_build_stops_before_resources(
 
 # 已登记的流程也不能把计算函数搬到 flow.py 或任意辅助文件中。
 def test_computation_nodes_stay_in_steps() -> None:
-    module = MODULES[0]
+    module = SAMPLE_MODULES[0]
     item, flow = next(iter(module.provides.items()))
     part = replace(flow.steps[0], func=test_computation_nodes_stay_in_steps)
-    changed = Flow(flow.title, work=flow.work, result=flow.result, steps=(part, *flow.steps[1:]))
+    changed = Flow(
+        flow.title, work=flow.work, result=flow.result, steps=(replace(part, when=None),)
+    )
     problems = step_locations([replace(module, provides={item: changed})])
     assert len(problems) == 1 and "steps/" in problems[0]

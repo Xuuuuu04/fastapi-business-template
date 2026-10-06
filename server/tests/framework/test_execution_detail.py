@@ -18,30 +18,29 @@ from tests.framework.sample_modules import CalcInput, SlowInput, calc, slow
 from tests.testing_app import KEY
 
 
-# 查询文件列表产生两次真实 SQL，图和报告都能指出存储函数与字段产出。
-def test_http_run_identifies_sql_and_outputs(client: TestClient) -> None:
-    response = client.get("/api/v1/files/detail-test", headers=KEY)
-    assert response.status_code == 200 and response.json()["items"] == []
-    run_id = client.get("/api/system/runs?module=file_library", headers=KEY).json()["items"][0][
-        "id"
-    ]
+# 计算保存产生两次真实 SQL，图和报告都能指出存储函数与字段产出。
+def test_http_run_identifies_sql_and_outputs(sample_client: TestClient) -> None:
+    client = sample_client
+    response = client.post("/test/calc", json={"amount": "5"}, headers=KEY)
+    assert response.status_code == 200 and response.json()["saved"] == 1
+    run_id = response.headers["x-run-id"]
     detail = client.get(f"/api/system/runs/{run_id}", headers=KEY).json()
     run = detail["runs"][0]
     assert run["source_version"] and run["status"] == "ok"
-    step = next(step for step in run["steps"] if step["database_count"])
-    assert step["outputs_recorded"] and step["outputs"]
-    assert step["elapsed_ms"] > 0 and step["database_count"] == 2
-    assert [call["method"] for call in step["database"]] == ["scalar", "all"]
-    for call in step["database"]:
-        assert call["source"].startswith("service/file_library/store/sql.py:")
-        assert call["function"] == "list_files" and call["elapsed_ms"] > 0
-        assert call["tables"] == ["file_library_files"] and call["status"] == "ok"
-    assert step["database"][0]["rows"] is None and step["database"][1]["rows"] == 0
+    recorded = next(part for part in run["steps"] if part["database_count"])
+    assert recorded["outputs_recorded"] and recorded["outputs"]
+    assert recorded["elapsed_ms"] > 0 and recorded["database_count"] == 2
+    assert [call["method"] for call in recorded["database"]] == ["change", "scalar"]
+    for call in recorded["database"]:
+        assert call["source"].startswith("tests/framework/sample_modules.py:")
+        assert call["function"] == "save_total" and call["elapsed_ms"] > 0
+        assert call["tables"] == ["sample_calc_notes"] and call["status"] == "ok"
+    assert recorded["database"][0]["rows"] == 1
     graph = detail["graph"]
-    assert step["source"] in graph and step["name"] in graph and "产出 1/1" in graph
-    assert "file_library/store/sql.py:" in graph and "list_files" in graph
+    assert recorded["source"] in graph and recorded["name"] in graph
+    assert "sample_modules.py:" in graph and "save_total" in graph
     report = client.get(f"/api/system/runs/{run_id}/report", headers=KEY).text
-    assert "最长步骤" in report and "数据库调用" in report and "file_library_files" in report
+    assert "最长步骤" in report and "数据库调用" in report and "sample_calc_notes" in report
 
 
 # 条件判断有自己的函数位置和耗时；跳过仍然没有产出。

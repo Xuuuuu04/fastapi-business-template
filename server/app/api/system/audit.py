@@ -33,7 +33,9 @@ async def audit(
 async def changes(
     request: Request,
     caller: CallerDep,
-    table: Annotated[str, Query(max_length=80, description="表名，例如 file_library_files")] = "",
+    table: Annotated[
+        str, Query(max_length=80, description="表名，例如 customer_contact_records")
+    ] = "",
     key: Annotated[str, Query(max_length=80, description="记录编号")] = "",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> dict[str, Any]:

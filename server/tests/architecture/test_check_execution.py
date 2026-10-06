@@ -18,6 +18,7 @@ from tools.development.status import test_status as package_test_status
 def recording(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     evidence: dict[str, Any] = {"runs": [], "records": []}
     monkeypatch.setattr(check, "PROJECT", tmp_path)
+    monkeypatch.setattr(check, "module_files", lambda names: ["sample.py"])
     monkeypatch.setattr(
         check, "fingerprints", lambda project, modules, links: dict.fromkeys(modules, "v1")
     )
@@ -49,7 +50,7 @@ def recording(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]
 # 两个包仅执行一遍公共检查，两种数据库使用同一组合路径；凭据不写入记录。
 def test_multi_module_execution_and_database_evidence(recording: dict[str, Any]) -> None:
     address = "postgresql+psycopg://private:secret@localhost/test"
-    result = check.execute(Selection(("file_library", "user_access")), address)
+    result = check.execute(Selection(("sample_records", "sample_accounts")), address)
     assert all(passed for _, passed in result)
     assert len(recording["runs"]) == 6
     assert recording["runs"][-1][1] == recording["runs"][-2][1]
@@ -57,7 +58,7 @@ def test_multi_module_execution_and_database_evidence(recording: dict[str, Any])
     assert recording["runs"][-1][2]["APP_DEVELOPMENT_REPEAT_DATABASE"] == "1"
     assert recording["runs"][-2][2]["APP_DEVELOPMENT_REPEAT_DATABASE"] == "0"
     record = recording["records"][0]
-    assert record["scope"] == {"kind": "modules", "modules": ["file_library", "user_access"]}
+    assert record["scope"] == {"kind": "modules", "modules": ["sample_records", "sample_accounts"]}
     assert len(record["timings"]) == 6 and record["elapsed_seconds"] >= 0
     assert "secret" not in json.dumps(record)
     assert recording["runs"][0][2]["APP_DISABLED_MODULES"] == "[]"
@@ -65,7 +66,7 @@ def test_multi_module_execution_and_database_evidence(recording: dict[str, Any])
 
 # 快速记录独立标记，不宣称类型、文档和整合检查已经执行。
 def test_quick_execution_records_non_acceptance_scope(recording: dict[str, Any]) -> None:
-    check.execute(Selection(("file_library",), quick=True), "")
+    check.execute(Selection(("sample_records",), quick=True), "")
     record = recording["records"][0]
     assert record["scope"]["kind"] == "quick"
     assert len(recording["runs"]) == 3
@@ -76,7 +77,7 @@ def test_quick_execution_records_non_acceptance_scope(recording: dict[str, Any])
 # 快速通过不覆盖正式失败，也不能作为当前包操作成功执行的验收证据。
 def test_quick_success_does_not_replace_formal_failure() -> None:
     formal = {
-        "fingerprints": {"file_library": "v1"},
+        "fingerprints": {"sample_records": "v1"},
         "source_changed": False,
         "finished_at": "first",
         "scope": {"kind": "module"},
@@ -84,7 +85,7 @@ def test_quick_success_does_not_replace_formal_failure() -> None:
         "suites": [{"database": "sqlite", "exit_code": 1, "cases": []}],
     }
     quick = {**formal, "finished_at": "later", "scope": {"kind": "quick"}, "passed": True}
-    status, cases = package_test_status([formal, quick], "file_library", "v1")
+    status, cases = package_test_status([formal, quick], "sample_records", "v1")
     assert status["latest"]["sqlite"]["checks_passed"] is False
     assert cases == []
 
@@ -110,7 +111,7 @@ def test_failed_primary_does_not_skip_template(
         return (False if title == "模块测试" else passed), evidence
 
     monkeypatch.setattr(check, "run_tests", failed)
-    result = check.execute(Selection(("file_library",)), "postgresql://localhost/test")
+    result = check.execute(Selection(("sample_records",)), "postgresql://localhost/test")
     assert not all(passed for _, passed in result)
     assert recording["runs"][-1][2]["APP_DEVELOPMENT_REPEAT_DATABASE"] == "0"
 
@@ -121,7 +122,7 @@ def test_failed_primary_does_not_skip_template(
     [
         ["--quick"],
         ["--module", ""],
-        ["--affected", "--module", "file_library"],
+        ["--affected", "--module", "sample_records"],
         ["--affected", "--quick"],
     ],
 )

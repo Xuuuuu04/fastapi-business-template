@@ -32,6 +32,7 @@ from tests.framework.sample_modules import (
     outer_module,
     sample_metadata,
 )
+from tests.framework.sample_resources import file_module, secret_module
 from tests.testing_app import make_settings, reset_database_now
 
 MODULES = [calc_module, outer_module]
@@ -146,8 +147,9 @@ def test_make_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
     assert (config["org_id"], config["permissions"]) == ("north", ["sample_calc.use"])
 
 
-# 关闭用户权限模块后，部署检查不再要求其字段加密配置；文件模块仍检查存储配置。
-def test_deploy_checks_enabled_modules(tmp_path: Path) -> None:
+# 关闭需要加密的模块后不要求字段加密配置；文件服务按实际模块需求检查。
+def test_deploy_checks_enabled_modules(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.setup.build.MODULES", [file_module, secret_module])
     settings = make_settings(
         tmp_path,
         env="production",
@@ -157,15 +159,15 @@ def test_deploy_checks_enabled_modules(tmp_path: Path) -> None:
         run_records="database",
         jwt_secret="independent-test-secret-with-32-characters",
         data_keys=[],
-        disabled_modules=["user_access"],
+        disabled_modules=["sample_secrets"],
     )
     assert check_configuration(settings) == []
     settings.disabled_modules = []
     assert any("APP_DATA_KEYS" in problem for problem in check_configuration(settings))
-    settings.disabled_modules = ["user_access"]
+    settings.disabled_modules = ["sample_secrets"]
     settings.file_storage = "s3"
     assert check_configuration(settings) == ["APP_FILE_STORAGE=s3 时必须配置 APP_S3_BUCKET"]
-    settings.disabled_modules = ["user_access", "file_library"]
+    settings.disabled_modules = ["sample_secrets", "sample_files"]
     assert check_configuration(settings) == []
 
 

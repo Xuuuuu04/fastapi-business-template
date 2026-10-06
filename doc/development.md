@@ -11,15 +11,8 @@
 ```mermaid
 flowchart TD
     root["FastAPI 通用后端模板"]
-    line0["通用能力"]
-    root --> line0
-    m_user_access["用户权限：登记 18/18"]
-    line0 --> m_user_access
-    m_file_library["文件管理：登记 5/5"]
-    line0 --> m_file_library
 ```
 
 | 业务线 | 开发包 | 已登记/计划操作 | 尚未登记 |
 | --- | --- | --- | --- |
-| 通用能力 | user_access | 18/18 | 无 |
-| 通用能力 | file_library | 5/5 | 无 |
+尚未填写开发包，完成比例未知。

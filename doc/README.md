@@ -6,8 +6,8 @@
 
 | 模块 | 名称 | 文档 |
 | --- | --- | --- |
-| user_access | 用户权限 | [需求](user_access/needs.md) · [规则](user_access/rules.md) · [变化](user_access/changes.md) · [流程](user_access/flows.md) |
-| file_library | 文件管理 | [需求](file_library/needs.md) · [规则](file_library/rules.md) · [变化](file_library/changes.md) · [流程](file_library/flows.md) |
+
+当前暂无业务模块，使用 `tools.new_module` 生成后会自动添加到上表。
 
 模块之间的关系见 [modules.md](modules.md)（自动生成）。
 

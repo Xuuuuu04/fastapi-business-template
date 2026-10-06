@@ -14,31 +14,31 @@ from tools.development.selection import module_files
 # 同文件里改 router 属性不是单纯新增登记，所属包与调用方必须重测。
 def test_router_binding_change_expires_owner_and_callers(tmp_path: Path) -> None:
     sample_project(tmp_path)
-    names = ["user_access", "file_library", "standalone"]
+    names = ["sample_accounts", "sample_records", "standalone"]
     before = fingerprints(tmp_path, names, LINKS)
     path = tmp_path / "server/app/api/routers.py"
-    write(path, path.read_text().replace("user_access.router", "user_access.other_router"))
+    write(path, path.read_text().replace("sample_accounts.router", "sample_accounts.other_router"))
     changed = fingerprints(tmp_path, names, LINKS)
-    assert changed["user_access"] != before["user_access"]
-    assert changed["file_library"] != before["file_library"]
+    assert changed["sample_accounts"] != before["sample_accounts"]
+    assert changed["sample_records"] != before["sample_records"]
     assert changed["standalone"] == before["standalone"]
 
 
 # 总目录替换导入的实现对象，不能因仍指向相同文件就保留旧结果。
 def test_catalog_binding_change_is_scoped(tmp_path: Path) -> None:
     sample_project(tmp_path)
-    names = ["user_access", "file_library", "standalone"]
+    names = ["sample_accounts", "sample_records", "standalone"]
     before = fingerprints(tmp_path, names, LINKS)
     path = tmp_path / "server/app/setup/catalog.py"
     write(
         path,
         path.read_text().replace(
-            "import module as user_access", "import other_module as user_access"
+            "import module as sample_accounts", "import other_module as sample_accounts"
         ),
     )
     changed = fingerprints(tmp_path, names, LINKS)
-    assert changed["user_access"] != before["user_access"]
-    assert changed["file_library"] != before["file_library"]
+    assert changed["sample_accounts"] != before["sample_accounts"]
+    assert changed["sample_records"] != before["sample_records"]
     assert changed["standalone"] == before["standalone"]
 
 
@@ -50,7 +50,7 @@ def test_unknown_catalog_shape_is_common(tmp_path: Path, replacement: str) -> No
     sample_project(tmp_path)
     path = tmp_path / "server/app/setup/catalog.py"
     write(path, replacement)
-    names = ["user_access", "file_library"]
+    names = ["sample_accounts", "sample_records"]
     before = fingerprints(tmp_path, names, LINKS)
     write(path, replacement.replace("()", "(1)").replace("[]", "[other]"))
     changed = fingerprints(tmp_path, names, LINKS)
@@ -61,9 +61,9 @@ def test_unknown_catalog_shape_is_common(tmp_path: Path, replacement: str) -> No
 def test_quick_files_follow_actual_router_registration(tmp_path: Path) -> None:
     sample_project(tmp_path)
     path = tmp_path / "server/app/api/routers.py"
-    write(path, path.read_text().replace("file_library", "files_api"))
-    write(path, path.read_text().replace('"files_api":', '"file_library":'))
+    write(path, path.read_text().replace("sample_records", "files_api"))
+    write(path, path.read_text().replace('"files_api":', '"sample_records":'))
     write(tmp_path / "server/app/api/v1/files_api.py", "router = None\n")
-    files = module_files(("file_library",), tmp_path / "server")
+    files = module_files(("sample_records",), tmp_path / "server")
     assert "app/api/v1/files_api.py" in files
-    assert "app/api/v1/user_access.py" not in files
+    assert "app/api/v1/sample_accounts.py" not in files

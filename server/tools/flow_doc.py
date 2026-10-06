@@ -30,7 +30,7 @@ HEADER = (
 )
 
 
-# 读取每个操作约定对应的接口，例如 {"file_library.list_files": ["GET /api/v1/files/{org_id}"]}。
+# 读取每个操作约定对应的接口，例如 {"customer_contact.get_record": ["GET /api/v1/files/{org_id}"]}。
 def route_map(app: FastAPI) -> dict[str, list[str]]:
     found: dict[str, list[str]] = {}
     for route in iter_route_contexts(app.routes):

@@ -21,6 +21,7 @@ from app.setup.web import create_app
 from shared.config.settings import Settings
 from shared.flow.runtime import Runtime
 from shared.model_calls.providers import FakeModel, ModelRequest
+from shared.records.version import source_version
 from tests.framework.sample_modules import calc_module, outer_module, sample_metadata
 from tests.framework.sample_routes import sample_router
 from tests.testing_app import (
@@ -138,6 +139,7 @@ async def sample(settings: Settings) -> AsyncIterator[Services]:
     built = build(
         settings, modules=[calc_module, outer_module], provider=FakeModel({"describe_mark": echo})
     )
+    built.runtime.source_version = source_version(Path(__file__).resolve().parents[1])
     await create_sample_tables(built)
     try:
         yield built
@@ -158,6 +160,7 @@ def sample_client(settings: Settings) -> Iterator[TestClient]:
     prepare_test_database_now(settings.database_url)
     modules = [calc_module, outer_module]
     built = build(settings, modules=modules, provider=FakeModel({"describe_mark": echo}))
+    built.runtime.source_version = source_version(Path(__file__).resolve().parents[1])
     asyncio.run(create_sample_tables(built))
     app = create_app(settings, built)
     app.include_router(sample_router)

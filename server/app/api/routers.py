@@ -7,12 +7,7 @@ from collections.abc import Collection
 from fastapi import APIRouter
 
 from app.api.system import audit, console, health, jobs, runs, structure
-from app.api.v1 import (
-    file_library,
-    stream,
-    user_access,
-    user_access_security,
-)
+from app.api.v1 import stream
 
 ROUTERS: list[APIRouter] = [
     health.router,
@@ -24,10 +19,7 @@ ROUTERS: list[APIRouter] = [
     stream.router,
 ]
 
-MODULE_ROUTERS: dict[str, tuple[APIRouter, ...]] = {
-    "user_access": (user_access.router, user_access_security.router),
-    "file_library": (file_library.router,),
-}
+MODULE_ROUTERS: dict[str, tuple[APIRouter, ...]] = {}
 
 
 # 系统接口始终可用，业务接口随模块一起启用或关闭。

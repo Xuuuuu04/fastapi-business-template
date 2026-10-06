@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from app.setup.catalog import MODULES
 from shared.modules.catalog import Catalog
+from tests.architecture.sample_catalog import MODULES
 from tools.check import INTEGRITY, steps
 from tools.development.evidence import full_check_current, latest_full_check, system_fingerprint
 from tools.development.selection import (
@@ -23,9 +23,12 @@ from tools.development.selection import (
 
 
 # 本例输入明确要求同一个包只测试一次，不重复四项公共检查。
-def test_multi_package_plan_runs_common_checks_once() -> None:
-    names = module_names(["user_access,file_library", "file_library"])
-    assert names == ("file_library", "user_access")
+def test_multi_package_plan_runs_common_checks_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    names = module_names(["sample_accounts,sample_records", "sample_records"])
+    assert names == ("sample_accounts", "sample_records")
+    monkeypatch.setattr("tools.check.module_files", lambda names: ["sample.py"])
     plan = steps(Selection(names))
     assert [title for title, _ in plan] == [
         "代码风格",
@@ -35,19 +38,22 @@ def test_multi_package_plan_runs_common_checks_once() -> None:
         "模块测试",
     ]
     command = plan[-1][1]
-    assert command.count("tests/modules/file_library") == 1
-    assert "tests/integration/user_access" in command
+    assert command.count("tests/modules/sample_records") == 1
+    assert "tests/integration/sample_accounts" in command
     assert all(test in command for test in INTEGRITY)
 
 
 # 快速检查不包含类型、生成文档或整合测试，记录范围也不能是完整检查。
-def test_quick_plan_is_local_and_not_acceptance() -> None:
-    selection = Selection(("file_library",), quick=True)
+def test_quick_plan_is_local_and_not_acceptance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selection = Selection(("sample_records",), quick=True)
+    monkeypatch.setattr("tools.check.module_files", lambda names: ["sample.py"])
     plan = steps(selection)
     assert len(plan) == 3
     assert all("mypy" not in command and "tools.export_docs" not in command for _, command in plan)
     assert not any(test in plan[-1][1] for test in INTEGRITY)
-    assert selection.scope() == {"kind": "quick", "modules": ["file_library"]}
+    assert selection.scope() == {"kind": "quick", "modules": ["sample_records"]}
     assert latest_full_check([{"scope": selection.scope()}]) is None
 
 
@@ -62,7 +68,7 @@ def test_old_and_new_graph_union_keeps_removed_callers() -> None:
 @pytest.fixture
 def repository(tmp_path: Path) -> Path:
     folder = tmp_path / "repo"
-    path = folder / "server/service/file_library/steps/files.py"
+    path = folder / "server/service/sample_records/steps/files.py"
     path.parent.mkdir(parents=True)
     path.write_text("VALUE = 1\n", encoding="utf-8")
     for args in (
@@ -78,14 +84,15 @@ def repository(tmp_path: Path) -> Path:
 def test_affected_selection_and_unknown_old_caller(
     repository: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    path = repository / "server/service/file_library/steps/files.py"
+    path = repository / "server/service/sample_records/steps/files.py"
     path.write_text("VALUE = 2\n", encoding="utf-8")
     monkeypatch.setattr("tools.development.selection.previous_graph", lambda *args: {})
     catalog = Catalog(MODULES)
     selected = select_affected(catalog, "HEAD", repository)
-    assert selected.modules == ("file_library",)
+    assert selected.modules == ("sample_records",)
     monkeypatch.setattr(
-        "tools.development.selection.previous_graph", lambda *args: {"old_caller": ["file_library"]}
+        "tools.development.selection.previous_graph",
+        lambda *args: {"old_caller": ["sample_records"]},
     )
     selected = select_affected(catalog, "HEAD", repository)
     assert selected.modules == () and "已删除" in selected.reasons[0]
@@ -105,7 +112,7 @@ def test_affected_shared_or_unknown_changes_require_full(repository: Path, path:
 def test_unchanged_and_unreadable_graph(repository: Path) -> None:
     catalog = Catalog(MODULES)
     assert select_affected(catalog, "HEAD", repository).unchanged
-    (repository / "server/service/file_library/steps/files.py").write_text(
+    (repository / "server/service/sample_records/steps/files.py").write_text(
         "VALUE = 2\n", encoding="utf-8"
     )
     selected = select_affected(catalog, "HEAD", repository)
@@ -136,7 +143,10 @@ def test_validation_and_local_files(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="没有登记"):
         validate_modules(("not_registered",), catalog)
     with pytest.raises(ValueError, match="缺少"):
-        validate_modules(("file_library",), catalog, tmp_path)
-    files = module_files(("file_library",))
-    assert "app/api/v1/file_library.py" in files
-    assert not any("user_access" in path for path in files)
+        validate_modules(("sample_records",), catalog, tmp_path)
+    from tests.architecture.test_history_versions import sample_project
+
+    sample_project(tmp_path)
+    files = module_files(("sample_records",), tmp_path / "server")
+    assert "app/api/v1/sample_records.py" in files
+    assert not any("sample_accounts" in path for path in files)
