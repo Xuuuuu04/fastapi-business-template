@@ -44,6 +44,8 @@ def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str
         record = execution.get(part.name) if execution is not None else None
         detail = execution_text(record) if execution is not None else ""
         style = record["status"] if record else part.kind
+        # call 是 Mermaid 的语法关键字；业务种类保持不变，仅转换图中样式名。
+        style = "invoke" if style == "call" else style
         lines.append(
             f'    {current}["{index}. {label(part.title)}（{kind}）'
             f'{rule}{location}{fields}{detail}"]:::{style}'

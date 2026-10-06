@@ -11,7 +11,7 @@ STYLES = [
     "    classDef compute fill:#eef6ff,stroke:#4a78b5",
     "    classDef read fill:#f2fbf2,stroke:#4a9a4a",
     "    classDef save fill:#fff4e5,stroke:#c07a1a",
-    "    classDef call fill:#f5f0ff,stroke:#7a5ab5",
+    "    classDef invoke fill:#f5f0ff,stroke:#7a5ab5",
     "    classDef model fill:#ffeef4,stroke:#b54a7a",
     "    classDef ok fill:#eaf7ea,stroke:#3c8c3c",
     "    classDef failed fill:#fdeaea,stroke:#c03c3c,stroke-width:2px",
