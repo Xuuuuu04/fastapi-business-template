@@ -3,7 +3,7 @@
 """
 
 import pytest
-from sqlalchemy import insert, select, update
+from sqlalchemy import delete, insert, select, update
 
 from app.setup.build import Services
 from shared.db.access import Db
@@ -32,3 +32,15 @@ async def test_lock_needs_saving_step(sample: Services) -> None:
         db = Db(connection, read_only=True, place="读取")
         with pytest.raises(StepRuleBroken):
             await db.first_for_update(select(notes))
+
+
+# 插入、多行插入、修改、删除都返回真实的受影响行数。
+# PostgreSQL 上插入会自动带 RETURNING，曾经返回 0、运行记录里的行数为空。
+@pytest.mark.anyio
+async def test_change_counts_rows_for_every_kind(sample: Services) -> None:
+    async with sample.database.write() as connection:
+        db = Db(connection, read_only=False, place="修改")
+        assert await db.change(insert(notes).values(text="一")) == 1
+        assert await db.change(insert(notes).values([{"text": "二"}, {"text": "三"}])) == 2
+        assert await db.change(update(notes).values(text="改")) == 3
+        assert await db.change(delete(notes).where(notes.c.text == "改")) == 3
