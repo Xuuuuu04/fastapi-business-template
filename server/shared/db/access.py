@@ -89,10 +89,14 @@ class Db:
             return await self._connection.scalar(statement)
 
     # 执行插入、修改或删除，返回受影响的行数。
+    # SQLAlchemy 2.0.28 起默认只保证修改和删除的行数；PostgreSQL 上插入会自动带 RETURNING，
+    # 不打开 preserve_rowcount 时行数是 -1。这里统一打开，插入、修改、删除都拿到真实行数。
     async def change(self, statement: Executable) -> int:
         with query_record(self._record, statement, "change", self._target) as call:
             self._check(statement)
-            result = await self._connection.execute(statement)
+            result = await self._connection.execute(
+                statement, execution_options={"preserve_rowcount": True}
+            )
             count = int(getattr(result, "rowcount", 0) or 0)
             if call is not None:
                 call.rows = count if count >= 0 else None
