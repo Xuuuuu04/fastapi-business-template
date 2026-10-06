@@ -29,7 +29,7 @@ description: 后端要给 Vue3 前端模板提供接口、前后端字段对不�
 
 ## 前端出错时怎么查
 
-前端「结构与运行」页的请求记录里有 `X-Request-ID` 和（有的话）`X-Run-ID`。拿运行编号在 `/system/console`、`/api/system/runs/{run_id}/report` 或 `fastapi_operations.diagnose run 运行编号` 看后端的执行过程。没有 `X-Run-ID` 说明这次请求没有进入登记的操作（例如认证失败、路由不存在），先看请求编号对应的日志。
+前端「开发者工具 → 操作记录」里每次操作的请求记录里有 `X-Request-ID` 和（有的话）`X-Run-ID`。拿运行编号在 `/system/console`、`/api/system/runs/{run_id}/report` 或 `fastapi_operations.diagnose run 运行编号` 看后端的执行过程。没有 `X-Run-ID` 说明这次请求没有进入登记的操作（例如认证失败、路由不存在），先看请求编号对应的日志。
 
 ## 在真实后台上验证前端
 
