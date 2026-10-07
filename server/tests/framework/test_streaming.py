@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from app.setup.build import Services, build
 from app.setup.web import create_app
 from shared.access.caller import SYSTEM
+from shared.flow.streaming import stream_events
 from shared.modules.catalog import Catalog
 from shared.public import Data, Emitter, Flow, Module, Nothing, WorkData, contract, meaning, step
 from tests.framework.sample_modules import NoteStore, notes, sample_metadata
@@ -40,12 +41,17 @@ stream_contract = contract(
 
 
 # 创建一个先写数据库、再输出分段并等待继续的流式模块。
-def probe_module(gate: asyncio.Event) -> Module:
+def probe_module(gate: asyncio.Event, *, full: asyncio.Event | None = None) -> Module:
     # 写入未提交的记录，发出分段后等待测试放行。
     @step("写入并输出", writes=["result"], saves=True)
     async def save_stream(data: StreamWork, store: NoteStore, emit: Emitter) -> None:
         saved = await store.add("stream")
         await emit("part")
+        if full is not None:
+            for index in range(100):
+                if index == 15:
+                    full.set()
+                await emit(str(index))
         await gate.wait()
         data.result = StreamResult(saved=saved)
 
@@ -99,6 +105,50 @@ async def test_stream_disconnect_rolls_back(services: Services) -> None:
     recorded = await services.recorder.get(run_id)
     assert recorded is not None
     assert recorded.status == "failed" and recorded.error_code == "cancelled"
+
+
+# 缓冲已满时断开也能结束取消并回滚，不能等待已离开的客户端腾出队列位置。
+@pytest.mark.anyio
+async def test_full_stream_disconnect_rolls_back(services: Services) -> None:
+    gate, full = asyncio.Event(), asyncio.Event()
+    await prepare(services, gate)
+    services.runtime.catalog = Catalog([probe_module(gate, full=full)])
+    stream = stream_events(
+        services.runtime, stream_contract, Nothing(), caller=SYSTEM, request_id=""
+    )
+    start = await anext(stream)
+    await asyncio.wait_for(full.wait(), 1)
+    await asyncio.wait_for(stream.aclose(), 1)
+    assert await committed_count(services) == 0
+    run_id = json.loads(start.split(b"data: ")[1])
+    recorded = await services.recorder.get(run_id)
+    assert recorded is not None
+    assert recorded.status == "failed" and recorded.error_code == "cancelled"
+
+
+# 普通运行错误仍作为错误事件交给客户端，随后正常结束流。
+@pytest.mark.anyio
+async def test_stream_error_is_reported(
+    services: Services, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 模拟运行的程序错误，不访问数据库。
+    async def failed(*args: object, **kwargs: object) -> Nothing:
+        raise ValueError("不能暴露给客户端的内部细节")
+
+    monkeypatch.setattr(services.runtime, "run", failed)
+    events = [
+        event
+        async for event in stream_events(
+            services.runtime, stream_contract, Nothing(), caller=SYSTEM, request_id=""
+        )
+    ]
+    assert len(events) == 1 and events[0].startswith(b"event: error\n")
+    problem = json.loads(events[0].split(b"data: ")[1])
+    assert problem == {
+        "code": "internal_error",
+        "message": "运行失败，请按运行编号排查",
+        "run_id": "",
+    }
 
 
 # 流式大模型测试接收的主题。

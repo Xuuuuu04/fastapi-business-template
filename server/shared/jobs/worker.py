@@ -8,6 +8,7 @@ import json
 import logging
 import time
 from collections.abc import Awaitable
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
@@ -81,14 +82,19 @@ class Worker:
             claimed = True
         return claimed
 
-    # 停止时有限等待在途任务，超时后取消它们。
+    # 停止时有限等待在途任务，超时后取消并等待回滚、连接归还完成。
     async def drain(self) -> None:
         if not self.tasks:
             return
-        done, pending = await asyncio.wait(self.tasks, timeout=self.options.shutdown_seconds)
+        tasks = tuple(self.tasks)
+        done, pending = await asyncio.wait(tasks, timeout=self.options.shutdown_seconds)
         for task in pending:
             task.cancel()
+        results = await asyncio.gather(*tasks, return_exceptions=True)
         log.info("worker_stopped finished=%s cancelled=%s", len(done), len(pending))
+        for result in results:
+            if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
+                raise result
 
     # 执行一个任务并更新状态。
     async def execute(self, ticket: Ticket) -> None:
@@ -124,6 +130,8 @@ class Worker:
             await self.run_job(ticket, input, caller, plan.retry.times, plan.retry.wait_after)
         finally:
             heartbeat.cancel()
+            with suppress(asyncio.CancelledError):
+                await heartbeat
 
     # 通过执行器运行任务；完成标记与业务写入同一事务提交。
     async def run_job(
