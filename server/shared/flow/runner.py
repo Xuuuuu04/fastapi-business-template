@@ -218,9 +218,8 @@ def describe_error(record: StepRecord, error: BaseException) -> None:
             "执行被取消（客户端断开、超时或服务停止）",
         )
     else:
-        first = (str(error).splitlines() or [""])[0]
         record.error_code = type(error).__name__
-        record.error_message = f"{type(error).__name__}：{first}"[:300]
+        record.error_message = type(error).__name__
     record.error_place = error_place(error)
 
 

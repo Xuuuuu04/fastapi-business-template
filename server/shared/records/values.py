@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from shared.data.fields import FieldNote
+from shared.data.fields import FieldNote, notes_of
 
 MAX_VALUE_TEXT = 120
 
@@ -29,6 +29,8 @@ def describe_value(value: Any, note: FieldNote) -> str:
 
 # 把允许记录的取值转成短文本。
 def value_text(value: Any) -> str:
+    if contains_secret(value):
+        return "已写入（敏感字段，不记录内容）"
     if isinstance(value, BaseModel):
         text = value.model_dump_json()
     elif isinstance(value, datetime):
@@ -38,6 +40,28 @@ def value_text(value: Any) -> str:
     else:
         text = str(value)
     return text if len(text) <= MAX_VALUE_TEXT else text[:MAX_VALUE_TEXT] + "……"
+
+
+# 嵌套敏感字段使整个容器只显示提示；先检查原对象，避免序列化或截断时暴露内容。
+def contains_secret(value: Any, seen: set[int] | None = None) -> bool:
+    seen = seen if seen is not None else set()
+    identity = id(value)
+    if identity in seen:
+        return False
+    seen.add(identity)
+    if isinstance(value, BaseModel):
+        notes = notes_of(type(value))
+        return any(
+            note.secret or contains_secret(getattr(value, name), seen)
+            for name, note in notes.items()
+        )
+    if isinstance(value, dict):
+        return any(
+            contains_secret(key, seen) or contains_secret(item, seen) for key, item in value.items()
+        )
+    if isinstance(value, list | tuple | set | frozenset):
+        return any(contains_secret(item, seen) for item in value)
+    return False
 
 
 # 只描述数据的形状，不暴露内容。

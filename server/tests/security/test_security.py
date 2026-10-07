@@ -3,6 +3,7 @@
 请求大小和并发限制、请求编号不能被注入内容。
 """
 
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -133,12 +134,25 @@ def test_secret_values_stay_out_of_records(secure_client: TestClient) -> None:
     assert "s3cret-token" not in report and "敏感字段，不记录内容" in report
 
 
-# 程序异常的响应只给编号，不回显异常内容；排查记录中保留原因供排查。
-def test_unexpected_error_is_not_leaked(secure_client: TestClient) -> None:
-    reply = secure_client.post("/test/login", json={"user": "amy", "token": "boom"}, headers=KEY)
-    body = reply.json()
-    assert reply.status_code == 500 and body["code"] == "internal_error"
-    assert "boom" not in reply.text and body["run_id"]
+# 程序异常的响应、报告和日志都不回显敏感内容，排查仍有类型与调用位置。
+def test_unexpected_error_is_not_leaked(
+    secure_client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    logger = logging.getLogger("server")
+    logger.addHandler(caplog.handler)
+    try:
+        reply = secure_client.post(
+            "/test/login", json={"user": "amy", "token": "boom"}, headers=KEY
+        )
+        body = reply.json()
+        assert reply.status_code == 500 and body["code"] == "internal_error"
+        assert "boom" not in reply.text and body["run_id"]
+        report = secure_client.get(f"/api/system/runs/{body['run_id']}/report", headers=KEY)
+        assert report.status_code == 200 and "boom" not in report.text
+        assert "ValueError" in report.text
+        assert "boom" not in caplog.text and "check_token" in caplog.text
+    finally:
+        logger.removeHandler(caplog.handler)
 
 
 # 请求正文超过限制时返回 413。

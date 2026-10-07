@@ -9,9 +9,9 @@ import sys
 from contextvars import ContextVar
 from datetime import UTC, datetime
 
-request_id: ContextVar[str] = ContextVar("request_id", default="")
+from shared.errors.details import safe_exception_text
 
-MAX_ERROR_TEXT = 4000
+request_id: ContextVar[str] = ContextVar("request_id", default="")
 
 
 # 将一条日志格式化为一行 JSON，方便日志服务读取。
@@ -26,7 +26,9 @@ class JsonLines(logging.Formatter):
             "request_id": request_id.get(),
         }
         if record.exc_info:
-            data["error"] = self.formatException(record.exc_info)[-MAX_ERROR_TEXT:]
+            error = record.exc_info[1]
+            if error is not None:
+                data["error"] = safe_exception_text(error)
         return json.dumps(data, ensure_ascii=False)
 
 
@@ -39,7 +41,9 @@ class PlainText(logging.Formatter):
         if request_id.get():
             text += f" request_id={request_id.get()}"
         if record.exc_info:
-            text += "\n" + self.formatException(record.exc_info)
+            error = record.exc_info[1]
+            if error is not None:
+                text += "\n" + safe_exception_text(error)
         return text
 
 

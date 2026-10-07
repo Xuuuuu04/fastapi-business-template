@@ -10,6 +10,7 @@ from collections import deque
 from contextlib import suppress
 from dataclasses import dataclass, replace
 
+from shared.errors.details import safe_exception_text
 from shared.records.models import RunRecord
 from shared.records.stores import RunFilter, RunStore, matches
 from shared.records.summary import summarize
@@ -53,9 +54,9 @@ class Recorder:
         self.active.pop(run.id, None)
         try:
             run.summary = summarize(run)
-        except Exception:
+        except Exception as error:
             self.failures += 1
-            log.exception("run_summary_failed run_id=%s", run.id)
+            log.error("run_summary_failed run_id=%s error=%s", run.id, safe_exception_text(error))
         if self.store.immediate:
             await self.save([run])
         elif len(self.waiting) >= self.buffer:
@@ -68,9 +69,11 @@ class Recorder:
     async def save(self, runs: list[RunRecord]) -> None:
         try:
             await self.store.save(runs)
-        except Exception:
+        except Exception as error:
             self.failures += len(runs)
-            log.exception("run_records_save_failed count=%s", len(runs))
+            log.error(
+                "run_records_save_failed count=%s error=%s", len(runs), safe_exception_text(error)
+            )
 
     # 把缓冲中的记录全部写入保存位置。
     async def flush(self) -> None:

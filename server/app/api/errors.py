@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from app.api.replies import STATUS, ErrorReply, FieldProblem
+from shared.errors.details import safe_exception_text
 from shared.errors.kinds import BusinessError, Kind
 
 log = logging.getLogger("server.errors")
@@ -87,7 +88,7 @@ async def http_error(request: Request, error: HTTPException) -> JSONResponse:
 # 未预料的程序异常：记录日志，只返回编号。
 async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
     run_id = str(getattr(error, "run_id", ""))
-    log.error("request_failed type=%s run_id=%s", type(error).__name__, run_id, exc_info=error)
+    log.error("request_failed run_id=%s error=%s", run_id, safe_exception_text(error))
     message = "服务器内部错误，请用请求编号或运行编号查询排查信息"
     return error_response(request, 500, "internal_error", "unexpected", message, run_id=run_id)
 
