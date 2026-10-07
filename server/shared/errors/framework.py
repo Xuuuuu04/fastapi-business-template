@@ -69,6 +69,13 @@ class DatabaseUnavailable(BusinessError):
     message = "数据库暂时不可用"
 
 
+# 认证限流等必需缓存暂时不可用，不把失败当作允许访问。
+class CacheUnavailable(BusinessError):
+    code = "cache_unavailable"
+    kind = Kind.TEMPORARY
+    message = "缓存服务暂时不可用，请稍后再试"
+
+
 # 表示“大模型服务暂时不可用”的失败，由统一错误入口返回给调用方。
 class ModelUnavailable(BusinessError):
     code = "model_unavailable"

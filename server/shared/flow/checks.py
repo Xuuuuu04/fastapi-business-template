@@ -149,6 +149,8 @@ def check_execution_style(item: Step, place: str) -> list[str]:
     problems = []
     if item.heavy and item.is_async:
         problems.append(f"{place} 的 heavy=True 只用于普通函数（def），async 步骤不需要")
+    if item.heavy and item.params != ("data",):
+        problems.append(f"{place} 的 heavy=True 只接受 data 纯计算，外部能力请用 async def")
     if "emit" in item.params and not item.is_async:
         problems.append(f"{place} 使用 emit 时必须写成 async def")
     return problems

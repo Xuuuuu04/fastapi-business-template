@@ -19,6 +19,7 @@ from shared.db.database import Database
 from shared.errors.framework import ConfigError
 from shared.files.storage import FileStorage, LocalFiles, S3Files, S3Options
 from shared.files.uploads import UploadArea
+from shared.flow.heavy import HeavySteps
 from shared.flow.runtime import Runtime
 from shared.jobs.queue import JobQueue
 from shared.model_calls.providers import FakeModel, ModelProvider, OpenAICompatible
@@ -52,6 +53,7 @@ class Services:
 
     # 按创建的相反顺序释放资源。
     async def close(self) -> None:
+        await self.runtime.heavy.close(self.settings.job_shutdown_seconds)
         await self.recorder.flush()
         if self.models is not None:
             await self.models.close()
@@ -124,7 +126,7 @@ def finish_build(
     models: ModelService | None,
 ) -> Services:
     remotes = remote_service(settings, catalog)
-    cache = RedisCache(settings.cache_url) if settings.cache_url else MemoryCache()
+    cache = cache_service(settings)
     needs = store_requirements(catalog)
     legacy = (
         Database(settings.legacy_database_url)
@@ -146,11 +148,10 @@ def finish_build(
         uploads=uploads,
         legacy=legacy,
         telemetry=telemetry,
-        vault=Vault([key.get_secret_value() for key in settings.data_keys])
-        if "vault" in needs
-        else None,
+        vault=vault_service(settings, needs),
         code_version=settings.code_version,
         step_checks=settings.extra_step_checks(),
+        heavy=HeavySteps(settings.heavy_concurrency),
     )
     return Services(
         settings,
@@ -165,6 +166,26 @@ def finish_build(
         legacy,
         uploads,
         telemetry,
+    )
+
+
+# 只为实际使用字段加密的模块创建密钥服务。
+def vault_service(settings: Settings, needs: set[str]) -> Vault | None:
+    return (
+        Vault([key.get_secret_value() for key in settings.data_keys]) if "vault" in needs else None
+    )
+
+
+# 按配置创建有明确连接和操作预算的缓存服务。
+def cache_service(settings: Settings) -> Cache:
+    return (
+        RedisCache(
+            settings.cache_url,
+            timeout=settings.cache_timeout_seconds,
+            max_connections=settings.cache_max_connections,
+        )
+        if settings.cache_url
+        else MemoryCache()
     )
 
 

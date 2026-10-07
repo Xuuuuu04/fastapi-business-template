@@ -23,6 +23,7 @@ from shared.db.database import Database
 from shared.errors.framework import NotAllowed, NotSignedIn, ResultUnknown, StepRuleBroken
 from shared.flow.auditing import audit_failure, audit_hook
 from shared.flow.entry_errors import check_access, fill_error, translate
+from shared.flow.heavy import HeavySteps
 from shared.flow.runner import execute
 from shared.flow.scope import Scope, Transaction
 from shared.flow.streaming import stream_events
@@ -67,6 +68,7 @@ class Runtime:
         vault: "Vault | None" = None,
         code_version: str = "dev",
         step_checks: bool = True,
+        heavy: HeavySteps | None = None,
     ) -> None:
         self.catalog = catalog
         self.database = database
@@ -83,6 +85,7 @@ class Runtime:
         self.code_version = code_version
         self.source_version = ""
         self.step_checks = step_checks
+        self.heavy = heavy or HeavySteps()
 
     # 从接口或任务入口执行一个操作：检查权限，结束时提交或回滚写入。
     async def run[In: Data, Out: Data](

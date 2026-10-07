@@ -4,6 +4,7 @@
 日志只记录路由模板、状态码和耗时，不记录查询参数、请求正文和密钥。
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -32,6 +33,11 @@ class BodyTooLarge(Exception):
     pass
 
 
+# 正文没有在输入期限内读完，不能继续占用请求额度。
+class BodyTimedOut(Exception):
+    pass
+
+
 # 限制同时处理的请求数量，避免请求过多耗尽服务资源。
 class RequestLimits:
     # 记录限制值和当前在途请求数；运行状态接口会读取在途数量。
@@ -41,16 +47,24 @@ class RequestLimits:
         max_inflight: int,
         upload_body: int = 0,
         upload_paths: tuple[str, ...] = (),
+        body_seconds: float = 30,
+        upload_seconds: float = 120,
     ) -> None:
         self.max_body = max_body
         self.max_inflight = max_inflight
         self.upload_body = max(upload_body, max_body)
         self.upload_paths = upload_paths
+        self.body_seconds = body_seconds
+        self.upload_seconds = upload_seconds
         self.inflight = 0
 
     # 只有登记的上传路径使用上传大小限制，其他接口保持较小的正文限制。
     def body_limit(self, path: str) -> int:
         return self.upload_body if path.startswith(self.upload_paths) else self.max_body
+
+    # 登记的上传路径有独立总期限，普通输入保持较短期限。
+    def body_timeout(self, path: str) -> float:
+        return self.upload_seconds if path.startswith(self.upload_paths) else self.body_seconds
 
 
 # 在请求进入业务前检查大小和并发，统一写入请求编号与耗时。
@@ -69,7 +83,7 @@ class RequestMiddleware:
         rid = incoming_id(scope) or secrets.token_hex(8)
         scope.setdefault("state", {})["request_id"] = rid
         token = request_id.set(rid)
-        started, status = time.perf_counter(), [500]
+        started, status = time.perf_counter(), [0]
         try:
             refusal = self.refuse(scope)
             if refusal is not None:
@@ -80,18 +94,36 @@ class RequestMiddleware:
             try:
                 await self.app(
                     scope,
-                    self.limited(receive, self.limits.body_limit(scope["path"])),
+                    self.limited(
+                        receive,
+                        self.limits.body_limit(scope["path"]),
+                        self.limits.body_timeout(scope["path"]),
+                    ),
                     tagged(send, scope, rid, status, self.hsts_seconds),
                 )
             except BodyTooLarge:
+                if status[0]:
+                    raise
                 status[0] = 413
                 await reply(
                     send, rid, 413, "request_too_large", "请求正文超过大小限制", self.hsts_seconds
                 )
+            except BodyTimedOut:
+                if status[0]:
+                    raise
+                status[0] = 408
+                await reply(
+                    send,
+                    rid,
+                    408,
+                    "request_timeout",
+                    "请求正文读取超时，请检查网络后重试",
+                    self.hsts_seconds,
+                )
             finally:
                 self.limits.inflight -= 1
         finally:
-            log_request(scope, status[0], started)
+            log_request(scope, status[0] or 500, started)
             request_id.reset(token)
 
     # 在进入业务前检查同时处理的请求数和声明的正文大小。
@@ -104,15 +136,25 @@ class RequestMiddleware:
         return None
 
     # 读取正文时累计大小，超过限制立即停止。
-    def limited(self, receive: Receive, limit: int) -> Receive:
+    def limited(self, receive: Receive, limit: int, seconds: float = 30) -> Receive:
         total = [0]
+        deadline = asyncio.get_running_loop().time() + seconds
+        finished = False
 
         # 读取一段正文并检查累计大小。
         async def wrapped() -> Message:
-            message = await receive()
+            nonlocal finished
+            if finished:
+                return await receive()
+            try:
+                async with asyncio.timeout_at(deadline):
+                    message = await receive()
+            except TimeoutError as error:
+                raise BodyTimedOut() from error
             total[0] += len(message.get("body", b""))
             if total[0] > limit:
                 raise BodyTooLarge()
+            finished = message["type"] != "http.request" or not message.get("more_body", False)
             return message
 
         return wrapped
@@ -140,7 +182,7 @@ def tagged(send: Send, scope: Scope, rid: str, status: list[int], hsts_seconds: 
 async def reply(
     send: Send, rid: str, status: int, code: str, message: str, hsts_seconds: int = 0
 ) -> None:
-    kind = "too_many" if status == 503 else "invalid"
+    kind = "too_many" if status == 503 else "timeout" if status == 408 else "invalid"
     body: dict[str, object] = {"code": code, "kind": kind, "message": message, "request_id": rid}
     body |= {"run_id": "", "fields": []}
     data = json.dumps(body, ensure_ascii=False).encode("utf-8")

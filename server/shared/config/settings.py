@@ -37,12 +37,15 @@ class Settings(BaseSettings):
     dev_caller: bool = False
     max_body_bytes: int = Field(default=1_000_000, ge=1_000)
     max_inflight: int = Field(default=200, ge=1)
+    body_timeout_seconds: float = Field(default=30, gt=0, le=300)
+    upload_timeout_seconds: float = Field(default=120, gt=0, le=1800)
 
     run_records: Literal["memory", "database"] = "memory"
     run_record_limit: int = Field(default=2000, ge=10)
     run_record_buffer: int = Field(default=5000, ge=10)
     run_record_days: int = Field(default=14, ge=1)
     step_checks: bool | None = None
+    heavy_concurrency: int = Field(default=4, ge=1, le=64)
 
     model_base_url: str = ""
     model_api_key: SecretStr | None = None
@@ -61,6 +64,8 @@ class Settings(BaseSettings):
     remotes: dict[str, RemoteConfig] = {}
     legacy_database_url: str = ""
     cache_url: str = ""
+    cache_timeout_seconds: float = Field(default=3, gt=0, le=30)
+    cache_max_connections: int = Field(default=50, ge=1, le=1000)
     file_storage: Literal["local", "s3"] = "local"
     file_root: str = "var/files"
     upload_root: str = "var/uploads"

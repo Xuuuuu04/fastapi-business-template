@@ -4,11 +4,18 @@
 多实例部署时用 Redis，进程内缓存在各进程之间不共享。
 """
 
+import asyncio
 import time
 from collections import OrderedDict
+from collections.abc import Awaitable
 from typing import Protocol
 
 import redis.asyncio as redis_client
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
+from redis.exceptions import RedisError
+
+from shared.errors.framework import CacheUnavailable
 
 
 # 缓存实现需要提供的读写、计数与连通检查操作。
@@ -77,21 +84,37 @@ class MemoryCache:
 # 通过 Redis 共享缓存和计数，供多个进程共同使用。
 class RedisCache:
     # 使用 Redis 地址创建连接池。
-    def __init__(self, url: str) -> None:
-        self.client = redis_client.from_url(url, decode_responses=True)
+    def __init__(self, url: str, *, timeout: float = 3, max_connections: int = 50) -> None:
+        self.timeout = timeout
+        self.client = redis_client.from_url(
+            url,
+            decode_responses=True,
+            socket_timeout=timeout,
+            socket_connect_timeout=timeout,
+            max_connections=max_connections,
+            retry=Retry(NoBackoff(), 0),
+        )
+
+    # 每次缓存操作有总期限，限流依赖失败时明确报不可用，不放行身份。
+    async def perform[T](self, operation: Awaitable[T]) -> T:
+        try:
+            async with asyncio.timeout(self.timeout):
+                return await operation
+        except (TimeoutError, RedisError) as error:
+            raise CacheUnavailable() from error
 
     # 读取一个值。
     async def get(self, key: str) -> str | None:
-        value = await self.client.get(key)
+        value = await self.perform(self.client.get(key))
         return None if value is None else str(value)
 
     # 写入一个值，有效期精确到毫秒。
     async def set(self, key: str, value: str, ttl: float) -> None:
-        await self.client.set(key, value, px=max(1, int(ttl * 1000)))
+        await self.perform(self.client.set(key, value, px=max(1, int(ttl * 1000))))
 
     # 删除一个值。
     async def delete(self, key: str) -> None:
-        await self.client.delete(key)
+        await self.perform(self.client.delete(key))
 
     # 计数加一；第一次计数时设置有效期。
     async def incr(self, key: str, ttl: float) -> int:
@@ -103,7 +126,9 @@ class RedisCache:
         return count
         """
         return int(
-            await self.client.execute_command("EVAL", script, 1, key, max(1, int(ttl * 1000)))
+            await self.perform(
+                self.client.execute_command("EVAL", script, 1, key, max(1, int(ttl * 1000)))
+            )
         )
 
     # 关闭连接池。

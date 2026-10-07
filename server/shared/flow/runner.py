@@ -145,7 +145,7 @@ async def run_step(
             if part.is_async:
                 returned = await part.func(view, **tools)
             elif part.heavy:
-                returned = await asyncio.to_thread(part.func, view, **tools)
+                returned = await scope.runtime.heavy.run(part.func, view, **tools)
             else:
                 returned = part.func(view, **tools)
         check_return(returned, part)

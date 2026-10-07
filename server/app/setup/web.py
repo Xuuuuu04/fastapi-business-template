@@ -45,6 +45,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         settings.max_inflight,
         settings.upload_max_bytes + MULTIPART_ALLOWANCE,
         tuple(settings.upload_paths),
+        settings.body_timeout_seconds,
+        settings.upload_timeout_seconds,
     )
     add_error_handlers(app)
     app.add_middleware(

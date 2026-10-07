@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from shared.access.caller import Caller, caller_from_record
 from shared.access.keys import ApiKeyConfig, current_caller
 from shared.data.models import Data
+from shared.errors.details import safe_exception_text
 from shared.errors.framework import StaleAttempt
 from shared.errors.kinds import RETRY_KINDS, BusinessError, Kind
 from shared.flow.runtime import Runtime
@@ -134,9 +135,12 @@ class Worker:
             return
         try:
             input = binding.contract.input.model_validate_json(ticket.input_json)
-        except ValidationError as error:
+        except ValidationError:
             await self.queue.fail(
-                ticket, "failed", "input_invalid", f"任务输入与当前格式不符：{error}"
+                ticket,
+                "failed",
+                "input_invalid",
+                "任务输入与当前格式不符，请按当前规则重新登记任务",
             )
             return
         caller = self.restore_caller(ticket)
@@ -183,7 +187,17 @@ class Worker:
         except Exception as error:
             run_id = str(getattr(error, "run_id", ""))
             await self.queue.fail(
-                ticket, "failed", type(error).__name__, f"程序异常：{error}"[:500], run_id=run_id
+                ticket,
+                "failed",
+                type(error).__name__,
+                f"程序异常：{type(error).__name__}",
+                run_id=run_id,
+            )
+            log.error(
+                "job_failed job_id=%s run_id=%s error=%s",
+                ticket.id,
+                run_id,
+                safe_exception_text(error),
             )
 
     # 恢复登记任务时的调用者；服务密钥按当前配置重新取得权限。
