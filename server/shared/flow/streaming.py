@@ -4,7 +4,7 @@
 
 import asyncio
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # 执行声明为 stream 的操作并逐条输出 SSE 事件。
 async def stream_events[In: Data, Out: Data](
     runtime: "Runtime", item: Contract[In, Out], input: In, *, caller: Caller, request_id: str
-) -> AsyncIterator[bytes]:
+) -> AsyncGenerator[bytes, None]:
     if not item.stream:
         raise StepRuleBroken(f"操作 {item.name} 没有声明 stream=True")
     queue: asyncio.Queue[tuple[str, str]] = asyncio.Queue(maxsize=16)
@@ -54,8 +54,8 @@ async def stream_events[In: Data, Out: Data](
                 "run_id": getattr(error, "run_id", ""),
             }
             await queue.put(("error", json.dumps(problem, ensure_ascii=False)))
-        finally:
-            await queue.put(("end", ""))
+        # 正常完成或已报告错误后结束；取消时客户端已离开，不能再等待满队列。
+        await queue.put(("end", ""))
 
     task = asyncio.create_task(work())
     try:

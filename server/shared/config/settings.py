@@ -119,6 +119,9 @@ def check_production(settings: Settings, *, needs_vault: bool = True) -> list[st
     keys = [item.get_secret_value() for item in settings.data_keys]
     if needs_vault and (not keys or LOCAL_DATA_KEY in keys or any(len(key) < 32 for key in keys)):
         problems.append("生产环境必须设置独立的 APP_DATA_KEYS（字段加密密钥），每把至少 32 个字符")
-    if any(len(item.get_secret_value()) < 32 for item in settings.jwt_previous_secrets):
-        problems.append("APP_JWT_PREVIOUS_SECRETS 中的旧密钥也必须至少 32 个字符")
+    if any(
+        item.get_secret_value() == LOCAL_JWT_SECRET or len(item.get_secret_value()) < 32
+        for item in settings.jwt_previous_secrets
+    ):
+        problems.append("APP_JWT_PREVIOUS_SECRETS 中的旧密钥也必须独立设置，至少 32 个字符")
     return problems

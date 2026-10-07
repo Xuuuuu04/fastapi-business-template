@@ -2,6 +2,7 @@
 
 - [kinds.py](kinds.py)：错误种类 `Kind` 和业务错误的写法 `BusinessError`。种类决定 HTTP 状态码和任务能否重试。
 - [framework.py](framework.py)：框架自己抛出的错误，例如未登录、无权限、排队已满、超时、结果待确认、步骤违反声明。
+- [details.py](details.py)：异常日志的安全文字，只保留意外异常类型与调用位置，已定义的业务错误保留公开原因。
 
 业务错误写在模块的 data.py：
 

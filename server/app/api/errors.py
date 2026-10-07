@@ -12,7 +12,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from app.api.middleware import security_headers
 from app.api.replies import STATUS, ErrorReply, FieldProblem
+from shared.errors.details import safe_exception_text
 from shared.errors.kinds import BusinessError, Kind
 
 log = logging.getLogger("server.errors")
@@ -42,7 +44,12 @@ def error_response(
 ) -> JSONResponse:
     rid = getattr(request.state, "request_id", "")
     body = ErrorReply(code=code, kind=kind, message=message, request_id=rid, **extra)
-    headers = {"X-Request-ID": rid}
+    # 未处理异常由最外层生成响应，可能不会再次经过请求中间件的 send 包装。
+    headers = {
+        name.decode("ascii"): value.decode("ascii")
+        for name, value in security_headers(request.app.state.settings.hsts_seconds)
+    }
+    headers["X-Request-ID"] = rid
     if body.run_id:
         headers["X-Run-ID"] = body.run_id
     return JSONResponse(body.model_dump(), status_code=status, headers=headers)
@@ -87,7 +94,7 @@ async def http_error(request: Request, error: HTTPException) -> JSONResponse:
 # 未预料的程序异常：记录日志，只返回编号。
 async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
     run_id = str(getattr(error, "run_id", ""))
-    log.error("request_failed type=%s run_id=%s", type(error).__name__, run_id, exc_info=error)
+    log.error("request_failed run_id=%s error=%s", run_id, safe_exception_text(error))
     message = "服务器内部错误，请用请求编号或运行编号查询排查信息"
     return error_response(request, 500, "internal_error", "unexpected", message, run_id=run_id)
 
