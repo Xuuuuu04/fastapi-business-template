@@ -89,6 +89,20 @@ def test_wrong_key(sample_client: TestClient) -> None:
     assert reply.status_code == 401 and reply.json()["message"] == "服务密钥无效"
 
 
+# 最外层生成的意外失败也必须带安全与请求追查响应头。
+def test_unexpected_response_has_security_headers(secure_client: TestClient) -> None:
+    reply = secure_client.post(
+        "/test/login", json={"user": "测试用户", "token": "boom"}, headers=KEY
+    )
+    assert reply.status_code == 500
+    assert reply.headers["x-content-type-options"] == "nosniff"
+    assert reply.headers["x-frame-options"] == "DENY"
+    assert reply.headers["referrer-policy"] == "no-referrer"
+    assert reply.headers["cache-control"] == "no-store"
+    assert reply.headers["x-request-id"] == reply.json()["request_id"]
+    assert reply.headers["x-run-id"] == reply.json()["run_id"]
+
+
 # 生产环境拒绝开发者身份、SQLite、内存运行记录和缺少密钥的配置。
 def test_production_settings_are_checked(tmp_path: Path) -> None:
     sqlite = f"sqlite+aiosqlite:///{tmp_path}/prod.db"

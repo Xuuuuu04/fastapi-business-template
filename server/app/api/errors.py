@@ -12,6 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from app.api.middleware import security_headers
 from app.api.replies import STATUS, ErrorReply, FieldProblem
 from shared.errors.details import safe_exception_text
 from shared.errors.kinds import BusinessError, Kind
@@ -43,7 +44,12 @@ def error_response(
 ) -> JSONResponse:
     rid = getattr(request.state, "request_id", "")
     body = ErrorReply(code=code, kind=kind, message=message, request_id=rid, **extra)
-    headers = {"X-Request-ID": rid}
+    # 未处理异常由最外层生成响应，可能不会再次经过请求中间件的 send 包装。
+    headers = {
+        name.decode("ascii"): value.decode("ascii")
+        for name, value in security_headers(request.app.state.settings.hsts_seconds)
+    }
+    headers["X-Request-ID"] = rid
     if body.run_id:
         headers["X-Run-ID"] = body.run_id
     return JSONResponse(body.model_dump(), status_code=status, headers=headers)
