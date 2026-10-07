@@ -4,7 +4,8 @@
 """
 
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
+from itertools import islice
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
@@ -60,7 +61,7 @@ async def business_error(request: Request, error: BusinessError) -> JSONResponse
     message = error.detail
     if error.kind == Kind.BROKEN and request.app.state.settings.env == "production":
         message = "服务器内部错误，请用运行编号查询排查信息"
-    fields = [FieldProblem(field=name, problem=text) for name, text in error.fields.items()]
+    fields = field_problems(error.fields.items())
     status = STATUS[error.kind]
     return error_response(
         request, status, error.code, error.kind, message, run_id=error.run_id, fields=fields
@@ -69,13 +70,31 @@ async def business_error(request: Request, error: BusinessError) -> JSONResponse
 
 # 参数校验错误：逐个字段给出中文说明。
 async def validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
-    fields = []
-    for issue in error.errors():
-        path = [str(part) for part in issue.get("loc", ()) if part not in ("body", "query", "path")]
-        text = PROBLEM_TEXT.get(str(issue.get("type")), "取值不符合要求")
-        fields.append(FieldProblem(field=".".join(path), problem=text))
+    fields = field_problems(
+        (
+            ".".join(
+                str(part) for part in issue.get("loc", ()) if part not in ("body", "query", "path")
+            ),
+            PROBLEM_TEXT.get(str(issue.get("type")), "取值不符合要求"),
+        )
+        for issue in error.errors()
+    )
     message = "请求参数不符合要求"
     return error_response(request, 422, "invalid_input", Kind.INVALID, message, fields=fields)
+
+
+# 只返回有限字段问题；路径保持完整，过长路径只由整体错误说明，不能截断后误指控件。
+def field_problems(entries: Iterable[tuple[str, str]]) -> list[FieldProblem]:
+    fields = []
+    for name, text in islice(entries, 50):
+        try:
+            if len(name.encode("utf-8")) > 200:
+                continue
+        except UnicodeEncodeError:
+            continue
+        problem = text.encode("utf-8", errors="replace")[:300].decode("utf-8", errors="ignore")
+        fields.append(FieldProblem(field=name, problem=problem))
+    return fields
 
 
 # 路由层面的错误：地址不存在、方法不支持等。

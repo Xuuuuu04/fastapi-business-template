@@ -22,12 +22,14 @@ class RemoteGate:
         records: list[RemoteCallRecord],
         place: str,
         transaction_started: Callable[[], bool] | None = None,
+        effects: list[RemoteCallRecord] | None = None,
     ) -> None:
         self._service = service
         self._allowed = allowed
         self._records = records
         self._place = place
         self._transaction_started = transaction_started
+        self._effects = effects
 
     # 读取数据；遇到暂时故障自动重试。
     async def get(
@@ -59,4 +61,4 @@ class RemoteGate:
             raise StepRuleBroken(f"“{self._place}”访问了未声明的外部系统 {target.name}")
         if self._service is None:
             raise StepRuleBroken("没有启用外部接口服务")
-        return await self._service.send(target, request, self._records)
+        return await self._service.send(target, request, self._records, self._effects)

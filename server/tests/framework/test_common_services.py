@@ -24,7 +24,7 @@ from shared.cache.backends import MemoryCache
 from shared.cache.gate import ModuleCache
 from shared.db.access import Db, is_write
 from shared.db.org import check_org, org_column
-from shared.errors.framework import RemoteResultUnknown, RemoteUnavailable, StepRuleBroken
+from shared.errors.framework import RemoteResultUnknown, StepRuleBroken
 from shared.records.models import RemoteCallRecord
 from shared.remote_calls.remote import Remote, RemoteConfig
 from shared.remote_calls.service import RemoteRequest, RemoteService
@@ -59,7 +59,7 @@ async def test_remote_retry_rules() -> None:
         reply = await service.send(target, RemoteRequest("GET", "/items"), records)
         assert reply.data == {"ok": True}
         assert records[0].retries == 1
-        with pytest.raises(RemoteUnavailable):
+        with pytest.raises(RemoteResultUnknown):
             await service.send(target, RemoteRequest("POST", "/items", json={"n": 1}), records)
         assert len(seen) == 3
         reply = await service.send(

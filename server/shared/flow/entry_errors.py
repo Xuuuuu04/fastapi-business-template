@@ -11,12 +11,13 @@ from shared.errors.framework import (
     DatabaseUnavailable,
     NotAllowed,
     NotSignedIn,
+    RemoteResultUnknown,
     RunTimeout,
     StepRuleBroken,
 )
-from shared.errors.kinds import BusinessError
+from shared.errors.kinds import BusinessError, Kind
 from shared.modules.contract import Contract
-from shared.records.models import RunRecord
+from shared.records.models import RemoteCallRecord, RunRecord
 
 
 # 没有身份时报未登录，有身份但缺权限时报无权限。
@@ -39,6 +40,19 @@ def translate(error: BaseException) -> BaseException:
     if is_unavailable(error):
         return DatabaseUnavailable()
     return error
+
+
+# 外部写入不能随数据库回滚撤销；上下层调用共享的实际效果决定是否允许整体重试。
+def after_external_write(problem: BaseException, effects: list[RemoteCallRecord]) -> BaseException:
+    if not isinstance(problem, Exception):
+        return problem
+    if isinstance(problem, BusinessError) and problem.kind == Kind.UNKNOWN_RESULT:
+        return problem
+    if any(call.outcome in ("ok", "unknown") for call in effects):
+        return RemoteResultUnknown(
+            "已有外部写入成功或结果尚不能确认，后续操作失败；请先查询结果，不要重发整个操作"
+        )
+    return problem
 
 
 # 保存失败步骤、错误种类和安全的错误信息。

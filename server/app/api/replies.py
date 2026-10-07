@@ -39,7 +39,9 @@ class ErrorReply(Data):
     message: str = meaning("给人看的中文说明")
     request_id: str = meaning("请求编号，用于查日志")
     run_id: str = meaning("运行编号，用于查看执行过程；没有进入业务流程时为空文本", default="")
-    fields: list[FieldProblem] = meaning("逐个字段的问题", default_factory=list)
+    fields: list[FieldProblem] = meaning(
+        "逐个字段的问题，最多 50 项；先修正已显示的问题后再次校验", default_factory=list
+    )
 
 
 # 后台任务已受理的响应，提供任务编号和进度查询地址。

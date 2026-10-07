@@ -196,6 +196,7 @@ def remote_gate(
         record.remotes,
         part.title,
         lambda: scope.tx.connection is not None,
+        scope.remote_writes,
     )
 
 

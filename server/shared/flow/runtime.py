@@ -22,7 +22,7 @@ from shared.data.models import Data
 from shared.db.database import Database
 from shared.errors.framework import NotAllowed, NotSignedIn, ResultUnknown, StepRuleBroken
 from shared.flow.auditing import audit_failure, audit_hook
-from shared.flow.entry_errors import check_access, fill_error, translate
+from shared.flow.entry_errors import after_external_write, check_access, fill_error, translate
 from shared.flow.heavy import HeavySteps
 from shared.flow.runner import execute
 from shared.flow.scope import Scope, Transaction
@@ -149,7 +149,7 @@ class Runtime:
             await self.close_run(run, "ok")
             return result
         except BaseException as error:
-            problem = await self.settle(scope.tx, run, error)
+            problem = await self.settle(scope, run, error)
             await audit_failure(self.database, item, scope, run, problem)
             if problem is error:
                 raise
@@ -250,10 +250,11 @@ class Runtime:
         run.writes = "committed"
 
     # 处理入口调用的失败：回滚写入、整理错误、结束运行记录。
-    async def settle(self, tx: Transaction, run: RunRecord, error: BaseException) -> BaseException:
+    async def settle(self, scope: Scope, run: RunRecord, error: BaseException) -> BaseException:
         problem = translate(error)
         if run.writes != "unknown":
-            run.writes = await tx.rollback()
+            run.writes = await scope.tx.rollback()
+        problem = after_external_write(problem, scope.remote_writes)
         fill_error(run, problem)
         refused = isinstance(problem, NotAllowed | NotSignedIn) and not run.steps
         status = "refused" if refused else "failed"

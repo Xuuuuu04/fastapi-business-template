@@ -116,5 +116,7 @@ def parse_output[T: Data](text: str, output: type[T]) -> T:
     try:
         raw: Any = json.loads(body)
         return output.model_validate(raw)
-    except (json.JSONDecodeError, ValidationError) as error:
-        raise ModelOutputInvalid(f"回复不能转成 {output.__name__}：{str(error)[:200]}") from None
+    except (json.JSONDecodeError, ValidationError):
+        raise ModelOutputInvalid(
+            f"回复不能转成 {output.__name__}，请检查回复格式与字段要求"
+        ) from None

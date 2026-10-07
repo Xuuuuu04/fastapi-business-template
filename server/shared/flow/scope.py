@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from shared.access.caller import Caller
 from shared.db.database import Database
+from shared.records.models import RemoteCallRecord
 
 if TYPE_CHECKING:
     from shared.flow.runtime import Runtime
@@ -59,3 +60,4 @@ class Scope:
     root_id: str = ""
     tx: Transaction = field(default_factory=Transaction)
     emitter: Callable[[str], Awaitable[None]] | None = None
+    remote_writes: list[RemoteCallRecord] = field(default_factory=list)

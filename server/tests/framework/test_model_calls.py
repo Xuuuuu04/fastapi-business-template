@@ -103,6 +103,18 @@ def test_parse_output() -> None:
         parse_output("通过了", Verdict)
 
 
+# 校验器自己的说明可能含输入值和自定义规则，统一失败说明不带模型原文。
+@pytest.mark.parametrize(
+    "body",
+    ['{"passed":"synthetic-private-reply"}', '{"passed":true,"private":"synthetic-private-reply"}'],
+)
+def test_parse_output_omits_private_reply(body: str) -> None:
+    with pytest.raises(ModelOutputInvalid) as caught:
+        parse_output(body, Verdict)
+    assert "synthetic-private-reply" not in caught.value.detail
+    assert "回复不能转成 Verdict" in caught.value.detail
+
+
 # 按状态码返回不同结果的模拟服务。
 def fake_server(status: int) -> httpx2.MockTransport:
     # 返回固定状态码；200 时带上回复和用量。
