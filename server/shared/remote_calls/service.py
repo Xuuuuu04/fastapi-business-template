@@ -4,12 +4,14 @@
 """
 
 import asyncio
+import json
 import time
 from dataclasses import dataclass
 from typing import Any
 
 import httpx2
 
+from shared.data.limits import ResponseTooLarge, limited_bytes
 from shared.errors.framework import (
     RemoteAuthFailed,
     RemoteNotConfigured,
@@ -122,13 +124,24 @@ class RemoteService:
         headers = {"Idempotency-Key": request.key} if request.key else {}
         async with self.limit(target):
             try:
-                response = await self.client(target).request(
+                async with self.client(target).stream(
                     request.method,
                     request.path,
                     params=request.params,
                     json=request.json,
                     headers=headers,
-                )
+                ) as response:
+                    record.status = response.status_code
+                    raise_for_status(target, response.status_code)
+                    maximum = self.configs[target.name].max_response_bytes
+                    content = await limited_bytes(response.aiter_bytes(chunk_size=65536), maximum)
+                    return reply_of(response, content)
+            except ResponseTooLarge as error:
+                if request.method not in SAFE_METHODS:
+                    raise RemoteResultUnknown(
+                        f"外部系统 {target.title}返回内容超过上限，写入结果需要确认"
+                    ) from error
+                raise RemoteRejected(f"外部系统 {target.title}返回内容超过上限") from error
             except httpx2.TimeoutException as error:
                 if request.method in SAFE_METHODS or request.key:
                     raise RemoteUnavailable(f"外部系统 {target.title}响应超时") from error
@@ -145,9 +158,6 @@ class RemoteService:
                         f"写入外部系统 {target.title}时连接中断，对方可能已经处理"
                     ) from error
                 raise RemoteUnavailable(f"无法连接外部系统 {target.title}") from error
-        record.status = response.status_code
-        raise_for_status(target, response.status_code)
-        return reply_of(response)
 
     # 取得外部系统的连接；没有配置时报错。
     def client(self, target: Remote) -> httpx2.AsyncClient:
@@ -201,11 +211,12 @@ def raise_for_status(target: Remote, status: int) -> None:
 
 
 # 整理响应：JSON 响应解析成数据，其他响应保留文本和原始内容。
-def reply_of(response: httpx2.Response) -> RemoteReply:
+def reply_of(response: httpx2.Response, content: bytes) -> RemoteReply:
     data = None
     if "json" in response.headers.get("content-type", ""):
         try:
-            data = response.json()
+            data = json.loads(content)
         except ValueError:
             data = None
-    return RemoteReply(response.status_code, data, response.text, response.content)
+    text = content.decode(response.encoding or "utf-8", errors="replace")
+    return RemoteReply(response.status_code, data, text, content)

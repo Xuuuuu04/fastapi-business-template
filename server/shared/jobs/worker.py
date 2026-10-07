@@ -7,7 +7,7 @@ import asyncio
 import json
 import logging
 import time
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
@@ -21,6 +21,7 @@ from shared.data.models import Data
 from shared.errors.framework import StaleAttempt
 from shared.errors.kinds import RETRY_KINDS, BusinessError, Kind
 from shared.flow.runtime import Runtime
+from shared.jobs.health import WorkerHealth
 from shared.jobs.queue import JobQueue, Ticket
 from shared.jobs.schedule import Scheduler
 
@@ -37,6 +38,7 @@ class WorkerOptions:
     poll_seconds: float = 1.0
     shutdown_seconds: float = 20.0
     record_days: int = 14
+    health_file: str = ""
 
 
 # 领取并执行后台任务，保存结果并处理退出和重试。
@@ -51,21 +53,39 @@ class Worker:
         self.options = options
         self.scheduler = Scheduler(runtime.catalog.schedules, queue, runtime.database)
         self.tasks: set[asyncio.Task[None]] = set()
+        self.health = WorkerHealth(options.health_file)
+        self.cycle_failed = False
+
+    # 本轮领取或维护失败时不刷新健康信号。
+    def failed_cycle(self) -> None:
+        self.cycle_failed = True
 
     # 主循环：处理过期任务、登记定时任务、领取并执行任务，直到收到停止信号。
     async def run(self, stop: asyncio.Event) -> None:
+        self.health.clear()
+        try:
+            await self.loop(stop)
+        finally:
+            self.health.clear()
+
+    # 正常空队列也报告健康；领取或维护失败时保留上次成功时间。
+    async def loop(self, stop: asyncio.Event) -> None:
         next_reclaim = next_clean = 0.0
         while not stop.is_set():
+            self.cycle_failed = False
             now = time.time()
             if now >= next_reclaim:
-                await guarded("reclaim", self.queue.reclaim(now))
+                await guarded("reclaim", self.queue.reclaim(now), self.failed_cycle)
                 next_reclaim = now + RECLAIM_SECONDS
             if now >= next_clean:
                 cutoff = now - self.options.record_days * 86400
-                await guarded("clean", self.runtime.recorder.store.clean(cutoff))
+                await guarded("clean", self.runtime.recorder.store.clean(cutoff), self.failed_cycle)
                 next_clean = now + CLEAN_SECONDS
-            await guarded("schedule", self.scheduler.tick(now))
-            if not await self.claim_some():
+            await guarded("schedule", self.scheduler.tick(now), self.failed_cycle)
+            claimed = await self.claim_some()
+            if not self.cycle_failed:
+                self.health.touch()
+            if not claimed:
                 await wait_or_stop(stop, self.options.poll_seconds)
         await self.drain()
 
@@ -73,7 +93,7 @@ class Worker:
     async def claim_some(self) -> bool:
         claimed = False
         while len(self.tasks) < self.options.concurrency:
-            ticket = await guarded("claim", self.queue.claim(time.time()))
+            ticket = await guarded("claim", self.queue.claim(time.time()), self.failed_cycle)
             if ticket is None:
                 break
             task = asyncio.create_task(self.execute(ticket))
@@ -196,10 +216,14 @@ def next_state(kind: Kind, attempt: int, retries: int, wait_after: Any) -> tuple
 
 
 # 执行一项后台维护，出错只写日志，避免 worker 主循环退出。
-async def guarded[T](name: str, work: Awaitable[T]) -> T | None:
+async def guarded[T](
+    name: str, work: Awaitable[T], on_failure: Callable[[], None] | None = None
+) -> T | None:
     try:
         return await work
     except Exception:
+        if on_failure is not None:
+            on_failure()
         log.exception("worker_%s_failed", name)
         return None
 

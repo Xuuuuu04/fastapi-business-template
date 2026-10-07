@@ -5,12 +5,14 @@ FakeModel 返回固定文本，用于测试和没有配置模型的本地开发�
 要接入 Claude，请另写一个基于官方 anthropic SDK 的实现，不要通过兼容接口转接。
 """
 
+import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 import httpx2
 
+from shared.data.limits import ResponseTooLarge, limited_bytes
 from shared.errors.framework import ModelRejected, ModelUnavailable
 
 
@@ -58,8 +60,10 @@ class OpenAICompatible:
         model: str,
         timeout: float,
         transport: httpx2.AsyncBaseTransport | None = None,
+        max_response_bytes: int = 2_000_000,
     ) -> None:
         self.model = model
+        self.max_response_bytes = max_response_bytes
         self.client = httpx2.AsyncClient(
             base_url=base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {api_key}"},
@@ -70,16 +74,26 @@ class OpenAICompatible:
     # 调用 /chat/completions，并把网络和状态码错误转成框架的错误种类。
     async def complete(self, request: ModelRequest) -> ModelReply:
         try:
-            response = await self.client.post("/chat/completions", json=self.body(request))
+            async with self.client.stream(
+                "POST", "/chat/completions", json=self.body(request)
+            ) as response:
+                if response.status_code == 429 or response.status_code >= 500:
+                    raise ModelUnavailable(f"大模型服务暂时不可用（HTTP {response.status_code}）")
+                if response.status_code >= 400:
+                    raise ModelRejected(f"大模型服务拒绝请求（HTTP {response.status_code}）")
+                content = await limited_bytes(
+                    response.aiter_bytes(chunk_size=65536), self.max_response_bytes
+                )
+        except ResponseTooLarge as error:
+            raise ModelRejected("大模型服务返回内容超过上限，请调整输出范围") from error
         except httpx2.TimeoutException as error:
             raise ModelUnavailable("大模型服务响应超时") from error
         except httpx2.TransportError as error:
             raise ModelUnavailable("无法连接大模型服务") from error
-        if response.status_code == 429 or response.status_code >= 500:
-            raise ModelUnavailable(f"大模型服务暂时不可用（HTTP {response.status_code}）")
-        if response.status_code >= 400:
-            raise ModelRejected(f"大模型服务拒绝请求（HTTP {response.status_code}）")
-        return self.reply(response.json())
+        try:
+            return self.reply(json.loads(content))
+        except ValueError as error:
+            raise ModelUnavailable("大模型服务返回的格式无法识别") from error
 
     # 组装请求正文。
     def body(self, request: ModelRequest) -> dict[str, Any]:

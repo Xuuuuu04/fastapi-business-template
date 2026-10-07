@@ -7,7 +7,7 @@ x-app: &app
     context: ..
     dockerfile: deploy/Dockerfile
   env_file: [../.env]
-  environment:
+  environment: &app-environment
     APP_ENV: production
     APP_DATABASE_URL: postgresql+psycopg://app:${DATABASE_PASSWORD:?请在 .env 中设置 DATABASE_PASSWORD}@database:5432/app
     APP_RUN_RECORDS: database
@@ -54,9 +54,15 @@ services:
   worker:
     <<: *app
     command: ["python", "-m", "app.setup.worker"]
-    # worker 不提供 HTTP 服务，关闭镜像中针对 8000 端口的健康检查；是否在工作看任务表和运行记录
+    environment:
+      <<: *app-environment
+      APP_JOB_HEALTH_FILE: /tmp/template-worker.health
     healthcheck:
-      disable: true
+      test: ["CMD", "python", "-m", "app.setup.worker_health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     depends_on:
       migrate:
         condition: service_completed_successfully

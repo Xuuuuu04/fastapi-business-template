@@ -35,26 +35,42 @@ async def get_caller(
     if key:
         caller = find_caller(key, settings.api_keys)
         if caller is None:
+            await count_request(request, failed_credentials=True)
             raise NotSignedIn("服务密钥无效")
     elif bearer is not None:
         token = bearer.credentials
         keys = [settings.jwt_secret, *settings.jwt_previous_secrets]
-        caller = verify_token(
-            token,
-            [item.get_secret_value() for item in keys],
-            settings.jwt_issuer,
-            settings.jwt_audience,
-        )
+        try:
+            caller = verify_token(
+                token,
+                [item.get_secret_value() for item in keys],
+                settings.jwt_issuer,
+                settings.jwt_audience,
+            )
+        except NotSignedIn:
+            await count_request(request, failed_credentials=True)
+            raise
     elif settings.dev_caller and settings.env == "local":
         caller = DEVELOPER
     else:
         caller = ANONYMOUS
+    await count_request(request, caller)
+    return caller
+
+
+# 无效凭据按来源计数；正常账号仍有独立额度，不受同源错误登录影响。
+async def count_request(
+    request: Request, caller: Caller = ANONYMOUS, *, failed_credentials: bool = False
+) -> None:
+    settings = request.app.state.settings
     source = request.client.host if request.client else "unknown"
-    bucket = caller.id if caller.kind != "anonymous" else f"anonymous:{source}"
+    if failed_credentials:
+        bucket = f"invalid_credentials:{source}"
+    else:
+        bucket = caller.id if caller.kind != "anonymous" else f"anonymous:{source}"
     count = await request.app.state.services.cache.incr(f"rate:{bucket}", 60)
     if count > settings.request_rate_per_minute:
         raise TooManyRequests("请求过于频繁，请一分钟后再试")
-    return caller
 
 
 CallerDep = Annotated[Caller, Depends(get_caller)]

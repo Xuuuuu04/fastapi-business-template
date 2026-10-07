@@ -210,7 +210,11 @@ def model_service(
     if provider is None and settings.has_model():
         key = settings.model_api_key.get_secret_value() if settings.model_api_key else ""
         provider = OpenAICompatible(
-            settings.model_base_url, key, settings.model_name, settings.model_timeout
+            settings.model_base_url,
+            key,
+            settings.model_name,
+            settings.model_timeout,
+            max_response_bytes=settings.model_max_response_bytes,
         )
     if provider is None:
         if settings.env == "production":

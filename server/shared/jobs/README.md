@@ -29,6 +29,8 @@
 
 worker 停止领取任务后，先按退出等待时间等待在途任务；超时后取消任务，等回滚、连接归还和续期任务清理完成，再关闭共用服务。清理时的普通异常会明确报错。
 
+设置 `APP_JOB_HEALTH_FILE` 后，正常领取与维护循环每五秒最多更新一次健康文件；失败不刷新，停止时删除。文件放在 worker 自己的临时目录，不能使用共享业务卷的固定文件。`python -m app.setup.worker_health` 检查时间是否有效，默认有效期 60 秒；有效期至少比轮询间隔长 30 秒。健康只说明循环近期可用，任务成功仍以任务结果为准。
+
 服务密钥任务在执行前按当前配置重新读取权限；用户任务沿用登记时的身份与权限。业务要求停用用户或撤销角色后立即阻止排队任务时，执行步骤必须重新读取用户状态，不能只依赖任务中的旧身份。
 
 使用 SQLite 时只能运行一个 worker；多个 worker 需要 PostgreSQL。人工处理用 `uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py jobs`。

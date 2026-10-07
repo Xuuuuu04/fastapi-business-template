@@ -31,6 +31,7 @@ async def serve(settings: Settings) -> None:
         poll_seconds=settings.job_poll_seconds,
         shutdown_seconds=settings.job_shutdown_seconds,
         record_days=settings.run_record_days,
+        health_file=settings.job_health_file,
     )
     worker = Worker(services.runtime, services.queue, settings.api_keys, options)
     flushing = None

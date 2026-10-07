@@ -6,7 +6,7 @@
 
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from shared.access.keys import ApiKeyConfig
@@ -50,10 +50,13 @@ class Settings(BaseSettings):
     model_timeout: float = Field(default=60, gt=0)
     model_concurrency: int = Field(default=4, ge=1)
     model_keep_text: bool = False
+    model_max_response_bytes: int = Field(default=2_000_000, ge=1, le=16_000_000)
 
     job_poll_seconds: float = Field(default=1.0, gt=0)
     job_concurrency: int = Field(default=4, ge=1)
     job_shutdown_seconds: float = Field(default=20, ge=0)
+    job_health_file: str = ""
+    job_health_seconds: float = Field(default=60, ge=10)
 
     remotes: dict[str, RemoteConfig] = {}
     legacy_database_url: str = ""
@@ -82,6 +85,13 @@ class Settings(BaseSettings):
     hsts_seconds: int = Field(default=0, ge=0)
     otel_endpoint: str = ""
     console: bool | None = None
+
+    # 开启健康信号时，为正常轮询和容器检查留出三十秒余量。
+    @model_validator(mode="after")
+    def check_worker_health(self) -> "Settings":
+        if self.job_health_file and self.job_health_seconds < self.job_poll_seconds + 30:
+            raise ValueError("APP_JOB_HEALTH_SECONDS 至少比 APP_JOB_POLL_SECONDS 大 30 秒")
+        return self
 
     # 开发和测试环境默认开启额外的步骤检查，生产环境默认关闭以节省开销。
     def extra_step_checks(self) -> bool:

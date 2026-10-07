@@ -79,6 +79,26 @@ async def test_cache_basic_rules(cache: Cache) -> None:
     assert await cache.incr(f"{key}:n", 0.2) == 1
 
 
+# Redis 计数不能延长现有窗口，旧的无期限键会被修复；并发计数保持唯一。
+async def test_redis_counter_expiry_and_concurrency(cache: Cache) -> None:
+    if not isinstance(cache, RedisCache):
+        pytest.skip("本项验证 Redis 原子计数")
+    key = f"test:{secrets.token_hex(8)}:atomic"
+    try:
+        await cache.client.set(key, "1", px=1000)
+        assert await cache.incr(key, 60) == 2
+        assert 0 < await cache.client.pttl(key) <= 1000
+        await cache.client.set(key, "5")
+        assert await cache.incr(key, 30) == 6
+        assert 0 < await cache.client.pttl(key) <= 30_000
+        await cache.delete(key)
+        counts = await asyncio.gather(*(cache.incr(key, 30) for _ in range(20)))
+        assert sorted(counts) == list(range(1, 21))
+        assert 0 < await cache.client.pttl(key) <= 30_000
+    finally:
+        await cache.delete(key)
+
+
 # 模块缓存加模块前缀，数据对象可以往返；格式不符当作未命中，并计入命中统计。
 async def test_module_cache_prefix_and_data(cache: Cache) -> None:
     module = f"m{secrets.token_hex(4)}"

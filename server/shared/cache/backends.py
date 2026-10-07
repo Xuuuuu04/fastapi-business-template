@@ -95,10 +95,16 @@ class RedisCache:
 
     # 计数加一；第一次计数时设置有效期。
     async def incr(self, key: str, ttl: float) -> int:
-        count = int(await self.client.incr(key))
-        if count == 1:
-            await self.client.pexpire(key, max(1, int(ttl * 1000)))
+        script = """
+        local count = redis.call('INCR', KEYS[1])
+        if count == 1 or redis.call('PTTL', KEYS[1]) < 0 then
+            redis.call('PEXPIRE', KEYS[1], ARGV[1])
+        end
         return count
+        """
+        return int(
+            await self.client.execute_command("EVAL", script, 1, key, max(1, int(ttl * 1000)))
+        )
 
     # 关闭连接池。
     async def close(self) -> None:
