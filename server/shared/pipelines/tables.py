@@ -24,6 +24,10 @@ runs = Table(
     Column("updated_at", Float, nullable=False),
     Column("finished_at", Float, nullable=True),
     Column("reason", Text, nullable=False),
+    Column("complete_by", Float, nullable=True),
+    Column("overdue", Boolean, nullable=False, default=False, server_default=text("false")),
+    Column("overdue_at", Float, nullable=True),
+    Column("on_overdue", String(12), nullable=False, default="continue", server_default="continue"),
     Index("uq_pipeline_cycle", "org_id", "pipeline", "cycle_key", unique=True),
     Index("ix_pipeline_waiting", "pipeline", "org_id", "state", "created_at"),
     Index(
@@ -32,10 +36,12 @@ runs = Table(
         "pipeline",
         unique=True,
         sqlite_where=text(
-            "state IN ('running','waiting_external','waiting_members','unknown','version_blocked')"
+            "state IN ('running','waiting_external','waiting_members',"
+            "'overdue_paused','unknown','version_blocked')"
         ),
         postgresql_where=text(
-            "state IN ('running','waiting_external','waiting_members','unknown','version_blocked')"
+            "state IN ('running','waiting_external','waiting_members',"
+            "'overdue_paused','unknown','version_blocked')"
         ),
     ),
 )
@@ -109,4 +115,22 @@ members = Table(
     Index("uq_pipeline_member", "stage_id", "key", unique=True),
     Index("uq_pipeline_member_job", "job_id", unique=True),
     Index("ix_pipeline_member_state", "stage_id", "state", "key"),
+)
+
+
+notifications = Table(
+    "system_notifications",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("kind", String(40), nullable=False),
+    Column("key", String(160), nullable=False),
+    Column("payload_json", Text, nullable=False),
+    Column("state", String(24), nullable=False),
+    Column("created_at", Float, nullable=False),
+    Column("sent_at", Float, nullable=True),
+    Column("attempt", Integer, nullable=False, default=0),
+    Column("error", Text, nullable=False, default=""),
+    Index("uq_system_notification", "kind", "key", unique=True),
+    Index("ix_system_notification_pending", "state", "created_at"),
 )

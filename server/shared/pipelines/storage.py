@@ -16,7 +16,14 @@ from shared.pipelines.tables import runs, stages
 if TYPE_CHECKING:
     from shared.jobs.queue import Ticket
 
-ACTIVE = ("running", "waiting_external", "waiting_members", "unknown", "version_blocked")
+ACTIVE = (
+    "running",
+    "waiting_external",
+    "waiting_members",
+    "overdue_paused",
+    "unknown",
+    "version_blocked",
+)
 PREFIX = "pipeline:"
 
 

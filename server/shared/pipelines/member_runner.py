@@ -47,6 +47,7 @@ class MemberContext:
             "running",
             "unknown",
             "version_blocked",
+            "overdue_paused",
         ):
             raise StaleAttempt()
         parent = dict(

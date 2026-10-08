@@ -69,10 +69,25 @@ def arguments() -> argparse.Namespace:
 def main() -> None:
     args = arguments()
     settings = Settings()
-    status = project_status(Catalog(MODULES), PROJECT, set(settings.disabled_modules), args.checks)
+    catalog = Catalog(MODULES)
+    status = project_status(catalog, PROJECT, set(settings.disabled_modules), args.checks)
     if args.module and args.module not in status["modules"] and not args.summary:
         raise SystemExit(f"模块尚未登记：{args.module}；未实现的开发包可用 --summary 查看")
     if args.runs:
+        from fastapi_project.development.pipelines import overview, refresh
+
+        from shared.db.database import Database
+
+        # 刷新后关闭隔离查询连接，默认摘要继续只读缓存。
+        async def refresh_pipelines() -> None:
+            database = Database(settings.database_url)
+            try:
+                await refresh(database, catalog, PROJECT)
+            finally:
+                await database.close()
+
+        asyncio.run(refresh_pipelines())
+        status["pipelines"] = overview(catalog, PROJECT, module=args.module)
         status["runtime"] = asyncio.run(recent_runs(settings, args.limit, args.module))
         runtime_progress(status, set(settings.disabled_modules), args.module)
     status["graph"] = project_graph(status)

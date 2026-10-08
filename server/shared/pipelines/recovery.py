@@ -39,16 +39,13 @@ async def resume(
         stage = await latest_stage(connection, run_id)
         if stage is None:
             return await resume_queued(connection, database, catalog, run_id, accept_schema)
-        job = (
-            (
-                await connection.execute(
-                    select(jobs).where(jobs.c.id == stage["job_id"]).with_for_update()
-                )
-            )
-            .mappings()
-            .one()
-        )
+        job = await locked_job(connection, stage["job_id"])
         root = await root_for(connection, run_id)
+        if root["state"] == "overdue_paused":
+            from shared.jobs.queue import JobQueue
+            from shared.pipelines.overdue_resume import resume as resume_overdue
+
+            return await resume_overdue(connection, JobQueue(catalog, database), root)
         pipeline = catalog.pipelines.get(root["pipeline"])
         group = (
             next((stage for stage in pipeline.stages if stage.name == root["current_stage"]), None)
@@ -222,3 +219,13 @@ async def latest_stage(connection: AsyncConnection, run_id: str) -> RowMapping |
         .first()
     )
     return stage
+
+
+# 先锁任务再锁流程，所有恢复路径保持同一个锁顺序。
+async def locked_job(connection: AsyncConnection, job_id: str) -> RowMapping:
+    job = (
+        (await connection.execute(select(jobs).where(jobs.c.id == job_id).with_for_update()))
+        .mappings()
+        .one()
+    )
+    return job

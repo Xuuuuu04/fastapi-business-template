@@ -49,7 +49,7 @@ async def failed(
     if state == "unknown":
         await pause(connection, root, parent, "unknown", message)
         return
-    if root["state"] in ("unknown", "version_blocked"):
+    if root["state"] in ("unknown", "version_blocked", "overdue_paused"):
         return
     if state == "blocked":
         await pause(connection, root, parent, "version_blocked", message)

@@ -32,6 +32,13 @@ async def run_segments(
     binding = runtime.catalog.by_name[ticket.contract]
     number, cursor, total_rows = await checkpoint_store.load(runtime.database, ticket.id)
     while True:
+        from shared.pipelines.overdue import may_continue
+
+        if not await may_continue(queue, ticket.id):
+            await queue.fail(
+                ticket, "waiting_retry", "pipeline_overdue_paused", "流程逾期，已在批次边界暂停"
+            )
+            return
         if stop.is_set():
             await queue.fail(
                 ticket, "waiting_retry", "worker_stopping", "已在提交边界停止，等待继续"

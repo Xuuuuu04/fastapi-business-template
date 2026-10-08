@@ -11,7 +11,7 @@ from shared.db.database import Database
 from shared.graphs.mermaid import label
 from shared.jobs.checkpoint_store import progress
 from shared.pipelines.member_views import group_summaries
-from shared.pipelines.tables import runs, stages
+from shared.pipelines.tables import notifications, runs, stages
 
 
 # 最近流程仅返回摘要，组织过滤在查询中完成。
@@ -74,6 +74,7 @@ async def detail(database: Database, run_id: str, *, org_id: str = "*") -> dict[
     result = summary(dict(row))
     result["stages"] = items
     result["graph"] = graph(items)
+    result["notification_state"] = await notification_state(database, run_id)
     result["source_fixed"] = row["source_json"] is not None
     return result
 
@@ -93,6 +94,10 @@ def summary(row: dict) -> dict[str, Any]:
             "updated_at",
             "finished_at",
             "reason",
+            "complete_by",
+            "overdue",
+            "overdue_at",
+            "on_overdue",
         )
     }
 
@@ -134,3 +139,13 @@ def complete_stages(
             )
         )
     return result + list(actual.values())
+
+
+# 通知只显示实际队列状态，未找到记录时保持未知。
+async def notification_state(database: Database, run_id: str) -> str | None:
+    async with database.read() as connection:
+        return await connection.scalar(
+            select(notifications.c.state).where(
+                notifications.c.kind == "pipeline_overdue", notifications.c.key == run_id
+            )
+        )

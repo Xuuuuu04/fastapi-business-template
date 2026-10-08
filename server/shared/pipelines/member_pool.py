@@ -49,13 +49,14 @@ async def planned(
         .where(stages.c.id == row["id"])
         .values(state="waiting_members", output_json=body, run_id=run_id, error="")
     )
+    desired = "overdue_paused" if root["state"] == "overdue_paused" else "waiting_members"
     await connection.execute(
         update(runs)
         .where(runs.c.id == root["id"])
-        .values(state="waiting_members", updated_at=time.time(), reason="")
+        .values(state=desired, updated_at=time.time(), reason="")
     )
     row.update(state="waiting_members", output_json=body, run_id=run_id)
-    root["state"] = "waiting_members"
+    root["state"] = desired
     await advance(connection, queue, root, row, group)
 
 

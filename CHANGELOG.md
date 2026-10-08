@@ -2,6 +2,14 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 2.5.0（2026-10-09）
+
+- Pipeline新增 `complete_by=DailyTime(time(9,30), zone="Asia/Shanghai", days_after=0)`；截止时间按周期当地日期固定，跨日显式days_after。默认逾期继续，只记录overdue并将通知登记为pending；`on_overdue="pause"`在阶段/批次边界暂停，人工继续保留产出和游标。
+- 新增 `system_notifications` 待发送表与流程截止/逾期字段。console和operations显示逾期及通知实际状态；本版只入队，PR6配置Webhook后才发送，不宣称已提醒。
+- project --summary列所有流程及最近缓存观察；未读取业务库时状态明确未知，--runs可刷新。--operation显示属于哪条流程和哪个子阶段。
+- 已有产品接入：升级后执行迁移及新通知表授权；需要最晚完成要求的流程在module.py加complete_by/on_overdue。旧普通操作及未声明截止的流程继续原行为。默认摘要不访问数据库，查看实时状态使用--runs或console/operations。
+- framework.lock更新理由：截止声明、持久化事实、任务边界保护、恢复和摘要/查看共同改变；通知投递与通道仍留后续运维PR。
+
 ## 2.4.0（2026-10-09）
 
 - Pipeline新增 `FanOut/All/Ratio/Member`：分批规划、有限在途成员、每成员公开阶段及Wait、只恢复失败成员、成功结果复用。比例汇合固定纳入名单，未知外部效果仍暂停；任务队列满时定时继续派发。

@@ -37,6 +37,13 @@ async def failed(
     root = await root_for(connection, stage["pipeline_id"])
     if root["current_stage"] != stage["name"]:
         return
+    if root["state"] == "overdue_paused" and state != "unknown":
+        await connection.execute(
+            update(stages)
+            .where(stages.c.id == stage["id"])
+            .values(state="overdue_paused", error=message)
+        )
+        return
     value = "version_blocked" if state == "blocked" else state
     root_state = "waiting_external" if state == "waiting_retry" else value
     values: dict[str, object] = dict(state=value, error=message)

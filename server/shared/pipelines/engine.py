@@ -15,6 +15,7 @@ from shared.access.caller import Caller, caller_from_record
 from shared.data.models import Data
 from shared.errors.framework import DuplicateRequest, InvalidInput, NotAllowed, StepRuleBroken
 from shared.modules.contract import Contract
+from shared.pipelines.overdue import deadline
 from shared.pipelines.plan import Pipeline, PipelineView, StartInput, StartRequest, Wait
 from shared.pipelines.schema import data_json, declarations, input_source
 from shared.pipelines.storage import ACTIVE, PREFIX, compatible
@@ -33,8 +34,12 @@ class PipelineEngine:
 
     # 每轮worker短事务检查成员空位，队列容量恢复后自动继续。
     async def reconcile(self) -> None:
-        from shared.pipelines.member_reconcile import reconcile
+        import time
 
+        from shared.pipelines.member_reconcile import reconcile
+        from shared.pipelines.overdue import check
+
+        await check(self.queue, time.time())
         await reconcile(self.queue)
 
     # 定时任务的启动入口直接派发第一阶段，不额外占用启动任务。
@@ -59,6 +64,9 @@ class PipelineEngine:
             raise NotAllowed("启动流程需要明确组织身份")
         body = data_json(pipeline.input, request.data, "input")
         row = self.new_root(pipeline, caller, key, body)
+        row["complete_by"] = deadline(pipeline, request, row["created_at"])
+        row["on_overdue"] = pipeline.on_overdue
+        row["overdue"] = False
         existing = await self.insert_root(connection, row)
         if existing:
             return existing
@@ -165,6 +173,10 @@ class PipelineEngine:
     async def activate(self, connection: AsyncConnection, root: dict, pipeline: Pipeline) -> None:
         await self.claim_cycle(connection, root, pipeline)
         await self.enqueue(connection, root, pipeline, 0)
+        if root.get("overdue") and root.get("on_overdue") == "pause":
+            await connection.execute(
+                update(runs).where(runs.c.id == root["id"]).values(state="overdue_paused")
+            )
 
     # 阶段输入来自初始Data或某个已成功阶段的有界产出。
     async def enqueue(
@@ -202,7 +214,7 @@ class PipelineEngine:
             .where(runs.c.id == root["id"])
             .values(
                 current_stage=stage.name,
-                state="running",
+                state="overdue_paused" if root["state"] == "overdue_paused" else "running",
                 updated_at=time.time(),
                 reason="",
             )
