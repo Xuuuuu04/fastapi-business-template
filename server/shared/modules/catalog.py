@@ -16,6 +16,7 @@ from shared.modules.checks import check_catalog
 from shared.modules.contract import Contract
 from shared.modules.digest import digest_of
 from shared.modules.module import Module
+from shared.pipelines.plan import stages_of
 from shared.pipelines.registration import check_pipelines, expand
 
 
@@ -106,7 +107,7 @@ class Catalog:
             (module.name, stage.operation.module, f"流程阶段：{stage.operation.title}")
             for module in self.modules.values()
             for pipeline in module.pipelines
-            for stage in pipeline.stages
+            for stage in stages_of(pipeline)
             if stage.operation.module != module.name
         ]
         return edges

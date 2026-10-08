@@ -14,7 +14,8 @@ from shared.flow.step import step
 from shared.jobs.plan import JobPlan
 from shared.modules.module import Module
 from shared.pipelines.gate import PipelineGate
-from shared.pipelines.plan import Pipeline, StartWork, Wait
+from shared.pipelines.member_checks import check_group, check_results, check_source
+from shared.pipelines.plan import FanOut, Pipeline, StartWork, Wait
 from shared.pipelines.schema import input_source
 
 NAME = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -59,15 +60,23 @@ def check_pipelines(modules: Sequence[Module]) -> list[str]:
             seen.add(pipeline.name)
             if pipeline.overlap not in ("skip", "queue") or not pipeline.stages:
                 problems.append(f"流程{pipeline.name}需要阶段和有效overlap")
+            if (
+                any(stage.source is not None for stage in pipeline.stages)
+                and not pipeline.stages[0].freeze_sources
+            ):
+                problems.append(f"流程{pipeline.name}使用固定来源，首阶段必须freeze_sources=True")
             problems += check_stages(pipeline, operations, plans)
     return problems
 
 
 # 输入按声明过的Data传递，分段阶段必须明确游标Data格式。
-def check_stages(pipeline: Pipeline, operations: dict, plans: dict) -> list[str]:
+def check_stages(
+    pipeline: Pipeline, operations: dict, plans: dict, *, source_model: type | None = None
+) -> list[str]:
     problems, outputs = [], {"input": pipeline.input}
     if not isinstance(pipeline.input, type) or not issubclass(pipeline.input, Data):
         return [f"流程{pipeline.name}初始输入必须是Data"]
+    groups: dict[str, FanOut] = {}
     for index, stage in enumerate(pipeline.stages):
         place = f"流程{pipeline.name}阶段{stage.name}"
         if not NAME.fullmatch(stage.name) or stage.name in outputs:
@@ -85,6 +94,13 @@ def check_stages(pipeline: Pipeline, operations: dict, plans: dict) -> list[str]
         plan = plans.get(stage.operation)
         if plan and plan.segmented and plan.cursor is None:
             problems.append(f"{place}分段任务必须声明cursor Data")
+        problems += check_source(
+            stage, index, source_model or pipeline.stages[0].operation.output, place
+        )
+        problems += check_results(stage, groups, place)
+        if isinstance(stage, FanOut):
+            groups[stage.name] = stage
+            problems += check_group(pipeline, stage, operations, plans)
         if isinstance(stage, Wait):
             problems += check_wait(stage, plan, place)
     return problems
@@ -100,6 +116,7 @@ def check_wait(stage: Wait, plan: JobPlan | None, place: str) -> list[str]:
         not math.isfinite(stage.every)
         or not math.isfinite(stage.timeout)
         or min(stage.every, stage.timeout) <= 0
+        or type(stage.max_parallel) is not int
         or stage.max_parallel < 1
     ):
         problems.append(f"{place}等待间隔、上限和max_parallel必须为正数")

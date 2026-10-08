@@ -11,6 +11,7 @@ from app.setup.catalog import MODULES
 from shared.config.settings import Settings
 from shared.db.database import Database
 from shared.modules.catalog import Catalog
+from shared.pipelines.member_views import listing as list_members
 from shared.pipelines.recovery import resume
 from shared.pipelines.views import detail, list_runs
 
@@ -24,6 +25,10 @@ async def run(args: argparse.Namespace) -> None:
             result = await list_runs(database, org_id=args.org, limit=args.limit)
         elif args.command == "show":
             result = await detail(database, args.run_id)
+        elif args.command == "members":
+            result = await list_members(
+                database, args.run_id, args.stage, after=args.after, limit=args.limit
+            )
         elif not args.yes:
             result = "恢复需加--yes；请先查看失败阶段及外部实际结果"
         else:
@@ -47,6 +52,11 @@ def main() -> None:
     listing.add_argument("--org", default="*")
     listing.add_argument("--limit", type=int, choices=range(1, 201), default=50)
     commands.add_parser("show").add_argument("run_id")
+    members = commands.add_parser("members")
+    members.add_argument("run_id")
+    members.add_argument("stage")
+    members.add_argument("--after", default="")
+    members.add_argument("--limit", type=int, choices=range(1, 201), default=50)
     recovery = commands.add_parser("resume")
     recovery.add_argument("run_id")
     recovery.add_argument("--accept-schema", action="store_true")

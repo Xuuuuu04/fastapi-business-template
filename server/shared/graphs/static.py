@@ -8,7 +8,7 @@ from typing import Any
 from shared.data.fields import notes_of
 from shared.graphs.mermaid import STYLES, label, node_id
 from shared.modules.catalog import Binding, Catalog
-from shared.pipelines.plan import Pipeline, Wait
+from shared.pipelines.plan import FanOut, Pipeline, Wait
 from shared.records.models import STEP_KIND_TEXT
 
 
@@ -105,5 +105,11 @@ def pipeline_graph(pipeline: Pipeline) -> str:
             text += f"；每{stage.every}s检查，最长{stage.timeout}s"
         lines.append(f'  s{index}["{label(text)}"]')
         lines.append(f"  {previous} --> s{index}")
+        if isinstance(stage, FanOut):
+            text = f"{type(stage.join).__name__}汇合；成员并发≤{stage.max_parallel}"
+            lines.append(f'  s{index} --> g{index}["{text}"]')
+            for child_index, child in enumerate(stage.stages):
+                text = label(f"{child.name}：{child.operation.name}")
+                lines.append(f'  s{index} -.-> c{index}_{child_index}["{text}"]')
         previous = f"s{index}"
     return "\n".join(lines)

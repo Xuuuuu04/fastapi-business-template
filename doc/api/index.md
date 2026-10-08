@@ -236,6 +236,24 @@
 | 200 | Successful Response | object |
 | 422 | Validation Error | HTTPValidationError |
 
+## GET /api/system/pipelines/{run_id}/members
+
+用途：扇出成员
+分组：多阶段流程
+操作编号：pipeline_members
+
+| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| run_id | path | 是 | string |  |  |
+| stage | query | 是 | string |  |  |
+| after | query | 否 | string |  |  |
+| limit | query | 否 | integer | 最小：1；最大：200 |  |
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | object |
+| 422 | Validation Error | HTTPValidationError |
+
 ## GET /api/system/audit
 
 用途：查询操作记录

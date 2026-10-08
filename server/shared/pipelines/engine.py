@@ -31,6 +31,12 @@ class PipelineEngine:
         self.queue = queue
         self.catalog, self.database = queue.catalog, queue.database
 
+    # 每轮worker短事务检查成员空位，队列容量恢复后自动继续。
+    async def reconcile(self) -> None:
+        from shared.pipelines.member_reconcile import reconcile
+
+        await reconcile(self.queue)
+
     # 定时任务的启动入口直接派发第一阶段，不额外占用启动任务。
     async def submit(
         self, connection: AsyncConnection, item: Contract[Any, Any], input: Data, caller: Caller

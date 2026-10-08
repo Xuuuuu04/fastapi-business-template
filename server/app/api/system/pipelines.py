@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from app.api.identity import CallerDep, require
+from shared.pipelines.member_views import listing as list_members
 from shared.pipelines.recovery import resume
 from shared.pipelines.views import detail, list_runs
 
@@ -71,3 +72,21 @@ async def restart(run_id: str, data: ResumeRequest, request: Request, caller: Ca
         confirm_unknown=data.confirm_unknown,
     )
     return {"message": message}
+
+
+# 成员查询先沿用流程组织与权限过滤，只返回有界摘要。
+@router.get(
+    "/api/system/pipelines/{run_id}/members", summary="扇出成员", operation_id="pipeline_members"
+)
+async def member_list(
+    run_id: str,
+    request: Request,
+    caller: CallerDep,
+    stage: str,
+    after: str = "",
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> dict[str, Any]:
+    await show(run_id, request, caller)
+    return await list_members(
+        request.app.state.services.database, run_id, stage, after=after, limit=limit
+    )

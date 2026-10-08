@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from shared.data.models import Data
 from shared.errors.framework import InvalidInput
-from shared.pipelines.plan import Pipeline, Stage, Wait
+from shared.pipelines.plan import FanOut, Pipeline, Stage, Wait
 
 if TYPE_CHECKING:
     from shared.modules.catalog import Catalog
@@ -36,28 +36,49 @@ def structural(value: Any) -> Any:
 
 # 每个阶段的输入输出、游标和阶段声明共同决定恢复兼容性。
 def declarations(pipeline: Pipeline, catalog: "Catalog") -> list[dict[str, str]]:
-    result = []
-    for stage in pipeline.stages:
-        plan = catalog.plan(stage.operation.name)
-        shape = dict(
-            contract=stage.operation.name,
-            input=format_of(stage.operation.input),
-            output=format_of(stage.operation.output),
-            input_from=stage.input_from,
-            cursor=format_of(plan.cursor if plan else None),
-            segmented=bool(plan and plan.segmented),
-        )
-        if isinstance(stage, Wait):
-            shape["wait"] = [stage.ready_field, stage.every, stage.timeout, stage.max_parallel]
-        raw = json.dumps(shape, sort_keys=True, ensure_ascii=False)
-        result.append(
-            {
-                "name": stage.name,
-                "contract": stage.operation.name,
-                "signature": hashlib.sha256(raw.encode()).hexdigest(),
-            }
-        )
+    return [stage_declaration(stage, catalog) for stage in pipeline.stages]
+
+
+# 成员阶段也使用同一格式摘要，已完成成员阶段在恢复时不再比较。
+def stage_declaration(stage: Stage, catalog: "Catalog") -> dict[str, str]:
+    plan = catalog.plan(stage.operation.name)
+    shape = dict(
+        contract=stage.operation.name,
+        input=format_of(stage.operation.input),
+        output=format_of(stage.operation.output),
+        input_from=stage.input_from,
+        cursor=format_of(plan.cursor if plan else None),
+        segmented=bool(plan and plan.segmented),
+    )
+    if isinstance(stage, Wait):
+        shape["wait"] = [stage.ready_field, stage.every, stage.timeout, stage.max_parallel]
+    if stage.freeze_sources or stage.source is not None:
+        shape["source"] = [stage.freeze_sources, format_of(stage.source)]
+    if stage.members:
+        shape["member_results"] = {name: format_of(model) for name, model in stage.members.items()}
+    if isinstance(stage, FanOut):
+        shape["members"] = [stage_declaration(child, catalog) for child in stage.stages]
+        shape["group"] = group_signature(stage)
+    raw = json.dumps(shape, sort_keys=True, ensure_ascii=False)
+    result = dict(
+        name=stage.name,
+        contract=stage.operation.name,
+        signature=hashlib.sha256(raw.encode()).hexdigest(),
+    )
+    if isinstance(stage, FanOut):
+        result["group"] = group_signature(stage)
     return result
+
+
+# 规划已完成后只比较仍有效的汇合与容量要求，不因规划内部变化暂停成员。
+def group_signature(group: FanOut) -> str:
+    shape = [
+        type(group.join).__name__,
+        getattr(group.join, "success", 1),
+        getattr(group.join, "required", ()),
+        group.max_parallel,
+    ]
+    return hashlib.sha256(json.dumps(shape).encode()).hexdigest()
 
 
 # Data必须符合声明且有界，错误明确指出输入或产出所属阶段。

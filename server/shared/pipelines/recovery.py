@@ -13,7 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from shared.data.models import Data
 from shared.db.database import Database
 from shared.errors.framework import InvalidInput
+from shared.jobs.checkpoint_store import create_checkpoint
+from shared.jobs.plan import JobPlan
 from shared.jobs.tables import checkpoints, jobs
+from shared.pipelines.plan import FanOut
 from shared.pipelines.queued import resume_queued
 from shared.pipelines.schema import declarations
 from shared.pipelines.storage import ACTIVE, compatible, root_for
@@ -33,18 +36,7 @@ async def resume(
     confirm_unknown: bool = False,
 ) -> str:
     async with database.write() as connection:
-        stage = (
-            (
-                await connection.execute(
-                    select(stages)
-                    .where(stages.c.pipeline_id == run_id)
-                    .order_by(stages.c.position.desc())
-                    .limit(1)
-                )
-            )
-            .mappings()
-            .first()
-        )
+        stage = await latest_stage(connection, run_id)
         if stage is None:
             return await resume_queued(connection, database, catalog, run_id, accept_schema)
         job = (
@@ -57,6 +49,27 @@ async def resume(
             .one()
         )
         root = await root_for(connection, run_id)
+        pipeline = catalog.pipelines.get(root["pipeline"])
+        group = (
+            next((stage for stage in pipeline.stages if stage.name == root["current_stage"]), None)
+            if pipeline
+            else None
+        )
+        if isinstance(group, FanOut) and job["state"] == "done":
+            from shared.jobs.queue import JobQueue
+            from shared.pipelines.member_recovery import resume as resume_members
+
+            assert pipeline is not None
+            return await resume_members(
+                connection,
+                JobQueue(catalog, database),
+                root,
+                dict(stage),
+                pipeline,
+                group,
+                accept_schema,
+                confirm_unknown,
+            )
         current = await verify(connection, catalog, root, accept_schema, confirm_unknown)
         await requeue_stage(connection, catalog, root, stage, job, current, confirm_unknown)
     return "已从当前阶段重新排队"
@@ -116,11 +129,7 @@ async def requeue_stage(
     if current_stage is None or current_stage.operation.name != job["contract"]:
         raise InvalidInput("阶段操作名称变化，需要迁移当前任务后恢复")
     validate_saved(binding.contract.input, job["input_json"], stage["name"])
-    cursor = await connection.scalar(
-        select(checkpoints.c.cursor_json).where(checkpoints.c.job_id == job["id"])
-    )
-    if cursor and plan.cursor:
-        validate_saved(plan.cursor, cursor, stage["name"] + "游标")
+    await validate_checkpoint(connection, job["id"], plan, stage["name"])
     await reserve(connection, binding.contract, plan.max_queued)
     now = time.time()
     await connection.execute(
@@ -179,3 +188,37 @@ def validate_saved(model: type[Data], value: str, stage: str) -> None:
         model.model_validate_json(value)
     except ValidationError as error:
         raise InvalidInput(f"流程阶段{stage}的已保存数据与当前格式不符，需要迁移后恢复") from error
+
+
+# 已提交批次不能因接受声明变化而回到普通整次执行；新分段任务明确初始化游标。
+async def validate_checkpoint(
+    connection: AsyncConnection, job_id: str, plan: JobPlan, stage: str
+) -> None:
+    row = (
+        (await connection.execute(select(checkpoints).where(checkpoints.c.job_id == job_id)))
+        .mappings()
+        .first()
+    )
+    if row and row["number"] > 0 and not plan.segmented:
+        raise InvalidInput(f"阶段{stage}已提交批次，不能改成普通任务重做，请先迁移恢复位置")
+    if row and plan.cursor:
+        validate_saved(plan.cursor, row["cursor_json"], stage + "游标")
+    if row is None and plan.segmented:
+        await create_checkpoint(connection, job_id)
+
+
+# 在任务行锁之前定位当前最后阶段，当前阶段恢复不会选择历史成功阶段。
+async def latest_stage(connection: AsyncConnection, run_id: str) -> RowMapping | None:
+    stage = (
+        (
+            await connection.execute(
+                select(stages)
+                .where(stages.c.pipeline_id == run_id)
+                .order_by(stages.c.position.desc())
+                .limit(1)
+            )
+        )
+        .mappings()
+        .first()
+    )
+    return stage

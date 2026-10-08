@@ -145,7 +145,7 @@ def simple_tools(
         "note": lambda: NoteWriter(record),
         "emit": lambda: Emitter(scope, record),
         "checkpoint": lambda: batch_checkpoint(scope),
-        "pipeline": lambda: PipelineGate(scope, run),
+        "pipeline": lambda: PipelineGate(scope, run, saves=part.saves),
     }
     return {name: make() for name, make in makers.items() if name in params}
 

@@ -16,7 +16,7 @@ from shared.pipelines.tables import runs, stages
 if TYPE_CHECKING:
     from shared.jobs.queue import Ticket
 
-ACTIVE = ("running", "waiting_external", "unknown", "version_blocked")
+ACTIVE = ("running", "waiting_external", "waiting_members", "unknown", "version_blocked")
 PREFIX = "pipeline:"
 
 
@@ -38,7 +38,11 @@ async def stage_for(connection: AsyncConnection, job_id: str) -> dict[str, Any] 
 # 锁定流程运行，阶段推进与恢复串行执行。
 async def root_for(connection: AsyncConnection, run_id: str) -> dict[str, Any]:
     row = (
-        (await connection.execute(select(runs).where(runs.c.id == run_id).with_for_update()))
+        (
+            await connection.execute(
+                select(runs).where(runs.c.id == run_id).with_for_update(key_share=True)
+            )
+        )
         .mappings()
         .first()
     )

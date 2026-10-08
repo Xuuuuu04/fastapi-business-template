@@ -15,6 +15,7 @@ from shared.errors.framework import QueueFull
 from shared.jobs.queue import READY, release, reserve
 from shared.jobs.tables import checkpoints, jobs
 from shared.modules.catalog import Catalog
+from shared.pipelines.member_store import member_for
 from shared.pipelines.storage import stage_for
 
 STATE_TEXT = {
@@ -101,7 +102,7 @@ async def requeue(
     database: Database, catalog: Catalog, job_id: str, *, accept_version: bool
 ) -> str:
     async with database.write() as connection:
-        stage = await stage_for(connection, job_id)
+        stage = await stage_for(connection, job_id) or await member_for(connection, job_id)
         if stage is not None:
             return f"流程阶段请用pipelines resume {stage['pipeline_id']}恢复"
         row = (await connection.execute(select(jobs).where(jobs.c.id == job_id))).mappings().first()
@@ -140,7 +141,10 @@ async def requeue(
 # 取消尚未开始执行的任务。
 async def cancel(database: Database, job_id: str) -> str:
     async with database.write() as connection:
-        if await stage_for(connection, job_id) is not None:
+        if (
+            await stage_for(connection, job_id) is not None
+            or await member_for(connection, job_id) is not None
+        ):
             return "不能单独取消流程阶段任务"
         change = (
             update(jobs)

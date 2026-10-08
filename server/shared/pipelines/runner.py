@@ -2,6 +2,7 @@
 后台阶段执行前核对兼容性与等待容量，完成时原子提交产出并推进下一阶段。
 """
 
+import json
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -12,8 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from shared.data.models import Data
 from shared.errors.framework import InvalidInput, StaleAttempt
 from shared.jobs.tables import job_counts, jobs
-from shared.pipelines.plan import Pipeline, Stage, Wait
-from shared.pipelines.schema import data_json, declarations
+from shared.pipelines.context import ExecutionContext
+from shared.pipelines.member_pool import planned
+from shared.pipelines.plan import FanOut, Pipeline, Stage, Wait
+from shared.pipelines.schema import data_json, declarations, format_of
 from shared.pipelines.storage import compatible, is_pipeline_job, own, root_for, stage_for
 from shared.pipelines.tables import runs, stages
 
@@ -43,6 +46,15 @@ class StageContext:
             "waiting_external",
         ):
             raise StaleAttempt()
+        if self.stage.freeze_sources:
+            await connection.execute(
+                update(runs)
+                .where(runs.c.id == root["id"])
+                .values(
+                    source_json=body,
+                    source_schema_json=json.dumps(format_of(self.stage.operation.output)),
+                )
+            )
         now = time.time()
         if isinstance(self.stage, Wait) and now >= self.row["wait_until"]:
             raise InvalidInput(f"流程阶段{self.stage.name}等待已超时")
@@ -51,6 +63,9 @@ class StageContext:
             return
         if not await self.queue.finish(connection, self.ticket, body, run_id):
             raise StaleAttempt()
+        if isinstance(self.stage, FanOut):
+            await planned(connection, self.queue, root, self.row, self.stage, body, run_id)
+            return
         await connection.execute(
             update(stages)
             .where(stages.c.id == self.row["id"])
@@ -62,6 +77,11 @@ class StageContext:
                 elapsed_ms=stages.c.elapsed_ms + (now - self.row["started_at"]) * 1000,
             )
         )
+        await self.advance(connection, root, now)
+
+    # 完成阶段后只登记一个下一任务，最后阶段才释放周期执行名额。
+    async def advance(self, connection: AsyncConnection, root: dict, now: float) -> None:
+        assert self.pipeline is not None and self.stage is not None
         index = next(
             i for i, stage in enumerate(self.pipeline.stages) if stage.name == self.stage.name
         )
@@ -119,13 +139,16 @@ class StageContext:
 
 
 # 阶段任务检查只读取真实关联记录，不能靠伪造任务key绕过版本限制。
-async def prepare(queue: "JobQueue", ticket: "Ticket") -> StageContext | None:
+async def prepare(queue: "JobQueue", ticket: "Ticket") -> ExecutionContext | None:
     if not is_pipeline_job(ticket):
         return None
-    async with queue.database.write() as connection:
+    async with queue.database.read() as connection:
         row = await stage_for(connection, ticket.id)
-        if row is None:
-            return None
+    if row is None:
+        from shared.pipelines.member_runner import prepare as prepare_member
+
+        return await prepare_member(queue, ticket)
+    async with queue.database.write() as connection:
         await own(connection, ticket)
         root = await root_for(connection, row["pipeline_id"])
         pipeline = queue.catalog.pipelines.get(root["pipeline"])
