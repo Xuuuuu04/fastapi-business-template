@@ -16,6 +16,7 @@ from shared.db.types import ExactNumber, UtcTime
 from shared.errors.framework import NotAllowed
 from shared.errors.kinds import BusinessError, Kind
 from shared.files.gate import ModuleFiles
+from shared.files.storage import SavedFile
 from shared.flow.flow import Flow
 from shared.flow.inject import Call, Emitter, Later
 from shared.flow.inject import NoteWriter as Note
@@ -56,6 +57,7 @@ __all__ = [
     "Page",
     "Retry",
     "Schedule",
+    "SavedFile",
     "UtcTime",
     "Vault",
     "WorkData",

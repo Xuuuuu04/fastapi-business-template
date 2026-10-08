@@ -15,6 +15,7 @@ from fastapi_template.template.files import (
     safe_path,
     save_provenance,
 )
+from fastapi_template.template.recovery import load_proof, recovered_patch
 
 
 # 一项更新的内容与状态；冲突项的内容为空，不可应用。
@@ -59,22 +60,40 @@ def compare_file(
 
 
 # 先检查所有目标和来源，再计算完整方案；依赖与登记变化单独列出人工处理。
-def update_plan(target: Path, base: Path, source: Path) -> tuple[list[Change], list[str]]:
+def update_plan(
+    target: Path, base: Path, source: Path, *, recovery_proof: Path | None = None
+) -> tuple[list[Change], list[str]]:
     check_base(target, base)
     old, new = managed_files(base), managed_files(source)
+    proofs = load_proof(recovery_proof)
+    if set(proofs) - (old.keys() | new.keys()):
+        raise ValueError("回收证明包含非框架管理文件")
     changes = []
+    recovered_manual: set[str] = set()
     for name in sorted(old.keys() | new.keys()):
         path = safe_path(target, name)
         local = path.read_bytes() if path.exists() else None
         change = compare_file(name, old.get(name), local, new.get(name))
+        if change and change.state == "conflict":
+            proof = recovered_patch(proofs, name, old.get(name), local, new.get(name))
+            if proof is not None:
+                change = Change(name, "recovered", new.get(name))
+                recovered_manual.update(proof)
         if change:
             changes.append(change)
-    return changes, manual_changes(base, source)
+    return changes, sorted(set(manual_changes(base, source)) | recovered_manual)
 
 
 # 应用前重新读取文件，失败时恢复本次写入；来源更新必须与文件更新一起成功。
-def apply_plan(target: Path, base: Path, source: Path, expected: list[Change]) -> None:
-    current, _ = update_plan(target, base, source)
+def apply_plan(
+    target: Path,
+    base: Path,
+    source: Path,
+    expected: list[Change],
+    *,
+    recovery_proof: Path | None = None,
+) -> None:
+    current, _ = update_plan(target, base, source, recovery_proof=recovery_proof)
     if current != expected:
         raise ValueError("文件在预览后发生变化，请重新预览")
     if any(change.state == "conflict" for change in current):

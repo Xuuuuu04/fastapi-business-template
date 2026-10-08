@@ -41,6 +41,8 @@ class WorkerOptions:
     shutdown_seconds: float = 20.0
     record_days: int = 14
     health_file: str = ""
+    schedule_org_id: str = ""
+    schedule_org_ids: tuple[str, ...] = ()
 
 
 # 领取并执行后台任务，保存结果并处理退出和重试。
@@ -53,7 +55,13 @@ class Worker:
         self.queue = queue
         self.keys = keys
         self.options = options
-        self.scheduler = Scheduler(runtime.catalog.schedules, queue, runtime.database)
+        self.scheduler = Scheduler(
+            runtime.catalog.schedules,
+            queue,
+            runtime.database,
+            options.schedule_org_id,
+            options.schedule_org_ids,
+        )
         self.tasks: set[asyncio.Task[None]] = set()
         self.segmented_tasks: set[asyncio.Task[None]] = set()
         self.stop = asyncio.Event()

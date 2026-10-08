@@ -7,10 +7,10 @@ import logging
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from shared.access.caller import SYSTEM
 from shared.db.database import Database
 from shared.errors.kinds import BusinessError
-from shared.jobs.plan import Schedule
+from shared.jobs.organizations import configured_orgs, legacy_exists, period_key, schedule_caller
+from shared.jobs.plan import Schedule, build_slot_input
 from shared.jobs.queue import JobQueue
 
 log = logging.getLogger("server.jobs")
@@ -35,40 +35,71 @@ def latest_slot(schedule: Schedule, now: datetime) -> datetime:
 # 根据模块登记的定时计划生成任务，避免同一时间重复登记。
 class Scheduler:
     # 记住每个计划上一次处理的时段，避免同一进程反复登记。
-    def __init__(self, schedules: list[Schedule], queue: JobQueue, database: Database) -> None:
+    def __init__(
+        self,
+        schedules: list[Schedule],
+        queue: JobQueue,
+        database: Database,
+        org_id: str = "",
+        org_ids: tuple[str, ...] = (),
+    ) -> None:
+        self.org_ids = configured_orgs(org_id, org_ids)
         self.schedules = schedules
         self.queue = queue
         self.database = database
-        self.last: dict[str, datetime] = {}
+        self.last: dict[tuple[str, str], datetime] = {}
 
     # 检查全部计划，为新到期的时段登记任务；返回本次登记的数量。
     async def tick(self, now: float) -> int:
         moment = datetime.fromtimestamp(now, UTC)
         count = 0
         for schedule in self.schedules:
-            slot = latest_slot(schedule, moment)
-            if self.last.get(schedule.name) == slot:
-                continue
-            first = schedule.name not in self.last
-            late = (moment - slot) > schedule.grace
-            if first and late and schedule.missed == "skip":
-                self.last[schedule.name] = slot
-                log.info("schedule_skipped name=%s slot=%s", schedule.name, slot.isoformat())
-                continue
-            if await self.submit(schedule, slot):
-                self.last[schedule.name] = slot
-                count += 1
+            targets = self.org_ids if schedule.org_ids is None else schedule.org_ids
+            for org_id in targets or ("*",):
+                if await self.tick_org(schedule, moment, org_id):
+                    count += 1
         return count
 
+    # 一个组织失败不影响其他组织，已登记的时段不反复提交。
+    async def tick_org(self, schedule: Schedule, moment: datetime, org_id: str) -> bool:
+        slot, identity = latest_slot(schedule, moment), (schedule.name, org_id)
+        if self.last.get(identity) == slot:
+            return False
+        if (
+            identity not in self.last
+            and moment - slot > schedule.grace
+            and schedule.missed == "skip"
+        ):
+            self.last[identity] = slot
+            log.info(
+                "schedule_skipped name=%s org=%s slot=%s", schedule.name, org_id, slot.isoformat()
+            )
+            return False
+        if await self.submit(schedule, slot, org_id):
+            self.last[identity] = slot
+            return True
+        return False
+
     # 登记一个时段的任务；排队已满等业务错误只写日志。
-    async def submit(self, schedule: Schedule, slot: datetime) -> bool:
-        key = f"schedule:{schedule.name}:{slot.isoformat()}"
+    async def submit(self, schedule: Schedule, slot: datetime, org_id: str = "*") -> bool:
+        key = period_key(schedule.name, org_id, slot)
         try:
             async with self.database.write() as connection:
+                if org_id != "*" and await legacy_exists(
+                    connection, schedule.name, schedule.contract.name, org_id, slot
+                ):
+                    return True
                 await self.queue.submit(
-                    connection, schedule.contract, schedule.input, SYSTEM, key=key, request_id=""
+                    connection,
+                    schedule.contract,
+                    build_slot_input(schedule, slot),
+                    schedule_caller(org_id),
+                    key=key,
+                    request_id="",
                 )
         except BusinessError as error:
-            log.warning("schedule_submit_failed name=%s code=%s", schedule.name, error.code)
+            log.warning(
+                "schedule_submit_failed name=%s org=%s code=%s", schedule.name, org_id, error.code
+            )
             return False
         return True

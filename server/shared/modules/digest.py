@@ -1,0 +1,60 @@
+"""
+模块声明摘要包含操作、任务参数、定时参数与身份入口，避免接口和worker拿着不同计划运行。
+只序列化声明信息，身份令牌等秘密字段由数据模型脱敏。
+"""
+
+import hashlib
+import json
+from collections.abc import Sequence
+from typing import Any
+
+from shared.modules.module import Module
+
+
+# 稳定序列化同一份声明，任务与计划参数变化会改变摘要。
+def digest_of(modules: Sequence[Module]) -> str:
+    shape = [module_shape(module) for module in sorted(modules, key=lambda item: item.name)]
+    text = json.dumps(shape, ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+
+
+# 每个模块记录流程、后台任务、时段与组织选择；不会调用业务代码。
+def module_shape(module: Module) -> dict[str, Any]:
+    return {
+        "name": module.name,
+        "version": module.version,
+        "flows": {
+            item.name: [[part.name, part.reads, part.writes, part.saves] for part in flow.steps]
+            for item, flow in sorted(module.provides.items(), key=lambda pair: pair[0].name)
+        },
+        "jobs": [
+            dict(
+                contract=j.contract.name,
+                retries=j.retry.times,
+                waits=j.retry.waits,
+                repeat_safe=j.repeat_safe,
+                max_queued=j.max_queued,
+                lease_seconds=j.lease_seconds,
+                segmented=j.segmented,
+            )
+            for j in sorted(module.jobs, key=lambda item: item.contract.name)
+        ],
+        "schedules": [
+            dict(
+                name=s.name,
+                contract=s.contract.name,
+                input=s.input.model_dump(mode="json"),
+                every=s.every.total_seconds() if s.every else None,
+                daily_at=s.daily_at.isoformat() if s.daily_at else None,
+                zone=s.zone,
+                missed=s.missed,
+                grace=s.grace.total_seconds(),
+                slot_input_field=s.slot_input_field,
+                org_ids=s.org_ids,
+            )
+            for s in sorted(module.schedules, key=lambda item: item.name)
+        ],
+        "identity": module.identity.name if module.identity is not None else None,
+        "identity_header": module.identity_header,
+        "identity_token": module.identity_token,
+    }

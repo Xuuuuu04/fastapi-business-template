@@ -18,8 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_en
 # 管理数据库连接和事务，供接口、后台任务及存储实现共同使用。
 class Database:
     # 按连接地址创建连接池；SQLite 额外设置外键、并发等待和事务方式。
-    def __init__(self, url: str, *, pool_size: int = 10, wait_seconds: float = 10) -> None:
+    def __init__(
+        self, url: str, *, pool_size: int = 10, wait_seconds: float = 10, org_setting: str = ""
+    ) -> None:
         self.url = url
+        self.org_setting = org_setting
         self.is_sqlite = url.startswith("sqlite")
         self.engine: AsyncEngine = create_async_engine(
             url, **engine_options(url, pool_size, wait_seconds)

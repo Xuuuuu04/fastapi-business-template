@@ -5,7 +5,7 @@ Schedule 说明按什么时间自动登记这个任务。领取、重试和状�
 """
 
 from dataclasses import dataclass, field
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
 from typing import Any, Literal
 
 from shared.data.models import Data
@@ -48,3 +48,23 @@ class Schedule:
     zone: str = "Asia/Shanghai"
     missed: Literal["skip", "latest"] = "skip"
     grace: timedelta = timedelta(minutes=10)
+    org_ids: tuple[str, ...] | None = None
+    slot_input_field: str = ""
+
+
+# 把本次实际计划时段写入明确字段，重试继续使用同一份冻结输入。
+def build_slot_input(schedule: Schedule, slot: datetime) -> Data:
+    if not schedule.slot_input_field:
+        return schedule.input
+    values = schedule.input.model_dump()
+    target = values
+    parts = schedule.slot_input_field.split(".")
+    for part in parts[:-1]:
+        nested = target.get(part)
+        if not isinstance(nested, dict):
+            raise ValueError("定时输入字段的父对象不存在")
+        target = nested
+    if parts[-1] not in target:
+        raise ValueError("定时输入字段不存在")
+    target[parts[-1]] = slot
+    return schedule.contract.input.model_validate(values)

@@ -41,15 +41,33 @@ class RemoteGate:
 
     # 提交数据；带 key 时对方可以按请求编号去重，才会在暂时故障时重试。
     async def post(
-        self, target: Remote, path: str, *, json: Any = None, key: str = ""
+        self,
+        target: Remote,
+        path: str,
+        *,
+        json: Any = None,
+        key: str = "",
+        accepted_statuses: tuple[int, ...] = (),
     ) -> RemoteReply:
-        return await self.send(target, RemoteRequest("POST", path, json=json, key=key))
+        return await self.send(
+            target,
+            RemoteRequest("POST", path, json=json, key=key, accepted_statuses=accepted_statuses),
+        )
 
     # 修改数据；规则与 post 相同。
     async def put(
-        self, target: Remote, path: str, *, json: Any = None, key: str = ""
+        self,
+        target: Remote,
+        path: str,
+        *,
+        json: Any = None,
+        key: str = "",
+        accepted_statuses: tuple[int, ...] = (),
     ) -> RemoteReply:
-        return await self.send(target, RemoteRequest("PUT", path, json=json, key=key))
+        return await self.send(
+            target,
+            RemoteRequest("PUT", path, json=json, key=key, accepted_statuses=accepted_statuses),
+        )
 
     # 删除数据；规则与 post 相同。
     async def delete(self, target: Remote, path: str, *, key: str = "") -> RemoteReply:

@@ -16,9 +16,10 @@ from shared.errors.kinds import BusinessError
 from shared.flow.checks import check_flow
 from shared.flow.flow import Flow
 from shared.flow.step import Step
-from shared.jobs.checks import check_segmented_jobs
+from shared.jobs.checks import check_schedules, check_segmented_jobs
 from shared.model_calls.prompt import load_prompt
 from shared.modules.contract import Contract
+from shared.modules.identity import check_identity
 from shared.modules.module import STORE_PARAMS, Module
 
 NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
@@ -28,6 +29,7 @@ Provided = dict[Contract[Any, Any], Module]
 # 检查全部模块声明。
 def check_catalog(modules: Sequence[Module]) -> list[str]:
     problems = check_names(modules)
+    problems += check_identity(modules)
     provided: Provided = {}
     for module in modules:
         for item in module.provides:
@@ -133,6 +135,7 @@ def check_prompts(module: Module) -> list[str]:
 def check_jobs(module: Module) -> list[str]:
     problems = []
     problems += check_segmented_jobs(module)
+    problems += check_schedules(module)
     planned = {plan.contract for plan in module.jobs}
     for plan in module.jobs:
         if plan.contract not in module.provides:

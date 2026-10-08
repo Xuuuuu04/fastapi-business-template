@@ -101,13 +101,14 @@ class Runtime:
         on_start: Callable[[str], None] | None = None,
         emitter: Callable[[str], Awaitable[None]] | None = None,
         checkpoint: Checkpoint | None = None,
+        record_success: bool = True,
     ) -> Out:
         binding = self.catalog.binding(item)
         if not item.entry:
             raise StepRuleBroken(f"操作 {item.name} 是内部操作，只能由其他模块调用")
         deadline = asyncio.get_running_loop().time() + item.timeout
         scope = Scope(self, caller, request_id, job_id, deadline, tx=Transaction(), emitter=emitter)
-        scope.checkpoint = checkpoint
+        scope.checkpoint, scope.record_success = checkpoint, record_success
         run = self.open_run(binding, scope, None, None)
         span = (
             self.telemetry.tracer.start_span(
@@ -281,7 +282,7 @@ class Runtime:
         )
         if scope.checkpoint is not None:
             scope.checkpoint.record(run)
-        self.recorder.start(run)
+        self.recorder.start(run, record_success=scope.record_success)
         return run
 
     # 结束运行记录；记录器出错只写日志，不影响业务结果。

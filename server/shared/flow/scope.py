@@ -63,3 +63,4 @@ class Scope:
     emitter: Callable[[str], Awaitable[None]] | None = None
     remote_writes: list[RemoteCallRecord] = field(default_factory=list)
     checkpoint: "Checkpoint | None" = None
+    record_success: bool = True

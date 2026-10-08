@@ -44,6 +44,17 @@ async def modules(request: Request, caller: CallerDep) -> dict[str, Any]:
                 "version": module.version,
                 "doc": module.doc,
                 "operations": operations,
+                "identity": module.identity.name if module.identity is not None else None,
+                "identity_header": module.identity_header,
+                "identity_token": module.identity_token,
+                "schedules": [
+                    {
+                        "name": plan.name,
+                        "org_ids": plan.org_ids,
+                        "slot_input_field": plan.slot_input_field,
+                    }
+                    for plan in module.schedules
+                ],
             }
         )
     return {

@@ -9,10 +9,12 @@ from typing import Annotated
 from fastapi import Depends, Request, Security
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 
+from app.api.identity_resolver import alias_token, resolve_session
 from shared.access.caller import ANONYMOUS, DEVELOPER, Caller
 from shared.access.keys import find_caller
 from shared.access.tokens import verify_token
 from shared.errors.framework import NotAllowed, NotSignedIn, TooManyRequests
+from shared.errors.kinds import BusinessError, Kind
 
 key_header = APIKeyHeader(
     name="X-API-Key",
@@ -37,18 +39,27 @@ async def get_caller(
         if caller is None:
             await count_request(request, failed_credentials=True)
             raise NotSignedIn("服务密钥无效")
-    elif bearer is not None:
-        token = bearer.credentials
+    elif bearer is not None or alias_token(request) is not None:
+        token = bearer.credentials if bearer is not None else alias_token(request)
+        if token is None:
+            raise NotSignedIn("登录令牌无效")
         keys = [settings.jwt_secret, *settings.jwt_previous_secrets]
         try:
-            caller = verify_token(
-                token,
-                [item.get_secret_value() for item in keys],
-                settings.jwt_issuer,
-                settings.jwt_audience,
-            )
-        except NotSignedIn:
-            await count_request(request, failed_credentials=True)
+            catalog = request.app.state.services.catalog
+            if (
+                bearer is None or catalog.identity_token == "opaque"
+            ) and catalog.identity is not None:
+                caller = await resolve_session(request, token)
+            else:
+                caller = verify_token(
+                    token,
+                    [item.get_secret_value() for item in keys],
+                    settings.jwt_issuer,
+                    settings.jwt_audience,
+                )
+        except BusinessError as error:
+            if error.kind == Kind.NOT_SIGNED_IN:
+                await count_request(request, failed_credentials=True)
             raise
     elif settings.dev_caller and settings.env == "local":
         caller = DEVELOPER

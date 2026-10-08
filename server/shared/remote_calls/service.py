@@ -47,6 +47,7 @@ class RemoteRequest:
     params: dict[str, Any] | None = None
     json: Any = None
     key: str = ""
+    accepted_statuses: tuple[int, ...] = ()
 
 
 # 发送外部请求并记录结果，按请求安全性处理重试。
@@ -74,6 +75,7 @@ class RemoteService:
         effects: list[RemoteCallRecord] | None = None,
     ) -> RemoteReply:
         check_path(request.path)
+        check_accepted_statuses(request.accepted_statuses)
         record = RemoteCallRecord(target.name, request.method, request.path.split("?")[0], 0, 0.0)
         record.bytes_out = len(str(request.json or "").encode("utf-8"))
         records.append(record)
@@ -180,11 +182,15 @@ class RemoteService:
                 and response.status_code not in (408, 499)
             ):
                 record.outcome = "failed"
-            raise_for_status(target, response.status_code, request)
+            captured = response.status_code in request.accepted_statuses
+            if captured and previously_unknown and request.method not in SAFE_METHODS:
+                raise RemoteResultUnknown("此前写入仍未确认，捕获HTTP响应不能抹掉未知结果")
+            if not captured:
+                raise_for_status(target, response.status_code, request)
             maximum = self.configs[target.name].max_response_bytes
             content = await limited_bytes(response.aiter_bytes(chunk_size=65536), maximum)
             reply = reply_of(response, content)
-            record.outcome = "ok"
+            record.outcome = "failed" if captured else "ok"
             return reply
 
     # 取得外部系统的连接；没有配置时报错。
@@ -270,3 +276,12 @@ def reply_of(response: httpx2.Response, content: bytes) -> RemoteReply:
             data = None
     text = content.decode(response.encoding or "utf-8", errors="replace")
     return RemoteReply(response.status_code, data, text, content)
+
+
+# 只允许业务接收明确的客户端错误；超时和服务端错误继续保留写入未知保护。
+def check_accepted_statuses(statuses: tuple[int, ...]) -> None:
+    if any(
+        type(status) is not int or not 400 <= status < 500 or status in (408, 499)
+        for status in statuses
+    ):
+        raise StepRuleBroken("accepted_statuses 只支持除408、499外的4xx状态")

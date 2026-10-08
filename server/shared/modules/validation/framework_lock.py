@@ -22,6 +22,7 @@ LOCKED = (
     "app/api/system",
     "app/api/errors.py",
     "app/api/identity.py",
+    "app/api/identity_resolver.py",
     "app/api/middleware.py",
     "app/api/replies.py",
     "app/api/runner.py",

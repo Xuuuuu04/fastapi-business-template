@@ -39,6 +39,7 @@ class Recorder:
         self.store = store
         self.buffer = buffer
         self.active: dict[str, RunRecord] = {}
+        self.failure_only: set[str] = set()
         self.waiting: deque[RunRecord] = deque()
         self.dropped = 0
         self.failures = 0
@@ -46,13 +47,19 @@ class Recorder:
         self.closing = False
 
     # 登记一次开始执行的运行。
-    def start(self, run: RunRecord) -> None:
+    def start(self, run: RunRecord, *, record_success: bool = True) -> None:
         run.updated_at = time.time()
         self.active[run.id] = run
+        if not record_success:
+            self.failure_only.add(run.id)
 
     # 结束一次运行：生成中文摘要并交给保存位置。
     async def finish(self, run: RunRecord) -> None:
         self.active.pop(run.id, None)
+        only_failed = run.id in self.failure_only
+        self.failure_only.discard(run.id)
+        if only_failed and run.status == "ok":
+            return
         try:
             run.summary = summarize(run)
         except Exception as error:
@@ -103,7 +110,11 @@ class Recorder:
     async def save_progress(self) -> None:
         runs = list(self.active.values())
         for start in range(0, len(runs), 100):
-            active = [run for run in runs[start : start + 100] if run.status == "running"]
+            active = [
+                run
+                for run in runs[start : start + 100]
+                if run.status == "running" and run.id not in self.failure_only
+            ]
             for run in active:
                 run.updated_at = time.time()
             snapshots = [mark_lost(run) for run in active]

@@ -24,7 +24,12 @@ def check_registry(catalog: Catalog, root: Path = ROOT) -> list[Problem]:
     }
     for item in catalog.bindings:
         where = f"service/{item.module}/public.py"
-        if item.entry and f".{item.action}" not in routes and catalog.plan(item.name) is None:
+        if (
+            item.entry
+            and f".{item.action}" not in routes
+            and catalog.plan(item.name) is None
+            and catalog.identity is not item
+        ):
             problems.append(
                 Problem(
                     where,

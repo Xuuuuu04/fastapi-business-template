@@ -30,6 +30,9 @@ uv run python ../.agents/skills/fastapi-template/scripts/run_template.py update_
 
 更新之后：检查改动的共同影响，生成文档，用 `fastapi-check` 更新框架摘要并运行相应检查。
 
+可显式传 `--recovery-proof /产品升级任务/recovery-proof.json` 接收本产品已审查补丁；
+模板不附带产品证明，格式与限制见 [回收说明](references/framework-recovery.md)。
+
 ## 恢复
 
 还没部署的更新，用 Git 撤回。数据库和部署出了问题，需要产品自己准备的备份和恢复方案，脚本不提供。
