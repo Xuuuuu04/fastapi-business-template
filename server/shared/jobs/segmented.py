@@ -27,6 +27,7 @@ async def run_segments(
     caller: Caller,
     stop: asyncio.Event,
     shutdown_seconds: float,
+    before_finish: Hook | None = None,
 ) -> None:
     binding = runtime.catalog.by_name[ticket.contract]
     number, cursor, total_rows = await checkpoint_store.load(runtime.database, ticket.id)
@@ -42,7 +43,7 @@ async def run_segments(
         ):
             raise StaleAttempt()
         checkpoint = make_checkpoint(runtime, ticket, number, cursor, total_rows, shutdown_seconds)
-        commit = commit_batch(queue, ticket, checkpoint)
+        commit = commit_batch(queue, ticket, checkpoint, before_finish)
         await runtime.run(
             binding.contract,
             input,
@@ -70,13 +71,21 @@ def make_checkpoint(
     async def before_write() -> None:
         await checkpoint_store.mark_external(runtime.database, ticket, number)
 
+    plan = runtime.catalog.plan(ticket.contract)
     return Checkpoint(
-        number, cursor, before_write, total_rows=total_rows, shutdown_seconds=shutdown_seconds
+        number,
+        cursor,
+        before_write,
+        total_rows=total_rows,
+        shutdown_seconds=shutdown_seconds,
+        cursor_model=plan.cursor if plan is not None else None,
     )
 
 
 # 固定本批提交点，段证据与业务结果同事务，最后一批同时完成任务。
-def commit_batch(queue: JobQueue, ticket: Ticket, checkpoint: Checkpoint) -> Hook:
+def commit_batch(
+    queue: JobQueue, ticket: Ticket, checkpoint: Checkpoint, before_finish: Hook | None = None
+) -> Hook:
     started = perf_counter()
 
     # 尝试过期或提交失败时，数据和游标一起回滚。
@@ -84,7 +93,9 @@ def commit_batch(queue: JobQueue, ticket: Ticket, checkpoint: Checkpoint) -> Hoo
         await checkpoint_store.save(
             connection, ticket, checkpoint, run_id, (perf_counter() - started) * 1000
         )
-        if checkpoint.done and not await queue.finish(
+        if checkpoint.done and before_finish is not None:
+            await before_finish(connection, result, run_id)
+        elif checkpoint.done and not await queue.finish(
             connection, ticket, result.model_dump_json(), run_id
         ):
             raise StaleAttempt()

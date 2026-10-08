@@ -1,7 +1,7 @@
-// 页面只读取已有系统接口；所有业务文字按纯文本显示，不执行记录中的内容。
+// 页面调用系统查询和流程恢复接口；所有业务文字按纯文本显示，不执行记录中的内容。
 const notice = document.querySelector('#notice');
 const results = document.querySelector('#results');
-const states = {ok:'已完成',failed:'失败',refused:'被拒绝',lost:'失去联系',running:'执行中',skipped:'跳过'};
+const states = {not_started:'未开始',succeeded:'已完成',queued:'排队中',waiting_external:'等待上游',waiting_retry:'等待重试',unknown:'结果待确认',version_blocked:'版本暂停',cancelled:'已取消',ok:'已完成',failed:'失败',refused:'被拒绝',lost:'失去联系',running:'执行中',skipped:'跳过'};
 const kinds = {compute:'计算',read:'数据访问',save:'保存',call:'模块调用',model:'大模型',remote:'外部接口'};
 let current = 'modules';
 let pending;
@@ -18,7 +18,7 @@ function button(text, action) {
   node.addEventListener('click', action);
   return node;
 }
-function duration(value) { return `${Number(value).toFixed(1)} 毫秒`; }
+function duration(value) { if (value === null || value === undefined) return "未知"; return `${Number(value).toFixed(1)} 毫秒`; }
 function state(value) { return element('span', states[value] || value, `status ${value}`); }
 function timestamp(value) { return new Date(value * 1000).toLocaleString('zh-CN'); }
 function table(parent, headers, rows) {
@@ -76,6 +76,8 @@ async function show(path) {
 }
 function render(path, data) {
   document.querySelectorAll('nav button').forEach(node => node.classList.toggle('active', node.dataset.path === path));
+  if (path === 'pipelines') return pipelines(data);
+  if (path.startsWith('pipelines/')) return pipelineDetail(data);
   if (path === 'modules') return modules(data);
   if (path.startsWith('flows/')) return flow(data);
   if (path.startsWith('runs/')) return runDetail(data);
@@ -195,3 +197,35 @@ document.querySelector('#refresh').addEventListener('click', () => show(current)
 setInterval(() => {
   if (document.querySelector('#auto').checked && !document.hidden && !pending) show(current);
 },3000);
+
+// 摘要进入阶段详情，恢复需明确确认当前版本和未知外部结果。
+function pipelines(data) {
+  results.append(element('h2','业务流程'));
+  table(results,['流程','组织 / 周期','当前阶段','状态','原因','详情'],data.items.map(item => [
+    item.pipeline,`${item.org_id} / ${item.cycle_key}`,item.current_stage || '未开始',state(item.state),item.reason,
+    button('查看阶段',() => show(`pipelines/${item.id}`))]));
+}
+function pipelineDetail(data) {
+  results.append(element('h2',data.pipeline),state(data.state),element('p',data.reason));
+  table(results,['阶段','状态','耗时','实际版本','尝试 / 轮询','运行记录'],data.stages.map(item => [
+    item.name,state(item.state),duration(item.elapsed_ms),item.module_version || '未知',
+    `${item.attempt} / ${item.poll_count}`,item.run_id ? button('查看运行',() => show(`runs/${item.run_id}`)) : '未知']));
+  source(results,'查看整条流程运行图',data.graph);
+  if (['failed','version_blocked','unknown'].includes(data.state)) {
+    const schema = element('input'); schema.type = 'checkbox';
+    const unknown = element('input'); unknown.type = 'checkbox';
+    const schemaLabel = element('label'); schemaLabel.append(schema,element('span','已审查并接受当前格式'));
+    const unknownLabel = element('label'); unknownLabel.append(unknown,element('span','已确认外部未产生效果，可重新执行'));
+    results.append(schemaLabel,unknownLabel,button('从当前阶段恢复',async () => {
+      if (!confirm('确认只从当前失败阶段重新执行？')) return;
+      const secret = document.querySelector('#secret').value.trim();
+      const kind = document.querySelector('#kind').value;
+      const response = await fetch(`/api/system/pipelines/${data.id}/resume`,{method:'POST',
+        headers:{'Content-Type':'application/json',[kind]:kind === 'Authorization' ? `Bearer ${secret}` : secret},
+        body:JSON.stringify({accept_schema:schema.checked,confirm_unknown:unknown.checked})});
+      const result = await response.json();
+      if (response.ok) await show(`pipelines/${data.id}`);
+      else notice.textContent = result.message || result.detail || '恢复失败';
+    }));
+  }
+}

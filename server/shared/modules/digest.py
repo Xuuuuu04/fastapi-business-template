@@ -36,6 +36,7 @@ def module_shape(module: Module) -> dict[str, Any]:
                 max_queued=j.max_queued,
                 lease_seconds=j.lease_seconds,
                 segmented=j.segmented,
+                cursor=j.cursor.model_json_schema() if j.cursor else None,
             )
             for j in sorted(module.jobs, key=lambda item: item.contract.name)
         ],
@@ -54,7 +55,31 @@ def module_shape(module: Module) -> dict[str, Any]:
             )
             for s in sorted(module.schedules, key=lambda item: item.name)
         ],
+        "pipelines": pipeline_shapes(module),
         "identity": module.identity.name if module.identity is not None else None,
         "identity_header": module.identity_header,
         "identity_token": module.identity_token,
     }
+
+
+# 流程声明影响同一登记摘要，内部实现不在本摘要中。
+def pipeline_shapes(module: Module) -> list[dict[str, Any]]:
+    return [
+        dict(
+            name=p.name,
+            overlap=p.overlap,
+            input=p.input.model_json_schema(),
+            stages=[
+                dict(
+                    name=s.name,
+                    operation=s.operation.name,
+                    input_from=s.input_from,
+                    wait=getattr(s, "every", None),
+                    timeout=getattr(s, "timeout", None),
+                    max_parallel=getattr(s, "max_parallel", None),
+                )
+                for s in p.stages
+            ],
+        )
+        for p in module.pipelines
+    ]

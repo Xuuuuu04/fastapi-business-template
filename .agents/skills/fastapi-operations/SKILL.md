@@ -28,6 +28,11 @@ uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py mak
 
 后台任务使用用户权限的限制见 `server/shared/jobs/README.md`。
 
+## 多阶段流程
+
+`pipelines list --org 组织` 查看摘要，`pipelines show 编号` 查看阶段运行图和运行记录。
+`pipelines resume 编号 --yes` 从当前失败阶段恢复；格式变化需另加 `--accept-schema`，未知外部结果需核实未产生效果后另加 `--confirm-unknown`。普通任务命令不能单独重排或取消流程阶段。
+
 ## 生成服务密钥
 
 - 明文密钥只显示给请求的人。配置里保存摘要和明确的权限。

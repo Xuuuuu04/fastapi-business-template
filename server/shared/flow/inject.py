@@ -22,6 +22,7 @@ from shared.jobs.checkpoint import Checkpoint
 from shared.model_calls.gate import ModelGate
 from shared.modules.contract import Contract
 from shared.modules.module import Module
+from shared.pipelines.gate import PipelineGate
 from shared.records.models import RunRecord, StepRecord
 from shared.remote_calls.gate import RemoteGate
 
@@ -144,6 +145,7 @@ def simple_tools(
         "note": lambda: NoteWriter(record),
         "emit": lambda: Emitter(scope, record),
         "checkpoint": lambda: batch_checkpoint(scope),
+        "pipeline": lambda: PipelineGate(scope, run),
     }
     return {name: make() for name, make in makers.items() if name in params}
 

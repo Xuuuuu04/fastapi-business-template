@@ -8,7 +8,7 @@ identity可声明产品会话解析操作，identity_header可显式指定兼容
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from sqlalchemy import Table
 
@@ -17,6 +17,9 @@ from shared.jobs.plan import JobPlan, Schedule
 from shared.model_calls.prompt import Prompt
 from shared.modules.contract import Contract
 from shared.remote_calls.remote import Remote
+
+if TYPE_CHECKING:
+    from shared.pipelines.plan import Pipeline
 
 STORE_PARAMS = ("db", "legacy", "remote", "files", "cache", "caller", "vault")
 
@@ -37,6 +40,7 @@ class Module:
     identity: Contract[Any, Any] | None = None
     identity_header: str = ""
     identity_token: Literal["jwt", "opaque"] = "jwt"
+    pipelines: tuple["Pipeline", ...] = ()
 
     # 模块的业务文档目录，位于项目根目录的 doc/ 下。
     @property

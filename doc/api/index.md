@@ -189,6 +189,53 @@
 | 200 | Successful Response | object |
 | 422 | Validation Error | HTTPValidationError |
 
+## GET /api/system/pipelines
+
+用途：流程运行
+分组：多阶段流程
+操作编号：pipeline_runs
+
+| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| limit | query | 否 | integer | 最小：1；最大：200 |  |
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | object |
+| 422 | Validation Error | HTTPValidationError |
+
+## GET /api/system/pipelines/{run_id}
+
+用途：流程详情
+分组：多阶段流程
+操作编号：pipeline_detail
+
+| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| run_id | path | 是 | string |  |  |
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | object |
+| 422 | Validation Error | HTTPValidationError |
+
+## POST /api/system/pipelines/{run_id}/resume
+
+用途：恢复当前阶段
+分组：多阶段流程
+操作编号：pipeline_resume
+
+| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| run_id | path | 是 | string |  |  |
+
+请求正文：application/json，模型 ResumeRequest。
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | object |
+| 422 | Validation Error | HTTPValidationError |
+
 ## GET /api/system/audit
 
 用途：查询操作记录
@@ -245,6 +292,13 @@
 | 字段 | 类型 | 必填 | 说明 | 限制 |
 | --- | --- | --- | --- | --- |
 | detail | 列表[ValidationError] | 否 |  |  |
+
+### ResumeRequest
+
+| 字段 | 类型 | 必填 | 说明 | 限制 |
+| --- | --- | --- | --- | --- |
+| accept_schema | boolean | 否 |  |  |
+| confirm_unknown | boolean | 否 |  |  |
 
 ### ValidationError
 

@@ -21,12 +21,15 @@ from shared.errors.framework import DuplicateRequest, QueueFull, StepRuleBroken
 from shared.jobs.checkpoint_store import (
     create_checkpoint,
     extend_lease,
-    may_resume,
     protect_failure,
 )
+from shared.jobs.expiry import expire
 from shared.jobs.tables import job_counts, jobs
 from shared.modules.catalog import Catalog
 from shared.modules.contract import Contract
+from shared.pipelines.engine import PipelineEngine
+from shared.pipelines.failure import failed as pipeline_failed
+from shared.pipelines.storage import is_pipeline_job
 
 READY = ("queued", "waiting_retry")
 ACTIVE = ("queued", "running", "waiting_retry")
@@ -42,6 +45,7 @@ class Ticket:
     input_json: str
     caller_json: str
     request_id: str
+    key: str | None = None
 
 
 # 通过数据库登记、领取和更新任务，保证状态变化有明确条件。
@@ -50,6 +54,7 @@ class JobQueue:
     def __init__(self, catalog: Catalog, database: Database) -> None:
         self.catalog = catalog
         self.database = database
+        self.pipelines = PipelineEngine(self)
 
     # 在给定的写入事务中登记任务；同一请求编号重复登记时返回原任务。
     async def submit(
@@ -62,6 +67,8 @@ class JobQueue:
         key: str,
         request_id: str,
     ) -> str:
+        if item.name in self.catalog.pipeline_starts:
+            return await self.pipelines.submit(connection, item, input, caller)
         plan = self.catalog.plan(item.name)
         if plan is None:
             raise StepRuleBroken(f"操作 {item.name} 没有在模块的 jobs 中声明，不能作为任务登记")
@@ -190,6 +197,10 @@ class JobQueue:
             changed = (await connection.execute(change)).rowcount == 1
             if changed and state not in ACTIVE:
                 await release(connection, ticket.contract)
+            if changed and is_pipeline_job(ticket):
+                await pipeline_failed(
+                    connection, self, ticket.id, state, str(values["error_message"]), run_id
+                )
         return changed
 
     # 延长执行期限；返回 False 表示任务已不属于这次尝试。
@@ -200,14 +211,25 @@ class JobQueue:
     async def reclaim(self, now: float) -> int:
         async with self.database.write() as connection:
             expired = (
-                select(jobs.c.id, jobs.c.contract, jobs.c.attempt)
+                select(jobs.c.id, jobs.c.contract, jobs.c.attempt, jobs.c.key)
                 .where(jobs.c.state == "running", jobs.c.lease_until < now)
                 .limit(100)
                 .with_for_update(skip_locked=True)
             )
             rows = (await connection.execute(expired)).all()
             for row in rows:
-                await expire(connection, self.catalog, row.id, row.contract, row.attempt, now)
+                await expire(
+                    connection,
+                    self.catalog,
+                    row.id,
+                    row.contract,
+                    row.attempt,
+                    now,
+                    bool(row.key and row.key.startswith("pipeline:")),
+                )
+                if row.key and row.key.startswith("pipeline:"):
+                    state = await connection.scalar(select(jobs.c.state).where(jobs.c.id == row.id))
+                    await pipeline_failed(connection, self, row.id, str(state), "任务租约已过期")
         return len(rows)
 
 
@@ -257,25 +279,6 @@ async def release(connection: AsyncConnection, name: str) -> None:
     )
 
 
-# 处理一个过期任务。
-async def expire(
-    connection: AsyncConnection, catalog: Catalog, job_id: str, name: str, attempt: int, now: float
-) -> None:
-    plan = catalog.plan(name)
-    values: dict[str, Any] = {"updated_at": now, "lease_until": None}
-    if await may_resume(connection, plan, job_id, attempt):
-        values |= {"state": "waiting_retry", "run_after": now, "error_code": "lease_expired"}
-        values["error_message"] = "执行期限已过（worker 可能已退出），按可安全重复的约定重新排队"
-    else:
-        values |= {"state": "unknown", "finished_at": now, "error_code": "lease_expired"}
-        values["error_message"] = (
-            "执行期限已过，无法确认是否已经产生效果，请人工检查后再决定是否重试"
-        )
-    await connection.execute(update(jobs).where(jobs.c.id == job_id).values(**values))
-    if values["state"] == "unknown":
-        await release(connection, name)
-
-
 # 任务领取后需要的列。
 def ticket_columns() -> list[Any]:
     names = (
@@ -286,6 +289,7 @@ def ticket_columns() -> list[Any]:
         "input_json",
         "caller_json",
         "request_id",
+        "key",
     )
     return [jobs.c[name] for name in names]
 

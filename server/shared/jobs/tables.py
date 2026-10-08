@@ -78,3 +78,6 @@ segments = Table(
     Column("elapsed_ms", Float, nullable=False),
     Column("committed_at", Float, nullable=False),
 )
+
+# 新流程表随框架任务表登记，空产品也有一致的迁移结构。
+from shared.pipelines import tables as pipeline_tables  # noqa: E402,F401

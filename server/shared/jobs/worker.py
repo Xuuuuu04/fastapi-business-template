@@ -22,10 +22,12 @@ from shared.errors.details import safe_exception_text
 from shared.errors.framework import StaleAttempt
 from shared.errors.kinds import RETRY_KINDS, BusinessError, Kind
 from shared.flow.runtime import Runtime
+from shared.jobs.execution import invoke
 from shared.jobs.health import WorkerHealth
 from shared.jobs.queue import JobQueue, Ticket
 from shared.jobs.schedule import Scheduler
-from shared.jobs.segmented import run_segments
+from shared.pipelines.runner import StageContext
+from shared.pipelines.runner import prepare as prepare_stage
 
 log = logging.getLogger("server.jobs")
 
@@ -136,6 +138,13 @@ class Worker:
 
     # 执行一个任务并更新状态。
     async def execute(self, ticket: Ticket) -> None:
+        try:
+            context = await prepare_stage(self.queue, ticket)
+        except StaleAttempt:
+            log.warning("job_attempt_stale job_id=%s attempt=%s", ticket.id, ticket.attempt)
+            return
+        if context is not None and not context.allowed:
+            return
         binding = self.runtime.catalog.find(ticket.contract)
         plan = self.runtime.catalog.plan(ticket.contract)
         if binding is None or plan is None:
@@ -143,7 +152,7 @@ class Worker:
                 ticket, "failed", "not_registered", "任务对应的操作没有登记或模块未启用"
             )
             return
-        if ticket.module_version != binding.module.version:
+        if context is None and ticket.module_version != binding.module.version:
             message = (
                 f"任务按模块版本 {ticket.module_version} 登记，当前是 {binding.module.version}；"
                 "需要人工确认后再执行"
@@ -168,7 +177,9 @@ class Worker:
             self.keep_lease(ticket, plan.lease_seconds, asyncio.current_task())
         )
         try:
-            await self.run_job(ticket, input, caller, plan.retry.times, plan.retry.wait_after)
+            await self.run_job(
+                ticket, input, caller, plan.retry.times, plan.retry.wait_after, context
+            )
         finally:
             heartbeat.cancel()
             with suppress(asyncio.CancelledError):
@@ -176,29 +187,32 @@ class Worker:
 
     # 通过执行器运行任务；完成标记与业务写入同一事务提交。
     async def run_job(
-        self, ticket: Ticket, input: Data, caller: Caller, retries: int, wait_after: Any
+        self,
+        ticket: Ticket,
+        input: Data,
+        caller: Caller,
+        retries: int,
+        wait_after: Any,
+        context: StageContext | None = None,
     ) -> None:
-        binding = self.runtime.catalog.by_name[ticket.contract]
-
         # 在提交前把任务标为完成；尝试已过期时放弃本次写入。
         async def finish(connection: AsyncConnection, result: Data, run_id: str) -> None:
-            if not await self.queue.finish(connection, ticket, result.model_dump_json(), run_id):
+            if context is not None:
+                await context.finish(connection, result, run_id)
+            elif not await self.queue.finish(connection, ticket, result.model_dump_json(), run_id):
                 raise StaleAttempt()
 
         try:
-            plan = self.runtime.catalog.plan(ticket.contract)
-            if plan is not None and plan.segmented:
-                wait = self.options.shutdown_seconds
-                await run_segments(self.runtime, self.queue, ticket, input, caller, self.stop, wait)
-            else:
-                await self.runtime.run(
-                    binding.contract,
-                    input,
-                    caller=caller,
-                    request_id=ticket.request_id,
-                    job_id=ticket.id,
-                    before_commit=finish,
-                )
+            await invoke(
+                self.runtime,
+                self.queue,
+                ticket,
+                input,
+                caller,
+                self.stop,
+                self.options.shutdown_seconds,
+                finish,
+            )
         except StaleAttempt:
             log.warning("job_attempt_stale job_id=%s attempt=%s", ticket.id, ticket.attempt)
         except BusinessError as error:

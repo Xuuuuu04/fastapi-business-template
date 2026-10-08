@@ -6,7 +6,7 @@ from collections.abc import Collection
 
 from fastapi import APIRouter
 
-from app.api.system import audit, console, health, jobs, runs, structure
+from app.api.system import audit, console, health, jobs, pipelines, runs, structure
 from app.api.v1 import stream
 
 ROUTERS: list[APIRouter] = [
@@ -14,6 +14,7 @@ ROUTERS: list[APIRouter] = [
     structure.router,
     runs.router,
     jobs.router,
+    pipelines.router,
     audit.router,
     console.router,
     stream.router,

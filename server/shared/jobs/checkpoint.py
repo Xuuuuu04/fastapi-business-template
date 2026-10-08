@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from shared.records.models import RunRecord
 
+from shared.data.models import Data
 from shared.errors.framework import StepRuleBroken
 
 MAX_CURSOR_BYTES = 16 * 1024
@@ -26,7 +27,9 @@ class Checkpoint:
         *,
         total_rows: int = 0,
         shutdown_seconds: float | None = None,
+        cursor_model: type[Data] | None = None,
     ) -> None:
+        self.cursor_model = cursor_model
         self.number = number
         self.total_rows = total_rows
         self.shutdown_seconds = shutdown_seconds
@@ -55,6 +58,8 @@ class Checkpoint:
             raise StepRuleBroken("一批只能声明一次 checkpoint.advance 或 finish")
         if not isinstance(cursor, dict) or type(rows) is not int or rows < 0:
             raise StepRuleBroken("恢复游标必须是 JSON 字典，行数必须是非负整数")
+        if self.cursor_model is not None:
+            cursor = self.cursor_model.model_validate(cursor).model_dump(mode="json")
         try:
             body = json.dumps(cursor, ensure_ascii=False, allow_nan=False, sort_keys=True)
         except (TypeError, ValueError) as error:

@@ -715,6 +715,175 @@
         }
       }
     },
+    "/api/system/pipelines": {
+      "get": {
+        "tags": [
+          "多阶段流程"
+        ],
+        "summary": "流程运行",
+        "operationId": "pipeline_runs",
+        "security": [
+          {
+            "服务密钥": []
+          },
+          {
+            "登录令牌": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Pipeline Runs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/pipelines/{run_id}": {
+      "get": {
+        "tags": [
+          "多阶段流程"
+        ],
+        "summary": "流程详情",
+        "operationId": "pipeline_detail",
+        "security": [
+          {
+            "服务密钥": []
+          },
+          {
+            "登录令牌": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Pipeline Detail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/pipelines/{run_id}/resume": {
+      "post": {
+        "tags": [
+          "多阶段流程"
+        ],
+        "summary": "恢复当前阶段",
+        "operationId": "pipeline_resume",
+        "security": [
+          {
+            "服务密钥": []
+          },
+          {
+            "登录令牌": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Pipeline Resume"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/system/audit": {
       "get": {
         "tags": [
@@ -926,6 +1095,22 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ResumeRequest": {
+        "properties": {
+          "accept_schema": {
+            "type": "boolean",
+            "title": "Accept Schema",
+            "default": false
+          },
+          "confirm_unknown": {
+            "type": "boolean",
+            "title": "Confirm Unknown",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ResumeRequest"
       },
       "ValidationError": {
         "properties": {
