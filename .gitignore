@@ -19,3 +19,8 @@ out/
 # 本机协作资料；项目专用 Skill 可以提交
 .agents/*
 !.agents/skills/
+
+# 从登记查看时生成的汇总文档，不随业务改动提交
+/doc/development.md
+/doc/modules.md
+/doc/progress.md

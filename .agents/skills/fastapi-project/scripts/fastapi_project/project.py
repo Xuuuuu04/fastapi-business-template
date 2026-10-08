@@ -70,6 +70,11 @@ def main() -> None:
     args = arguments()
     settings = Settings()
     catalog = Catalog(MODULES)
+    from fastapi_docs.export_docs import summaries
+
+    for path, text in summaries(catalog, PROJECT).items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
     status = project_status(catalog, PROJECT, set(settings.disabled_modules), args.checks)
     if args.module and args.module not in status["modules"] and not args.summary:
         raise SystemExit(f"模块尚未登记：{args.module}；未实现的开发包可用 --summary 查看")
