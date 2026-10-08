@@ -27,6 +27,7 @@ PARAMS = (
     "note",
     "emit",
     "checkpoint",
+    "pipeline",
 )
 
 

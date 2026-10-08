@@ -8,6 +8,7 @@ from typing import Any
 from shared.data.fields import notes_of
 from shared.graphs.mermaid import STYLES, label, node_id
 from shared.modules.catalog import Binding, Catalog
+from shared.pipelines.plan import Pipeline, Wait
 from shared.records.models import STEP_KIND_TEXT
 
 
@@ -26,6 +27,9 @@ def module_graph(catalog: Catalog) -> str:
 
 # 生成一个操作的计算流程图：输入、各步骤、条件、调用和结果。
 def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str:
+    for pipeline in binding.module.pipelines:
+        if pipeline.start is binding.contract:
+            return pipeline_graph(pipeline)
     flow, item = binding.flow, binding.contract
     notes = notes_of(item.input)
     inputs = "、".join(note.meaning or name for name, note in notes.items()) or "无"
@@ -89,3 +93,17 @@ def call_lines(current: str, uses: tuple[Any, ...], prompts: tuple[Any, ...]) ->
         lines.append(f'    {target}>"提示词：{label(item.title)} v{label(item.version)}"]')
         lines.append(f"    {current} -.-> {target}")
     return lines
+
+
+# 多阶段声明图连接公开操作，等待检查明确展示间隔和最长时限。
+def pipeline_graph(pipeline: Pipeline) -> str:
+    lines = ["flowchart LR", '  start["定时 / 周期去重"]']
+    previous = "start"
+    for index, stage in enumerate(pipeline.stages):
+        text = f"{stage.name}：{stage.operation.name}"
+        if isinstance(stage, Wait):
+            text += f"；每{stage.every}s检查，最长{stage.timeout}s"
+        lines.append(f'  s{index}["{label(text)}"]')
+        lines.append(f"  {previous} --> s{index}")
+        previous = f"s{index}"
+    return "\n".join(lines)

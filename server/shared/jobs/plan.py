@@ -34,6 +34,7 @@ class JobPlan:
     max_queued: int = 1000
     lease_seconds: float = 60.0
     segmented: bool = False
+    cursor: type[Data] | None = None
 
 
 # 一个定时任务的输入与触发时间，交给调度进程登记执行。

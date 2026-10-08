@@ -3,6 +3,7 @@
 普通任务误用 checkpoint 时在启动阶段指出声明位置。
 """
 
+from shared.data.models import Data
 from shared.flow.flow import Flow
 from shared.jobs.organizations import validate_orgs
 from shared.jobs.slot import check_slot
@@ -13,6 +14,10 @@ from shared.modules.module import Module
 def check_segmented_jobs(module: Module) -> list[str]:
     problems = []
     for plan in module.jobs:
+        if plan.cursor is not None and (
+            not isinstance(plan.cursor, type) or not issubclass(plan.cursor, Data)
+        ):
+            problems.append(f"任务 {plan.contract.name} 的cursor必须是Data类型")
         flow = module.provides.get(plan.contract)
         has_checkpoint = isinstance(flow, Flow) and any(
             "checkpoint" in part.params for part in flow.steps
