@@ -3,7 +3,7 @@
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time
 from functools import cached_property
 from typing import Any, Literal, cast
 
@@ -57,6 +57,14 @@ class Wait(Stage):
     max_parallel: int = 1
 
 
+# 按周期所在日的当地时间声明最晚完成点，跨日流程显式设置days_after。
+@dataclass(frozen=True)
+class DailyTime:
+    at: time
+    zone: str = "Asia/Shanghai"
+    days_after: int = 0
+
+
 # 一个模块声明的流程，默认跳过仍与上一周期重叠的新周期。
 @dataclass(frozen=True)
 class Pipeline:
@@ -66,6 +74,8 @@ class Pipeline:
     stages: tuple[Stage, ...]
     overlap: Literal["skip", "queue"] = "skip"
     access: str = ""
+    complete_by: DailyTime | None = None
+    on_overdue: Literal["continue", "pause"] = "continue"
 
     # 自动登记的公开启动操作，可被Schedule引用。
     @cached_property

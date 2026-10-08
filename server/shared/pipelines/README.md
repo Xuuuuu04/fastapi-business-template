@@ -44,7 +44,7 @@ pipeline = Pipeline(
 - `recovery/views`：人工恢复、摘要、阶段运行图。
 - `gate`：执行器生成入口的事务工具。
 
-四阶段独立样例在 `tests/framework/pipeline_sample.py`；不登记预置业务。逾期通知在后续版本提供。
+四阶段独立样例在 `tests/framework/pipeline_sample.py`；不登记预置业务。
 
 
 ## 扇出和固定来源
@@ -80,3 +80,12 @@ pipeline = Pipeline(
 汇算阶段声明 `members={"requests": Collected}`，再用 `await pipeline.results("requests", Collected, after=游标, limit=50)` 读取有界Data页。大产出只放引用。成员失败后人工恢复仅重排失败成员当前子阶段，前面的子阶段、成功成员及分段游标都保留。
 
 运行图先显示成员状态计数，console成员页和 `operations pipelines members` 按键分页看细节、版本、运行号。独立200成员样例在 `tests/framework/fanout_sample.py`。
+
+
+## 最晚完成和逾期
+
+`complete_by=DailyTime(time(9,30), zone="Asia/Shanghai", days_after=0)` 以周期所在当地日期计算并固定截止；夜间开始次日完成用days_after=1。人工启动period需带时区，省略则用登记时刻的当地日期。
+
+默认 `on_overdue="continue"` 继续执行，只保留逾期事实并登记pending通知。`"pause"` 阻止下一阶段/批次，当前批完整提交后才停；console或operations人工继续，前面的产出和游标保留。未知外部结果仍单独处理，不能用继续绕过核实。通知只有进入队列；本版未配置投递，不说已发送。
+
+`project --summary` 默认只读本机运行摘要缓存并显示观察时间，没有缓存就标未知；`--runs` 刷新数据库观察，可能已有更新发生，因此缓存不等于实时状态。`--operation` 列该操作在流程里的位置。

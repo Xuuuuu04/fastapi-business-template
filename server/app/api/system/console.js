@@ -1,7 +1,7 @@
 // 页面调用系统查询和流程恢复接口；所有业务文字按纯文本显示，不执行记录中的内容。
 const notice = document.querySelector('#notice');
 const results = document.querySelector('#results');
-const states = {waiting_members:'等待成员',joining:'正在汇合',planned:'成员待派发',not_started:'未开始',succeeded:'已完成',queued:'排队中',waiting_external:'等待上游',waiting_retry:'等待重试',unknown:'结果待确认',version_blocked:'版本暂停',cancelled:'已取消',ok:'已完成',failed:'失败',refused:'被拒绝',lost:'失去联系',running:'执行中',skipped:'跳过'};
+const states = {overdue_paused:'逾期暂停',waiting_members:'等待成员',joining:'正在汇合',planned:'成员待派发',not_started:'未开始',succeeded:'已完成',queued:'排队中',waiting_external:'等待上游',waiting_retry:'等待重试',unknown:'结果待确认',version_blocked:'版本暂停',cancelled:'已取消',ok:'已完成',failed:'失败',refused:'被拒绝',lost:'失去联系',running:'执行中',skipped:'跳过'};
 const kinds = {compute:'计算',read:'数据访问',save:'保存',call:'模块调用',model:'大模型',remote:'外部接口'};
 let current = 'modules';
 let pending;
@@ -208,6 +208,7 @@ function pipelines(data) {
 }
 function pipelineDetail(data) {
   results.append(element('h2',data.pipeline),state(data.state),element('p',data.reason));
+  if (data.overdue) results.append(element('p',`已逾期；最晚完成 ${timestamp(data.complete_by)}；通知状态 ${data.notification_state || "未知"}`,'warning'));
   table(results,['阶段','状态','耗时','实际版本','尝试 / 轮询','运行记录'],data.stages.map(item => [
     item.name,state(item.state),duration(item.elapsed_ms),item.module_version || '未知',
     `${item.attempt} / ${item.poll_count}`,item.run_id ? button('查看运行',() => show(`runs/${item.run_id}`)) : '未知']));
@@ -217,7 +218,7 @@ function pipelineDetail(data) {
       button('查看成员',() => show(`pipelines/${data.id}/members?stage=${encodeURIComponent(item.name)}`)));
   });
   source(results,'查看整条流程运行图',data.graph);
-  if (['failed','version_blocked','unknown'].includes(data.state)) {
+  if (['failed','version_blocked','unknown','overdue_paused'].includes(data.state)) {
     const schema = element('input'); schema.type = 'checkbox';
     const unknown = element('input'); unknown.type = 'checkbox';
     const schemaLabel = element('label'); schemaLabel.append(schema,element('span','已审查并接受当前格式'));

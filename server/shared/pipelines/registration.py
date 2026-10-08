@@ -13,6 +13,7 @@ from shared.flow.flow import Flow
 from shared.flow.step import step
 from shared.jobs.plan import JobPlan
 from shared.modules.module import Module
+from shared.pipelines.deadline_checks import check_deadline
 from shared.pipelines.gate import PipelineGate
 from shared.pipelines.member_checks import check_group, check_results, check_source
 from shared.pipelines.plan import FanOut, Pipeline, StartWork, Wait
@@ -58,6 +59,7 @@ def check_pipelines(modules: Sequence[Module]) -> list[str]:
             ):
                 problems.append(f"流程{pipeline.name}名称重复或不属于{module.name}")
             seen.add(pipeline.name)
+            problems += check_deadline(pipeline)
             if pipeline.overlap not in ("skip", "queue") or not pipeline.stages:
                 problems.append(f"流程{pipeline.name}需要阶段和有效overlap")
             if (

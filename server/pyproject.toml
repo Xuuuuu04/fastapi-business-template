@@ -1,7 +1,7 @@
 # 项目依赖与统一检查配置。框架检查规则的阈值写在 ../.agents/skills/fastapi-check/scripts/fastapi_check/quality/rules.py。
 [project]
 name = "fastapi-server-template"
-version = "2.4.0"
+version = "2.5.0"
 description = "便于人审查、便于 AI 按固定结构开发的 FastAPI 单体后端模板"
 requires-python = ">=3.12,<3.14"
 dependencies = [

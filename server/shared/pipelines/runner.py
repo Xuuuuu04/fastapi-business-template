@@ -44,6 +44,7 @@ class StageContext:
         if root["current_stage"] != self.stage.name or root["state"] not in (
             "running",
             "waiting_external",
+            "overdue_paused",
         ):
             raise StaleAttempt()
         if self.stage.freeze_sources:
@@ -78,6 +79,10 @@ class StageContext:
             )
         )
         await self.advance(connection, root, now)
+        if root["state"] == "overdue_paused" and self.stage.name != self.pipeline.stages[-1].name:
+            await connection.execute(
+                update(runs).where(runs.c.id == root["id"]).values(state="overdue_paused")
+            )
 
     # 完成阶段后只登记一个下一任务，最后阶段才释放周期执行名额。
     async def advance(self, connection: AsyncConnection, root: dict, now: float) -> None:

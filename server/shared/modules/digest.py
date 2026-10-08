@@ -70,6 +70,16 @@ def pipeline_shapes(module: Module) -> list[dict[str, Any]]:
             name=p.name,
             overlap=p.overlap,
             input=p.input.model_json_schema(),
+            complete_by=(
+                dict(
+                    at=p.complete_by.at.isoformat(),
+                    zone=p.complete_by.zone,
+                    days_after=p.complete_by.days_after,
+                )
+                if p.complete_by
+                else None
+            ),
+            on_overdue=p.on_overdue,
             stages=[stage_shape(stage) for stage in p.stages],
         )
         for p in module.pipelines

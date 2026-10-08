@@ -15,6 +15,7 @@ from fastapi_project.development.evidence import (
     latest_full_check,
 )
 from fastapi_project.development.history import fingerprints, module_checks, read_checks
+from fastapi_project.development.pipelines import memberships, overview
 from fastapi_project.development.plan import read_plan
 from fastapi_project.development.scenarios import scenario_status
 
@@ -102,6 +103,7 @@ def operation_status(
     ]
     return {
         "name": operation,
+        "pipelines": memberships(catalog, operation),
         "title": binding.contract.title,
         "steps": steps,
         "graph": flow_graph(binding),
@@ -265,6 +267,7 @@ def project_status(
         "latest_check": latest_check_status(checks[-1]) if checks else None,
         "latest_full_check": full_check_status(checks, codes, project),
         "runtime": None,
+        "pipelines": overview(catalog, project),
     }
 
 

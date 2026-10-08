@@ -159,6 +159,11 @@ def project_summary(status: dict[str, Any], module: str = "") -> dict[str, Any]:
         "view": "summary",
         **result,
         "runtime": runtime_summary(status["runtime"]),
+        "pipelines": [
+            item
+            for item in status.get("pipelines", [])
+            if not module or item["name"].startswith(module + ".")
+        ],
         "meaning": "登记、测试成功执行和业务验收分开判断；测试标注不证明业务正确。",
     }
 
@@ -260,6 +265,11 @@ def summary_markdown(summary: dict[str, Any]) -> str:
             )
             + "\n"
         )
+    for pipeline in summary.get("pipelines", []):
+        last = pipeline.get("last")
+        state = f"{last['current_stage']} / {last['state']}" if last else "运行状态未知"
+        overdue = "；已逾期" if last and last.get("overdue") else ""
+        lines.append(f"流程 {pipeline['name']}：{state}{overdue}；{pipeline['evidence']}")
     check = summary.get("latest_check")
     if check is not None:
         lines.append(
