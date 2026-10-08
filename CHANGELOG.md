@@ -2,6 +2,13 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 2.7.0（2026-10-09）
+
+- 新增new_operation：一次生成公开约定、Data、flow/步骤、Module登记、可选HTTP、规则占位和短测试。一个正常与一个编号异常共用夹具；默认样例只证明骨架，正式业务规则仍需确认。
+- 新增new_pipeline：共同State Data、各阶段公开操作、Wait、后台计划、定时首入口、演练JSON占位一起生成。已有模块不手工改其他文件也可通过check --module（模块基线迁移应已完成）。预览不写，实施报告列实际源码/文档改动。
+- 已有产品接入：先更新项目Skill和framework.lock，再在现有标准模块运行new_operation或new_pipeline；生成后按真实规则替换样例，阶段演练配置交PR4使用。可选add_field本版未提供，字段变更仍按Data/reads/writes/接口规则检查。
+- framework.lock更新理由：生成器、模板短样例和独立副本验收新增；运行/普通操作无行为变化，不加预置业务，无框架数据库迁移。
+
 ## 2.6.0（2026-10-09）
 
 - project-plan.json新增implemented_operations观察记录，导出时捕获实际对应名称；旧flows也提供首次迁移证据。已实现操作删除/改名而计划未同步时，检查直接指出JSON项及当前登记。未开发的planned名称继续合法。
