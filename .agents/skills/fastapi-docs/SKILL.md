@@ -25,11 +25,15 @@ uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs
 uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs --check
 ```
 
-生成结果：`doc/api/`、`modules.md`、`development.md`、`progress.md`，以及每个业务包的 `flows.md`。
+提交的生成结果：`doc/api/`、每个业务包的 `flows.md`，以及AGENTS.md的当前状态生成段。
+
+`modules.md`、`development.md`、`progress.md`在导出、检查或查看摘要时生成，加入.gitignore，不再提交。已有产品升级时先git rm --cached这三份（保留本机文件），再执行export_docs。needs/rules/changes继续随源码提交。
+
+计划中的实际对应操作在导出时记入implemented_operations；已实现操作删除或改名后，检查指出project-plan.json的具体项，先同步计划再导出。旧flows文档也作为首次迁移的已实现证据。
 
 ## 注意
 
 - 生成的文档只描述代码里的声明和计划，不能证明业务已经验收，也不能证明实际跑过。检查结果和运行记录放在本机目录，所以生成文档里不会带旧的检查结果。
-- 生成后看一遍差异是否符合这次业务改动，再和源码一起提交。
+- 生成后检查需提交文档及入口生成段差异；汇总不进提交。生成状态不放人工业务判断，手写部分保持独立。
 - 字段含义缺失：去数据模型里补 `meaning()`。规则或样例缺失：去业务文档补。不要手工改生成出来的文件，下次生成会被覆盖。
 - 还没有业务包时，生成的业务部分是空的，这是正常的。

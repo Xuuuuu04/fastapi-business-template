@@ -60,5 +60,18 @@ def check_package(package: Any, seen: set[str]) -> None:
         raise ValueError(f"开发包 {name} 必须列出预期操作")
     if any(not isinstance(item, str) or not OPERATION.fullmatch(item) for item in operations):
         raise ValueError(f"开发包 {name} 的操作名只能用小写字母、数字和下划线")
+    check_implemented(package)
     if len(set(operations)) != len(operations):
         raise ValueError(f"开发包 {name} 的操作重复")
+
+
+# 显式已实现操作仍必须属于计划，保持可审查的历史登记证据。
+def check_implemented(package: dict) -> None:
+    values = package.get("implemented_operations", [])
+    if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
+        raise ValueError("implemented_operations必须是操作名列表")
+    extra = set(values) - set(package["operations"])
+    if extra:
+        raise ValueError(
+            f"开发包{package['module']}请同步移除或改名implemented_operations中的{sorted(extra)}"
+        )

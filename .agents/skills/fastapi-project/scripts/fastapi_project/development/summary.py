@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi_project.development.attention import attention, plan_summary
 from fastapi_project.development.evidence import check_scope
+from fastapi_project.development.screen_summary import module_markdown_summary
 
 PROBLEM_LIMIT = 5
 
@@ -220,38 +221,17 @@ def selected_test(
     return {"view": "test", "nodeid": nodeid, "records": list(records.values())}
 
 
-# 模块一页列出待确认、各数据库状态和继续读取的入口。
-def module_markdown_summary(module: dict[str, Any]) -> list[str]:
-    lines = [
-        f"## {module['title']}（{module['name']}）",
-        f"启用：{module['enabled']}；规则 {module['rule_count']}；"
-        f"待确认 {len(module['pending'])}。",
-    ]
-    lines.extend(f"- 待确认：{text}" for text in module["pending"])
-    for database, suite in module["tests"]["latest"].items():
-        lines.append(
-            f"- {database}：{'当前' if suite['current'] else '过期'}；"
-            f"该轮检查{'通过' if suite['checks_passed'] else '失败'}；{suite['counts']}"
-        )
-        lines.append(
-            f"  - 当前来源结果：{suite['current_counts']}；过期来源 {suite['stale_count']} 项。"
-        )
-        lines.extend(
-            f"  - {item['outcome']}"
-            + ("（来源过期）" if item.get("current") is False else "")
-            + f"：{item['nodeid']}；{item['next']}"
-            for item in suite["problems"]
-        )
-        if suite["omitted_problems"]:
-            lines.append(f"  - 另有 {suite['omitted_problems']} 项，请读取模块完整记录。")
-    lines.append(f"下一步：{module['next']}")
-    if "scenarios" in module:
-        lines.append(f"规则样例实际执行：{module['scenarios']['counts_by_database']}")
-    return lines
-
-
 # 简短文本与 JSON 使用同一摘要，失败、过期和待确认均不被成功数量遮住。
 def summary_markdown(summary: dict[str, Any]) -> str:
+    if "modules" in summary:
+        from fastapi_project.development.screen_summary import render
+
+        return render(summary)
+    return detailed_markdown(summary)
+
+
+# 单模块摘要按需保留规则和检查细节，不受全项目一屏限制。
+def detailed_markdown(summary: dict[str, Any]) -> str:
     lines = [f"# {summary.get('title', summary['name'])}：主代理摘要", ""]
     if summary.get("registered") is False:
         return (

@@ -74,7 +74,7 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py impact --
 2. **字段和注释。** 字段写在数据模型里，用 `meaning()` 写含义；类和关键计算写中文用途。计算步骤声明读写的字段。业务包的文件位置和依赖方向保持固定。
 3. **测试按业务功能放在对应的包里。** 规则标注只能说明"这个测试文件提到过这条规则"。重要的确认样例，在同一张规则表里加"样例编号、情况、结果"三列，并用 `@pytest.mark.rule_case("模块.R-05-C01")` 对应到具体测试。参数化的不同样例，在各自的 `pytest.param` 上标。没有本次运行证据的、失败的、跳过的，都不能算通过。
 4. **默认一个代理负责到底。** 同一个代理负责共同的代码版本和完整的业务结果。只有用户或适用的规则明确要求时才分工。共享的接口和数据库变化要一个接一个处理，尽早放在一起验证，不要等所有包都写完才合并。
-5. **改数据表的顺序：** 先升级本地数据库，再生成迁移并人工检查，然后按 [文档生成 Skill](.agents/skills/fastapi-docs/SKILL.md) 导出文档，生成的文档和源代码一起提交。后续工作写进任务，业务变化写进本包的变化记录。
+5. **改数据表的顺序：** 先升级本地数据库，再生成迁移并人工检查，然后按 [文档生成 Skill](.agents/skills/fastapi-docs/SKILL.md) 导出文档，flows/rules/changes和接口文档随源码提交；development/modules/progress汇总生成且不提交。后续工作写进任务，业务变化写进本包的变化记录。
 6. **检查记录只放本机。** 保存在 [开发记录目录](server/var/development/)，不提交，也不会进入模板副本。调用方的检查版本包含它直接和间接依赖的声明；被调用的能力一改，旧调用方的检查也算过期。规则样例和整轮检查分开看；全部测试通过，也还需要业务验收。
 7. **关闭模块用 `APP_DISABLED_MODULES`。** 关闭后接口和后台入口一起关闭，历史数据保留。新产品用模板管理 Skill 创建；已有产品更新前，先看 [版本记录](CHANGELOG.md) 和 [模板管理 Skill](.agents/skills/fastapi-template/SKILL.md)。
 
@@ -94,3 +94,13 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py impact --
 - **虚拟环境：** 不要从别的目录复制。项目移动位置后重新安装。单独运行测试用 `uv run python -m pytest`，避免旧的命令脚本还指向原来的目录。
 - **发布前：** 按 [浏览器检查](server/tests/browser/README.md) 检查接口和运行页面，按 [部署说明](server/deploy/README.md) 确认实际环境。后台任务要使用用户权限时，先读 [任务权限限制](server/shared/jobs/README.md)。
 - **本机资料：** 本机的任务、决定和记录放在 `.agents/`，其中只有项目专用 Skill 可以提交。有只读的图和命令，不代表 Agent 在长任务中一直会正确使用它们。
+
+<!-- fastapi-current-state:begin -->
+## 当前状态（登记生成）
+
+登记不等于业务完成；运行状态见业务现状或project --summary。
+
+- 当前没有业务模块、业务操作、定时计划或业务流程。
+
+深入：project --module 模块名 --summary；project --operation 完整操作名。
+<!-- fastapi-current-state:end -->

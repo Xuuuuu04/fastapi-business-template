@@ -2,6 +2,14 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 2.6.0（2026-10-09）
+
+- project-plan.json新增implemented_operations观察记录，导出时捕获实际对应名称；旧flows也提供首次迁移证据。已实现操作删除/改名而计划未同步时，检查直接指出JSON项及当前登记。未开发的planned名称继续合法。
+- AGENTS当前状态由登记生成，每模块一行职责/公开操作数/定时和流程/关闭情况/最近变更记录；缺少证据明确未知。fastapi-docs和fastapi-check校验过期，手写部分保留。
+- 全项目文本summary限制一屏、省略量及深入命令明确；具体模块、操作JSON保留完整视图。
+- development.md/modules.md/progress.md改为导出、检查或查看摘要时本机生成，不再提交。已有产品先git rm --cached这三份并加.gitignore，执行export_docs补生成段和implemented_operations；人工同步旧操作名称后再检查。flows/rules/changes及接口声明继续随源码提交。
+- framework.lock更新理由：计划证据与错误检测、入口生成/过期检查、摘要及文档生成策略一起变化；运行和普通操作不改行为，无数据库迁移。
+
 ## 2.5.0（2026-10-09）
 
 - Pipeline新增 `complete_by=DailyTime(time(9,30), zone="Asia/Shanghai", days_after=0)`；截止时间按周期当地日期固定，跨日显式days_after。默认逾期继续，只记录overdue并将通知登记为pending；`on_overdue="pause"`在阶段/批次边界暂停，人工继续保留产出和游标。

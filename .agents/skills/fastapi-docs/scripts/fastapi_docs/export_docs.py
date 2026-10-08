@@ -14,12 +14,15 @@ from pathlib import Path
 
 from fastapi_check.quality.rules import PROJECT
 from fastapi_docs.api_doc import api_markdown, docs_app
+from fastapi_docs.entry_state import render, stale
 from fastapi_docs.flow_doc import HEADER, module_doc, route_map
 from fastapi_docs.progress_doc import progress_doc
 from fastapi_project.development.design import design_doc
 from fastapi_project.development.plan import read_plan
+from fastapi_project.development.plan_entries import capture, check_entries
 
 from app.setup.catalog import MODULES
+from shared.config.settings import Settings
 from shared.graphs.static import module_graph
 from shared.modules.catalog import Catalog
 
@@ -40,13 +43,13 @@ def modules_doc(catalog: Catalog) -> str:
 # 列出全部应生成的文档及其内容。
 def generated(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
     plan = read_plan(project)
+    problems = check_entries(catalog, project, plan)
+    if problems:
+        raise ValueError("\n".join(problems))
     app = docs_app(plan["name"] if plan else None)
     schema, markdown = api_markdown(app)
     routes = route_map(app)
     files = {
-        project / "doc" / "modules.md": modules_doc(catalog),
-        project / "doc" / "progress.md": progress_doc(catalog, project),
-        project / "doc" / "development.md": design_doc(catalog, project),
         project / "doc" / "api" / "openapi.json": json.dumps(schema, ensure_ascii=False, indent=2)
         + "\n",
         project / "doc" / "api" / "index.md": markdown + "\n",
@@ -58,11 +61,23 @@ def generated(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
 
 # 找出内容已过期的生成文档。
 def outdated(catalog: Catalog, project: Path = PROJECT) -> list[Path]:
-    return [
+    result = [
         path
         for path, text in generated(catalog, project).items()
         if not path.exists() or path.read_text(encoding="utf-8") != text
     ]
+    if stale(catalog, project, set(Settings().disabled_modules)):
+        result.append(project / "AGENTS.md")
+    return result
+
+
+# 汇总文档可重新生成，不参与源码提交或过期比较。
+def summaries(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
+    return {
+        project / "doc" / "modules.md": modules_doc(catalog),
+        project / "doc" / "progress.md": progress_doc(catalog, project),
+        project / "doc" / "development.md": design_doc(catalog, project),
+    }
 
 
 # 写入全部文档；check 为真时只比较。
@@ -72,11 +87,20 @@ def main() -> None:
     args = parser.parse_args()
     catalog = Catalog(MODULES)
     if args.check:
+        for path, text in summaries(catalog).items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text)
         stale = outdated(catalog)
         for path in stale:
             print(f"文档已过期：{path.relative_to(PROJECT)}")
         sys.exit(1 if stale else 0)
-    files = generated(catalog)
+    plan = read_plan(PROJECT)
+    problems = check_entries(catalog, PROJECT, plan)
+    if problems:
+        raise SystemExit("\n".join(problems))
+    capture(catalog, PROJECT, plan)
+    files = generated(catalog) | summaries(catalog)
+    files[PROJECT / "AGENTS.md"] = render(catalog, PROJECT, set(Settings().disabled_modules))
     for path, text in files.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
