@@ -3,13 +3,13 @@
 步骤通过 @step(remotes=[...]) 声明；存储实现可以访问模块 module.py 中声明的全部外部系统。
 """
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from shared.errors.framework import StepRuleBroken
 from shared.records.models import RemoteCallRecord
 from shared.remote_calls.remote import Remote
-from shared.remote_calls.service import RemoteReply, RemoteRequest, RemoteService
+from shared.remote_calls.service import SAFE_METHODS, RemoteReply, RemoteRequest, RemoteService
 
 
 # 步骤使用的外部接口入口，只允许访问已声明的外部系统。
@@ -23,6 +23,7 @@ class RemoteGate:
         place: str,
         transaction_started: Callable[[], bool] | None = None,
         effects: list[RemoteCallRecord] | None = None,
+        before_write: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._service = service
         self._allowed = allowed
@@ -30,6 +31,7 @@ class RemoteGate:
         self._place = place
         self._transaction_started = transaction_started
         self._effects = effects
+        self._before_write = before_write
 
     # 读取数据；遇到暂时故障自动重试。
     async def get(
@@ -61,4 +63,6 @@ class RemoteGate:
             raise StepRuleBroken(f"“{self._place}”访问了未声明的外部系统 {target.name}")
         if self._service is None:
             raise StepRuleBroken("没有启用外部接口服务")
+        if self._before_write is not None and request.method.upper() not in SAFE_METHODS:
+            await self._before_write()
         return await self._service.send(target, request, self._records, self._effects)

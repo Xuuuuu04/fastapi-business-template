@@ -16,6 +16,7 @@ from shared.errors.kinds import BusinessError
 from shared.flow.checks import check_flow
 from shared.flow.flow import Flow
 from shared.flow.step import Step
+from shared.jobs.checks import check_segmented_jobs
 from shared.model_calls.prompt import load_prompt
 from shared.modules.contract import Contract
 from shared.modules.module import STORE_PARAMS, Module
@@ -131,6 +132,7 @@ def check_prompts(module: Module) -> list[str]:
 # 检查后台任务和定时计划的声明。
 def check_jobs(module: Module) -> list[str]:
     problems = []
+    problems += check_segmented_jobs(module)
     planned = {plan.contract for plan in module.jobs}
     for plan in module.jobs:
         if plan.contract not in module.provides:

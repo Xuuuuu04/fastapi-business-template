@@ -12,6 +12,7 @@ from dataclasses import dataclass, replace
 
 from shared.errors.details import safe_exception_text
 from shared.records.models import RunRecord
+from shared.records.segments import warn_slow_batch
 from shared.records.stores import RunFilter, RunStore, matches
 from shared.records.summary import summarize
 
@@ -173,5 +174,6 @@ def mark_lost(run: RunRecord) -> RunRecord:
         for part in run.steps
     ]
     copied = replace(run, status=status, elapsed_ms=(now - run.started_at) * 1000, steps=steps)
+    warn_slow_batch(copied)
     copied.summary = summarize(copied)
     return copied

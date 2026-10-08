@@ -97,6 +97,10 @@ def digest_of(modules: Sequence[Module]) -> str:
             item.name: [[part.name, part.reads, part.writes, part.saves] for part in flow.steps]
             for item, flow in sorted(module.provides.items(), key=lambda pair: pair[0].name)
         }
-        shape.append([module.name, module.version, flows])
+        entry = [module.name, module.version, flows]
+        segmented = sorted(plan.contract.name for plan in module.jobs if plan.segmented)
+        if segmented:
+            entry.append({"segmented_jobs": segmented})
+        shape.append(entry)
     text = json.dumps(shape, ensure_ascii=False, sort_keys=True, default=str)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]

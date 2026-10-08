@@ -16,6 +16,7 @@ from shared.records.models import RemoteCallRecord
 
 if TYPE_CHECKING:
     from shared.flow.runtime import Runtime
+    from shared.jobs.checkpoint import Checkpoint
 
 
 # 当前调用共同使用的事务状态，注明由哪个操作开启。
@@ -61,3 +62,4 @@ class Scope:
     tx: Transaction = field(default_factory=Transaction)
     emitter: Callable[[str], Awaitable[None]] | None = None
     remote_writes: list[RemoteCallRecord] = field(default_factory=list)
+    checkpoint: "Checkpoint | None" = None

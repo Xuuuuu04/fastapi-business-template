@@ -13,7 +13,7 @@ from sqlalchemy import RowMapping, func, select, update
 from shared.db.database import Database
 from shared.errors.framework import QueueFull
 from shared.jobs.queue import READY, release, reserve
-from shared.jobs.tables import jobs
+from shared.jobs.tables import checkpoints, jobs
 from shared.modules.catalog import Catalog
 
 STATE_TEXT = {
@@ -124,6 +124,12 @@ async def requeue(
         except QueueFull as error:
             return error.detail
         await connection.execute(update(jobs).where(jobs.c.id == job_id).values(**values))
+        if plan.segmented and row["state"] == "unknown":
+            await connection.execute(
+                update(checkpoints)
+                .where(checkpoints.c.job_id == job_id)
+                .values(external_pending=False)
+            )
     return "已重新排队"
 
 

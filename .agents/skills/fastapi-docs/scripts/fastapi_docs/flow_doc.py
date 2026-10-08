@@ -86,10 +86,12 @@ def operation_table(module: Module, routes: dict[str, list[str]]) -> list[str]:
     ]
     scheduled = {plan.contract for plan in module.schedules}
     queued = {plan.contract for plan in module.jobs}
+    segmented = {plan.contract for plan in module.jobs if plan.segmented}
     for item in module.provides:
         ways = routes.get(item.name, []) if item.entry else ["只供其他模块调用"]
         ways += ["定时计划"] if item in scheduled else []
         ways += ["后台任务"] if item in queued and item not in scheduled else []
+        ways += ["分段提交（游标恢复）"] if item in segmented else []
         way = "<br/>".join(ways) or "没有接到接口或任务"
         errors = "、".join(f"{error.code}（{error.message}）" for error in item.errors) or "无"
         values = [item.action, item.title, item.access, way, errors]

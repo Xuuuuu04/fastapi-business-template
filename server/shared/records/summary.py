@@ -4,6 +4,7 @@
 """
 
 from shared.records.models import RUN_STATUS_TEXT, WRITES_TEXT, RunRecord, StepRecord
+from shared.records.segments import segment_text
 
 
 # 生成一次运行的中文摘要。
@@ -17,6 +18,10 @@ def summarize(run: RunRecord) -> str:
     if notes:
         parts.append(notes)
     parts.append(f"{WRITES_TEXT.get(run.writes, run.writes)}。")
+    if run.segment_number:
+        parts.append(segment_text(run).strip(" ·") + "。")
+    if run.segment_warning:
+        parts.append("提醒：" + run.segment_warning + "。")
     if run.gaps:
         parts.append("记录不完整：" + "；".join(run.gaps) + "。")
     return "".join(parts)
@@ -57,7 +62,8 @@ def running_text(run: RunRecord) -> str:
     current = next((step for step in reversed(run.steps) if step.status == "running"), None)
     state = RUN_STATUS_TEXT.get(run.status, run.status)
     where = f"，当前步骤“{current.title}”" if current else ""
-    return f"“{run.title}”{state}{where}，已用时 {duration(run.elapsed_ms)}。"
+    text = f"“{run.title}”{state}{where}，已用时 {duration(run.elapsed_ms)}。"
+    return text + ("提醒：" + run.segment_warning + "。" if run.segment_warning else "")
 
 
 # 汇总各步骤写下的数据说明。

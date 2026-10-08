@@ -32,6 +32,9 @@ def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str
     result_note = binding.types.notes[flow.result]
     lines = ["flowchart TD", f'    start(["输入：{label(inputs)}"])']
     previous = "start"
+    if any(plan.contract is item and plan.segmented for plan in binding.module.jobs):
+        lines += ['    batch["分段任务：每批独立事务，按游标恢复"]', "    start --> batch"]
+        previous = "batch"
     for index, part in enumerate(flow.steps, start=1):
         current = f"s{index}"
         rule = f"<br/>规则 {label(part.rule)}" if part.rule else ""

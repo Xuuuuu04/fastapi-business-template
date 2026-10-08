@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query, Request
 from app.api.identity import CallerDep, require
 from shared.errors.framework import NotAllowed
 from shared.errors.kinds import BusinessError, Kind
+from shared.jobs.checkpoint_store import list_segments, progress
 from shared.jobs.views import get_job, list_jobs
 
 router = APIRouter(tags=["后台任务"])
@@ -33,7 +34,11 @@ async def job(job_id: str, request: Request, caller: CallerDep) -> dict[str, Any
         raise JobMissing()
     if found.caller_id != caller.id and not caller.can(PERMISSION):
         raise NotAllowed("只能查看自己登记的任务")
-    return asdict(found)
+    result = asdict(found)
+    checkpoint = await progress(request.app.state.services.database, job_id)
+    if checkpoint is not None:
+        result["checkpoint"] = checkpoint
+    return result
 
 
 # 按状态和操作列出最近的任务。
@@ -49,3 +54,19 @@ async def jobs(
     database = request.app.state.services.database
     found = await list_jobs(database, state=state, contract=contract, limit=limit)
     return {"items": [asdict(item) for item in found]}
+
+
+# 查看本任务的段证据，权限与任务详情相同，不返回业务游标原文。
+@router.get("/api/jobs/{job_id}/segments", summary="已提交段", operation_id="job_segments")
+async def job_segments(
+    job_id: str,
+    request: Request,
+    caller: CallerDep,
+    after: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> dict[str, Any]:
+    await job(job_id, request, caller)
+    found = await list_segments(
+        request.app.state.services.database, job_id, after=after, limit=limit
+    )
+    return {"items": found, "next_after": found[-1]["number"] if found else after}
