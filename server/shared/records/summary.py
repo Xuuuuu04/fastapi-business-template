@@ -4,6 +4,7 @@
 """
 
 from shared.records.models import RUN_STATUS_TEXT, WRITES_TEXT, RunRecord, StepRecord
+from shared.records.segments import segment_text
 
 
 # 生成一次运行的中文摘要。
@@ -17,6 +18,8 @@ def summarize(run: RunRecord) -> str:
     if notes:
         parts.append(notes)
     parts.append(f"{WRITES_TEXT.get(run.writes, run.writes)}。")
+    if run.segment_number:
+        parts.append(segment_text(run).strip(" ·") + "。")
     if run.gaps:
         parts.append("记录不完整：" + "；".join(run.gaps) + "。")
     return "".join(parts)

@@ -1,7 +1,6 @@
 """
 任务表的读写：登记、领取、完成、失败、延长期限和期限过期后的处理。
-登记与业务写入在同一事务中提交；领取使用 FOR UPDATE SKIP LOCKED，多个 worker 不会拿到同一个任务。
-每类任务的排队数量用计数行做带条件的原子加一，多个接口实例同时登记也不会超过上限。
+登记与业务写入同事务提交，领取使用 FOR UPDATE SKIP LOCKED；排队计数原子更新。
 """
 
 import hashlib
@@ -19,6 +18,12 @@ from shared.access.caller import Caller
 from shared.data.models import Data
 from shared.db.database import Database
 from shared.errors.framework import DuplicateRequest, QueueFull, StepRuleBroken
+from shared.jobs.checkpoint_store import (
+    create_checkpoint,
+    extend_lease,
+    may_resume,
+    protect_failure,
+)
 from shared.jobs.tables import job_counts, jobs
 from shared.modules.catalog import Catalog
 from shared.modules.contract import Contract
@@ -87,6 +92,8 @@ class JobQueue:
             async with connection.begin_nested():
                 await reserve(connection, item, plan.max_queued)
                 await connection.execute(insert(jobs).values(**row))
+                if plan.segmented:
+                    await create_checkpoint(connection, str(row["id"]))
         except IntegrityError:
             existing = await same_key(connection, item.name, caller.id, key, digest)
             if existing:
@@ -168,6 +175,9 @@ class JobQueue:
         else:
             values["finished_at"] = now
         async with self.database.write() as connection:
+            plan = self.catalog.plan(ticket.contract)
+            if plan is not None and plan.segmented:
+                state = await protect_failure(connection, ticket.id, state, values)
             change = (
                 update(jobs)
                 .where(
@@ -183,18 +193,8 @@ class JobQueue:
         return changed
 
     # 延长执行期限；返回 False 表示任务已不属于这次尝试。
-    async def extend(self, ticket: Ticket, until: float) -> bool:
-        async with self.database.write() as connection:
-            change = (
-                update(jobs)
-                .where(
-                    jobs.c.id == ticket.id,
-                    jobs.c.attempt == ticket.attempt,
-                    jobs.c.state == "running",
-                )
-                .values(lease_until=until, updated_at=time.time())
-            )
-            return (await connection.execute(change)).rowcount == 1
+    async def extend(self, ticket: Ticket, until: float, *, require_current: bool = False) -> bool:
+        return await extend_lease(self.database, ticket, until, require_current=require_current)
 
     # 处理执行期限已过的任务：可安全重复的重新排队，其他的标为结果待确认。
     async def reclaim(self, now: float) -> int:
@@ -263,7 +263,7 @@ async def expire(
 ) -> None:
     plan = catalog.plan(name)
     values: dict[str, Any] = {"updated_at": now, "lease_until": None}
-    if plan is not None and plan.repeat_safe and attempt < max(plan.retry.times + 1, 3):
+    if await may_resume(connection, plan, job_id, attempt):
         values |= {"state": "waiting_retry", "run_after": now, "error_code": "lease_expired"}
         values["error_message"] = "执行期限已过（worker 可能已退出），按可安全重复的约定重新排队"
     else:

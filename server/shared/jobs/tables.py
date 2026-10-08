@@ -3,7 +3,7 @@
 时间列保存 Unix 秒数（浮点数），在 SQLite 和 PostgreSQL 上比较方式一致。
 """
 
-from sqlalchemy import Column, Float, Index, Integer, String, Table, Text, text
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, Table, Text, text
 
 from shared.db.tables import metadata
 
@@ -47,4 +47,34 @@ job_counts = Table(
     metadata,
     Column("contract", String(120), primary_key=True),
     Column("active", Integer, nullable=False, default=0),
+)
+
+# 每个分段任务的当前恢复位置及在途外部写入证明；与业务段一起提交。
+checkpoints = Table(
+    "system_job_checkpoints",
+    metadata,
+    Column(
+        "job_id", String(32), ForeignKey("system_jobs.id", ondelete="CASCADE"), primary_key=True
+    ),
+    Column("number", Integer, nullable=False),
+    Column("cursor_json", Text, nullable=False),
+    Column("total_rows", Integer, nullable=False),
+    Column("external_pending", Boolean, nullable=False),
+)
+
+# 每个已提交段的独立运行编号、行数和耗时，崩溃后仍可查看。
+segments = Table(
+    "system_job_segments",
+    metadata,
+    Column(
+        "job_id", String(32), ForeignKey("system_jobs.id", ondelete="CASCADE"), primary_key=True
+    ),
+    Column("number", Integer, primary_key=True),
+    Column("attempt", Integer, nullable=False),
+    Column("run_id", String(32), nullable=False),
+    Column("cursor_json", Text, nullable=False),
+    Column("rows", Integer, nullable=False),
+    Column("total_rows", Integer, nullable=False),
+    Column("elapsed_ms", Float, nullable=False),
+    Column("committed_at", Float, nullable=False),
 )

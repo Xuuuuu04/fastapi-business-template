@@ -154,6 +154,11 @@ class RunRecord:
     summary: str = ""
     gaps: list[str] = field(default_factory=list)
     source_version: str = ""
+    segment_number: int = 0
+    segment_rows: int | None = None
+    segment_cursor: dict[str, Any] = field(default_factory=dict)
+    segment_total_rows: int = 0
+    segment_committed: bool = False
 
     # 转成可以保存为 JSON 的字典。
     def to_dict(self) -> dict[str, Any]:

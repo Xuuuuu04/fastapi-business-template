@@ -25,6 +25,7 @@ from shared.flow.runtime import Runtime
 from shared.jobs.health import WorkerHealth
 from shared.jobs.queue import JobQueue, Ticket
 from shared.jobs.schedule import Scheduler
+from shared.jobs.segmented import run_segments
 
 log = logging.getLogger("server.jobs")
 
@@ -54,6 +55,8 @@ class Worker:
         self.options = options
         self.scheduler = Scheduler(runtime.catalog.schedules, queue, runtime.database)
         self.tasks: set[asyncio.Task[None]] = set()
+        self.segmented_tasks: set[asyncio.Task[None]] = set()
+        self.stop = asyncio.Event()
         self.health = WorkerHealth(options.health_file)
         self.cycle_failed = False
 
@@ -71,6 +74,7 @@ class Worker:
 
     # 正常空队列也报告健康；领取或维护失败时保留上次成功时间。
     async def loop(self, stop: asyncio.Event) -> None:
+        self.stop = stop
         next_reclaim = next_clean = 0.0
         while not stop.is_set():
             self.cycle_failed = False
@@ -93,13 +97,17 @@ class Worker:
     # 在并发上限内领取任务；领取到任何任务返回 True。
     async def claim_some(self) -> bool:
         claimed = False
-        while len(self.tasks) < self.options.concurrency:
+        while len(self.tasks) < self.options.concurrency and not self.stop.is_set():
             ticket = await guarded("claim", self.queue.claim(time.time()), self.failed_cycle)
             if ticket is None:
                 break
             task = asyncio.create_task(self.execute(ticket))
             self.tasks.add(task)
             task.add_done_callback(self.tasks.discard)
+            plan = self.runtime.catalog.plan(ticket.contract)
+            if plan is not None and plan.segmented:
+                self.segmented_tasks.add(task)
+                task.add_done_callback(self.segmented_tasks.discard)
             claimed = True
         return claimed
 
@@ -108,11 +116,12 @@ class Worker:
         if not self.tasks:
             return
         tasks = tuple(self.tasks)
-        done, pending = await asyncio.wait(tasks, timeout=self.options.shutdown_seconds)
-        for task in pending:
+        _, pending = await asyncio.wait(tasks, timeout=self.options.shutdown_seconds)
+        for task in pending - self.segmented_tasks:
             task.cancel()
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        log.info("worker_stopped finished=%s cancelled=%s", len(done), len(pending))
+        cancelled = sum(task.cancelled() for task in tasks)
+        log.info("worker_stopped finished=%s cancelled=%s", len(tasks) - cancelled, cancelled)
         for result in results:
             if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
                 raise result
@@ -169,14 +178,18 @@ class Worker:
                 raise StaleAttempt()
 
         try:
-            await self.runtime.run(
-                binding.contract,
-                input,
-                caller=caller,
-                request_id=ticket.request_id,
-                job_id=ticket.id,
-                before_commit=finish,
-            )
+            plan = self.runtime.catalog.plan(ticket.contract)
+            if plan is not None and plan.segmented:
+                await run_segments(self.runtime, self.queue, ticket, input, caller, self.stop)
+            else:
+                await self.runtime.run(
+                    binding.contract,
+                    input,
+                    caller=caller,
+                    request_id=ticket.request_id,
+                    job_id=ticket.id,
+                    before_commit=finish,
+                )
         except StaleAttempt:
             log.warning("job_attempt_stale job_id=%s attempt=%s", ticket.id, ticket.attempt)
         except BusinessError as error:
@@ -213,7 +226,13 @@ class Worker:
     ) -> None:
         while True:
             await asyncio.sleep(lease / 3)
-            owned = await guarded("extend", self.queue.extend(ticket, time.time() + lease))
+            plan = self.runtime.catalog.plan(ticket.contract)
+            owned = await guarded(
+                "extend",
+                self.queue.extend(
+                    ticket, time.time() + lease, require_current=bool(plan and plan.segmented)
+                ),
+            )
             if owned is False and runner is not None:
                 log.warning("job_lease_lost job_id=%s", ticket.id)
                 runner.cancel()

@@ -4,7 +4,9 @@
 供人阅读，也供 Agent 按运行编号直接定位问题，不必从头读代码。
 """
 
-from shared.graphs.mermaid import STYLES, label
+import json
+
+from shared.graphs.mermaid import MAX_LABEL, STYLES, label
 from shared.records.models import (
     RUN_STATUS_TEXT,
     STEP_KIND_TEXT,
@@ -13,6 +15,7 @@ from shared.records.models import (
     RunRecord,
     StepRecord,
 )
+from shared.records.segments import segment_text
 from shared.records.summary import duration
 
 
@@ -24,7 +27,10 @@ def run_graph(runs: list[RunRecord]) -> str:
         state = RUN_STATUS_TEXT.get(run.status, run.status)
         lines.append(f'    subgraph run_{run.id}["{label(run.title)}（{state}）"]')
         entry = entries[run.id]
-        text = label(f"{run.contract} · {duration(run.elapsed_ms)}")
+        text = label(
+            f"{run.contract} · {duration(run.elapsed_ms)}" + segment_text(run),
+            limit=None if run.segment_number else MAX_LABEL,
+        )
         style = run.status if run.status in ("ok", "running") else "failed"
         lines.append(f'        {entry}["{text}"]:::{style}')
         previous = entry
@@ -171,6 +177,10 @@ def info_table(run: RunRecord) -> list[str]:
         ("调用者", run.caller),
         ("错误", error_text(run)),
     ]
+    if run.segment_number:
+        rows.append(("分段", segment_text(run).strip(" ·")))
+        rows.append(("恢复游标", json.dumps(run.segment_cursor, ensure_ascii=False)))
+
     if run.gaps:
         rows.append(("记录完整性", "；".join(run.gaps)))
     if run.steps:

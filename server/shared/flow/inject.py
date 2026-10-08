@@ -18,6 +18,7 @@ from shared.errors.framework import StepRuleBroken
 from shared.files.gate import ModuleFiles
 from shared.flow.scope import Scope
 from shared.flow.step import Step
+from shared.jobs.checkpoint import Checkpoint
 from shared.model_calls.gate import ModelGate
 from shared.modules.contract import Contract
 from shared.modules.module import Module
@@ -142,8 +143,16 @@ def simple_tools(
         "caller": lambda: scope.caller,
         "note": lambda: NoteWriter(record),
         "emit": lambda: Emitter(scope, record),
+        "checkpoint": lambda: batch_checkpoint(scope),
     }
     return {name: make() for name, make in makers.items() if name in params}
+
+
+# 只有显式分段的后台任务可取得恢复位置，HTTP与普通任务不能借此改变事务。
+def batch_checkpoint(scope: Scope) -> Checkpoint:
+    if scope.checkpoint is None:
+        raise StepRuleBroken("checkpoint 只能用于 JobPlan(segmented=True) 的后台任务")
+    return scope.checkpoint
 
 
 # 按构造参数名准备存储实现所需的依赖；旧库始终使用独立的只读连接。
@@ -197,6 +206,7 @@ def remote_gate(
         part.title,
         lambda: scope.tx.connection is not None,
         scope.remote_writes,
+        scope.checkpoint.before_write if scope.checkpoint is not None else None,
     )
 
 

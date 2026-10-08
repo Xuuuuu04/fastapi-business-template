@@ -26,6 +26,7 @@ PARAMS = (
     "caller",
     "note",
     "emit",
+    "checkpoint",
 )
 
 

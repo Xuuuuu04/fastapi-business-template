@@ -15,18 +15,19 @@ from typing import TYPE_CHECKING, Any, cast
 
 from opentelemetry import context as otel_context
 from opentelemetry import trace
-from sqlalchemy.ext.asyncio import AsyncConnection
 
 from shared.access.caller import Caller
 from shared.data.models import Data
 from shared.db.database import Database
-from shared.errors.framework import NotAllowed, NotSignedIn, ResultUnknown, StepRuleBroken
+from shared.errors.framework import NotAllowed, NotSignedIn, StepRuleBroken
 from shared.flow.auditing import audit_failure, audit_hook
+from shared.flow.commit import Hook, commit_writes
 from shared.flow.entry_errors import after_external_write, check_access, fill_error, translate
 from shared.flow.heavy import HeavySteps
 from shared.flow.runner import execute
 from shared.flow.scope import Scope, Transaction
 from shared.flow.streaming import stream_events
+from shared.jobs.checkpoint import Checkpoint
 from shared.modules.catalog import Binding, Catalog
 from shared.modules.contract import Contract
 from shared.records.models import RunRecord, StepRecord
@@ -44,7 +45,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("server.runtime")
 
-Hook = Callable[[AsyncConnection, Data, str], Awaitable[None]]
 MAX_DEPTH = 8
 
 
@@ -99,12 +99,14 @@ class Runtime:
         before_commit: Hook | None = None,
         on_start: Callable[[str], None] | None = None,
         emitter: Callable[[str], Awaitable[None]] | None = None,
+        checkpoint: Checkpoint | None = None,
     ) -> Out:
         binding = self.catalog.binding(item)
         if not item.entry:
             raise StepRuleBroken(f"操作 {item.name} 是内部操作，只能由其他模块调用")
         deadline = asyncio.get_running_loop().time() + item.timeout
         scope = Scope(self, caller, request_id, job_id, deadline, tx=Transaction(), emitter=emitter)
+        scope.checkpoint = checkpoint
         run = self.open_run(binding, scope, None, None)
         span = (
             self.telemetry.tracer.start_span(
@@ -144,8 +146,14 @@ class Runtime:
             check_access(item, scope.caller)
             async with asyncio.timeout_at(scope.deadline):
                 result = await execute(binding, input, scope, run)
+            if scope.checkpoint is not None:
+                scope.checkpoint.validate()
+                await scope.tx.writer(self.database, "分段提交")
+                scope.checkpoint.record(run)
             hook = audit_hook(item, scope, before_commit)
             await self.commit(scope.tx, run, hook, result)
+            if scope.checkpoint is not None:
+                scope.checkpoint.record(run, committed=True)
             await self.close_run(run, "ok")
             return result
         except BaseException as error:
@@ -232,22 +240,7 @@ class Runtime:
     async def commit(
         self, tx: Transaction, run: RunRecord, hook: Hook | None, result: Data
     ) -> None:
-        if tx.connection is None:
-            run.writes = "none"
-            if hook is not None:
-                async with self.database.write() as connection:
-                    await hook(connection, result, run.id)
-            return
-        if hook is not None:
-            await hook(tx.connection, result, run.id)
-        try:
-            await tx.connection.commit()
-        except Exception as error:
-            run.writes = "unknown"
-            raise ResultUnknown(
-                f"提交写入时出错（{type(error).__name__}），保存结果尚不能确认"
-            ) from error
-        run.writes = "committed"
+        await commit_writes(self.database, tx, run, hook, result)
 
     # 处理入口调用的失败：回滚写入、整理错误、结束运行记录。
     async def settle(self, scope: Scope, run: RunRecord, error: BaseException) -> BaseException:
@@ -285,6 +278,8 @@ class Runtime:
             started_at=time.time(),
             planned=[part.name for part in binding.flow.steps],
         )
+        if scope.checkpoint is not None:
+            scope.checkpoint.record(run)
         self.recorder.start(run)
         return run
 

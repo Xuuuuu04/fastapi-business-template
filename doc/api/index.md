@@ -172,6 +172,23 @@
 | 200 | Successful Response | object |
 | 422 | Validation Error | HTTPValidationError |
 
+## GET /api/jobs/{job_id}/segments
+
+用途：已提交段
+分组：后台任务
+操作编号：job_segments
+
+| 参数 | 位置 | 必填 | 类型 | 限制 | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| job_id | path | 是 | string |  |  |
+| after | query | 否 | integer | 最小：0 |  |
+| limit | query | 否 | integer | 最小：1；最大：200 |  |
+
+| 状态码 | 含义 | 返回模型 |
+| --- | --- | --- |
+| 200 | Successful Response | object |
+| 422 | Validation Error | HTTPValidationError |
+
 ## GET /api/system/audit
 
 用途：查询操作记录

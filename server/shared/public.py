@@ -20,6 +20,7 @@ from shared.flow.flow import Flow
 from shared.flow.inject import Call, Emitter, Later
 from shared.flow.inject import NoteWriter as Note
 from shared.flow.step import condition, step
+from shared.jobs.checkpoint import Checkpoint
 from shared.jobs.plan import JobPlan, Retry, Schedule
 from shared.model_calls.gate import ModelGate as Model
 from shared.model_calls.prompt import prompt
@@ -34,6 +35,7 @@ __all__ = [
     "BusinessError",
     "Call",
     "Caller",
+    "Checkpoint",
     "CursorPage",
     "Data",
     "Db",
