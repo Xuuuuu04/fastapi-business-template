@@ -23,6 +23,18 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py adopt_modul
 - `new_module` 会建立业务包、测试、业务文档和 HTTP 入口，并更新公共登记。不要复制已有的业务包来当新包。
 - `adopt_modules` 要求旧包已通过全部结构检查，才会写入结构说明。它不改业务代码。
 
+## 新增操作与流程
+
+```bash
+uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_operation customer_contact normalize_text --title 整理文本 --http --preview
+uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_operation customer_contact normalize_text --title 整理文本 --http
+uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipeline customer_contact daily --title 每日流程 --stages select,collect,wait,publish --wait wait
+```
+
+在已有标准模块生成，一次登记public/data/flow/步骤、可选HTTP、规则占位及短测试；各操作默认一个正常和一个规则异常，共用目录夹具。预览不写，报告列实际源码和文档改动。普通操作默认保持普通事务；新流程生成公开阶段、Wait、后台计划、首阶段定时及演练配置。
+
+生成的文本整理规则只作为占位，不代表真实业务完成。先改需求/规则和Data，再补各阶段实现和样例。旧模块已有基线迁移时，新增操作不需要再建表；新表仍单独迁移。add_field暂未提供，字段变更检查reads/writes/接口和文档。
+
 ## 包内的文件分工
 
 | 位置 | 放什么 |
