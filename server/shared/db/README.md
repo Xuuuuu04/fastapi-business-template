@@ -51,7 +51,6 @@ rows = await db.all(
 默认不绑定任何设置，SQLite保持原行为。策略、强制RLS和应用角色权限由产品迁移明确创建。
 不能因为配置了这个字段就认为数据库策略或角色已经验证。
 
-例如产品的策略可以读取 `current_setting('product.org_id', true)`；
-零售已有策略读取`retail.org_id`，升级时配置这个现有名称，不需要重建业务表。
-`retail_object/retail_number/retail_ratio`这类业务域与边界归业务包的`store/`和迁移所有，
-不进入通用模板。已有产品自己的域类型适配暂时保留，按接入说明迁出共享框架。
+例如产品的策略可以读取 `current_setting('product.org_id', true)`。
+业务域的名称、对象大小、小数精度与比率边界归业务包的`store/`和迁移所有，不进入通用模板。
+已有产品可以保留自己的域类型适配，再按产品升级说明迁出共享框架。

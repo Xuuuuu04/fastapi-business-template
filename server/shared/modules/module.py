@@ -8,7 +8,7 @@ identity可声明产品会话解析操作，identity_header可显式指定兼容
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import Table
 
@@ -36,6 +36,7 @@ class Module:
     schedules: tuple[Schedule, ...] = ()
     identity: Contract[Any, Any] | None = None
     identity_header: str = ""
+    identity_token: Literal["jwt", "opaque"] = "jwt"
 
     # 模块的业务文档目录，位于项目根目录的 doc/ 下。
     @property

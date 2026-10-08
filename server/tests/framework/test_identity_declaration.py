@@ -18,7 +18,7 @@ from tests.framework.identity_sample import module, resolve
 from tests.testing_app import make_settings, prepare_test_database_now
 
 
-# 不透明令牌和声明的兼容头走同一解析操作，JWT继续原校验。
+# 不透明令牌由声明选择解析器，兼容头不能覆盖标准头。
 def test_custom_identity_and_jwt_are_both_verified(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     prepare_test_database_now(settings.database_url)
@@ -55,19 +55,6 @@ def test_custom_identity_and_jwt_are_both_verified(tmp_path: Path) -> None:
             ).status_code
             == 401
         )
-        token, _ = issue_token(
-            DEVELOPER,
-            settings.jwt_secret.get_secret_value(),
-            settings.jwt_issuer,
-            settings.jwt_audience,
-            15,
-        )
-        assert (
-            client.get(
-                "/api/system/modules", headers={"Authorization": "Bearer " + token}
-            ).status_code
-            == 200
-        )
 
 
 # 未声明或者模块关闭时，兼容头不能成为额外登录入口。
@@ -94,3 +81,80 @@ def test_bad_identity_declaration_is_rejected(variant) -> None:
         modules = [replace(module, provides={})]
     with pytest.raises(DeclarationError):
         Catalog(modules)
+
+
+# 标准JWT入口按明确声明处理；兼容头仍交给产品会话解析器。
+def test_jwt_token_mode_is_explicit(tmp_path: Path) -> None:
+    settings = make_settings(tmp_path)
+    prepare_test_database_now(settings.database_url)
+    built = build(settings, modules=[replace(module, identity_token="jwt")])
+    token, _ = issue_token(
+        DEVELOPER,
+        settings.jwt_secret.get_secret_value(),
+        settings.jwt_issuer,
+        settings.jwt_audience,
+        15,
+    )
+    with TestClient(create_app(settings, built)) as client:
+        assert (
+            client.get(
+                "/api/system/modules", headers={"Authorization": "Bearer " + token}
+            ).status_code
+            == 200
+        )
+        assert (
+            client.get(
+                "/api/system/modules", headers={"Authorization": "Bearer opaque-valid"}
+            ).status_code
+            == 401
+        )
+        assert (
+            client.get(
+                "/api/system/modules", headers={"X-Legacy-Token": "opaque-valid"}
+            ).status_code
+            == 200
+        )
+
+
+# 两个点不是令牌类型；失败的不透明令牌依然消耗无效凭据额度。
+def test_opaque_failures_are_rate_limited_even_with_dots(tmp_path: Path) -> None:
+    settings = make_settings(tmp_path, request_rate_per_minute=2)
+    prepare_test_database_now(settings.database_url)
+    built = build(settings, modules=[module])
+    with TestClient(create_app(settings, built)) as client:
+        for _ in range(2):
+            assert (
+                client.get(
+                    "/api/system/modules", headers={"Authorization": "Bearer wrong.two.dots"}
+                ).status_code
+                == 401
+            )
+        assert (
+            client.get(
+                "/api/system/modules", headers={"Authorization": "Bearer wrong.two.dots"}
+            ).status_code
+            == 429
+        )
+
+
+# 登录成功不保留完整运行，失败仍保留全部排查记录。
+def test_identity_success_is_not_recorded_but_failure_is(tmp_path: Path) -> None:
+    settings = make_settings(tmp_path)
+    prepare_test_database_now(settings.database_url)
+    built = build(settings, modules=[module])
+    with TestClient(create_app(settings, built)) as client:
+        assert (
+            client.get(
+                "/api/system/modules", headers={"Authorization": "Bearer opaque-valid"}
+            ).status_code
+            == 200
+        )
+        assert not built.recorder.store.rows
+        assert (
+            client.get(
+                "/api/system/modules", headers={"Authorization": "Bearer revoked"}
+            ).status_code
+            == 401
+        )
+        records = list(built.recorder.store.rows.values())
+        assert len(records) == 1 and records[0].status == "failed"

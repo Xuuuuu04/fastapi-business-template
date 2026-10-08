@@ -41,6 +41,9 @@ class Catalog:
         self.identity_header = next(
             (module.identity_header for module in modules if module.identity is not None), ""
         )
+        self.identity_token = next(
+            (module.identity_token for module in modules if module.identity is not None), "jwt"
+        )
         self.bindings: dict[Contract[Any, Any], Binding] = {
             item: Binding(item, module, flow, FieldTypes(flow.work))
             for module in modules

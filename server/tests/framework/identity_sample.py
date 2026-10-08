@@ -48,4 +48,5 @@ module = Module(
     provides={resolve: Flow("解析身份", work=IdentityWork, result="result", steps=[identify])},
     identity=resolve,
     identity_header="X-Legacy-Token",
+    identity_token="opaque",
 )

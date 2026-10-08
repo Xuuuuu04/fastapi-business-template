@@ -30,7 +30,9 @@ async def resolve_session(request: Request, token: str) -> Caller:
         input = operation.input.model_validate({"token": token})
     except ValidationError:
         raise NotSignedIn("登录令牌无效") from None
-    identity = await request.app.state.services.runtime.run(operation, input, caller=ANONYMOUS)
+    identity = await request.app.state.services.runtime.run(
+        operation, input, caller=ANONYMOUS, record_success=False
+    )
     return Caller(
         identity.username, "user", identity.name, frozenset(identity.permissions), identity.org_id
     )

@@ -56,4 +56,5 @@ def module_shape(module: Module) -> dict[str, Any]:
         ],
         "identity": module.identity.name if module.identity is not None else None,
         "identity_header": module.identity_header,
+        "identity_token": module.identity_token,
     }

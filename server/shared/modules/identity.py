@@ -23,6 +23,8 @@ def check_identity(modules: Sequence[Module]) -> list[str]:
     if len(declared) > 1:
         problems.append("只能启用一个登录身份解析操作")
     for module in declared:
+        if module.identity_token not in ("jwt", "opaque"):
+            problems.append(f"模块 {module.name} 的identity_token必须为jwt或opaque")
         operation = module.identity
         if operation is None:
             continue

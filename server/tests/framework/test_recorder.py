@@ -188,3 +188,26 @@ async def test_saved_stale_progress_is_reported_lost() -> None:
     await store.save([run])
     reader = Recorder(store)
     assert (await reader.get("stale")).status == "lost"
+
+
+# 成功仅临时可见，不落进度记录；失败照常保存完整运行。
+@pytest.mark.anyio
+async def test_failure_only_policy_does_not_write_success_progress() -> None:
+    from shared.records.models import RunRecord
+    from shared.records.recorder import Recorder
+    from shared.records.stores import MemoryRunStore
+
+    store = MemoryRunStore(10)
+    recorder = Recorder(store)
+    success = RunRecord("r", "r", "", "", "c", "t", "m", "1", "dev", "", "", "x", 0)
+    recorder.start(success, record_success=False)
+    await recorder.save_progress()
+    assert not store.rows
+    success.status = "ok"
+    await recorder.finish(success)
+    assert not store.rows and not recorder.failure_only
+    failure = RunRecord("f", "f", "", "", "c", "t", "m", "1", "dev", "", "", "x", 0)
+    recorder.start(failure, record_success=False)
+    failure.status = "failed"
+    await recorder.finish(failure)
+    assert list(store.rows) == ["f"] and not recorder.failure_only

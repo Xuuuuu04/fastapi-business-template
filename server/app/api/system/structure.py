@@ -46,6 +46,7 @@ async def modules(request: Request, caller: CallerDep) -> dict[str, Any]:
                 "operations": operations,
                 "identity": module.identity.name if module.identity is not None else None,
                 "identity_header": module.identity_header,
+                "identity_token": module.identity_token,
                 "schedules": [
                     {
                         "name": plan.name,

@@ -45,7 +45,10 @@ async def get_caller(
             raise NotSignedIn("登录令牌无效")
         keys = [settings.jwt_secret, *settings.jwt_previous_secrets]
         try:
-            if token.count(".") != 2 and request.app.state.services.catalog.identity is not None:
+            catalog = request.app.state.services.catalog
+            if (
+                bearer is None or catalog.identity_token == "opaque"
+            ) and catalog.identity is not None:
                 caller = await resolve_session(request, token)
             else:
                 caller = verify_token(
