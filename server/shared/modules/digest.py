@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from shared.modules.module import Module
+from shared.pipelines.plan import FanOut, Stage
 
 
 # 稳定序列化同一份声明，任务与计划参数变化会改变摘要。
@@ -69,17 +70,30 @@ def pipeline_shapes(module: Module) -> list[dict[str, Any]]:
             name=p.name,
             overlap=p.overlap,
             input=p.input.model_json_schema(),
-            stages=[
-                dict(
-                    name=s.name,
-                    operation=s.operation.name,
-                    input_from=s.input_from,
-                    wait=getattr(s, "every", None),
-                    timeout=getattr(s, "timeout", None),
-                    max_parallel=getattr(s, "max_parallel", None),
-                )
-                for s in p.stages
-            ],
+            stages=[stage_shape(stage) for stage in p.stages],
         )
         for p in module.pipelines
     ]
+
+
+# 子阶段、固定来源和结果Data依赖均进入登记摘要，避免接口与worker拿不同配置。
+def stage_shape(stage: Stage) -> dict[str, Any]:
+    shape = dict(
+        name=stage.name,
+        operation=stage.operation.name,
+        input_from=stage.input_from,
+        wait=getattr(stage, "every", None),
+        timeout=getattr(stage, "timeout", None),
+        max_parallel=getattr(stage, "max_parallel", None),
+        freeze_sources=stage.freeze_sources,
+        source=stage.source.model_json_schema() if stage.source else None,
+        members={name: model.model_json_schema() for name, model in stage.members.items()},
+    )
+    if isinstance(stage, FanOut):
+        shape["stages"] = [stage_shape(child) for child in stage.stages]
+        shape["join"] = [
+            type(stage.join).__name__,
+            getattr(stage.join, "success", 1),
+            getattr(stage.join, "required", ()),
+        ]
+    return shape

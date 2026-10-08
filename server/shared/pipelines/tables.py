@@ -2,7 +2,7 @@
 流程运行与阶段记录：周期去重、每组织同流程最多一条活动运行，阶段与后台任务一一关联。
 """
 
-from sqlalchemy import Column, Float, ForeignKey, Index, Integer, String, Table, Text, text
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, Table, Text, text
 
 from shared.db.tables import metadata
 
@@ -17,6 +17,8 @@ runs = Table(
     Column("current_stage", String(64), nullable=False),
     Column("input_json", Text, nullable=False),
     Column("declarations_json", Text, nullable=False),
+    Column("source_json", Text, nullable=True),
+    Column("source_schema_json", Text, nullable=True),
     Column("caller_json", Text, nullable=False),
     Column("created_at", Float, nullable=False),
     Column("updated_at", Float, nullable=False),
@@ -29,9 +31,11 @@ runs = Table(
         "org_id",
         "pipeline",
         unique=True,
-        sqlite_where=text("state IN ('running','waiting_external','unknown','version_blocked')"),
+        sqlite_where=text(
+            "state IN ('running','waiting_external','waiting_members','unknown','version_blocked')"
+        ),
         postgresql_where=text(
-            "state IN ('running','waiting_external','unknown','version_blocked')"
+            "state IN ('running','waiting_external','waiting_members','unknown','version_blocked')"
         ),
     ),
 )
@@ -65,4 +69,44 @@ stages = Table(
     Column("error", Text, nullable=False),
     Index("uq_pipeline_stage", "pipeline_id", "name", unique=True),
     Index("uq_pipeline_stage_job", "job_id", unique=True),
+)
+
+
+members = Table(
+    "pipeline_members",
+    metadata,
+    Column("id", String(32), primary_key=True),
+    Column(
+        "pipeline_id",
+        String(32),
+        ForeignKey("pipeline_runs.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column(
+        "stage_id", String(32), ForeignKey("pipeline_stages.id", ondelete="CASCADE"), nullable=False
+    ),
+    Column("key", String(120), nullable=False),
+    Column("state", String(24), nullable=False),
+    Column("position", Integer, nullable=False),
+    Column("phase_name", String(64), nullable=False),
+    Column("job_id", String(32), nullable=True),
+    Column("input_json", Text, nullable=False),
+    Column("current_input_json", Text, nullable=False),
+    Column("output_json", Text, nullable=True),
+    Column("history_json", Text, nullable=False),
+    Column("declarations_json", Text, nullable=False),
+    Column("wait_until", Float, nullable=True),
+    Column("run_id", String(32), nullable=False),
+    Column("module_version", String(40), nullable=False),
+    Column("attempt", Integer, nullable=False),
+    Column("elapsed_ms", Float, nullable=False),
+    Column("started_at", Float, nullable=True),
+    Column("error", Text, nullable=False),
+    Column("accepted", Boolean, nullable=False, default=False),
+    Column("created_at", Float, nullable=False),
+    Column("updated_at", Float, nullable=False),
+    Column("finished_at", Float, nullable=True),
+    Index("uq_pipeline_member", "stage_id", "key", unique=True),
+    Index("uq_pipeline_member_job", "job_id", unique=True),
+    Index("ix_pipeline_member_state", "stage_id", "state", "key"),
 )

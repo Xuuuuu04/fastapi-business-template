@@ -27,7 +27,12 @@ async def failed(
     run_id: str = "",
 ) -> None:
     stage = await stage_for(connection, job_id)
-    if stage is None or stage["state"] == "succeeded":
+    if stage is None:
+        from shared.pipelines.member_failure import failed as failed_member
+
+        await failed_member(connection, queue, job_id, state, message, run_id)
+        return
+    if stage["state"] == "succeeded":
         return
     root = await root_for(connection, stage["pipeline_id"])
     if root["current_stage"] != stage["name"]:
@@ -58,7 +63,9 @@ async def failed(
 async def recoverable_wait(connection: AsyncConnection, catalog: "Catalog", job_id: str) -> bool:
     stage = await stage_for(connection, job_id)
     if stage is None:
-        return False
+        from shared.pipelines.member_failure import recoverable_wait as member_wait
+
+        return await member_wait(connection, catalog, job_id)
     root = await root_for(connection, stage["pipeline_id"])
     pipeline = catalog.pipelines.get(root["pipeline"])
     if pipeline is None:

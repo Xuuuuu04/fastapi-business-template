@@ -44,4 +44,39 @@ pipeline = Pipeline(
 - `recovery/views`：人工恢复、摘要、阶段运行图。
 - `gate`：执行器生成入口的事务工具。
 
-四阶段独立样例在 `tests/framework/pipeline_sample.py`；不登记预置业务。扇出、固定来源、逾期通知在后续版本提供。
+四阶段独立样例在 `tests/framework/pipeline_sample.py`；不登记预置业务。逾期通知在后续版本提供。
+
+
+## 扇出和固定来源
+
+```python
+pipeline = Pipeline(
+    "collect.daily",
+    "采集后汇算",
+    Begin,
+    (
+        Stage("select", select_sources, freeze_sources=True),
+        FanOut(
+            "requests",
+            plan_requests,
+            stages=(
+                Stage("submit", submit_request, source=Sources),
+                Wait("poll", poll_request, every=30, timeout=10800, max_parallel=8),
+            ),
+            join=All(),
+            max_parallel=8,
+        ),
+        Stage("sum", calculate, source=Sources, members={"requests": Collected}),
+    ),
+)
+```
+
+规划操作在保存步骤里调用 `pipeline.add_members([Member(key=稳定键, input=已声明Data), ...])`。每批最多1000个，单个输入上限16 KiB；大规模规划用PR1分段提交。规划完成后才派发成员，最多 `max_parallel` 个在途成员；队列满了由worker定时继续，不挤满 `max_queued`。所有子阶段同样必须登记公开操作和JobPlan。
+
+首阶段 `freeze_sources=True` 把选定Data封存。后续及成员阶段声明 `source=Sources`，通过 `await pipeline.source(Sources)` 读取，不查询新版本。成员的原始输入也不能同键换内容。
+
+`All()` 要求全部成功。`Ratio(0.9, required=("必需成员键",))` 要求成功占本批总数的比例以及必需成员成功；达标时固定纳入名单，迟到结果只记状态，不混入汇算。框架等当前已启动动作收尾后才进入下一阶段；任何未知外部效果都暂停，不能用比例绕过。
+
+汇算阶段声明 `members={"requests": Collected}`，再用 `await pipeline.results("requests", Collected, after=游标, limit=50)` 读取有界Data页。大产出只放引用。成员失败后人工恢复仅重排失败成员当前子阶段，前面的子阶段、成功成员及分段游标都保留。
+
+运行图先显示成员状态计数，console成员页和 `operations pipelines members` 按键分页看细节、版本、运行号。独立200成员样例在 `tests/framework/fanout_sample.py`。

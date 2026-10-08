@@ -1,7 +1,7 @@
 // 页面调用系统查询和流程恢复接口；所有业务文字按纯文本显示，不执行记录中的内容。
 const notice = document.querySelector('#notice');
 const results = document.querySelector('#results');
-const states = {not_started:'未开始',succeeded:'已完成',queued:'排队中',waiting_external:'等待上游',waiting_retry:'等待重试',unknown:'结果待确认',version_blocked:'版本暂停',cancelled:'已取消',ok:'已完成',failed:'失败',refused:'被拒绝',lost:'失去联系',running:'执行中',skipped:'跳过'};
+const states = {waiting_members:'等待成员',joining:'正在汇合',planned:'成员待派发',not_started:'未开始',succeeded:'已完成',queued:'排队中',waiting_external:'等待上游',waiting_retry:'等待重试',unknown:'结果待确认',version_blocked:'版本暂停',cancelled:'已取消',ok:'已完成',failed:'失败',refused:'被拒绝',lost:'失去联系',running:'执行中',skipped:'跳过'};
 const kinds = {compute:'计算',read:'数据访问',save:'保存',call:'模块调用',model:'大模型',remote:'外部接口'};
 let current = 'modules';
 let pending;
@@ -77,6 +77,7 @@ async function show(path) {
 function render(path, data) {
   document.querySelectorAll('nav button').forEach(node => node.classList.toggle('active', node.dataset.path === path));
   if (path === 'pipelines') return pipelines(data);
+  if (path.startsWith('pipelines/') && path.endsWith('/members')) return memberDetail(data);
   if (path.startsWith('pipelines/')) return pipelineDetail(data);
   if (path === 'modules') return modules(data);
   if (path.startsWith('flows/')) return flow(data);
@@ -210,6 +211,11 @@ function pipelineDetail(data) {
   table(results,['阶段','状态','耗时','实际版本','尝试 / 轮询','运行记录'],data.stages.map(item => [
     item.name,state(item.state),duration(item.elapsed_ms),item.module_version || '未知',
     `${item.attempt} / ${item.poll_count}`,item.run_id ? button('查看运行',() => show(`runs/${item.run_id}`)) : '未知']));
+  results.append(element('p',data.source_fixed ? '本次来源已固定' : '本次来源尚未固定'));
+  data.stages.filter(item => item.members).forEach(item => {
+    results.append(element('p',`${item.name}：${JSON.stringify(item.members.states)}；纳入本次 ${item.members.accepted}`),
+      button('查看成员',() => show(`pipelines/${data.id}/members?stage=${encodeURIComponent(item.name)}`)));
+  });
   source(results,'查看整条流程运行图',data.graph);
   if (['failed','version_blocked','unknown'].includes(data.state)) {
     const schema = element('input'); schema.type = 'checkbox';
@@ -227,5 +233,16 @@ function pipelineDetail(data) {
       if (response.ok) await show(`pipelines/${data.id}`);
       else notice.textContent = result.message || result.detail || '恢复失败';
     }));
+  }
+}
+
+function memberDetail(data) {
+  results.append(element('h2','扇出成员'));
+  table(results,['成员','当前子阶段','状态','纳入本次','耗时','版本','运行'],data.items.map(item => [
+    item.key,item.phase_name,state(item.state),item.accepted ? '是' : '否',duration(item.elapsed_ms),
+    item.module_version || '未知',item.run_id ? button('查看运行',() => show(`runs/${item.run_id}`)) : '未知']));
+  if (data.next_after) {
+    const next = new URLSearchParams(current.split('?')[1]); next.set('after',data.next_after);
+    results.append(button('下一页',() => show(`${current.split('?')[0]}?${next}`)));
   }
 }

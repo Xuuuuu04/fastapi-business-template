@@ -10,6 +10,7 @@ from sqlalchemy import select
 from shared.db.database import Database
 from shared.graphs.mermaid import label
 from shared.jobs.checkpoint_store import progress
+from shared.pipelines.member_views import group_summaries
 from shared.pipelines.tables import runs, stages
 
 
@@ -65,10 +66,15 @@ async def detail(database: Database, run_id: str, *, org_id: str = "*") -> dict[
         item["checkpoint"] = await progress(database, stage["job_id"])
         item["run_url"] = f"/api/system/runs/{stage['run_id']}" if stage["run_id"] else None
         items.append(item)
+    groups = await group_summaries(database, run_id)
+    for item in items:
+        if item["name"] in groups:
+            item["members"] = groups[item["name"]]
     items = complete_stages(json.loads(row["declarations_json"]), items)
     result = summary(dict(row))
     result["stages"] = items
     result["graph"] = graph(items)
+    result["source_fixed"] = row["source_json"] is not None
     return result
 
 

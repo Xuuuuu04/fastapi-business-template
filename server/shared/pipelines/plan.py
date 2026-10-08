@@ -2,7 +2,7 @@
 多阶段流程声明：每个阶段引用已登记的公开后台操作，输入只来自初始Data或已成功阶段。
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
 from typing import Any, Literal, cast
@@ -43,6 +43,9 @@ class Stage:
     name: str
     operation: Contract[Any, Any]
     input_from: str = "previous"
+    freeze_sources: bool = field(default=False, kw_only=True)
+    source: type[Data] | None = field(default=None, kw_only=True)
+    members: dict[str, type[Data]] = field(default_factory=dict, kw_only=True)
 
 
 # 等待阶段每次只检查一次，最多并行执行max_parallel次检查。
@@ -75,3 +78,51 @@ class Pipeline:
             output=PipelineView,
             access=self.access or f"{module}.run",
         )
+
+
+# 全部成员成功后汇合。
+@dataclass(frozen=True)
+class All:
+    pass
+
+
+# 达到成功比例，且必需成员成功后汇合。
+@dataclass(frozen=True)
+class Ratio:
+    success: float
+    required: tuple[str, ...] = ()
+
+
+# 规划操作登记成员，每个成员按同一组公开阶段执行，完成后才推进外层流程。
+@dataclass(frozen=True)
+class FanOut(Stage):
+    stages: tuple[Stage, ...] = ()
+    join: All | Ratio = field(default_factory=All)
+    max_parallel: int = 8
+
+
+# 一个稳定成员键及其声明过的初始Data，规划步骤可以按批登记。
+class Member[Input: Data](Data):
+    key: str = meaning("流程阶段内唯一成员键", min_length=1, max_length=120)
+    input: Input = meaning("成员初始数据")
+
+
+# 已纳入本次汇合的成员产出，始终保留稳定成员键。
+class MemberResult[Output: Data](Data):
+    key: str = meaning("稳定成员键")
+    result: Output = meaning("已确认产出")
+
+
+# 有界成员结果页，大结果继续按引用或游标读取。
+class MemberPage[Output: Data](Data):
+    items: list[MemberResult[Output]] = meaning("本页已纳入汇合的结果")
+    next_after: str = meaning("下一页游标；空表示结束", default="")
+
+
+# 登记、依赖图和摘要使用同一份公开阶段集合，包含扇出内部阶段。
+def stages_of(pipeline: Pipeline) -> tuple[Stage, ...]:
+    return tuple(
+        stage
+        for parent in pipeline.stages
+        for stage in (parent, *(parent.stages if isinstance(parent, FanOut) else ()))
+    )

@@ -27,7 +27,7 @@ from shared.model_calls.gate import ModelGate as Model
 from shared.model_calls.prompt import prompt
 from shared.modules.contract import contract
 from shared.modules.module import Module
-from shared.pipelines.plan import Pipeline, Stage, StartRequest, Wait
+from shared.pipelines.plan import All, FanOut, Member, Pipeline, Ratio, Stage, StartRequest, Wait
 from shared.remote_calls.gate import RemoteGate as RemoteClient
 from shared.remote_calls.remote import remote
 
@@ -57,6 +57,10 @@ __all__ = [
     "NotAllowed",
     "Page",
     "Pipeline",
+    "All",
+    "Ratio",
+    "FanOut",
+    "Member",
     "StartRequest",
     "Stage",
     "Wait",

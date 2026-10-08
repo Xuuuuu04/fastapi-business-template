@@ -26,7 +26,7 @@ from shared.jobs.execution import invoke
 from shared.jobs.health import WorkerHealth
 from shared.jobs.queue import JobQueue, Ticket
 from shared.jobs.schedule import Scheduler
-from shared.pipelines.runner import StageContext
+from shared.pipelines.context import ExecutionContext
 from shared.pipelines.runner import prepare as prepare_stage
 
 log = logging.getLogger("server.jobs")
@@ -97,6 +97,7 @@ class Worker:
                 await guarded("clean", self.runtime.recorder.store.clean(cutoff), self.failed_cycle)
                 next_clean = now + CLEAN_SECONDS
             await guarded("schedule", self.scheduler.tick(now), self.failed_cycle)
+            await guarded("pipelines", self.queue.pipelines.reconcile(), self.failed_cycle)
             claimed = await self.claim_some()
             if not self.cycle_failed:
                 self.health.touch()
@@ -193,7 +194,7 @@ class Worker:
         caller: Caller,
         retries: int,
         wait_after: Any,
-        context: StageContext | None = None,
+        context: ExecutionContext | None = None,
     ) -> None:
         # 在提交前把任务标为完成；尝试已过期时放弃本次写入。
         async def finish(connection: AsyncConnection, result: Data, run_id: str) -> None:
