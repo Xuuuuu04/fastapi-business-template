@@ -86,3 +86,15 @@ uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py job
 在当前数据库版本后增加两张框架表的增量迁移（参考模板 `a8c42f910d37`），
 先在隔离库迁移和检查，再部署；不要拷贝模板初始迁移覆盖产品历史。
 独立十万行强杀恢复样例见 `tests/framework/segment_sample.py` 与 `test_segmented_jobs.py`。
+
+## 多组织定时（2.2）
+
+部署配置 `APP_SCHEDULE_ORG_IDS=["alpha","beta"]` 后，同一计划分别为每个组织登记。
+旧 `APP_SCHEDULE_ORG_ID=alpha` 仍支持。两种配置同时填写时旧编号必须包含在新列表中。
+模块的 `Schedule(org_ids=("alpha",))` 可明确限定范围；`org_ids=()` 表示只运行一次全局任务。
+未填写组织的旧产品继续使用原系统定时身份。组织不从门店或请求内容推定。
+去重键由计划、组织和时段共同确定，使用元组摘要防止分隔符碰撞和超长键。
+升级前已经登记的旧单组织时段按原调用者组织复用，不重复触发。
+
+`Schedule(slot_input_field="request.window_end")` 可把实际计划时段写入输入的datetime字段，
+任务的延迟和重试使用同一份冻结输入，不根据执行当天重新选窗口。字段路径和组织在启动时检查。

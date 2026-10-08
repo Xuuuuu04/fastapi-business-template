@@ -2,6 +2,7 @@
 模块声明 Module：一个业务模块对外说明自己的全部内容，写在模块的 module.py 中。
 provides 把操作约定对应到实现它的流程；store 给出数据访问的实现；
 tables、remotes、prompts、jobs、schedules 分别登记本模块的表、外部系统、提示词、后台任务和定时计划；
+identity可声明产品会话解析操作，identity_header可显式指定兼容凭据头。
 全局只在 app/setup/catalog.py 中列出启用哪些模块，不再重复登记这些内容。
 """
 
@@ -33,6 +34,8 @@ class Module:
     prompts: tuple[Prompt, ...] = ()
     jobs: tuple[JobPlan, ...] = ()
     schedules: tuple[Schedule, ...] = ()
+    identity: Contract[Any, Any] | None = None
+    identity_header: str = ""
 
     # 模块的业务文档目录，位于项目根目录的 doc/ 下。
     @property

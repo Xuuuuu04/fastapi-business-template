@@ -15,6 +15,7 @@ from sqlalchemy import (
     Select,
     Table,
     TextClause,
+    func,
     select,
     update,
 )
@@ -47,6 +48,7 @@ class Db:
         run_id: str = "",
         record: StepRecord | None = None,
         target: str = "database",
+        org_setting: str = "",
     ) -> None:
         self._connection = connection
         self._read_only = read_only
@@ -54,11 +56,13 @@ class Db:
         self._caller = caller
         self._run_id = run_id
         self._record, self._target = record, target
+        self._org_setting = org_setting
 
     # 执行查询并返回全部行，每行可以按列名取值。
     async def all(self, statement: Executable) -> Sequence[RowMapping]:
         with query_record(self._record, statement, "all", self._target) as call:
             self._check(statement)
+            await self._bind_org()
             rows = (await self._connection.execute(statement)).mappings().all()
             if call is not None:
                 call.rows = len(rows)
@@ -68,6 +72,7 @@ class Db:
     async def first(self, statement: Executable) -> RowMapping | None:
         with query_record(self._record, statement, "first", self._target) as call:
             self._check(statement)
+            await self._bind_org()
             row = (await self._connection.execute(statement)).mappings().first()
             if call is not None:
                 call.rows = int(row is not None)
@@ -77,6 +82,7 @@ class Db:
     async def one(self, statement: Executable) -> RowMapping:
         with query_record(self._record, statement, "one", self._target) as call:
             self._check(statement)
+            await self._bind_org()
             row = (await self._connection.execute(statement)).mappings().one()
             if call is not None:
                 call.rows = 1
@@ -86,6 +92,7 @@ class Db:
     async def scalar(self, statement: Executable) -> Any:
         with query_record(self._record, statement, "scalar", self._target):
             self._check(statement)
+            await self._bind_org()
             return await self._connection.scalar(statement)
 
     # 执行插入、修改或删除，返回受影响的行数。
@@ -94,6 +101,7 @@ class Db:
     async def change(self, statement: Executable) -> int:
         with query_record(self._record, statement, "change", self._target) as call:
             self._check(statement)
+            await self._bind_org()
             result = await self._connection.execute(
                 statement, execution_options={"preserve_rowcount": True}
             )
@@ -167,6 +175,22 @@ class Db:
             raise StepRuleBroken(f"步骤“{self._place}”没有声明 saves=True，不能写入数据库")
         async with self._connection.begin_nested():
             yield
+
+    # 产品选择RLS配置名，值只来自可信调用者；空组织和通配身份不扩大数据库权限。
+    async def _bind_org(self) -> None:
+        if not self._org_setting or self._connection.dialect.name != "postgresql":
+            return
+        caller = self._caller
+        org = caller.org_id if caller is not None and caller.org_id != "*" else ""
+        sync = self._connection.sync_connection
+        if sync is None:
+            return
+        transaction = sync.get_transaction()
+        cached = sync.info.get("org_binding")
+        if cached == (transaction, self._org_setting, org):
+            return
+        await self._connection.execute(select(func.set_config(self._org_setting, org, True)))
+        sync.info["org_binding"] = (sync.get_transaction(), self._org_setting, org)
 
     # 只读步骤中遇到写入语句时立刻报错。
     def _check(self, statement: Executable) -> None:

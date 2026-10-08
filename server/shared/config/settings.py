@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from shared.access.keys import ApiKeyConfig
 from shared.access.vault import LOCAL_DATA_KEY
+from shared.jobs.organizations import configured_orgs
 from shared.remote_calls.remote import RemoteConfig
 
 LOCAL_JWT_SECRET = "local-development-only-secret-change-me"
@@ -30,6 +31,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///var/local.db"
     database_pool_size: int = Field(default=10, ge=1, le=200)
     database_wait_seconds: float = Field(default=10, gt=0, le=120)
+    database_org_setting: str = Field(
+        default="", pattern=r"^$|^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$"
+    )
+    schedule_org_id: str = ""
+    schedule_org_ids: list[str] = []
 
     docs: bool = True
     cors: list[str] = []
@@ -90,6 +96,12 @@ class Settings(BaseSettings):
     hsts_seconds: int = Field(default=0, ge=0)
     otel_endpoint: str = ""
     console: bool | None = None
+
+    # 多组织定时配置先校验，避免启动后遗漏某个组织。
+    @model_validator(mode="after")
+    def schedule_organizations(self) -> "Settings":
+        configured_orgs(self.schedule_org_id, self.schedule_org_ids)
+        return self
 
     # 开启健康信号时，为正常轮询和容器检查留出三十秒余量。
     @model_validator(mode="after")

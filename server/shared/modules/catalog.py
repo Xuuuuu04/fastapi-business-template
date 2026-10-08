@@ -3,8 +3,6 @@
 检查不通过就抛出 DeclarationError，一次列出全部问题，服务不会带着错误的声明启动。
 """
 
-import hashlib
-import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -16,6 +14,7 @@ from shared.jobs.plan import JobPlan, Schedule
 from shared.model_calls.prompt import Prompt
 from shared.modules.checks import check_catalog
 from shared.modules.contract import Contract
+from shared.modules.digest import digest_of
 from shared.modules.module import Module
 
 
@@ -36,6 +35,12 @@ class Catalog:
         if problems:
             raise DeclarationError(problems)
         self.modules = {module.name: module for module in modules}
+        self.identity = next(
+            (module.identity for module in modules if module.identity is not None), None
+        )
+        self.identity_header = next(
+            (module.identity_header for module in modules if module.identity is not None), ""
+        )
         self.bindings: dict[Contract[Any, Any], Binding] = {
             item: Binding(item, module, flow, FieldTypes(flow.work))
             for module in modules
@@ -87,20 +92,3 @@ class Catalog:
             for used in (*part.uses, *part.later)
             if used.module != binding.module.name
         ]
-
-
-# 计算全部声明的摘要，用于确认接口和 worker 使用同一份模块目录。
-def digest_of(modules: Sequence[Module]) -> str:
-    shape = []
-    for module in sorted(modules, key=lambda item: item.name):
-        flows = {
-            item.name: [[part.name, part.reads, part.writes, part.saves] for part in flow.steps]
-            for item, flow in sorted(module.provides.items(), key=lambda pair: pair[0].name)
-        }
-        entry = [module.name, module.version, flows]
-        segmented = sorted(plan.contract.name for plan in module.jobs if plan.segmented)
-        if segmented:
-            entry.append({"segmented_jobs": segmented})
-        shape.append(entry)
-    text = json.dumps(shape, ensure_ascii=False, sort_keys=True, default=str)
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]

@@ -83,6 +83,7 @@ def build(
         settings.database_url,
         pool_size=settings.database_pool_size,
         wait_seconds=settings.database_wait_seconds,
+        org_setting=settings.database_org_setting,
     )
     store: RunStore = (
         MemoryRunStore(settings.run_record_limit)

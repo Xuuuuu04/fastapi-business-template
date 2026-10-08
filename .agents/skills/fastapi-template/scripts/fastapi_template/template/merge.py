@@ -15,6 +15,7 @@ from fastapi_template.template.files import (
     safe_path,
     save_provenance,
 )
+from fastapi_template.template.recovery import recovered_patch
 
 
 # 一项更新的内容与状态；冲突项的内容为空，不可应用。
@@ -63,13 +64,19 @@ def update_plan(target: Path, base: Path, source: Path) -> tuple[list[Change], l
     check_base(target, base)
     old, new = managed_files(base), managed_files(source)
     changes = []
+    recovered_manual: set[str] = set()
     for name in sorted(old.keys() | new.keys()):
         path = safe_path(target, name)
         local = path.read_bytes() if path.exists() else None
         change = compare_file(name, old.get(name), local, new.get(name))
+        if change and change.state == "conflict":
+            proof = recovered_patch(name, old.get(name), local, new.get(name))
+            if proof is not None:
+                change = Change(name, "recovered", new.get(name))
+                recovered_manual.update(proof)
         if change:
             changes.append(change)
-    return changes, manual_changes(base, source)
+    return changes, sorted(set(manual_changes(base, source)) | recovered_manual)
 
 
 # 应用前重新读取文件，失败时恢复本次写入；来源更新必须与文件更新一起成功。
