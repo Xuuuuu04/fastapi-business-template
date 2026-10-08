@@ -20,3 +20,15 @@ def segment_text(run: RunRecord) -> str:
         f" · 第{run.segment_number}批 · 本批{rows}行"
         f" · 累计{run.segment_total_rows}行 · {state} · 游标{cursor}"
     )
+
+
+# 提醒超出退出等待预算的批次，不改变提交、停止或恢复行为。
+def warn_slow_batch(run: RunRecord) -> None:
+    budget = run.segment_shutdown_seconds
+    if not run.segment_number or budget is None or run.elapsed_ms <= budget * 1000:
+        return
+    run.segment_warning = (
+        f"本批用时{run.elapsed_ms / 1000:.3f}秒，超过 worker 退出等待时间"
+        f"（job_shutdown_seconds={budget:g}秒）；建议缩小批次，"
+        "或同步调整部署停止宽限，避免部署强杀后重做未提交批次"
+    )

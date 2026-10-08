@@ -15,6 +15,9 @@ from shared.jobs.checkpoint_store import list_segments, progress
 from shared.jobs.tables import jobs
 from shared.jobs.views import get_job
 from shared.jobs.worker import Worker, WorkerOptions
+from shared.records.models import RunRecord
+from shared.records.recorder import mark_lost
+from shared.records.segments import warn_slow_batch
 from shared.records.stores import RunFilter
 from tests.framework.segment_sample import BatchStore, batch
 from tests.framework.test_segmented_jobs import execute, submit
@@ -111,3 +114,49 @@ async def test_segment_graph_and_durable_summary(segmented: Services) -> None:
     assert "&quot;after&quot;: 10000}" in run_graph([final])
     assert "after" in run_report([final], final.id)
     assert "分段任务" in flow_graph(segmented.catalog.binding(batch))
+
+
+# 只在严格超过退出等待预算时提醒；不把等于预算或普通运行当超时。
+@pytest.mark.parametrize(
+    "milliseconds,segmented_run,expected",
+    [
+        (19000, True, False),
+        (20000, True, False),
+        (20001, True, True),
+        (21000, False, False),
+    ],
+)
+def test_batch_shutdown_warning_threshold(milliseconds, segmented_run, expected) -> None:
+    record = RunRecord("r", "r", "", "", "c", "t", "m", "1", "dev", "", "", "x", 0)
+    record.elapsed_ms = milliseconds
+    record.segment_number = 1 if segmented_run else 0
+    record.segment_shutdown_seconds = 20
+    warn_slow_batch(record)
+    assert bool(record.segment_warning) is expected
+    if expected:
+        assert "job_shutdown_seconds=20秒" in record.segment_warning
+
+
+# 实际 worker 预算进入本批运行记录；提醒不改变已提交结果。
+async def test_worker_budget_is_recorded_with_warning(segmented: Services) -> None:
+    job_id = await submit(segmented, total=5000)
+    ticket = await segmented.queue.claim(time.time())
+    assert ticket is not None
+    worker = Worker(segmented.runtime, segmented.queue, [], WorkerOptions(shutdown_seconds=0))
+    await worker.execute(ticket)
+    record = (await segmented.runtime.recorder.recent(RunFilter(job_id=job_id), 1))[0]
+    assert record.segment_committed and record.segment_shutdown_seconds == 0
+    assert record.segment_warning and "提醒：" in record.summary
+    assert "job_shutdown_seconds=0秒" in run_report([record], record.id)
+    assert (await progress(segmented.database, job_id))["total_rows"] == 5000
+
+
+# 执行中的批次也提醒，不能等到部署已经强杀后才记录超时预算。
+def test_running_batch_warns_before_completion(monkeypatch) -> None:
+    record = RunRecord("r", "r", "", "", "c", "t", "m", "1", "dev", "", "", "x", 0)
+    record.segment_number, record.segment_shutdown_seconds = 1, 20
+    monkeypatch.setattr("shared.records.recorder.time.time", lambda: 25)
+    observed = mark_lost(record)
+    assert observed.status == "running" and observed.segment_warning
+    assert "提醒：" in observed.summary and "job_shutdown_seconds=20秒" in observed.summary
+    assert not record.segment_warning

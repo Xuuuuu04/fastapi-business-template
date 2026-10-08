@@ -159,6 +159,8 @@ class RunRecord:
     segment_cursor: dict[str, Any] = field(default_factory=dict)
     segment_total_rows: int = 0
     segment_committed: bool = False
+    segment_shutdown_seconds: float | None = None
+    segment_warning: str = ""
 
     # 转成可以保存为 JSON 的字典。
     def to_dict(self) -> dict[str, Any]:

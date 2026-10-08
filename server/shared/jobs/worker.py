@@ -180,7 +180,8 @@ class Worker:
         try:
             plan = self.runtime.catalog.plan(ticket.contract)
             if plan is not None and plan.segmented:
-                await run_segments(self.runtime, self.queue, ticket, input, caller, self.stop)
+                wait = self.options.shutdown_seconds
+                await run_segments(self.runtime, self.queue, ticket, input, caller, self.stop, wait)
             else:
                 await self.runtime.run(
                     binding.contract,

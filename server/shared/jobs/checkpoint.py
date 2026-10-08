@@ -25,9 +25,11 @@ class Checkpoint:
         before_write: Callable[[], Awaitable[None]],
         *,
         total_rows: int = 0,
+        shutdown_seconds: float | None = None,
     ) -> None:
         self.number = number
         self.total_rows = total_rows
+        self.shutdown_seconds = shutdown_seconds
         self._cursor = json.dumps(cursor, ensure_ascii=False)
         self.before_write = before_write
         self.next_cursor = ""
@@ -71,6 +73,7 @@ class Checkpoint:
     # 运行图显示恢复游标和已确认累计行数，尚未提交的本批明确标记。
     def record(self, run: "RunRecord", *, committed: bool = False) -> None:
         run.segment_number = self.number + 1
+        run.segment_shutdown_seconds = self.shutdown_seconds
         run.segment_cursor = json.loads(self.next_cursor or self._cursor)
         run.segment_rows = self.rows if self.next_cursor else None
         run.segment_total_rows = self.total_rows + (self.rows if committed else 0)

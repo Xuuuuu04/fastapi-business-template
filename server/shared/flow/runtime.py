@@ -32,6 +32,7 @@ from shared.modules.catalog import Binding, Catalog
 from shared.modules.contract import Contract
 from shared.records.models import RunRecord, StepRecord
 from shared.records.recorder import Recorder
+from shared.records.segments import warn_slow_batch
 
 if TYPE_CHECKING:
     from shared.access.vault import Vault
@@ -288,6 +289,7 @@ class Runtime:
         run.status = status
         run.ended_at = time.time()
         run.elapsed_ms = (run.ended_at - run.started_at) * 1000
+        warn_slow_batch(run)
         try:
             await self.recorder.finish(run)
         except Exception:

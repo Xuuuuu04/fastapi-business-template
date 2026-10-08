@@ -26,6 +26,7 @@ async def run_segments(
     input: Data,
     caller: Caller,
     stop: asyncio.Event,
+    shutdown_seconds: float,
 ) -> None:
     binding = runtime.catalog.by_name[ticket.contract]
     number, cursor, total_rows = await checkpoint_store.load(runtime.database, ticket.id)
@@ -40,7 +41,7 @@ async def run_segments(
             ticket, time.time() + plan.lease_seconds, require_current=True
         ):
             raise StaleAttempt()
-        checkpoint = make_checkpoint(runtime, ticket, number, cursor, total_rows)
+        checkpoint = make_checkpoint(runtime, ticket, number, cursor, total_rows, shutdown_seconds)
         commit = commit_batch(queue, ticket, checkpoint)
         await runtime.run(
             binding.contract,
@@ -58,13 +59,20 @@ async def run_segments(
 
 # 写入意图的尝试编号和段号固定在本批，不读取已变化的循环变量。
 def make_checkpoint(
-    runtime: Runtime, ticket: Ticket, number: int, cursor: dict[str, Any], total_rows: int
+    runtime: Runtime,
+    ticket: Ticket,
+    number: int,
+    cursor: dict[str, Any],
+    total_rows: int,
+    shutdown_seconds: float,
 ) -> Checkpoint:
     # 所有层级的外部写入共用这个持久化保护。
     async def before_write() -> None:
         await checkpoint_store.mark_external(runtime.database, ticket, number)
 
-    return Checkpoint(number, cursor, before_write, total_rows=total_rows)
+    return Checkpoint(
+        number, cursor, before_write, total_rows=total_rows, shutdown_seconds=shutdown_seconds
+    )
 
 
 # 固定本批提交点，段证据与业务结果同事务，最后一批同时完成任务。
