@@ -162,6 +162,9 @@ class RunRecord:
     segment_shutdown_seconds: float | None = None
     segment_warning: str = ""
 
+    aliases: list[str] | None = None
+    module_aliases: list[str] | None = None
+
     # 转成可以保存为 JSON 的字典。
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

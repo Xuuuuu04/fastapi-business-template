@@ -1,5 +1,7 @@
 # FastAPI 通用后端模板
 
+找不到该改哪里时，先在 `server/` 执行 `uv run python ../.agents/skills/fastapi-project/scripts/run_project.py locate --query "业务词或旧接口路径" --limit 10 --json`，再按结果执行 `project --operation 模块.操作 --json`。定位只读本地声明和规则文档，不访问数据库；未保留的旧路径关系未知。
+
 ## 这个项目是什么
 
 这是给 AI 开发和迁移业务用的模板，只有公共框架，没有预置业务。用这个模板开始做产品后，在这里写清楚产品是什么、谁来用、有哪些主要模块；详细业务放在 [doc/](doc/)。

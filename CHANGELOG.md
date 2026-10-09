@@ -2,6 +2,13 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 2.11.0（2026-10-09）
+
+- 新增Module/contract可选aliases业务别名；启动检查空值、重复与名称冲突，直接附着声明避免别名目标失效，原步骤/任务/流程引用检查保留。别名进入声明摘要、计算图与新运行图；旧运行记录别名明确未知。
+- fastapi-project新增locate --query 词 --limit N --json，纯本地声明/规则匹配业务词、操作/流程/任务、嵌套字段meaning、规则编号/标题、HTTP路径与模块表，返回有界操作/明细、文件行号和project --operation下一步。已有旧路由自动反查；已移除路径用操作aliases保留映射，不恢复服务。
+- 已有产品接入：更新框架和Skills后无需修改旧短操作，无数据库迁移；按需在Module及contract添加aliases。新填写别名才受新检查，旧产品空别名不新增约束。AGENTS/guide入口人工合入先locate再project --operation的指引；重新export_docs并更新framework.lock。
+- framework.lock更新理由：新增别名声明和检查、静态/运行图记录、只读定位命令及独立测试模块、统一入口与接入说明；不加预置业务，不读取数据库或向量服务。
+
 ## 2.10.0（2026-10-09）
 
 - 新增project business_state：本机模块现状分生成事实/手写判断两部分，Markdown有界摘要，同名JSON完整明细。默认不访问数据库、运行未知；--runs明确只读最近操作/流程、逾期、待确认与观察时刻，不保存正文、SQL参数或连接凭据，历史成功不代替当前业务验收。

@@ -18,6 +18,7 @@ from shared.flow.flow import Flow
 from shared.flow.step import Step
 from shared.jobs.checks import check_schedules, check_segmented_jobs
 from shared.model_calls.prompt import load_prompt
+from shared.modules.aliases import check_aliases
 from shared.modules.contract import Contract
 from shared.modules.identity import check_identity
 from shared.modules.module import STORE_PARAMS, Module
@@ -28,7 +29,7 @@ Provided = dict[Contract[Any, Any], Module]
 
 # 检查全部模块声明。
 def check_catalog(modules: Sequence[Module]) -> list[str]:
-    problems = check_names(modules)
+    problems = check_names(modules) + check_aliases(modules)
     problems += check_identity(modules)
     provided: Provided = {}
     for module in modules:

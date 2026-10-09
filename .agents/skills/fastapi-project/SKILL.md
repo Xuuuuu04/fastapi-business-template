@@ -20,6 +20,8 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py project -
 uv run python ../.agents/skills/fastapi-project/scripts/run_project.py impact --base origin/main --json
 ```
 
+找不到该改哪里时，先在 `server/` 执行 `uv run python ../.agents/skills/fastapi-project/scripts/run_project.py locate --query "业务词或旧接口路径" --limit 10 --json`，再按结果执行 `project --operation 模块.操作 --json`。定位只读本地声明和规则文档，不访问数据库；未保留的旧路径关系未知。
+
 ## 信息来自哪里
 
 | 信息 | 来源 |
