@@ -69,3 +69,5 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_
 ## 向用户汇报时
 
 先说哪些操作现在能用、已经检查了什么、还缺什么。不要把登记的操作数、代码量、测试通过率换算成"迁移完成百分之几"。迁移进度用迁移 Skill 里的业务记录，不要另建一份模块配置。
+
+单操作输出query_budget和query_actual：当前额度、最近实际测量的运行号/结果/源码是否当前；超额失败也保留。没测过或旧记录缺字段显示未知；默认只读本机测试历史，不读业务库。

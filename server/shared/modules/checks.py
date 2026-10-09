@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from shared.access.caller import PUBLIC, SIGNED_IN
 from shared.data.fields import check_notes
+from shared.db.budget import check_budget
 from shared.errors.kinds import BusinessError
 from shared.flow.checks import check_flow
 from shared.flow.flow import Flow
@@ -112,6 +113,7 @@ def check_contract(module: Module, item: Contract[Any, Any], flow: Flow) -> list
     if not isinstance(flow, Flow):
         return [*problems, f"操作 {item.name} 对应的实现必须是 Flow"]
     problems += check_flow(flow, item, module.store is not None, module.prompts, module.remotes)
+    problems += check_budget(item.query_budget, item.name)
     problems += check_notes(item.input, f"操作 {item.name} 的输入")
     problems += check_notes(item.output, f"操作 {item.name} 的输出")
     for error in item.errors:

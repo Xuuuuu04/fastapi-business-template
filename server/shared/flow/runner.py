@@ -10,6 +10,7 @@ import json
 import secrets
 import time
 import traceback
+from dataclasses import asdict
 from typing import Any
 
 from opentelemetry import context as otel_context
@@ -17,6 +18,7 @@ from opentelemetry import trace
 from pydantic_core import to_jsonable_python
 
 from shared.data.models import Data
+from shared.db.budget import DEFAULT_BUDGET, prior_totals
 from shared.errors.framework import StepRuleBroken
 from shared.errors.kinds import BusinessError
 from shared.flow.flow import Flow
@@ -70,6 +72,9 @@ async def run_part(
         reads=list(part.reads),
         writes=list(part.writes),
         database_complete=True,
+        database_explain=scope.runtime.query_policy.explain_enabled(),
+        query_limits=asdict(binding.contract.query_budget or DEFAULT_BUDGET),
+        query_prior=prior_totals(run),
         outputs_recorded=True,
         started_at=time.time(),
     )

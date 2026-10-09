@@ -66,6 +66,7 @@ def run_evidence(run: RunRecord) -> dict[str, Any]:
         "elapsed_ms",
         "gaps",
         "planned",
+        "query_budget",
     )
     return {
         **{name: getattr(run, name) for name in names},

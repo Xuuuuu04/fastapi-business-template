@@ -89,7 +89,11 @@ async def test_200_members_wait_join_and_frozen_sources(fanout: Services) -> Non
     async with fanout.database.write() as connection:
         await connection.execute(insert(versions).values(version=2))
     root = await drain(fanout, run_id)
-    assert root["state"] == "succeeded" and 0 < root["peak"] <= 8
+    assert root["state"] == "succeeded" and 0 < root["peak"] <= 8, (
+        root["state"],
+        root["peak"],
+        root["reason"],
+    )
     async with fanout.database.read() as connection:
         rows = (await connection.execute(select(collected))).mappings().all()
         assert len(rows) == 200 and {row["id"] for row in rows} == set(range(1, 201))

@@ -42,7 +42,7 @@ rows = await db.all(
 
 每步骤最多保留 200 次 SQL 的细节，超出仍统计次数与总用时并标明不完整。表名从 SQLAlchemy 表声明取得，
 视图用 `Table` 声明时同样显示名称；旧库原始 SQL 的表名保持未知。连接取得和事务管理时间包含在步骤或操作总时间中，
-框架内部的认证、队列、运行记录保存不伪装成业务 SQL。数据库执行计划仍使用数据库自己的工具查看。
+框架内部的认证、队列、运行记录保存不伪装成业务 SQL。测试/演练可选择附安全的 EXPLAIN 摘要，见下方。
 
 ## 产品自己的 PostgreSQL 行级策略
 
@@ -56,3 +56,29 @@ rows = await db.all(
 已有产品可以保留自己的域类型适配，再按产品升级说明迁出共享框架。
 
 [ownership.py](ownership.py) 收集明确表归属并保护迁移，登记与旧产品升级见 [迁移说明](../../migrations/README.md)。
+
+## 操作查询额度
+
+从 `shared.public` 导入 `QueryBudget`，在公开约定声明：
+
+```python
+read = contract(
+    "goods.read",
+    "读取商品",
+    input=ReadInput,
+    output=ReadOutput,
+    access="goods.read",
+    query_budget=QueryBudget(queries=20, rows=5000, bytes=64000, repeated=20),
+)
+# module.py仍在provides里登记read和Flow，不另建一份额度配置。
+```
+
+- 额度按一次操作运行（分段任务按每批）累计，包括同步调用的子操作；后台任务另算。queries是通过Db的SQL次数，rows是返回或修改的行数；内部队列/认证/记录保存不混入业务额度。
+- bytes是返回列内容大小：文本按UTF-8，二进制按长度，普通标量按文字长度，JSON字典/列表逐项累计内容（不计容器语法字符），超过32层保持未知。不代表数据库网络流量或Python对象内存；写入不计返回内容。scalar的行数、无法识别的列类型大小、失败查询结果都保持未知。未知次数与已测总量分开列出，不能说未知测量符合额度。
+- 同一文件/存储函数累计超过repeated时提示“疑似循环里逐行查询”，不同SQL调用行合并计数。每步最多200条SQL细节和200种函数累计，超出仍累计总次数/行数/大小，函数定位明确标不完整；子操作位置也最多200种。
+- 未声明使用宽松默认：1000次SQL、100000行、64000000字节、同函数100次，仅警告。旧操作无需改代码。显式声明后APP_ENV=test默认超额失败，在事务提交前检查并回滚；生产永远只记录，不改变业务结果。
+- `APP_QUERY_BUDGET_MODE=warn`让测试只警告；`error`在测试环境连未声明操作也按默认额度失败，用于产品逐项迁移后升级约束。默认auto。本地环境只警告。
+- `APP_QUERY_BUDGET_EXPLAIN=true`只在APP_ENV=test的PostgreSQL启用；已超额查询每步骤最多三份计划，只有SELECT且不含加锁。使用EXPLAIN而非ANALYZE；仅保存节点/表/估计行数/宽度/成本，不保存SQL、Filter、参数。诊断失败标未知，不改变业务事务。
+- 结束后的query_budget写运行JSON、运行图和中文报告；计算图及启动校验读取同一约定。project --operation显示额度与最近测试的测量/结果/源码时效，未测显示未知；drill每阶段列各次运行query_budgets。默认不查业务数据库。
+
+这是运行结束后的检测，不是读取时硬性截断或SQL超时；巨大查询仍可能先耗尽资源。请用Db.page_after或批量查询控制读取，数据库自己的语句超时/索引仍需按产品验证。无新增数据库迁移。

@@ -9,6 +9,7 @@ from shared.cache.gate import ModuleCache
 from shared.data.fields import meaning
 from shared.data.models import CursorPage, Data, Nothing, Page, WorkData
 from shared.db.access import Db
+from shared.db.budget import QueryBudget
 from shared.db.org import org_column
 from shared.db.owner import owner_column
 from shared.db.tables import metadata
@@ -53,6 +54,7 @@ __all__ = [
     "CursorPage",
     "Data",
     "Db",
+    "QueryBudget",
     "Emitter",
     "ModuleCache",
     "ModuleFiles",

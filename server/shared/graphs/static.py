@@ -3,9 +3,11 @@
 静态图只说明允许和计划的关系，实际走了哪条路要看运行记录生成的执行图。
 """
 
+from dataclasses import asdict
 from typing import Any
 
 from shared.data.fields import notes_of
+from shared.db.budget import DEFAULT_BUDGET
 from shared.graphs.imports import import_plan_lines
 from shared.graphs.mermaid import STYLES, label, node_id
 from shared.modules.catalog import Binding, Catalog
@@ -31,17 +33,12 @@ def module_graph(catalog: Catalog) -> str:
 def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str:
     for pipeline in binding.module.pipelines:
         if pipeline.start is binding.contract:
-            return pipeline_graph(pipeline)
+            return pipeline_operation_graph(pipeline, binding)
     flow, item = binding.flow, binding.contract
-    notes = notes_of(item.input)
-    inputs = "、".join(note.meaning or name for name, note in notes.items()) or "无"
     result_note = binding.types.notes[flow.result]
-    aliases = "、".join(item.aliases)
-    alias_text = f"<br/>业务别名：{label(aliases)}" if aliases else ""
-    lines = ["flowchart TD", f'    start(["输入：{label(inputs)}{alias_text}"])']
-    previous = "start"
+    lines, previous = operation_start(binding)
     if any(plan.contract is item and plan.segmented for plan in binding.module.jobs):
-        lines += ['    batch["分段任务：每批独立事务，按游标恢复"]', "    start --> batch"]
+        lines += ['    batch["分段任务：每批独立事务，按游标恢复"]', f"    {previous} --> batch"]
         previous = "batch"
     for index, part in enumerate(flow.steps, start=1):
         current = f"s{index}"
@@ -123,3 +120,22 @@ def pipeline_graph(pipeline: Pipeline) -> str:
                 lines.append(f'  s{index} -.-> c{index}_{child_index}["{text}"]')
         previous = f"s{index}"
     return "\n".join(lines)
+
+
+# 多阶段入口仍是公开操作，流程图同时附上该入口的额度声明。
+def pipeline_operation_graph(pipeline: Pipeline, binding: Binding) -> str:
+    text = label(f"查询额度：{asdict(binding.contract.query_budget or DEFAULT_BUDGET)}", limit=None)
+    return pipeline_graph(pipeline) + f'\n  budget["{text}"]\n  start -.-> budget'
+
+
+# 输入含义、业务别名和额度来自同一个约定，不伪装成业务计算步骤。
+def operation_start(binding: Binding) -> tuple[list[str], str]:
+    item = binding.contract
+    notes = notes_of(item.input)
+    inputs = "、".join(note.meaning or name for name, note in notes.items()) or "无"
+    aliases = "、".join(item.aliases)
+    alias_text = f"<br/>业务别名：{label(aliases)}" if aliases else ""
+    lines = ["flowchart TD", f'    start(["输入：{label(inputs)}{alias_text}"])']
+    text = label(f"查询额度：{asdict(item.query_budget or DEFAULT_BUDGET)}", limit=None)
+    lines += [f'    budget["{text}"]', "    start --> budget"]
+    return lines, "budget"

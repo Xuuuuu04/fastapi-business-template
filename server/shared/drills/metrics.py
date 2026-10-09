@@ -3,6 +3,7 @@
 """
 
 import asyncio
+import json
 import time
 from contextlib import suppress
 from typing import Any
@@ -49,7 +50,6 @@ async def report(database: Database, recorder: Recorder, run_id: str) -> list[di
     result = []
     for row in rows:
         runs = await recorder.recent(RunFilter(job_id=row["job_id"], top_only=False), 10000)
-        sql = slow_sql(runs)
         async with database.read() as connection:
             batches = (
                 (
@@ -63,8 +63,6 @@ async def report(database: Database, recorder: Recorder, run_id: str) -> list[di
             body = await connection.scalar(
                 select(jobs.c.result_json).where(jobs.c.id == row["job_id"])
             )
-        import json
-
         payload = json.loads(body) if body else {}
         confirmed = confirmed_rows(batches, payload)
         elapsed = ((row["finished_at"] or time.time()) - row["created_at"]) * 1000
@@ -81,7 +79,8 @@ async def report(database: Database, recorder: Recorder, run_id: str) -> list[di
                 if confirmed is not None
                 else "未知",
                 run_ids=[run.id for run in runs],
-                slow_sql=sql,
+                slow_sql=slow_sql(runs),
+                query_budgets=query_budgets(runs),
             )
         )
     return result
@@ -103,6 +102,9 @@ def slow_sql(runs: list[Any]) -> list[dict[str, Any]]:
             tables=call.tables,
             source=call.source,
             function=call.function,
+            storage_source=call.storage_source,
+            storage_function=call.storage_function,
+            explain=call.explain,
             elapsed_ms=call.elapsed_ms,
             rows=call.rows,
         )
@@ -111,3 +113,8 @@ def slow_sql(runs: list[Any]) -> list[dict[str, Any]]:
         for call in step.database
     ]
     return sorted(calls, key=lambda call: call["elapsed_ms"], reverse=True)[:5]
+
+
+# 每次运行自己的额度对比，不把多批规模误作单次额度。
+def query_budgets(runs: list[Any]) -> list[dict[str, Any]]:
+    return [dict(run_id=run.id, operation=run.contract, **run.query_budget) for run in runs]

@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     run_record_buffer: int = Field(default=5000, ge=10)
     run_record_days: int = Field(default=14, ge=1)
     step_checks: bool | None = None
+    query_budget_mode: Literal["auto", "warn", "error"] = "auto"
+    query_budget_explain: bool = False
     heavy_concurrency: int = Field(default=4, ge=1, le=64)
 
     model_base_url: str = ""

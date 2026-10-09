@@ -23,9 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.sql import ClauseElement, visitors
 
 from shared.access.caller import SYSTEM, Caller
+from shared.db.explain import attach
 from shared.db.history import history_rows, save_history
 from shared.db.org import check_org
 from shared.db.owner import check_owner
+from shared.db.sizing import rows_bytes, value_bytes
 from shared.db.tracing import query_record
 from shared.errors.framework import InvalidInput, StepRuleBroken
 from shared.errors.kinds import BusinessError
@@ -66,6 +68,8 @@ class Db:
             rows = (await self._connection.execute(statement)).mappings().all()
             if call is not None:
                 call.rows = len(rows)
+                call.bytes = rows_bytes(rows)
+            await attach(self._connection, self._record, statement, call)
             return rows
 
     # 执行查询并返回第一行，没有结果时返回 None。
@@ -76,6 +80,8 @@ class Db:
             row = (await self._connection.execute(statement)).mappings().first()
             if call is not None:
                 call.rows = int(row is not None)
+                call.bytes = rows_bytes([row] if row is not None else [])
+            await attach(self._connection, self._record, statement, call)
             return row
 
     # 执行语句并返回恰好一行；没有或多于一行时报错，适合 insert ... returning。
@@ -86,14 +92,20 @@ class Db:
             row = (await self._connection.execute(statement)).mappings().one()
             if call is not None:
                 call.rows = 1
+                call.bytes = rows_bytes([row])
+            await attach(self._connection, self._record, statement, call)
             return row
 
     # 执行查询并返回第一行第一列的值。
     async def scalar(self, statement: Executable) -> Any:
-        with query_record(self._record, statement, "scalar", self._target):
+        with query_record(self._record, statement, "scalar", self._target) as call:
             self._check(statement)
             await self._bind_org()
-            return await self._connection.scalar(statement)
+            value = await self._connection.scalar(statement)
+            if call is not None:
+                call.bytes = value_bytes(value)
+            await attach(self._connection, self._record, statement, call)
+            return value
 
     # 执行插入、修改或删除，返回受影响的行数。
     # SQLAlchemy 2.0.28 起默认只保证修改和删除的行数；PostgreSQL 上插入会自动带 RETURNING，
@@ -108,6 +120,7 @@ class Db:
             count = int(getattr(result, "rowcount", 0) or 0)
             if call is not None:
                 call.rows = count if count >= 0 else None
+                call.bytes = 0
             return count
 
     # 按位置续读一页：按唯一且可排序的列 key 排序，after 是上一页返回的位置；

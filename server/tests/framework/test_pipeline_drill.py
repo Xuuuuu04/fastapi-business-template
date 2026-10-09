@@ -53,6 +53,9 @@ async def test_100000_rows_original_replay(tmp_path: Path) -> None:
     assert [stage["state"] for stage in result["stages"]] == ["succeeded"] * 5
     parsed = next(stage for stage in result["stages"] if stage["name"] == "parse")
     assert parsed["rows"] == 100000 and parsed["row_evidence"] == "已提交段"
+    assert parsed["query_budgets"]
+    assert all(entry["actual"]["queries"] > 0 for entry in parsed["query_budgets"])
+    assert all("limits" in entry for entry in parsed["query_budgets"])
     assert parsed["slow_sql"] and all(call["elapsed_ms"] > 0 for call in parsed["slow_sql"])
     assert result["memory_peak_bytes"] > 0 and result["coverage"]["replay_stages"] == ["collect"]
     assert result["coverage"]["uncovered_stages"] == []

@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from typing import Any
 
 from fastapi_project.development.pipelines import memberships
+from fastapi_project.development.query_budget import query_status
 
 from shared.graphs.static import flow_graph
 from shared.modules.catalog import Catalog
@@ -54,6 +55,7 @@ def operation_status(
         for part in binding.flow.steps
     ]
     return {
+        **query_status(binding, cases, operation),
         "name": operation,
         "endpoints": [
             e.shape()
