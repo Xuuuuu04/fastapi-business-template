@@ -27,6 +27,7 @@ from shared.jobs.expiry import expire
 from shared.jobs.tables import job_counts, jobs
 from shared.modules.catalog import Catalog
 from shared.modules.contract import Contract
+from shared.operations.capacity import capacity_filter
 from shared.pipelines.engine import PipelineEngine
 from shared.pipelines.failure import failed as pipeline_failed
 from shared.pipelines.storage import is_pipeline_job
@@ -52,9 +53,8 @@ class Ticket:
 class JobQueue:
     # 使用模块目录查找任务声明，使用数据库保存任务。
     def __init__(self, catalog: Catalog, database: Database) -> None:
-        self.catalog = catalog
-        self.database = database
-        self.pipelines = PipelineEngine(self)
+        self.catalog, self.database = catalog, database
+        self.pipelines, self.capacity_enabled = PipelineEngine(self), False
 
     # 在给定的写入事务中登记任务；同一请求编号重复登记时返回原任务。
     async def submit(
@@ -118,6 +118,7 @@ class JobQueue:
                 .limit(1)
                 .with_for_update(skip_locked=True)
             )
+            pick = await capacity_filter(self, connection, pick)
             found = (await connection.execute(pick)).first()
             if found is None:
                 return None
