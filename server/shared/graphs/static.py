@@ -63,6 +63,10 @@ def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str
         edge = f' -->|"条件：{label(part.when.title)}"| ' if part.when else " --> "
         lines.append(f"    {previous}{edge}{current}")
         lines += call_lines(current, part.uses, part.prompts)
+        for endpoint in part.endpoints:
+            target = node_id("e", endpoint.name)
+            text = label(f"上游接口：{endpoint.name} · {endpoint.method} · {endpoint.effect}")
+            lines += [f'    {target}[["{text}"]]', f"    {current} -.-> {target}"]
         for task in part.later:
             target = node_id("j", task.name)
             lines.append(f'    {target}[["后台任务：{label(task.title)}"]]')

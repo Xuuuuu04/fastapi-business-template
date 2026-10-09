@@ -10,6 +10,9 @@
 | [catalog.py](catalog.py) | `Catalog`：检查通过后固定下来的模块目录 |
 | [layout.py](layout.py) | 固定文件位置和结构说明；生成器、旧包采用命令与默认启动共用 |
 
+`Module.endpoints`与步骤`endpoints`登记上游协议，公共对象可跨包复用；
+协议内容、效果及步骤引用进入声明摘要。详见[外部接口](../remote_calls/README.md)。
+
 ## 为什么这样登记
 
 - 全局只在 `app/setup/catalog.py` 列出启用哪些模块；操作、流程、任务、提示词都写在模块自己的 module.py，只写一次。

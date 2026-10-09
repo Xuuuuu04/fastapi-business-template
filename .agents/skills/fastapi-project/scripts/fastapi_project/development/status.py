@@ -3,7 +3,6 @@
 完成比例的单位是计划中的公开操作；没有设计时不计算比例。
 """
 
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -15,11 +14,12 @@ from fastapi_project.development.evidence import (
     latest_full_check,
 )
 from fastapi_project.development.history import fingerprints, module_checks, read_checks
-from fastapi_project.development.pipelines import memberships, overview
+from fastapi_project.development.operations import operation_status
+from fastapi_project.development.pipelines import overview
 from fastapi_project.development.plan import read_plan
 from fastapi_project.development.scenarios import scenario_status
 
-from shared.graphs.static import flow_graph, module_graph
+from shared.graphs.static import module_graph
 from shared.modules.catalog import Catalog
 
 
@@ -33,25 +33,6 @@ def relevant_cases(suite: dict[str, Any], module: str) -> list[dict[str, Any]]:
         or any(identity.startswith(module + ".") for identity in case.get("scenario_ids", []))
         or any(run["operation"].startswith(module + ".") for run in case["runs"])
     ]
-
-
-# 按实际结束状态统计执行次数；错误场景测试中的业务失败不会变成测试失败。
-def execution_counts(cases: list[dict[str, Any]], operation: str, step: str = "") -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for case in cases:
-        if case["outcome"] != "passed":
-            continue
-        for run in case["runs"]:
-            if run["operation"] != operation:
-                continue
-            statuses = (
-                [item["status"] for item in run["steps"] if item["name"] == step]
-                if step
-                else [run["status"]]
-            )
-            for status in statuses:
-                counts[status] = counts.get(status, 0) + 1
-    return counts
 
 
 # 返回本模块最近的各数据库测试与适用于当前代码的测试记录。
@@ -77,66 +58,6 @@ def test_status(
         if suite["current"]:
             current += [case for case in cases if case["current"]]
     return result, current
-
-
-# 一个操作的步骤图与当前位置，全部来自真实模块声明。
-def operation_status(
-    catalog: Catalog, operation: str, cases: list[dict[str, Any]]
-) -> dict[str, Any]:
-    binding = catalog.by_name[operation]
-    recent = last_run(cases, operation)
-    steps = [
-        {
-            "name": part.name,
-            "title": part.title,
-            "source": part.source,
-            "rule": part.rule,
-            "condition": part.when.title if part.when else "",
-            "reads": list(part.reads),
-            "writes": list(part.writes),
-            "calls": [used.name for used in part.uses],
-            "jobs": [used.name for used in part.later],
-            "test_executions": execution_counts(cases, operation, part.name),
-            "last_test": last_execution(cases, operation, part.name),
-        }
-        for part in binding.flow.steps
-    ]
-    return {
-        "name": operation,
-        "pipelines": memberships(catalog, operation),
-        "title": binding.contract.title,
-        "steps": steps,
-        "graph": flow_graph(binding),
-        "test_graph": flow_graph(binding, {step["name"]: step for step in recent["steps"]})
-        if recent
-        else None,
-        "last_test_run": recent,
-        "test_executions": execution_counts(cases, operation),
-    }
-
-
-# 按最近测试的实际运行显示整条路径，不能把多次执行拼成一次成功。
-def last_run(cases: list[dict[str, Any]], operation: str) -> dict[str, Any] | None:
-    return next(passed_runs(cases, operation), None)
-
-
-# 从最近到最早遍历实际通过的测试，失败和跳过的测试不会提供成功证据。
-def passed_runs(cases: list[dict[str, Any]], operation: str) -> Iterator[dict[str, Any]]:
-    for case in reversed(cases):
-        if case["outcome"] != "passed":
-            continue
-        for run in reversed(case["runs"]):
-            if run["operation"] == operation:
-                yield run
-
-
-# 最近一次通过测试中的实际步骤记录；老记录缺少时间时保持未知。
-def last_execution(cases: list[dict[str, Any]], operation: str, name: str) -> dict[str, Any] | None:
-    for run in passed_runs(cases, operation):
-        for step in reversed(run["steps"]):
-            if step["name"] == name:
-                return step
-    return None
 
 
 # 一个模块的结构、规则、最近检查和运行证据。

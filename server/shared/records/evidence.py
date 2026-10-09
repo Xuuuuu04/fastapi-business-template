@@ -45,13 +45,10 @@ def step_evidence(step: StepRecord) -> dict[str, Any]:
         "output_tokens",
         "retries",
     )
-    remote_fields = ("remote", "method", "status", "elapsed_ms", "bytes_out", "bytes_in", "retries")
     result["models"] = [
         {name: getattr(call, name) for name in model_fields} for call in step.models
     ]
-    result["remotes"] = [
-        {name: getattr(call, name) for name in remote_fields} for call in step.remotes
-    ]
+    result["remotes"] = remote_evidence(step)
     return result
 
 
@@ -75,3 +72,20 @@ def run_evidence(run: RunRecord) -> dict[str, Any]:
         "operation": run.contract,
         "steps": [step_evidence(step) for step in run.steps],
     }
+
+
+# 远程调用安全证据与步骤证据使用相同的固定字段原则。
+def remote_evidence(step: StepRecord) -> list[dict[str, Any]]:
+    remote_fields = (
+        "remote",
+        "method",
+        "status",
+        "elapsed_ms",
+        "bytes_out",
+        "bytes_in",
+        "retries",
+        "endpoint",
+        "effect",
+        "outcome",
+    )
+    return [{name: getattr(call, name) for name in remote_fields} for call in step.remotes]

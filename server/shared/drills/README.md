@@ -27,6 +27,9 @@ PostgreSQL连接只创建本任务随机schema，搜索路径不含public，退�
 }
 ```
 
+也可用 `{"endpoint": "upstream.query", "file": "original.json"}` 按Endpoint名回放；
+可选method/path/params仍会核对，使用记录包含接口名。旧清单的精确匹配行为不变。
+
 seed可省略；写外部系统也只能回放已确认响应，不能证明真实发布成功。涉及业务数据和产物的目录不要提交Git。
 
 内部：isolation隔离，replay原件传输，app/setup/drill入口和协调，metrics实际证据。模拟模型结果与create_all建表不证明真实模型、迁移或恢复；这些需要另行验证。

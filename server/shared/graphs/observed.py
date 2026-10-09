@@ -7,6 +7,7 @@
 import json
 
 from shared.graphs.mermaid import MAX_LABEL, STYLES, label
+from shared.graphs.remotes import remote_table
 from shared.records.models import (
     RUN_STATUS_TEXT,
     STEP_KIND_TEXT,
@@ -117,7 +118,7 @@ def external_nodes(node: str, step: StepRecord) -> list[str]:
     calls = [(call.prompt, call.status, call.elapsed_ms) for call in step.models]
     calls += [
         (
-            call.remote,
+            (call.endpoint or call.remote + "（接口未知）") + f" · {call.outcome}",
             "failed"
             if call.error or call.status >= 400
             else "running"
@@ -214,6 +215,7 @@ def run_section(run: RunRecord, is_root: bool) -> list[str]:
     for index, step in enumerate(run.steps, start=1):
         lines.append(step_row(index, step))
     lines += database_table(run)
+    lines += remote_table(run)
     models = [(step.title, call) for step in run.steps for call in step.models]
     if models:
         lines += [

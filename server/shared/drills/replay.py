@@ -22,13 +22,7 @@ class Replay(httpx2.AsyncBaseTransport):
     async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
         params = dict(request.url.params)
         match = next(
-            (
-                item
-                for item in self.entries
-                if item["method"].upper() == request.method
-                and item["path"] == request.url.path
-                and item.get("params", {}) == params
-            ),
+            (item for item in self.entries if matches(item, request, params)),
             None,
         )
         if match is None:
@@ -45,6 +39,7 @@ class Replay(httpx2.AsyncBaseTransport):
         self.used.append(
             dict(
                 remote=self.name,
+                endpoint=request.extensions.get("endpoint", ""),
                 method=request.method,
                 path=request.url.path,
                 file=match["file"],
@@ -63,3 +58,20 @@ class Replay(httpx2.AsyncBaseTransport):
 # 清单只加载声明，不读取业务原件正文；未配置的外部系统得到拒绝回放。
 def transports(manifest: dict[str, Any], root: Path, names: set[str]) -> dict[str, Replay]:
     return {name: Replay(name, manifest.get(name, []), root) for name in names}
+
+
+# 名称回放仍核对显式提供的方法/路径/查询；旧清单保留原精确匹配。
+def matches(item: dict[str, Any], request: httpx2.Request, params: dict[str, str]) -> bool:
+    if "endpoint" in item:
+        if not item["endpoint"] or item["endpoint"] != request.extensions.get("endpoint"):
+            return False
+        return (
+            item.get("method", request.method).upper() == request.method
+            and item.get("path", request.url.path) == request.url.path
+            and ("params" not in item or item["params"] == params)
+        )
+    return (
+        item["method"].upper() == request.method
+        and item["path"] == request.url.path
+        and item.get("params", {}) == params
+    )

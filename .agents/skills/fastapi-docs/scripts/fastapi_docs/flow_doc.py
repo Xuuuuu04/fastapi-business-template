@@ -23,6 +23,7 @@ from shared.graphs.static import flow_graph
 from shared.modules.catalog import Binding, Catalog
 from shared.modules.contract import Contract
 from shared.modules.module import Module
+from shared.remote_calls.endpoint import Endpoint
 
 HEADER = (
     "> 本文件由 `uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py "
@@ -71,7 +72,8 @@ def module_doc(catalog: Catalog, name: str, routes: dict[str, list[str]]) -> str
     lines += operation_table(module, routes)
     for item in module.provides:
         lines += contract_section(catalog.bindings[item])
-    lines += models_section(module.provides)
+    lines += endpoint_section(module)
+    lines += models_section([*module.provides, *module.endpoints])
     lines += tables_section(module.tables)
     return "\n".join(lines).rstrip() + "\n"
 
@@ -122,7 +124,7 @@ def contract_section(binding: Binding) -> list[str]:
 
 
 # 模块操作用到的全部数据模型，包括嵌套的模型，每个只展开一次。
-def models_section(items: Iterable[Contract[Any, Any]]) -> list[str]:
+def models_section(items: Iterable[Contract[Any, Any] | Endpoint[Any, Any]]) -> list[str]:
     models: list[type[BaseModel]] = []
     for item in items:
         collect(item.input, models)
@@ -210,3 +212,27 @@ def yes(value: object) -> str:
 # 整理表格单元格。
 def cell(value: object) -> str:
     return str(value or "").replace("|", "\\|").replace("\n", " ")
+
+
+# 上游接口协议与模型从同一份声明生成，产品文档无需再手写解析格式。
+def endpoint_section(module: Module) -> list[str]:
+    if not module.endpoints:
+        return []
+    lines = [
+        "## 上游接口",
+        "",
+        "| 接口 | 方法与路径 | 效果 | 输入 | 输出 | 待确认 | 确定拒绝 |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for endpoint in module.endpoints:
+        values = [
+            endpoint.name,
+            f"{endpoint.method} {endpoint.path}",
+            endpoint.effect,
+            model_name(endpoint.input),
+            model_name(endpoint.output),
+            str(endpoint.unknown_on),
+            str(endpoint.accepted_statuses),
+        ]
+        lines.append("| " + " | ".join(cell(value) for value in values) + " |")
+    return [*lines, ""]

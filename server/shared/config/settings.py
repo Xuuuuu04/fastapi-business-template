@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     job_health_seconds: float = Field(default=60, ge=10)
 
     remotes: dict[str, RemoteConfig] = {}
+    remote_endpoints_strict: bool = False
     legacy_database_url: str = ""
     cache_url: str = ""
     cache_timeout_seconds: float = Field(default=3, gt=0, le=30)

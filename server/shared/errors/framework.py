@@ -111,6 +111,13 @@ class RemoteResultUnknown(BusinessError):
     message = "写入外部系统时没有得到结果，对方可能已经处理，请检查结果后再决定是否重试"
 
 
+# 上游响应违反声明的字段格式，不把原始正文或取值写入错误。
+class RemoteOutputInvalid(BusinessError):
+    code = "remote_output_invalid"
+    kind = Kind.BROKEN
+    message = "上游响应不符合接口约定"
+
+
 # 表示“外部系统拒绝了请求”的失败，由统一错误入口返回给调用方。
 class RemoteRejected(BusinessError):
     code = "remote_rejected"

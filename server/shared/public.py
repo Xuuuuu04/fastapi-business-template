@@ -38,6 +38,7 @@ from shared.pipelines.plan import (
     StartRequest,
     Wait,
 )
+from shared.remote_calls.endpoint import Endpoint, EndpointReply
 from shared.remote_calls.gate import RemoteGate as RemoteClient
 from shared.remote_calls.remote import remote
 
@@ -55,6 +56,8 @@ __all__ = [
     "ModuleCache",
     "ModuleFiles",
     "RemoteClient",
+    "Endpoint",
+    "EndpointReply",
     "ExactNumber",
     "Flow",
     "JobPlan",

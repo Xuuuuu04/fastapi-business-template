@@ -1,0 +1,144 @@
+"""
+上游协议声明与安全字段校验；不保存上游正文或字段取值。
+"""
+
+import inspect
+import re
+from dataclasses import dataclass, field
+from typing import Any, Literal, get_args
+
+from pydantic import BaseModel, ValidationError
+
+from shared.data.fields import check_notes
+from shared.data.models import Data
+from shared.errors.framework import RemoteOutputInvalid, RemoteResultUnknown
+from shared.records.models import RemoteCallRecord
+
+
+# 接口名称全项目唯一；同一对象可以通过public在多个模块复用。
+@dataclass(frozen=True, eq=False)
+class Endpoint[In: Data, Out: Data]:
+    name: str
+    method: str
+    path: str
+    input: type[In]
+    output: type[Out]
+    effect: Literal["read", "write"]
+    unknown_on: tuple[int, ...] = ()
+    accepted_statuses: tuple[int, ...] = ()
+    source: str = field(init=False, default="")
+
+    # 声明时统一方法大小写；其余问题在启动检查一起给出。
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "method", self.method.upper())
+        frame = inspect.currentframe()
+        try:
+            caller = frame.f_back.f_back if frame and frame.f_back else None
+            if caller:
+                object.__setattr__(self, "source", caller.f_globals.get("__name__", ""))
+        finally:
+            del frame
+
+    # 协议字段和效果进入声明摘要、项目视图和生成文档。
+    def shape(self) -> dict[str, Any]:
+        return dict(
+            name=self.name,
+            source=self.source,
+            method=self.method,
+            path=self.path,
+            effect=self.effect,
+            input=self.input.model_json_schema(),
+            output=self.output.model_json_schema(),
+            unknown_on=self.unknown_on,
+            accepted_statuses=self.accepted_statuses,
+        )
+
+
+# 确定拒绝与成功都保留HTTP状态和已校验Data，不替业务推定受理含义。
+@dataclass(frozen=True)
+class EndpointReply[Out: Data]:
+    status: int
+    data: Out
+
+
+# 输出不合格式时保留有界字段问题；写入成功响应不能据此认定未执行。
+def validate_output[In: Data, Out: Data](
+    endpoint: Endpoint[In, Out], raw: Any, record: RemoteCallRecord
+) -> Out:
+    try:
+        return endpoint.output.model_validate(raw)
+    except ValidationError as error:
+        fields = {}
+        known = field_names(endpoint.output)
+        for issue in error.errors(include_url=False, include_input=False)[:50]:
+            # 额外字段名也可能来自正文，只记录受控模型字段路径。
+            path = ".".join(
+                str(part) if isinstance(part, int) or part in known else "$key"
+                for part in issue["loc"]
+            )
+            if issue["type"] == "extra_forbidden":
+                path = "$extra"
+            if len(path.encode("utf-8")) <= 200:
+                fields[path or "$"] = f"不符合接口字段约定（{issue['type']}）"
+        record.fields = fields
+        record.error = f"上游接口 {endpoint.name} 响应字段校验失败"
+        if endpoint.effect == "write" and record.outcome == "ok":
+            record.outcome = "unknown"
+            raise RemoteResultUnknown(record.error + "，写入结果需要确认", fields=fields) from None
+        raise RemoteOutputInvalid(record.error, fields=fields) from None
+
+
+# 启动时校验协议声明，避免到真实请求时才发现配置错误。
+def endpoint_problems(endpoint: Endpoint[Any, Any]) -> list[str]:
+    place = f"上游接口 {endpoint.name}"
+    problems = []
+    if not re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+", endpoint.name):
+        problems.append(f"{place} 名称必须是系统名.接口名，全部小写")
+    if endpoint.method not in ("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"):
+        problems.append(f"{place} HTTP方法不支持")
+    if (
+        not endpoint.path.startswith("/")
+        or endpoint.path.startswith("//")
+        or "://" in endpoint.path
+        or "{" in endpoint.path
+    ):
+        problems.append(f"{place} 路径必须是固定的站内绝对路径，参数放在input")
+    if endpoint.effect not in ("read", "write"):
+        problems.append(f"{place} effect只能是read或write")
+    for model in (endpoint.input, endpoint.output):
+        if not isinstance(model, type) or not issubclass(model, Data):
+            problems.append(f"{place} input/output必须是Data子类")
+        else:
+            problems += check_notes(model, place)
+    if any(type(code) is not int or not 100 <= code <= 599 for code in endpoint.unknown_on):
+        problems.append(f"{place} unknown_on必须是HTTP状态码")
+    if any(
+        type(code) is not int or not 400 <= code < 500 or code in (408, 499)
+        for code in endpoint.accepted_statuses
+    ):
+        problems.append(f"{place} accepted_statuses只允许除408/499外的4xx")
+    if set(endpoint.unknown_on) & set(endpoint.accepted_statuses):
+        problems.append(f"{place} 待确认状态不能同时声明为确定拒绝")
+    return problems
+
+
+# 嵌套Data/集合的受控字段名白名单，映射中的业务键不进入运行记录。
+def field_names(model: type[BaseModel]) -> set[str]:
+    names: set[str] = set()
+    pending: list[Any] = [model]
+    seen: set[type[BaseModel]] = set()
+    while pending:
+        current = pending.pop()
+        if not isinstance(current, type) or not issubclass(current, BaseModel):
+            pending.extend(get_args(current))
+            continue
+        if current in seen:
+            continue
+        seen.add(current)
+        for name, info in current.model_fields.items():
+            names.add(name)
+            names.update(
+                alias for alias in (info.alias, info.validation_alias) if isinstance(alias, str)
+            )
+            pending.append(info.annotation)
+    return names

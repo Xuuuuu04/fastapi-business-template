@@ -35,6 +35,9 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py impact --
 - 源代码变了，旧的检查结果就过期。失败和跳过的测试不算通过。
 - `--checks 目录` 可以把别处保存的检查记录（如 CI 产出）合并进来。
 
+`project --operation`同时列出步骤使用的上游Endpoint协议；计算图展示声明，
+运行图中的接口名/耗时/状态来自实际调用，旧记录接口名保持未知。
+
 ## 查看运行记录
 
 只有加上 `project --module 模块名 --runs --limit 数量`，才会查询当前配置的数据库。`--limit` 只限制运行记录的条数，不限制测试内容。输出包括运行图、每个步骤产出数据的形状和 SQL 所在位置；不保存 SQL 参数和业务数据原文。

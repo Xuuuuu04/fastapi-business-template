@@ -210,6 +210,8 @@ def remote_gate(
         lambda: scope.tx.connection is not None,
         scope.remote_writes,
         scope.checkpoint.before_write if scope.checkpoint is not None else None,
+        part.endpoints,
+        getattr(scope.runtime.remotes, "strict_endpoints", False),
     )
 
 
