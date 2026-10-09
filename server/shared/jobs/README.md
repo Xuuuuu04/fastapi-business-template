@@ -125,3 +125,19 @@ APP_OPERATIONS按配置开启备份、分段保留、容量和提醒，默认关
 
 `Schedule(slot_input_field="request.window_end")` 可把实际计划时段写入输入的datetime字段，
 任务的延迟和重试使用同一份冻结输入，不根据执行当天重新选窗口。字段路径和组织在启动时检查。
+
+## 固定来源导入与自动对账
+
+`JobPlan(..., segmented=True, repeat_safe=True, import_plan=ImportPlan(...))` 复用分段事务。
+来源版本、范围键、实际目标与预期必须明确；队列自动按计划摘要去重，输入不同会拒绝重复键。
+最后一批 `checkpoint.finish` 后、提交前自动读取目标表对账；短操作及未声明导入的任务不变。
+行数必须完全相等，合计精确相等，质量非空率达到最小值，非空引用必须存在。
+质量字段只统计SQL非NULL（空字符串是否有效由产品规则决定）；空来源默认拒绝，确认空集才声明 `allow_empty=True`。
+仅需行数时可不声明其他指标，但没有登记的指标不代表已验证；金额用ExactNumber/Decimal。
+
+对账失败使任务失败并撤销最后一批；已提交批次保留，不能把恢复工具返回0当作成功。
+任务失败后由产品核对来源与已提交数据，再按原固定范围恢复；不得随意改计划去重键重导。
+运行记录持久化对账实测/预期/通过情况与来源，未到最后一批的对账状态为未知。
+计算图显示对账节点，运行图和报告显示结果。配置 `APP_RUN_RECORDS=database` 保留跨进程证据。
+声明例子与接入步骤见 [迁移Skill](../../../.agents/skills/fastapi-migration/SKILL.md)，
+独立双库样例见 `tests/framework/import_sample.py` 与 `test_import_ownership.py`。

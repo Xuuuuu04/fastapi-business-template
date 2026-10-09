@@ -6,6 +6,7 @@
 
 import json
 
+from shared.graphs.imports import import_node, report_header
 from shared.graphs.mermaid import MAX_LABEL, STYLES, label
 from shared.graphs.remotes import remote_table
 from shared.records.models import (
@@ -48,6 +49,7 @@ def run_graph(runs: list[RunRecord]) -> str:
             lines += database_nodes(node, step)
             lines += external_nodes(node, step)
             previous = node
+        lines += import_node(run, previous)
         lines.append("    end")
     for run in runs:
         for index, step in enumerate(run.steps, start=1):
@@ -206,8 +208,7 @@ def info_table(run: RunRecord) -> list[str]:
 
 # 生成一次运行的步骤表和大模型调用表。
 def run_section(run: RunRecord, is_root: bool) -> list[str]:
-    heading = "## 步骤" if is_root else f"## 下一层：{run.title}（{run.id}）"
-    lines = [heading, ""]
+    lines = report_header(run, is_root)
     if not is_root:
         lines += [run.summary, ""]
     lines += ["| 序号 | 步骤 | 类型 | 状态 | 耗时 | 规则 | 写入 | 说明 | 位置 |"]

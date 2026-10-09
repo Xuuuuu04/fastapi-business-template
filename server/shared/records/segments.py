@@ -19,6 +19,7 @@ def segment_text(run: RunRecord) -> str:
     return (
         f" · 第{run.segment_number}批 · 本批{rows}行"
         f" · 累计{run.segment_total_rows}行 · {state} · 游标{cursor}"
+        + (f" · 导入对账{run.import_report.get('status', '未知')}" if run.import_report else "")
     )
 
 

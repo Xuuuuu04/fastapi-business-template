@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     operations: OperationsConfig = Field(default_factory=OperationsConfig)
 
     database_url: str = "sqlite+aiosqlite:///var/local.db"
+    owned_tables: list[str] = []
+    external_tables: list[str] = []
+    migration_strict: bool = False
     database_pool_size: int = Field(default=10, ge=1, le=200)
     database_wait_seconds: float = Field(default=10, gt=0, le=120)
     database_org_setting: str = Field(

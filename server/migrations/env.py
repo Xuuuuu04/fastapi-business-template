@@ -1,6 +1,6 @@
 """
 Alembic 迁移入口：从模块总目录收集全部表结构，连接地址与服务配置相同。
-关闭某个模块后，它的表会出现在自动生成的删除语句中；删除业务数据前必须人工确认。
+迁移只维护明确登记的表，关闭入口的模块仍保留表归属。
 """
 
 import asyncio
@@ -16,10 +16,12 @@ import shared.records.tables
 from app.setup.catalog import MODULES
 from shared.config.settings import Settings
 from shared.db.database import engine_options
+from shared.db.ownership import ownership
 from shared.db.tables import metadata
 
 config = context.config
 LOADED = (MODULES, shared.jobs.tables, shared.records.tables, shared.access.audit)
+OWNERSHIP = ownership(MODULES, Settings())
 
 
 # 取得连接地址：命令行 -x url=... 优先，否则读取服务配置。
@@ -34,6 +36,7 @@ def run_on(connection: Connection) -> None:
         target_metadata=metadata,
         render_as_batch=connection.dialect.name == "sqlite",
         compare_type=True,
+        include_object=OWNERSHIP.include_object,
     )
     with context.begin_transaction():
         context.run_migrations()

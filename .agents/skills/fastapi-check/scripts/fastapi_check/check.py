@@ -85,6 +85,18 @@ def run_tests(
     return passed and evidence["exit_code"] == 0, {"database": database, **evidence}
 
 
+# 迁移历史与启动使用同一检查，旧产品默认提醒。
+def migration_check() -> bool:
+    from app.setup.catalog import MODULES
+    from shared.config.settings import Settings
+    from shared.db.ownership import check_migrations
+
+    errors = check_migrations(ROOT, MODULES, Settings())
+    for error in errors:
+        print(error, flush=True)
+    return not errors
+
+
 # 保存每轮的检查结果；检查期间源码改变时，该轮不能证明当前版本。
 def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
     from app.setup.catalog import MODULES
@@ -99,7 +111,7 @@ def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
     env["APP_DEVELOPMENT_MODULES"] = json.dumps([] if selection.quick else list(selection.modules))
     selected = steps(selection)
     timings: dict[str, float] = {}
-    results = []
+    results = [("迁移表归属", migration_check())]
     for title, command in selected[:-1]:
         start = perf_counter()
         results.append((title, run(title, command, env)))

@@ -5,6 +5,7 @@
 
 from shared.data.models import Data
 from shared.flow.flow import Flow
+from shared.jobs.imports import check_import
 from shared.jobs.organizations import validate_orgs
 from shared.jobs.slot import check_slot
 from shared.modules.module import Module
@@ -14,6 +15,10 @@ from shared.modules.module import Module
 def check_segmented_jobs(module: Module) -> list[str]:
     problems = []
     for plan in module.jobs:
+        if plan.import_plan is not None:
+            problems += check_import(plan.import_plan, module.tables)
+            if not plan.segmented:
+                problems.append(f"导入任务 {plan.contract.name} 必须声明 segmented=True")
         if plan.cursor is not None and (
             not isinstance(plan.cursor, type) or not issubclass(plan.cursor, Data)
         ):

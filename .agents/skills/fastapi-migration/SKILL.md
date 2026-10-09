@@ -53,6 +53,46 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipelin
 
 旧数据表单独定义在 `server/legacy/`，只通过存储里的只读入口使用，不放进新库的迁移。完整例子见 [日报迁移样板](references/report-example.md)。
 
+## 数据导入计划与对账
+
+恢复工具退出码0只说明命令正常结束，不能证明对象、行数、质量或来源完整。
+先固定来源提交/快照编号、输入范围和不可重复的范围键，分别列出对象清单、业务行数、
+金额等关键字段合计、质量字段最低非空率与引用关系。来源未知时保持未知，先补证据。
+结构恢复和业务数据、质量、来源数据导入分开核对，不能把空库恢复算成功。
+
+在 module.py 的现有JobPlan上登记（从 `shared.public` 导入）：
+
+```python
+import_plan = ImportPlan(
+    source_revision="旧系统固定提交或快照编号",
+    key="门店A-20261008-固定来源范围",
+    reconcile=Reconcile(
+        imported_rows,
+        rows=10000,
+        sums={"amount": Decimal("123456.78")},
+        non_null={"quality": 1.0, "source_revision": 1.0},
+        references=(ImportReference("parent_id", parent_rows.c.id),),
+        where=imported_rows.c.import_key == "门店A-20261008-固定来源范围",
+    ),
+)
+# JobPlan(load, segmented=True, repeat_safe=True, import_plan=import_plan)
+```
+
+目标与引用表登记在本模块tables；金额使用ExactNumber与Decimal。预期来自原件清单，
+不能用导入后的数量反推预期。多来源分别登记计划与范围；where限定本次导入，
+全表导入才省略where。非空率统计SQL非NULL；需要判断空串/业务有效性时增加正式规则步骤。
+来源范围键和对账预期进入声明摘要及队列去重；同计划重复提交复用原任务，输入不同拒绝。
+
+复用分段提交，每批只读写一段并声明checkpoint.advance，最后声明finish。框架在最后一批
+提交前自动对账目标实际数据：行数精确相等、合计精确相等、最低非空率、非空引用完整。
+未登记的指标仍是未验证，不默认替产品选择质量字段。对账不通过任务失败并撤销最后一批，
+之前已提交的批次保留，运行报告记录每个指标预期与实测；对账尚未执行标未知。
+确认来源为空才使用Reconcile(...rows=0, allow_empty=True)，不能为通过而改行数。
+
+生成迁移前先登记表归属，方法见 [迁移说明](../../../server/migrations/README.md)。
+旧产品先处理历史危险动作警告，之后开启APP_MIGRATION_STRICT；外部表只保留，
+不属于本产品维护的表不能删除、改名或改类型。
+
 ## 联合验证
 
 含定时或长流程的迁移，完成条件是：先用 `fastapi-operations drill` 在隔离库按真实规模打通从定时首入口到发布的整条链，再补局部细节。使用录下来的上游原始响应回放，不访问真实系统；记录每阶段耗时、实际行数、最慢SQL、内存峰值、是否需要人工，以及回放和未覆盖阶段。配置与命令见 [系统操作](../fastapi-operations/SKILL.md)。只有样例规模、模拟模型或未覆盖的外部写操作不能算真实业务已验收；原件来源未知时明确标未知。

@@ -157,6 +157,7 @@ class RunRecord:
     summary: str = ""
     gaps: list[str] = field(default_factory=list)
     source_version: str = ""
+    import_report: dict[str, Any] = field(default_factory=dict)
     segment_number: int = 0
     segment_rows: int | None = None
     segment_cursor: dict[str, Any] = field(default_factory=dict)
