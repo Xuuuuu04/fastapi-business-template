@@ -25,10 +25,13 @@ def run_graph(runs: list[RunRecord]) -> str:
     entries = {run.id: f"entry_{run.id}" for run in runs}
     for run in runs:
         state = RUN_STATUS_TEXT.get(run.status, run.status)
+        aliases = "、".join(run.aliases) if run.aliases is not None else "未知（旧记录）"
         lines.append(f'    subgraph run_{run.id}["{label(run.title)}（{state}）"]')
         entry = entries[run.id]
         text = label(
-            f"{run.contract} · {duration(run.elapsed_ms)}" + segment_text(run),
+            f"{run.contract} · {duration(run.elapsed_ms)}"
+            + segment_text(run)
+            + (f" · 业务别名：{aliases}" if aliases else ""),
             limit=None if run.segment_number else MAX_LABEL,
         )
         style = run.status if run.status in ("ok", "running") else "failed"

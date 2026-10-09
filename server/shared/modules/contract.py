@@ -24,6 +24,8 @@ class Contract[In: Data, Out: Data]:
     audit: bool = False
     stream: bool = False
 
+    aliases: tuple[str, ...] = ()
+
     # 约定名称的第一段是提供它的模块名。
     @property
     def module(self) -> str:
@@ -48,5 +50,8 @@ def contract[In: Data, Out: Data](
     timeout: float = 30.0,
     audit: bool = False,
     stream: bool = False,
+    aliases: tuple[str, ...] = (),
 ) -> Contract[In, Out]:
-    return Contract(name, title, input, output, access, errors, entry, timeout, audit, stream)
+    return Contract(
+        name, title, input, output, access, errors, entry, timeout, audit, stream, aliases
+    )

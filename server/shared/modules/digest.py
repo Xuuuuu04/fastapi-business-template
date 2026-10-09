@@ -24,6 +24,12 @@ def module_shape(module: Module) -> dict[str, Any]:
     return {
         "name": module.name,
         "version": module.version,
+        **({"aliases": module.aliases} if module.aliases else {}),
+        **(
+            {"operation_aliases": {c.name: c.aliases for c in module.provides if c.aliases}}
+            if any(c.aliases for c in module.provides)
+            else {}
+        ),
         "flows": {
             item.name: [[part.name, part.reads, part.writes, part.saves] for part in flow.steps]
             for item, flow in sorted(module.provides.items(), key=lambda pair: pair[0].name)

@@ -270,6 +270,8 @@ class Runtime:
             parent_step=step.id if step else "",
             contract=binding.contract.name,
             title=binding.contract.title,
+            aliases=list(binding.contract.aliases),
+            module_aliases=list(binding.module.aliases),
             module=binding.module.name,
             module_version=binding.module.version,
             code_version=self.code_version,

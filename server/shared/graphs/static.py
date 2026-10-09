@@ -16,7 +16,8 @@ from shared.records.models import STEP_KIND_TEXT
 def module_graph(catalog: Catalog) -> str:
     lines = ["flowchart LR"]
     for module in catalog.modules.values():
-        text = label(f"{module.title}（{module.name}，版本 {module.version}）")
+        aliases = f"；别名：{'、'.join(module.aliases)}" if module.aliases else ""
+        text = label(f"{module.title}（{module.name}，版本 {module.version}）{aliases}")
         lines.append(f'    {node_id("m", module.name)}["{text}"]')
     for source, targets in catalog.links().items():
         for target, titles in targets.items():
@@ -34,7 +35,9 @@ def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str
     notes = notes_of(item.input)
     inputs = "、".join(note.meaning or name for name, note in notes.items()) or "无"
     result_note = binding.types.notes[flow.result]
-    lines = ["flowchart TD", f'    start(["输入：{label(inputs)}"])']
+    aliases = "、".join(item.aliases)
+    alias_text = f"<br/>业务别名：{label(aliases)}" if aliases else ""
+    lines = ["flowchart TD", f'    start(["输入：{label(inputs)}{alias_text}"])']
     previous = "start"
     if any(plan.contract is item and plan.segmented for plan in binding.module.jobs):
         lines += ['    batch["分段任务：每批独立事务，按游标恢复"]', "    start --> batch"]

@@ -42,6 +42,8 @@ class Module:
     identity_token: Literal["jwt", "opaque"] = "jwt"
     pipelines: tuple["Pipeline", ...] = ()
 
+    aliases: tuple[str, ...] = ()
+
     # 模块的业务文档目录，位于项目根目录的 doc/ 下。
     @property
     def doc(self) -> str:
