@@ -2,6 +2,34 @@
 
 耗时同步计算使用 `heavy=True`，只接受 `data`。`APP_HEAVY_CONCURRENCY` 默认每进程 4 个实际工作；等待准入沿用操作期限，请求取消不提前归还线程额度，真实工作结束后才释放，尚未开始的取消计算会跳过。停止服务会唤醒并拒绝等待准入的调用。同步函数无法安全强制停止，计算自身必须有限结束；需要硬停止的任务应使用进程或独立计算服务及相应资源限制。
 
+## 先选执行方式
+
+| 方式 | 什么时候用 | 简短示例 |
+| --- | --- | --- |
+| 普通操作 | 短计算/短保存，结果必须一次成功或一起回滚 | 修改一条联系人：`Flow("修改", work=Work, result="result", steps=[validate, save])`，save声明saves=True |
+| 分段提交 | 固定输入范围内批量处理，各批可以独立生效，要保留游标继续 | 十万行解析：`JobPlan(parse, segmented=True, repeat_safe=True, cursor=Cursor)`；每批5000行，保存后checkpoint.advance，下批继续 |
+| 多阶段流程 | 采集、等待、汇算、发布等各有事务/失败恢复点，不能一次持有事务等待 | `Pipeline("report.daily", "日报", Begin, (...))`实际写法见下方：每个Stage引用公开操作，Wait只检查一次，不在步骤里sleep循环 |
+
+Pipeline需要标题和明确输入Data，例如：
+
+```python
+daily = Pipeline(
+    "report.daily",
+    "经营日报",
+    Begin,
+    (
+        Stage("collect", collect),
+        Wait("wait", check_ready, every=30, timeout=3600),
+        Stage("calculate", calculate),
+        Stage("publish", publish),
+    ),
+)
+# 在module.py登记pipelines=(daily,)，各阶段仍登记provides/jobs。
+# calculate内部若处理很多行，可同时声明分段JobPlan与Cursor。
+```
+
+这些是已定义操作的登记片段，不代替Data/步骤实现。普通操作保持原写法；Pipeline不能把一段长函数包成Stage就算完成，应拆出独立事务边界；阶段数据<=16KiB，大正文传原件/结果引用。完整独立样例：tests/framework/drill_sample.py（定时→采集→等待→分段解析→汇算→CSV），分段恢复见jobs README，多阶段/扇出/截止见[流程说明](../pipelines/README.md)。
+
 ## 开发者写法
 
 ```python

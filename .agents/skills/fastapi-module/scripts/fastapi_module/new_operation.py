@@ -177,6 +177,13 @@ def generate(
         PROJECT / "doc/api/openapi.json",
         PROJECT / "doc/api/index.md",
         PROJECT / "doc" / module / "flows.md",
+        PROJECT / ".agents/records/business-state/system_ops.md",
+        PROJECT / ".agents/records/business-state/system_ops.json",
+    ]
+    docs += [
+        PROJECT / ".agents/records/business-state" / f"{path.parent.name}.{suffix}"
+        for path in (ROOT / "service").glob("*/module.py")
+        for suffix in ("md", "json")
     ]
     before = snapshot([*values, *docs])
     written = write(values, preview=preview)

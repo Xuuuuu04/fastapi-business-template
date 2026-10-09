@@ -35,6 +35,8 @@ uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check
 
 ## 去哪里找信息
 
+开工先读本机 `.agents/records/business-state/模块名.md` 的生成摘要与手写业务判断、外部依赖、下一步；收工更新手写部分，再用 `run_project.py business_state --module 模块名` 刷新生成部分。授权确认当前DB后加`--runs`才读取最近运行、逾期和待确认，不读取时明确未知。生成超过24小时或源码/依赖/声明变化，检查报错，不自动刷新；完整生成明细在同名JSON，默认不展开。记录仅本机，新代理/新机器首次生成，不当作业务验收或部署状态。
+
 开工先读摘要，不要一上来就展开完整的测试记录。下面的命令都在 `server/` 执行：
 
 ```bash
@@ -58,7 +60,7 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py impact --
 
 相关业务文档从 [doc/README.md](doc/README.md) 进入，每个包都有需求、规则和自动生成的流程。设计看 [开发图](doc/development.md)，规则标注和待确认事项看 [进度](doc/progress.md)。没做完的事用现有的产品任务记录，或本机任务记录。字段含义、接口路径、表结构都在自动生成的流程文档里，规则文档里不重复写。
 
-要迁移旧系统，先读 [业务迁移 Skill](.agents/skills/fastapi-migration/SKILL.md)。默认由一个代理持续推进，每次完成一项从输入到页面都能用的业务，开工前先定好完成条件。依赖顺序只用来安排当前这项业务，不要求整个项目先把底层全做完。
+要迁移旧系统，先读业务现状和 [业务迁移 Skill](.agents/skills/fastapi-migration/SKILL.md)。含定时或长流程时先用new_pipeline搭整链，再逐阶段实现，用operations drill按真实规模原件回放跑通整链后补局部细节。默认由一个代理持续推进，每次完成一项从输入到页面都能用的业务，开工前先定好完成条件。依赖顺序只用来安排当前这项业务，不要求整个项目先把底层全做完。
 
 ## 数据怎么流动
 
