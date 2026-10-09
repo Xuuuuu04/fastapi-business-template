@@ -4,18 +4,24 @@
 由 conftest.py 通过 pytest_plugins 加载。
 """
 
+import json
+import secrets
 from collections.abc import Iterator
+from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from shared.flow.runtime import Runtime
 from shared.graphs.observed import run_report
+from shared.records.evidence import run_evidence
 from shared.records.models import RunRecord
 
 FINISHED: list[RunRecord] = []
 MAX_REPORTS = 3
 FAILED = ("failed", "refused")
+FAILURE_FILE = pytest.StashKey[Path]()
 
 
 # 在运行结束时记下运行记录，供测试失败时生成报告。
@@ -48,6 +54,10 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[Any]) -> 
         return
     for title, text in failure_reports(FINISHED):
         report.sections.append((title, text))
+    folder = Path(__file__).resolve().parents[1] / "var/development/failures"
+    path = save_finished_runs(folder, item.nodeid, FINISHED)
+    item.stash[FAILURE_FILE] = path
+    report.sections.append(("完整运行证据", f"{path}（成员夹具结束前补入流程和任务状态）"))
 
 
 # 找出失败的最外层运行，每个生成一份包含下层调用的报告，最多三份。
@@ -63,3 +73,24 @@ def failure_reports(runs: list[RunRecord]) -> list[tuple[str, str]]:
 # 按开始时间排列，报告中最外层运行在前。
 def started(run: RunRecord) -> float:
     return run.started_at
+
+
+# 断言失败也保存成功操作，避免执行前拒绝或汇合失败时没有任何证据。
+def save_finished_runs(folder: Path, nodeid: str, runs: list[RunRecord]) -> Path:
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{secrets.token_hex(12)}.json"
+    safe = [replace(run, caller="未保存", request_id="", segment_cursor={}) for run in runs]
+    roots = [run for run in safe if not run.parent_id]
+    reports = []
+    for root in roots:
+        tree = sorted((run for run in safe if run.root_id == root.id), key=started)
+        reports.append(dict(id=root.id, text=run_report(tree, root.id)))
+    path.write_text(
+        json.dumps(
+            dict(nodeid=nodeid, runs=[run_evidence(run) for run in runs], reports=reports),
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return path

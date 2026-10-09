@@ -2,88 +2,31 @@
 200成员完整链验收，证明队列有界、固定来源及成功成员结果不重复不遗漏。
 """
 
-import time
-from pathlib import Path
-
 import pytest
 from sqlalchemy import func, insert, select
 
-from app.setup.build import Services, build
-from shared.jobs.tables import job_counts, jobs
+from app.setup.build import Services
 from shared.jobs.worker import Worker, WorkerOptions
 from shared.pipelines.plan import StartRequest
-from shared.pipelines.tables import members, runs, stages
+from shared.pipelines.tables import members, stages
+from tests.framework.fanout_driver import drain, fanout, now, start
 from tests.framework.fanout_sample import (
     Begin,
     collected,
     module,
     pipeline,
-    sample_metadata,
     versions,
 )
 from tests.framework.test_pipelines import CALLER
-from tests.testing_app import make_settings, prepare_test_database
 
 pytestmark = pytest.mark.anyio
-
-
-# 所有成员样例共用独立夹具，不增加业务模块；双库运行同一套用例。
-@pytest.fixture
-async def fanout(tmp_path: Path):
-    settings = make_settings(tmp_path)
-    await prepare_test_database(settings.database_url)
-    built = build(settings, modules=[module])
-    async with built.database.write() as connection:
-        await connection.run_sync(sample_metadata.drop_all)
-        await connection.run_sync(sample_metadata.create_all)
-        await connection.execute(insert(versions).values(version=1))
-    try:
-        yield built
-    finally:
-        async with built.database.write() as connection:
-            await connection.run_sync(sample_metadata.drop_all)
-        await built.close()
-
-
-# 通过公开流程入口登记，成员数量只作为有界初始Data。
-async def start(services: Services, count: int = 200) -> str:
-    data = pipeline.start.input(
-        request=StartRequest[Begin](data=Begin(count=count), cycle_key="members")
-    )
-    return await services.runtime.submit(pipeline.start, data, caller=CALLER)
-
-
-# 用实际worker逐个领取，定时检查成员池，记录真实峰值而非预设并发数。
-async def drain(services: Services, run_id: str, *, limit: int = 2000) -> dict:
-    worker = Worker(services.runtime, services.queue, [], WorkerOptions())
-    peak = 0
-    for _ in range(limit):
-        await services.queue.pipelines.reconcile()
-        async with services.database.read() as connection:
-            active = await connection.scalar(
-                select(func.count())
-                .select_from(members.join(jobs, members.c.job_id == jobs.c.id))
-                .where(jobs.c.state.in_(("queued", "running", "waiting_retry")))
-            )
-            peak = max(peak, int(active or 0))
-            counts = (await connection.execute(select(job_counts.c.active))).scalars().all()
-            assert all(count <= 3 for count in counts)
-            root = (
-                (await connection.execute(select(runs).where(runs.c.id == run_id))).mappings().one()
-            )
-            if root["state"] in ("succeeded", "failed", "unknown", "version_blocked"):
-                return dict(root, peak=peak)
-        ticket = await services.queue.claim(time.time() + 0.05)
-        if ticket is None:
-            raise AssertionError("活动流程没有可推进成员或明确等待任务")
-        await worker.execute(ticket)
-    raise AssertionError("成员链没有在声明阶段数内结束")
+__all__ = ["fanout", "drain", "start"]
 
 
 # 第一阶段后插入新的上游版本，200个成员仍全部消费旧的固定来源。
 async def test_200_members_wait_join_and_frozen_sources(fanout: Services) -> None:
     run_id = await start(fanout)
-    ticket = await fanout.queue.claim(time.time())
+    ticket = await fanout.queue.claim(now())
     assert ticket is not None
     await Worker(fanout.runtime, fanout.queue, [], WorkerOptions()).execute(ticket)
     async with fanout.database.write() as connection:
@@ -207,7 +150,7 @@ async def test_unknown_member_requires_separate_confirmation(fanout: Services, m
     worker = Worker(fanout.runtime, fanout.queue, [], WorkerOptions())
     # 把暂停后仍排队的动作领取为暂停状态，不继续访问上游。
     for _ in range(20):
-        ticket = await fanout.queue.claim(time.time() + 1)
+        ticket = await fanout.queue.claim(now() + 1)
         if ticket is None:
             break
         await worker.execute(ticket)
@@ -251,7 +194,7 @@ async def test_member_version_pause_and_resume(fanout: Services) -> None:
     run_id = await start(fanout, 6)
     worker = Worker(fanout.runtime, fanout.queue, [], WorkerOptions())
     for _ in range(2):
-        ticket = await fanout.queue.claim(time.time())
+        ticket = await fanout.queue.claim(now())
         assert ticket is not None
         await worker.execute(ticket)
     group = pipeline.stages[1]
@@ -264,7 +207,7 @@ async def test_member_version_pause_and_resume(fanout: Services) -> None:
     assert (await drain(fanout, run_id))["state"] == "version_blocked"
     # 领取暂停的排队任务，使它们释放队列名额。
     for _ in range(10):
-        ticket = await fanout.queue.claim(time.time() + 1)
+        ticket = await fanout.queue.claim(now() + 1)
         if ticket is None:
             break
         await worker.execute(ticket)
