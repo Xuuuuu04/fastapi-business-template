@@ -3,6 +3,7 @@
 只根据记录中已有的事实填固定句式，不调用大模型，不猜测原因；不知道的就写不知道。
 """
 
+from shared.db.budget import budget_text
 from shared.records.models import RUN_STATUS_TEXT, WRITES_TEXT, RunRecord, StepRecord
 from shared.records.segments import segment_text
 
@@ -22,6 +23,12 @@ def summarize(run: RunRecord) -> str:
         parts.append(segment_text(run).strip(" ·") + "。")
     if run.segment_warning:
         parts.append("提醒：" + run.segment_warning + "。")
+    if (
+        run.status == "ok"
+        and run.query_budget
+        and (run.query_budget["exceeded"] or run.query_budget["repeated"])
+    ):
+        parts.append(budget_text(run.query_budget))
     if run.gaps:
         parts.append("记录不完整：" + "；".join(run.gaps) + "。")
     return "".join(parts)

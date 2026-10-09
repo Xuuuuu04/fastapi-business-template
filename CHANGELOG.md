@@ -2,6 +2,14 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 2.14.0（2026-10-09）
+
+- 操作contract新增QueryBudget(queries/rows/bytes/repeated)，启动校验、声明摘要与计算图共同读取。结束时累计Db及同步子操作SQL，比较额度并记录步骤/存储函数位置；SQL明细截断后仍累计，反复调用同函数明确提示疑似循环逐行查询。
+- 显式额度在测试/演练默认超额失败，事务提交前检查；生产只记录继续执行。未声明旧操作使用宽松默认额度，仅警告。大小是返回列内容大小，不代表网络流量或对象内存；无法测量的行数/大小明确未知。检测在结束时，不替代数据库语句超时和有界分页。
+- project --operation列额度与最近测试实测/失败/源码时效，drill阶段列query_budgets；运行图/报告列对比及位置。测试环境PostgreSQL可选EXPLAIN安全摘要，只解释SELECT、不ANALYZE、不保存条件参数。
+- 已有产品接入：更新框架与Skill、重新生成framework.lock，无新增数据库迁移，旧短操作不用改。按db README逐项在contract补QueryBudget；测试暂用APP_QUERY_BUDGET_MODE=warn，完成迁移可改error让默认额度也失败。生产始终只记录；APP_QUERY_BUDGET_EXPLAIN只允许test/隔离演练。未测或旧记录明确未知。
+- framework.lock更新理由：公开额度声明、Db累计/大小测量/安全计划、执行结束检查、图与记录/测试历史、项目和演练输出及独立框架样例共同更新，并让成员链失败断言展示已有原因；不改变断言条件或时间阈值，不新增预置业务模块。
+
 ## 2.13.0（2026-10-09）
 
 - 新增表归属保护：框架表、模块tables和显式owned_tables由产品迁移维护，external_tables仅保留；自动生成迁移拒绝未登记表的修改或删除，关闭模块入口不丢表归属。已有迁移危险动作扫描默认警告，APP_MIGRATION_STRICT=true升级为错误；动态名称/原始SQL归属未知，需人工整理。

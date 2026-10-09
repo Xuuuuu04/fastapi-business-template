@@ -87,6 +87,11 @@ class DatabaseCallRecord:
     elapsed_ms: float = 0.0
     rows: int | None = None
     error_code: str = ""
+    bytes: int | None = None
+    explain: list[dict[str, Any]] = field(default_factory=list)
+    explain_status: str = ""
+    storage_source: str = ""
+    storage_function: str = ""
 
 
 # 一次步骤执行的状态、字段摘要、外部调用与失败位置。
@@ -119,6 +124,15 @@ class StepRecord:
     database_count: int = 0
     database_elapsed_ms: float = 0.0
     database_complete: bool = False
+    database_explain: bool = False
+    query_limits: dict[str, int] = field(default_factory=dict)
+    query_prior: dict[str, int] = field(default_factory=dict)
+    database_rows: int = 0
+    database_bytes: int = 0
+    database_rows_unknown: int = 0
+    database_bytes_unknown: int = 0
+    database_functions: dict[str, dict[str, int]] = field(default_factory=dict)
+    database_functions_complete: bool = True
     cache_hits: int = 0
     cache_misses: int = 0
     emitted: int = 0
@@ -158,6 +172,9 @@ class RunRecord:
     gaps: list[str] = field(default_factory=list)
     source_version: str = ""
     import_report: dict[str, Any] = field(default_factory=dict)
+
+    query_children: dict[str, Any] = field(default_factory=dict)
+    query_budget: dict[str, Any] = field(default_factory=dict)
     segment_number: int = 0
     segment_rows: int | None = None
     segment_cursor: dict[str, Any] = field(default_factory=dict)

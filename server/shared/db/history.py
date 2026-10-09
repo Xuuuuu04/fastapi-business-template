@@ -90,6 +90,7 @@ async def save_history(
             await connection.execute(statement, rows)
             if call is not None:
                 call.rows = len(rows)
+                call.bytes = 0
 
 
 # 查询变更历史；org_id 为空表示全部组织，table 和 key 为空表示不筛选。

@@ -33,3 +33,5 @@ PostgreSQL连接只创建本任务随机schema，搜索路径不含public，退�
 seed可省略；写外部系统也只能回放已确认响应，不能证明真实发布成功。涉及业务数据和产物的目录不要提交Git。
 
 内部：isolation隔离，replay原件传输，app/setup/drill入口和协调，metrics实际证据。模拟模型结果与create_all建表不证明真实模型、迁移或恢复；这些需要另行验证。
+
+每阶段query_budgets列各次运行额度、实际SQL次数/行数/返回大小、未知数量及存储函数重复提示。显式额度测试默认失败；旧操作默认仅警告。可在演练环境设置APP_QUERY_BUDGET_MODE=warn或APP_QUERY_BUDGET_EXPLAIN=true，生产不会附计划。大小含义与迁移见[数据库](../db/README.md)。

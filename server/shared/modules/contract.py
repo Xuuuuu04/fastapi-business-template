@@ -7,6 +7,7 @@
 from dataclasses import dataclass
 
 from shared.data.models import Data
+from shared.db.budget import QueryBudget
 from shared.errors.kinds import BusinessError
 
 
@@ -25,6 +26,7 @@ class Contract[In: Data, Out: Data]:
     stream: bool = False
 
     aliases: tuple[str, ...] = ()
+    query_budget: QueryBudget | None = None
 
     # 约定名称的第一段是提供它的模块名。
     @property
@@ -51,7 +53,19 @@ def contract[In: Data, Out: Data](
     audit: bool = False,
     stream: bool = False,
     aliases: tuple[str, ...] = (),
+    query_budget: QueryBudget | None = None,
 ) -> Contract[In, Out]:
     return Contract(
-        name, title, input, output, access, errors, entry, timeout, audit, stream, aliases
+        name,
+        title,
+        input,
+        output,
+        access,
+        errors,
+        entry,
+        timeout,
+        audit,
+        stream,
+        aliases=aliases,
+        query_budget=query_budget,
     )

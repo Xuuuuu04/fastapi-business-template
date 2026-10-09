@@ -6,6 +6,8 @@
 
 import json
 
+from shared.db.budget import budget_text
+from shared.graphs.database import database_nodes
 from shared.graphs.imports import import_node, report_header
 from shared.graphs.mermaid import MAX_LABEL, STYLES, label
 from shared.graphs.remotes import remote_table
@@ -38,6 +40,8 @@ def run_graph(runs: list[RunRecord]) -> str:
         )
         style = run.status if run.status in ("ok", "running") else "failed"
         lines.append(f'        {entry}["{text}"]:::{style}')
+        text = label(budget_text(run.query_budget), limit=None)
+        lines += [f'        {entry}_budget["{text}"]', f"        {entry} -.-> {entry}_budget"]
         previous = entry
         for index, step in enumerate(run.steps, start=1):
             node = f"n_{run.id}_{index}"
@@ -92,27 +96,6 @@ def step_node(node: str, index: int, step: StepRecord) -> list[str]:
     if step.error_code:
         text += f"<br/>错误：{label(step.error_code)}"
     return [f'        {node}["{text}"]:::{step.status}']
-
-
-# SQL 节点深入到存储函数和调用行；超出保留数量时标出未保留的细节。
-def database_nodes(node: str, step: StepRecord) -> list[str]:
-    lines = []
-    for index, call in enumerate(step.database, start=1):
-        current = f"{node}_db{index}"
-        parts = [
-            f"{call.target}.{call.method} · {call.status} · {duration(call.elapsed_ms)}",
-            ", ".join(call.tables) or "表名未知",
-            f"行数：{call.rows if call.rows is not None else '未知'}",
-            call.function,
-            call.source,
-        ]
-        text = "<br/>".join(label(part, limit=None) for part in parts)
-        lines += [f'        {current}["{text}"]:::{call.status}', f"        {node} -.-> {current}"]
-    missing = step.database_count - len(step.database)
-    if missing or not step.database_complete:
-        text = f"另 {missing} 次 SQL 仅统计次数和耗时" if missing else "旧记录未采集 SQL 细节"
-        lines += [f'        {node}_db_unknown["{text}"]', f"        {node} -.-> {node}_db_unknown"]
-    return lines
 
 
 # 外部接口与模型调用的时间也显示在步骤下面，业务正文不进入图。
@@ -215,6 +198,7 @@ def run_section(run: RunRecord, is_root: bool) -> list[str]:
     lines += ["| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for index, step in enumerate(run.steps, start=1):
         lines.append(step_row(index, step))
+    lines += ["", budget_text(run.query_budget)]
     lines += database_table(run)
     lines += remote_table(run)
     models = [(step.title, call) for step in run.steps for call in step.models]

@@ -16,6 +16,7 @@ from app.setup.structure import ROOT, check_structure
 from shared.access.vault import Vault
 from shared.cache.backends import Cache, MemoryCache, RedisCache
 from shared.config.settings import Settings, check_production
+from shared.db.budget import QueryPolicy
 from shared.db.database import Database
 from shared.db.ownership import check_migrations
 from shared.errors.framework import ConfigError
@@ -101,6 +102,7 @@ def build(
     recorder = Recorder(store, buffer=settings.run_record_buffer)
     models = model_service(settings, catalog, provider)
     services = finish_build(settings, catalog, database, recorder, models)
+    services.runtime.query_policy = query_policy(settings)
     if modules is None:
         services.runtime.source_version = source_version(ROOT)
     return services
@@ -271,3 +273,8 @@ def store_requirements(catalog: Catalog) -> set[str]:
         if module.store is not None
         for name in inspect.signature(module.store).parameters
     }
+
+
+# 测试和演练与生产使用同一额度配置，生产行为由QueryPolicy固定。
+def query_policy(settings: Settings) -> QueryPolicy:
+    return QueryPolicy(settings.env, settings.query_budget_mode, settings.query_budget_explain)

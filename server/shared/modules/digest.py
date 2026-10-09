@@ -6,8 +6,10 @@
 import hashlib
 import json
 from collections.abc import Sequence
+from dataclasses import asdict
 from typing import Any
 
+from shared.db.budget import DEFAULT_BUDGET
 from shared.jobs.plan import JobPlan
 from shared.modules.module import Module
 from shared.pipelines.plan import FanOut, Stage
@@ -37,6 +39,7 @@ def module_shape(module: Module) -> dict[str, Any]:
             for item, flow in sorted(module.provides.items(), key=lambda pair: pair[0].name)
         },
         **endpoint_shapes(module),
+        "query_budgets": query_budgets(module),
         "jobs": [job_shape(j) for j in sorted(module.jobs, key=lambda item: item.contract.name)],
         "schedules": [
             dict(
@@ -143,4 +146,14 @@ def endpoint_shapes(module: Module) -> dict[str, Any]:
             item.name: {part.name: [e.name for e in part.endpoints] for part in flow.steps}
             for item, flow in module.provides.items()
         },
+    }
+
+
+# 额度与显式声明状态同入摘要，操作额度改变后旧声明证据会过期。
+def query_budgets(module: Module) -> dict[str, Any]:
+    return {
+        item.name: dict(
+            declared=item.query_budget is not None, **asdict(item.query_budget or DEFAULT_BUDGET)
+        )
+        for item in module.provides
     }

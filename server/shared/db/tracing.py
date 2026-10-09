@@ -34,6 +34,23 @@ def caller_location(record: StepRecord) -> tuple[str, str]:
         del frame
 
 
+# 存储位置另加字段，保留旧步骤fallback的source/function字段行为。
+def storage_location(record: StepRecord) -> tuple[str, str]:
+    frame: FrameType | None = sys._getframe(1)
+    try:
+        while frame is not None:
+            path = frame.f_code.co_filename.replace("\\", "/")
+            for root in ("/service/", "/tests/framework/"):
+                if root in path:
+                    return root[1:] + path.split(root, 1)[
+                        1
+                    ] + f":{frame.f_lineno}", frame.f_code.co_qualname
+            frame = frame.f_back
+        return record.source, record.name
+    finally:
+        del frame
+
+
 # 表名来自 SQLAlchemy 表声明，包括以 Table 声明的视图；原始 SQL 不猜表名。
 def table_names(statement: Executable) -> list[str]:
     return sorted(
@@ -62,6 +79,7 @@ def query_record(
         source,
         function,
     )
+    call.storage_source, call.storage_function = storage_location(record)
     record.database_count += 1
     if len(record.database) < MAX_DATABASE_CALLS:
         record.database.append(call)
@@ -77,3 +95,30 @@ def query_record(
     finally:
         call.elapsed_ms = (time.perf_counter() - started) * 1000
         record.database_elapsed_ms += call.elapsed_ms
+        accumulate(record, call)
+
+
+# SQL明细截断后仍累计总量与存储函数；函数分组本身有界，超出明确标不完整。
+def accumulate(record: StepRecord, call: DatabaseCallRecord) -> None:
+    for key in ("rows", "bytes"):
+        value = getattr(call, key)
+        attr = "database_" + key
+        if value is None:
+            attr += "_unknown"
+            value = 1
+        setattr(record, attr, getattr(record, attr) + value)
+    key = (
+        (call.storage_source or call.source).rsplit(":", 1)[0]
+        + " · "
+        + (call.storage_function or call.function)
+    )
+    if (
+        key not in record.database_functions
+        and len(record.database_functions) >= MAX_DATABASE_CALLS
+    ):
+        record.database_functions_complete = False
+        return
+    counts = record.database_functions.setdefault(key, dict(queries=0, rows=0, bytes=0))
+    counts["queries"] += 1
+    counts["rows"] += call.rows or 0
+    counts["bytes"] += call.bytes or 0

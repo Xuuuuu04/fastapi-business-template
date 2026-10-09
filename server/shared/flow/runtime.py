@@ -6,7 +6,6 @@
 
 import asyncio
 import logging
-import secrets
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import suppress
@@ -18,12 +17,14 @@ from opentelemetry import trace
 
 from shared.access.caller import Caller
 from shared.data.models import Data
+from shared.db.budget import QueryPolicy, merge_child
 from shared.db.database import Database
 from shared.errors.framework import NotAllowed, NotSignedIn, StepRuleBroken
 from shared.flow.auditing import audit_failure, audit_hook
 from shared.flow.commit import Hook, commit_writes
 from shared.flow.entry_errors import after_external_write, check_access, fill_error, translate
 from shared.flow.heavy import HeavySteps
+from shared.flow.query_budget import check_query_budget
 from shared.flow.runner import execute
 from shared.flow.scope import Scope, Transaction
 from shared.flow.streaming import stream_events
@@ -32,6 +33,7 @@ from shared.jobs.imports import begin_import, reconcile_import
 from shared.modules.catalog import Binding, Catalog
 from shared.modules.contract import Contract
 from shared.records.models import RunRecord, StepRecord
+from shared.records.opening import open_record
 from shared.records.recorder import Recorder
 from shared.records.segments import warn_slow_batch
 
@@ -71,6 +73,7 @@ class Runtime:
         code_version: str = "dev",
         step_checks: bool = True,
         heavy: HeavySteps | None = None,
+        query_policy: QueryPolicy | None = None,
     ) -> None:
         self.catalog = catalog
         self.database = database
@@ -88,6 +91,7 @@ class Runtime:
         self.source_version = ""
         self.step_checks = step_checks
         self.heavy = heavy or HeavySteps()
+        self.query_policy = query_policy or QueryPolicy()
 
     # 从接口或任务入口执行一个操作：检查权限，结束时提交或回滚写入。
     async def run[In: Data, Out: Data](
@@ -152,6 +156,7 @@ class Runtime:
             begin_import(import_plan, scope.checkpoint, run)
             async with asyncio.timeout_at(scope.deadline):
                 result = await execute(binding, input, scope, run)
+            check_query_budget(self, run, item)
             if scope.checkpoint is not None:
                 scope.checkpoint.validate()
                 connection = await scope.tx.writer(self.database, "分段提交")
@@ -207,6 +212,7 @@ class Runtime:
         try:
             async with asyncio.timeout_at(scope.deadline):
                 result = await execute(binding, input, scope, run)
+            check_query_budget(self, run, item)
         except BaseException as error:
             problem = translate(error)
             fill_error(run, problem)
@@ -220,6 +226,7 @@ class Runtime:
             await self.close_run(run, "ok")
             return cast(Out, result)
         finally:
+            merge_child(parent_run, run)
             if span is not None and token is not None:
                 span.set_attribute("run.status", run.status)
                 otel_context.detach(token)
@@ -261,33 +268,12 @@ class Runtime:
     def open_run(
         self, binding: Binding, scope: Scope, parent: RunRecord | None, step: StepRecord | None
     ) -> RunRecord:
-        run_id = secrets.token_hex(8)
-        run = RunRecord(
-            id=run_id,
-            root_id=parent.root_id if parent else run_id,
-            parent_id=parent.id if parent else "",
-            parent_step=step.id if step else "",
-            contract=binding.contract.name,
-            title=binding.contract.title,
-            aliases=list(binding.contract.aliases),
-            module_aliases=list(binding.module.aliases),
-            module=binding.module.name,
-            module_version=binding.module.version,
-            code_version=self.code_version,
-            source_version=self.source_version,
-            request_id=scope.request_id,
-            job_id=scope.job_id,
-            caller=f"{scope.caller.kind}:{scope.caller.id}",
-            started_at=time.time(),
-            planned=[part.name for part in binding.flow.steps],
-        )
-        if scope.checkpoint is not None:
-            scope.checkpoint.record(run)
-        self.recorder.start(run, record_success=scope.record_success)
-        return run
+        return open_record(self, binding, scope, parent, step)
 
     # 结束运行记录；记录器出错只写日志，不影响业务结果。
     async def close_run(self, run: RunRecord, status: str) -> None:
+        if not run.query_budget:
+            check_query_budget(self, run, self.catalog.by_name[run.contract].contract, failed=True)
         run.status = status
         run.ended_at = time.time()
         run.elapsed_ms = (run.ended_at - run.started_at) * 1000
