@@ -80,4 +80,5 @@ segments = Table(
 )
 
 # 新流程表随框架任务表登记，空产品也有一致的迁移结构。
+from shared.operations import tables as operations_tables  # noqa: E402,F401
 from shared.pipelines import tables as pipeline_tables  # noqa: E402,F401

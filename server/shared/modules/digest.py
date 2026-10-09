@@ -36,6 +36,7 @@ def module_shape(module: Module) -> dict[str, Any]:
                 repeat_safe=j.repeat_safe,
                 max_queued=j.max_queued,
                 lease_seconds=j.lease_seconds,
+                critical=j.critical,
                 segmented=j.segmented,
                 cursor=j.cursor.model_json_schema() if j.cursor else None,
             )

@@ -2,6 +2,15 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 2.9.0（2026-10-09）
+
+- 新增APP_OPERATIONS内置运维：module.py统一声明备份/分段保留/容量/提醒的Flow、JobPlan与Schedule，默认独立关闭、全局周期运行，进入启动检查和运行图，不加预置业务模块。
+- 每次数据库+正式文件归档后，新数据库/目录真实恢复，比较全部表行数、迁移版本、文件摘要和应用ready；成功才写verified.json并按backup_days清理，失败明确verified=false并登记提醒。SQLite一致backup/PG导出快照，文件非跨系统原子快照的时间范围明确记录。
+- 保留清理用PR1分段提交，固定截止/有界批次，待确认任务、活动/失败流程保留；只清理显式模块/原件目录，支持本地/S3当前对象。磁盘/数据库超阈值提醒，可跨worker暂停显式JobPlan(critical=False)的新领取，恢复自动解除。
+- 通用Channel与Webhook，generic/企业微信/飞书机器人包装；逾期、待确认、备份失败、容量告警共用pending/sent事实，有界响应和平台回执检查，失败保留pending。至少一次，接收方按key去重。
+- 已有产品接入：升级执行新system_ops_state表迁移和账号授权，按deploy/backup.md在隔离环境配置APP_OPERATIONS并验证；开启备份需pg_dump/pg_restore及随机恢复库权限、持久化备份卷，通知配置真实目标。旧短操作不改，旧JobPlan默认关键；未开启全部保持旧行为。真实S3/机器人/生产权限/镜像和异地恢复另验。
+- framework.lock更新理由：内置声明、配置/组装、分段保留、容量共享条件、提醒与隔离恢复新增，JobPlan关键性进入声明摘要；部署说明及独立模块验收同步更新。
+
 ## 2.8.0（2026-10-09）
 
 - 新增operations drill：临时SQLite/随机PostgreSQL schema按实际Schedule首入口演练整条Pipeline，支持本地原件回放与JSONL分批导入；未覆盖请求和原件摘要不符明确失败，不调用真实外部系统。

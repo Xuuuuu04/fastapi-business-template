@@ -35,6 +35,7 @@ class JobPlan:
     lease_seconds: float = 60.0
     segmented: bool = False
     cursor: type[Data] | None = None
+    critical: bool = True
 
 
 # 一个定时任务的输入与触发时间，交给调度进程登记执行。

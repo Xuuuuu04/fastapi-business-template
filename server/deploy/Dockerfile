@@ -9,7 +9,10 @@ RUN uv sync --locked --no-dev
 COPY . .
 
 FROM python:3.12-slim
-RUN useradd --create-home --uid 10001 app
+# 内置PostgreSQL备份使用客户端工具；版本应不低于目标服务器。
+RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 app
 WORKDIR /app
 COPY --from=build --chown=app:app /app /app
 RUN mkdir -p /app/var/files /app/var/uploads && chown -R app:app /app/var

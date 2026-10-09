@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.setup.catalog import MODULES
+from app.setup.operations import with_operations
 from app.setup.structure import ROOT, check_structure
 from shared.access.vault import Vault
 from shared.cache.backends import Cache, MemoryCache, RedisCache
@@ -74,7 +75,8 @@ def build(
 ) -> Services:
     if modules is None:
         check_structure(MODULES)
-    catalog = Catalog(enabled_modules(settings) if modules is None else modules)
+    selected = enabled_modules(settings) if modules is None else modules
+    catalog = Catalog(with_operations(settings, selected))
     problems = check_production(settings, needs_vault="vault" in store_requirements(catalog))
     problems += unconfigured_remotes(settings, catalog)
     if problems:
@@ -137,6 +139,7 @@ def finish_build(
     storage, uploads = file_components(settings) if "files" in needs else (None, None)
     telemetry = Telemetry(settings.otel_endpoint, settings.name)
     queue = JobQueue(catalog, database)
+    queue.capacity_enabled = settings.operations.capacity and settings.operations.pause_noncritical
     runtime = Runtime(
         catalog,
         database,
