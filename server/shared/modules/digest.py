@@ -8,6 +8,7 @@ import json
 from collections.abc import Sequence
 from typing import Any
 
+from shared.jobs.plan import JobPlan
 from shared.modules.module import Module
 from shared.pipelines.plan import FanOut, Stage
 
@@ -30,25 +31,13 @@ def module_shape(module: Module) -> dict[str, Any]:
             if any(c.aliases for c in module.provides)
             else {}
         ),
+        **table_shape(module),
         "flows": {
             item.name: [[part.name, part.reads, part.writes, part.saves] for part in flow.steps]
             for item, flow in sorted(module.provides.items(), key=lambda pair: pair[0].name)
         },
         **endpoint_shapes(module),
-        "jobs": [
-            dict(
-                contract=j.contract.name,
-                retries=j.retry.times,
-                waits=j.retry.waits,
-                repeat_safe=j.repeat_safe,
-                max_queued=j.max_queued,
-                lease_seconds=j.lease_seconds,
-                critical=j.critical,
-                segmented=j.segmented,
-                cursor=j.cursor.model_json_schema() if j.cursor else None,
-            )
-            for j in sorted(module.jobs, key=lambda item: item.contract.name)
-        ],
+        "jobs": [job_shape(j) for j in sorted(module.jobs, key=lambda item: item.contract.name)],
         "schedules": [
             dict(
                 name=s.name,
@@ -68,6 +57,31 @@ def module_shape(module: Module) -> dict[str, Any]:
         "identity": module.identity.name if module.identity is not None else None,
         "identity_header": module.identity_header,
         "identity_token": module.identity_token,
+    }
+
+
+# 后台任务的恢复、安全和导入预期共同决定声明版本。
+def job_shape(plan: JobPlan) -> dict[str, Any]:
+    return dict(
+        contract=plan.contract.name,
+        retries=plan.retry.times,
+        waits=plan.retry.waits,
+        repeat_safe=plan.repeat_safe,
+        max_queued=plan.max_queued,
+        lease_seconds=plan.lease_seconds,
+        critical=plan.critical,
+        import_plan=plan.import_plan.shape() if plan.import_plan else None,
+        segmented=plan.segmented,
+        cursor=plan.cursor.model_json_schema() if plan.cursor else None,
+    )
+
+
+# 表归属与现行表共用声明摘要，历史维护权限改变后旧检查过期。
+def table_shape(module: Module) -> dict[str, Any]:
+    return {
+        "tables": [table.key for table in module.tables],
+        "owned_tables": module.owned_tables,
+        "external_tables": module.external_tables,
     }
 
 

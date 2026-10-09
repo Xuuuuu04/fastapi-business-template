@@ -2,6 +2,14 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 2.13.0（2026-10-09）
+
+- 新增表归属保护：框架表、模块tables和显式owned_tables由产品迁移维护，external_tables仅保留；自动生成迁移拒绝未登记表的修改或删除，关闭模块入口不丢表归属。已有迁移危险动作扫描默认警告，APP_MIGRATION_STRICT=true升级为错误；动态名称/原始SQL归属未知，需人工整理。
+- 新增JobPlan.import_plan与ImportPlan(source_revision, key, reconcile=...)，复用分段原子提交，最后一批提交前对账真实行数、关键字段精确合计、质量非空率与引用完整性；失败任务不完成，最后一批回滚，已提交批次保留。命令返回0不作为导入成功证据，未执行对账标未知；计划进入声明摘要、计算图、运行图和持久化报告，来源范围自动去重。
+- 独立框架模块覆盖未知表自动删除拒绝、历史警告/严格错误、正常导入、故意少行、质量和引用失败；不新增预置业务或框架数据库表。
+- 已有产品接入：保留自己的迁移链，更新框架和Skill，登记历史表owned/external（或APP_OWNED_TABLES/APP_EXTERNAL_TABLES），逐条处理警告后开启严格模式。导入需要在现有JobPlan登记固定来源与对账预期，按范围分批并用finish结束；开启APP_RUN_RECORDS=database留跨进程证据。未声明导入的旧任务和短操作不用改。
+- framework.lock更新理由：新增归属与迁移扫描、导入声明和自动对账、图和运行证据、独立样例与接入Skill，保护这些公共能力的共同版本；无产品业务代码。
+
 ## 2.12.0（2026-10-09）
 
 - 新增声明式Endpoint：上游协议在module.py或store/contract.py定义、public公开复用，Module.endpoints及步骤endpoints登记。请求Data自动序列化、响应Data自动校验，业务与上游共用Data在生成文档只展开一次；有限字段问题进入运行记录，不保存上游正文或取值。

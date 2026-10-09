@@ -28,6 +28,7 @@ from shared.flow.runner import execute
 from shared.flow.scope import Scope, Transaction
 from shared.flow.streaming import stream_events
 from shared.jobs.checkpoint import Checkpoint
+from shared.jobs.imports import begin_import, reconcile_import
 from shared.modules.catalog import Binding, Catalog
 from shared.modules.contract import Contract
 from shared.records.models import RunRecord, StepRecord
@@ -146,14 +147,19 @@ class Runtime:
     ) -> Data:
         try:
             check_access(item, scope.caller)
+            plan = self.catalog.plan(item.name)
+            import_plan = plan.import_plan if plan is not None else None
+            begin_import(import_plan, scope.checkpoint, run)
             async with asyncio.timeout_at(scope.deadline):
                 result = await execute(binding, input, scope, run)
             if scope.checkpoint is not None:
                 scope.checkpoint.validate()
-                await scope.tx.writer(self.database, "分段提交")
+                connection = await scope.tx.writer(self.database, "分段提交")
                 scope.checkpoint.record(run)
+                if import_plan is not None and scope.checkpoint.done:
+                    await reconcile_import(connection, import_plan, run.import_report)
             hook = audit_hook(item, scope, before_commit)
-            await self.commit(scope.tx, run, hook, result)
+            await commit_writes(self.database, scope.tx, run, hook, result)
             if scope.checkpoint is not None:
                 scope.checkpoint.record(run, committed=True)
             await self.close_run(run, "ok")
@@ -236,13 +242,6 @@ class Runtime:
             return await self.jobs.submit(
                 connection, item, input, caller, key=key, request_id=request_id
             )
-
-    # 提交写入；hook 与业务写入同一事务执行，没有业务写入时单独开一个短事务。
-    # 提交本身出错时无法确认是否已保存，报告“结果待确认”。
-    async def commit(
-        self, tx: Transaction, run: RunRecord, hook: Hook | None, result: Data
-    ) -> None:
-        await commit_writes(self.database, tx, run, hook, result)
 
     # 处理入口调用的失败：回滚写入、整理错误、结束运行记录。
     async def settle(self, scope: Scope, run: RunRecord, error: BaseException) -> BaseException:

@@ -17,6 +17,7 @@ from shared.access.vault import Vault
 from shared.cache.backends import Cache, MemoryCache, RedisCache
 from shared.config.settings import Settings, check_production
 from shared.db.database import Database
+from shared.db.ownership import check_migrations
 from shared.errors.framework import ConfigError
 from shared.files.storage import FileStorage, LocalFiles, S3Files, S3Options
 from shared.files.uploads import UploadArea
@@ -75,6 +76,9 @@ def build(
 ) -> Services:
     if modules is None:
         check_structure(MODULES)
+        migration_errors = check_migrations(ROOT, MODULES, settings)
+        if migration_errors:
+            raise ConfigError(migration_errors)
     selected = enabled_modules(settings) if modules is None else modules
     catalog = Catalog(
         with_operations(settings, selected), strict_endpoints=settings.remote_endpoints_strict

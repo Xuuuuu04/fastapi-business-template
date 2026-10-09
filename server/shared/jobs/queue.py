@@ -3,7 +3,6 @@
 登记与业务写入同事务提交，领取使用 FOR UPDATE SKIP LOCKED；排队计数原子更新。
 """
 
-import hashlib
 import json
 import secrets
 import time
@@ -72,8 +71,7 @@ class JobQueue:
         plan = self.catalog.plan(item.name)
         if plan is None:
             raise StepRuleBroken(f"操作 {item.name} 没有在模块的 jobs 中声明，不能作为任务登记")
-        body = input.model_dump_json()
-        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        body, digest, key = plan.submission(input, key)
         if key:
             existing = await same_key(connection, item.name, caller.id, key, digest)
             if existing:

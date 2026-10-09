@@ -24,6 +24,7 @@ from shared.errors.kinds import RETRY_KINDS, BusinessError, Kind
 from shared.flow.runtime import Runtime
 from shared.jobs.execution import invoke
 from shared.jobs.health import WorkerHealth
+from shared.jobs.imports import check_import_source
 from shared.jobs.queue import JobQueue, Ticket
 from shared.jobs.schedule import Scheduler
 from shared.pipelines.context import ExecutionContext
@@ -153,6 +154,8 @@ class Worker:
             await self.queue.fail(
                 ticket, "failed", "not_registered", "任务对应的操作没有登记或模块未启用"
             )
+            return
+        if not await check_import_source(self.queue, ticket, plan):
             return
         if context is None and ticket.module_version != binding.module.version:
             message = (

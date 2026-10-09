@@ -4,11 +4,13 @@ JobPlan 说明哪个操作可以作为后台任务运行、失败后怎样重试
 Schedule 说明按什么时间自动登记这个任务。领取、重试和状态维护由框架负责。
 """
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from typing import Any, Literal
 
 from shared.data.models import Data
+from shared.jobs.imports import ImportPlan
 from shared.modules.contract import Contract
 
 
@@ -36,6 +38,13 @@ class JobPlan:
     segmented: bool = False
     cursor: type[Data] | None = None
     critical: bool = True
+    import_plan: ImportPlan | None = None
+
+    # 输入摘要与来源去重键统一生成，普通任务保留调用方给出的键。
+    def submission(self, input: Data, key: str) -> tuple[str, str, str]:
+        body = input.model_dump_json()
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        return body, digest, self.import_plan.queue_key() if self.import_plan else key
 
 
 # 一个定时任务的输入与触发时间，交给调度进程登记执行。

@@ -45,6 +45,8 @@ class Module:
     endpoints: tuple[Endpoint[Any, Any], ...] = ()
 
     aliases: tuple[str, ...] = ()
+    owned_tables: tuple[str, ...] = ()
+    external_tables: tuple[str, ...] = ()
 
     # 模块的业务文档目录，位于项目根目录的 doc/ 下。
     @property

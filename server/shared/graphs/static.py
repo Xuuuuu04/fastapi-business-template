@@ -6,6 +6,7 @@
 from typing import Any
 
 from shared.data.fields import notes_of
+from shared.graphs.imports import import_plan_lines
 from shared.graphs.mermaid import STYLES, label, node_id
 from shared.modules.catalog import Binding, Catalog
 from shared.pipelines.plan import FanOut, Pipeline, Wait
@@ -72,6 +73,8 @@ def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str
             lines.append(f'    {target}[["后台任务：{label(task.title)}"]]')
             lines.append(f"    {current} -.-> {target}")
         previous = current
+    additions, previous = import_plan_lines(binding, previous)
+    lines += additions
     lines.append(f'    finish(["结果：{label(result_note.meaning or flow.result)}"])')
     lines.append(f"    {previous} --> finish")
     return "\n".join(lines + STYLES)

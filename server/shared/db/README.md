@@ -54,3 +54,5 @@ rows = await db.all(
 例如产品的策略可以读取 `current_setting('product.org_id', true)`。
 业务域的名称、对象大小、小数精度与比率边界归业务包的`store/`和迁移所有，不进入通用模板。
 已有产品可以保留自己的域类型适配，再按产品升级说明迁出共享框架。
+
+[ownership.py](ownership.py) 收集明确表归属并保护迁移，登记与旧产品升级见 [迁移说明](../../migrations/README.md)。
