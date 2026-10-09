@@ -31,6 +31,10 @@ uv run python ../.agents/skills/fastapi-check/scripts/run_check.py framework_loc
 - 生产用 PostgreSQL 时加 `--postgres 测试数据库地址`。只能用已授权的隔离数据库。
 - 浏览器、容量、部署另按任务单独检查，这个命令不包含。
 
+## 业务现状过期
+
+文档检查也检查 `.agents/records/business-state/模块名.md` 生成部分：源码/依赖版本或声明变化、生成超过24小时、摘要与同名JSON不一致会报错。check只读比较、不自动刷新。先读手写判断并更新下一步，然后显式运行project business_state；需要真实运行状态时在确认当前数据库与授权后加--runs，否则未知。export_docs可初始化/更新过期的声明状态，但不读取数据库，不代替业务验收。迁移含定时/长流程时，完成条件先用operations drill按真实规模跑整条链、核对产物及回放/未覆盖，再补局部细节。
+
 ## 框架摘要
 
 `server/framework.lock` 记录公共代码、检查配置和项目 Skill 的内容摘要，防止它们被顺手改掉。

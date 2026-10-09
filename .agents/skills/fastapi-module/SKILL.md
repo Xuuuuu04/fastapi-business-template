@@ -5,6 +5,19 @@ description: 在本项目新增业务包，或把已有业务包调整成固定�
 
 # 业务包开发
 
+## 开工先读业务现状
+
+先读 `.agents/records/business-state/模块名.md` 的生成摘要和手写判断，不先展开同名JSON。生成部分由命令维护：模块、普通/分段任务、流程、定时入口、最近运行、逾期与待确认；手写部分只放业务判断、外部依赖、下一步。未知保持未知，登记或历史成功不等于当前业务验收。
+
+```bash
+# 首次或源码/声明变化后生成（不读数据库，运行状态未知）
+uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_state --module 模块名
+# 有授权且确认当前数据库后，收工刷新真实观察
+uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_state --module 模块名 --runs
+```
+
+收工更新手写部分并刷新生成部分，再检查。生成源码/依赖摘要或声明变了、生成超过24小时、摘要被手改都会报过期；check只比较不刷新。export_docs会初始化/更新过期的声明状态，不访问数据库；要实际运行证据另用--runs。记录只在本机，不提交或带入模板副本；新代理/新机器首次生成，不能把本机旧观察当部署状态。
+
 ## 第一步：先写业务文档
 
 在 `doc/模块名/needs.md` 写这个业务的用途，在 `rules.md` 写规则、异常和确认样例。业务含义还没定的地方标"待确认"，不要自己补。
@@ -35,6 +48,14 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipelin
 
 生成的文本整理规则只作为占位，不代表真实业务完成。先改需求/规则和Data，再补各阶段实现和样例。旧模块已有基线迁移时，新增操作不需要再建表；新表仍单独迁移。add_field暂未提供，字段变更检查reads/writes/接口和文档。
 
+## 什么时候用哪一种
+
+- 普通操作：短规则和短保存，必须一起成功/回滚。例：`Flow("创建联系人", work=Work, result="result", steps=[validate, save])`；仍用原saves=True一次提交，不加checkpoint。
+- 分段提交：固定来源的大批数据，每批可以独立生效。例：`JobPlan(parse_rows, segmented=True, repeat_safe=True, cursor=Cursor)`；保存步骤每5000条推进`checkpoint.advance({"after": next_id}, rows=count)`，最后finish。游标Data与范围明确，不能把正文塞进游标。
+- 多阶段：采集→等待→汇算→发布需要各自事务和失败恢复。例：`Pipeline("report.daily", "日报", Begin, (Stage("collect", collect), Wait("wait", ready), Stage("sum", aggregate), Stage("publish", publish)))`；module.py登记pipelines与各阶段provides/jobs、Schedule首入口。汇算阶段很大时再使用分段，不在步骤里循环sleep。
+
+以上为已定义Data/操作的登记片段，完整独立样例见server/tests/framework/drill_sample.py。用new_pipeline先搭整链，再逐阶段替换占位实现；真实规模原件回放全链成功后补局部细节，生成样例不是业务完成。细节见[flow](../../../server/shared/flow/README.md)、[jobs](../../../server/shared/jobs/README.md)。
+
 ## 包内的文件分工
 
 | 位置 | 放什么 |
@@ -52,7 +73,7 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipelin
 - 一项业务需要的几个包，尽早放在同一份代码里一起运行，不要各写各的最后再合。
 - 新增数据表：先把隔离数据库升级到当前最新迁移，再生成增量迁移并人工检查。已有数据库的迁移历史不要替换。
 - 检查范围：调试用 `--quick --module`，几个包一起用多个 `--module`，整批交付用完整检查（见 `fastapi-check`）。
-- 文档只在最后生成一次。
+- 源码格式整理、迁移审查之后统一导出文档；收工更新业务现状手写部分，按授权使用business_state --runs刷新生成部分（没有DB证据保持未知），最后检查过期。不要手改生成区域。
 
 ## 相关
 

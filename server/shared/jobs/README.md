@@ -35,6 +35,29 @@ worker 停止领取任务后，先按退出等待时间等待在途任务；超�
 
 使用 SQLite 时只能运行一个 worker；多个 worker 需要 PostgreSQL。人工处理用 `uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py jobs`。
 
+## 怎么选普通、分段、多阶段
+
+普通短任务：`JobPlan(create_record, repeat_safe=True)`，与普通HTTP操作同一Flow；一次提交，失败全部回滚。repeat_safe必须来自实际幂等规则，不因任务很短就填true。
+
+固定范围批量导入：`JobPlan(import_rows, segmented=True, repeat_safe=True, cursor=Cursor)`；每次只读/写一批，保存步骤推进checkpoint，之前提交不回滚。不是自动分页，游标和范围仍需业务声明。
+
+采集→等待→汇算→发布：在module.py登记`Pipeline/Stage/Wait`，各阶段登记公开操作和JobPlan，首入口Schedule引用pipeline.start。例：
+
+```python
+Schedule(
+    "daily",
+    "日报定时入口",
+    daily.start,
+    daily.start.input(request=StartRequest[Begin](data=Begin())),
+    every=timedelta(days=1),
+    slot_input_field="request.period",
+)
+```
+
+daily是[flow说明](../flow/README.md)的已声明Pipeline。Wait操作输出ready bool；每次只检查一次，等待由框架推进。某个汇算Stage可以用分段JobPlan，段游标Data进入声明兼容检查。不要在普通任务中等待外部数据，也不要在一个事务里串全部阶段；未知外部结果先人工核实，不盲目重排。
+
+完整独立样例与原件演练见tests/framework/drill_sample.py、[演练说明](../drills/README.md)。声明/测试样例通过不代表真实业务完成；按真实规模演练全链并核对结果，再补局部细节。业务现状用project business_state生成，保留手写业务判断和下一步。
+
 ## 显式分段提交（2.1）
 
 普通操作仍在最外层一次提交。大规模批处理可声明：
@@ -86,6 +109,10 @@ uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py job
 在当前数据库版本后增加两张框架表的增量迁移（参考模板 `a8c42f910d37`），
 先在隔离库迁移和检查，再部署；不要拷贝模板初始迁移覆盖产品历史。
 独立十万行强杀恢复样例见 `tests/framework/segment_sample.py` 与 `test_segmented_jobs.py`。
+
+## 内置运维与非关键任务
+
+APP_OPERATIONS按配置开启备份、分段保留、容量和提醒，默认关闭，详见[内置运维](../operations/README.md)。旧JobPlan默认critical=True；明确允许容量不足时延迟的任务才加critical=False。容量暂停限制新领取，不取消在途事务/批次；关键任务、备份、清理和提醒继续。pending提醒只代表等待发送，不代表人已收到。
 
 ## 多组织定时（2.2）
 

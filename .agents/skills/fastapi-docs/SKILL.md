@@ -21,7 +21,7 @@ description: 业务代码、字段、接口、规则或计划改变后，生成�
 ```bash
 # 生成文档
 uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs
-# 只检查已生成的文档是否和当前代码一致，不写文件
+# 只比较声明文档/业务现状，不刷新它们；本机汇总仍生成
 uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs --check
 ```
 
@@ -30,6 +30,8 @@ uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs --c
 `modules.md`、`development.md`、`progress.md`在导出、检查或查看摘要时生成，加入.gitignore，不再提交。已有产品升级时先git rm --cached这三份（保留本机文件），再执行export_docs。needs/rules/changes继续随源码提交。
 
 计划中的实际对应操作在导出时记入implemented_operations；已实现操作删除或改名后，检查指出project-plan.json的具体项，先同步计划再导出。旧flows文档也作为首次迁移的已实现证据。
+
+导出命令同时初始化/更新过期的 `.agents/records/business-state/模块名.md` 生成部分（同名JSON是完整明细），不访问数据库，未知明确标未知；有效的既有运行观察保留，手写业务判断/外部依赖/下一步不覆盖。最近运行状态需确认数据库与授权后用project business_state --runs刷新。生成超过24小时或源码/依赖/声明变化，--check和fastapi-check报错，不自动刷新。记录不提交、不进入模板副本，开工先读、收工更新。
 
 ## 注意
 

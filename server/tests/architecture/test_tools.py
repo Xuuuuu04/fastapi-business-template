@@ -101,8 +101,8 @@ def test_new_project_path(tmp_path: Path) -> None:
         ],
         ["alembic", "upgrade", "head"],
         ["alembic", "revision", "--autogenerate", "-m", "add customer_contact tables"],
-        ["../.agents/skills/fastapi-docs/scripts/run_docs.py", "export_docs"],
         ["ruff", "format", "--quiet", "migrations"],
+        ["../.agents/skills/fastapi-docs/scripts/run_docs.py", "export_docs"],
         [
             ("../.agents/skills/fastapi-check/scripts/run_check.py"),
             "check",

@@ -38,7 +38,8 @@ def block(catalog: Catalog, project: Path, disabled: set[str]) -> str:
         lines.append(
             f"- {module.name}：{module.title}；公开操作{count}；定时{len(module.schedules)}；"
             f"流程{len(module.pipelines)}；{state}；"
-            f"最近改动：{recent_change(project, module.name)}。"
+            f"最近改动：{recent_change(project, module.name)}；"
+            f"业务现状：.agents/records/business-state/{module.name}.md。"
         )
     if not catalog.modules:
         lines.append("- 当前没有业务模块、业务操作、定时计划或业务流程。")

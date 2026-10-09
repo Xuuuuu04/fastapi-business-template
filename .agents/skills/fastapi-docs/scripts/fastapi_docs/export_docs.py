@@ -1,15 +1,13 @@
 """
-从代码中的声明生成文档，不启动服务、不连接数据库。生成的文档都提交到仓库，改动时差异可见：
-- doc/api/openapi.json 与 doc/api/index.md：接口描述和中文接口清单；
-- doc/modules.md：模块关系图；
-- doc/模块名/flows.md：操作、接口路径、流程图、字段来源、数据模型、数据表；
-- doc/progress.md：进度与质量：待确认的业务问题、规则的测试标注、任务清单条数。
+从声明生成文档，不连接数据库；API/模块flows/AGENTS生成段提交。
+模块关系/开发图/进度汇总及业务现状只在本机；现状生成与手写分开，过期检查不自动刷新。
 命令参数与调用方法见本功能所属项目 Skill。
 """
 
 import argparse
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from fastapi_check.quality.rules import PROJECT
@@ -17,11 +15,15 @@ from fastapi_docs.api_doc import api_markdown, docs_app
 from fastapi_docs.entry_state import render, stale
 from fastapi_docs.flow_doc import HEADER, module_doc, route_map
 from fastapi_docs.progress_doc import progress_doc
+from fastapi_project.development.business_state import database_identity
+from fastapi_project.development.business_state import outdated as state_outdated
+from fastapi_project.development.business_state import update as update_state
 from fastapi_project.development.design import design_doc
 from fastapi_project.development.plan import read_plan
 from fastapi_project.development.plan_entries import capture, check_entries
 
 from app.setup.catalog import MODULES
+from app.setup.operations import with_operations
 from shared.config.settings import Settings
 from shared.graphs.static import module_graph
 from shared.modules.catalog import Catalog
@@ -68,7 +70,33 @@ def outdated(catalog: Catalog, project: Path = PROJECT) -> list[Path]:
     ]
     if stale(catalog, project, set(Settings().disabled_modules)):
         result.append(project / "AGENTS.md")
+    settings = Settings()
+    result += state_outdated(
+        state_catalog(catalog, settings),
+        project,
+        set(settings.disabled_modules),
+        database_id=database_identity(settings.database_url),
+    )
     return result
+
+
+# 已展开的流程入口先还原，避免重复生成JobPlan；内置运维只进入本机业务现状。
+def state_catalog(catalog: Catalog, settings: Settings) -> Catalog:
+    if not settings.operations.enabled():
+        return catalog
+    modules = []
+    for module in catalog.modules.values():
+        if module.name == "system_ops":
+            continue
+        starts = {pipeline.start for pipeline in module.pipelines}
+        modules.append(
+            replace(
+                module,
+                provides={op: flow for op, flow in module.provides.items() if op not in starts},
+                jobs=tuple(plan for plan in module.jobs if plan.contract not in starts),
+            )
+        )
+    return Catalog(with_operations(settings, modules))
 
 
 # 汇总文档可重新生成，不参与源码提交或过期比较。
@@ -104,7 +132,19 @@ def main() -> None:
     for path, text in files.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
-    print(f"已生成 {len(files)} 份文档：接口描述、模块关系、各模块流程、开发进度")
+    settings = Settings()
+    effective = state_catalog(catalog, settings)
+    names = [
+        path.stem
+        for path in state_outdated(
+            effective,
+            PROJECT,
+            set(settings.disabled_modules),
+            database_id=database_identity(settings.database_url),
+        )
+    ]
+    paths = update_state(effective, PROJECT, set(settings.disabled_modules), names=names)
+    print(f"已生成 {len(files)} 份文档和 {len(paths)} 份本机业务现状；运行状态未读取时标未知")
 
 
 if __name__ == "__main__":

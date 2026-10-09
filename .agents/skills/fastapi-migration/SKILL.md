@@ -14,7 +14,7 @@ description: 把大型旧系统的业务逐项迁进本 FastAPI 模板时使用�
 
 ## 开始一项业务
 
-1. 读旧系统里这项业务的入口、调用关系、规则、样例，以及新系统里已有的成果，并记下读的是旧系统的哪个版本。
+1. 先读 `.agents/records/business-state/模块名.md` 的生成摘要与手写业务判断/外部依赖/下一步；没有记录时用project business_state生成，运行未知不补成成功。再读旧系统里这项业务的入口、调用关系、规则、样例，以及新系统里已有的成果，并记下旧版本。
 2. 列出用户的操作和对应的旧接口，选出最小的完整业务。例：经营日报 = 读取订单 → 计算 → 保存并发布 → 旧页面查看和下载。
 3. 在现有任务记录里写清楚：
    - 数据从哪里来；
@@ -29,6 +29,16 @@ description: 把大型旧系统的业务逐项迁进本 FastAPI 模板时使用�
 先稳定当前业务必需的表、应用权限、约束、事务和启动。不需要等所有业务表、完整的数据清理、容量测试和恢复演练都做完，才开始验证这一项业务。这些仍是正式交付前必须完成的，各自保留并继续推进。
 
 依赖顺序只用来安排这一项业务内部的工作，不能变成"全项目一层一层做"。
+
+## 先搭整链，再逐阶段实现
+
+迁移含定时或长流程的业务，先用 `new_pipeline` 登记完整链、Wait、定时首入口和演练占位，再按阶段补来源/计算/保存/发布。不要先把多个底层包做完才连流程，也不要把整段旧函数放进一个Stage。
+
+```bash
+uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipeline report daily --title 经营日报 --stages collect,wait,calculate,publish --wait wait
+```
+
+选择方法：短保存用普通`Flow(...steps=[validate, save])`，必须一起回滚；固定范围大量数据用`JobPlan(parse, segmented=True, repeat_safe=True, cursor=Cursor)`每批5000行推进Checkpoint；采集/等待/汇算/发布用`Pipeline(...Stage/Wait...)`，每阶段独立事务，汇算Stage内部可分段。完整声明片段与独立样例见[模块开发](../fastapi-module/SKILL.md)、[步骤与事务](../../../server/shared/flow/README.md)、[后台任务](../../../server/shared/jobs/README.md)。生成的正常样例只证明骨架，必须换成已确认的实际结果。
 
 ## 怎样处理旧函数
 
@@ -77,6 +87,8 @@ uv run python ../.agents/skills/fastapi-migration/scripts/run_migration.py compa
 4. 已正式切换
 
 还没拿到真实数据来源、身份或环境的，保持"未验证"。不要写精确的或估算的迁移百分比。汇报先说：用户哪个操作现在能做、结果是什么、卡在哪里。
+
+收工更新业务现状手写部分（业务判断、外部依赖、下一步）；授权确认当前DB后用 `project business_state --module 模块名 --runs` 刷新生成事实，没有DB证据则不加--runs并保持未知。生成与手写不混写；生成超过24小时或源码/依赖/声明变化检查报错，检查本身不自动刷新。记录仅本机，不代替真实产品交付。
 
 ## 正式切换
 
