@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import RowMapping, insert, select
 
-from service.$name.data import ${Camel}View
+from service.$name.store.contract import ${Camel}View
 from service.$name.store.tables import records
 from shared.public import Db
 

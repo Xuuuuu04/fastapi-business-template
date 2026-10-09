@@ -2,6 +2,13 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 2.15.0（2026-10-09）
+
+- 新增可选calc/与step(calcs=[函数])，生成器new_module/new_operation同步生成纯函数和无数据库短测试；声明与直接调用校验进入启动检查，计算图/操作详情列源码，运行图保存声明调用且耗时计入所属步骤，旧运行声明未知；允许登记经store调用的纯函数，不强制逐次直接调用。
+- 包内单向依赖：steps使用calc/data/store.contract，store只依赖store/calc；calc静态禁止数据库、外部、文件、时钟及随机导入/调用，报告文件:行号与迁移建议。纯计算标准库/数据类型明确允许，未知第三方库不默认放行；此检查不是不可信代码沙箱。
+- 已有产品接入：更新框架/Skill后反向导入先警告，旧短操作无需改动、无数据库迁移；复用计算移入calc，由步骤传入外部值并声明calcs，导出文档。完成迁移后设置APP_MODULE_DEPENDENCIES_STRICT=true，将启动与check警告升级为错误；新生成包以module.json的dependencies=strict默认严格检查，旧结构说明仍有效；新calc立即检查。
+- framework.lock更新理由：结构、依赖/纯计算检查、步骤声明及图/运行记录、生成器和独立框架测试、迁移说明一起更新；无预置业务模块。
+
 ## 2.14.0（2026-10-09）
 
 - 操作contract新增QueryBudget(queries/rows/bytes/repeated)，启动校验、声明摘要与计算图共同读取。结束时累计Db及同步子操作SQL，比较额度并记录步骤/存储函数位置；SQL明细截断后仍累计，反复调用同函数明确提示疑似循环逐行查询。

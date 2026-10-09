@@ -89,6 +89,11 @@ def implementation_files(
     generated: dict[Path, str] = {}
     step = folder / "steps" / f"build_{name}.py"
     generated[step] = templates.step_code(module, name, rule, output, invalid)
+    generated[folder / "calc" / f"{name}.py"] = templates.calc_code()
+    if not (folder / "calc" / "README.md").exists():
+        generated[folder / "calc" / "README.md"] = (
+            "# 纯计算\n\n只接收参数并返回结果；外部值由步骤传入。\n"
+        )
     flow = folder / "flow.py"
     flow_text = add_import(read(flow), f"from service.{module}.data import {kind}Work")
     flow_text = add_import(
@@ -117,6 +122,7 @@ def supporting_files(
     generated: dict[Path, str] = {}
     generated[rules] = append(text, rule_doc(rule, module, title))
     tests = ROOT / "tests/modules" / module
+    generated[tests / f"test_calc_{name}.py"] = templates.calc_tests(module, name)
     generated[tests / f"test_{name}.py"] = templates.tests(module, name, input, invalid, rule)
     fixture = tests / "conftest.py"
     if not fixture.exists() and not _has_fixture(read, fixture):

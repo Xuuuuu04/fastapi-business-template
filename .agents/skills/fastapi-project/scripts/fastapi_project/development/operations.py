@@ -8,6 +8,7 @@ from typing import Any
 from fastapi_project.development.pipelines import memberships
 from fastapi_project.development.query_budget import query_status
 
+from shared.flow.step import source_of
 from shared.graphs.static import flow_graph
 from shared.modules.catalog import Catalog
 
@@ -42,6 +43,7 @@ def operation_status(
             "name": part.name,
             "title": part.title,
             "source": part.source,
+            "calcs": [f"{func.__name__} · {source_of(func)}" for func in part.calcs],
             "rule": part.rule,
             "condition": part.when.title if part.when else "",
             "reads": list(part.reads),

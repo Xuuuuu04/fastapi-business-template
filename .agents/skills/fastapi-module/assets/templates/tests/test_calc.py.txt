@@ -1,0 +1,11 @@
+"""
+$title 的纯计算样例，无数据库夹具。
+"""
+
+from service.$name.calc.titles import normalize_title
+
+
+# 只验证输入输出，规则异常在步骤测试中验证。
+def test_normalize_title() -> None:
+    assert normalize_title(" 样例 ") == "样例"
+    assert normalize_title(" ") == ""

@@ -121,6 +121,7 @@ class StepRecord:
     models: list[ModelCallRecord] = field(default_factory=list)
     remotes: list[RemoteCallRecord] = field(default_factory=list)
     database: list[DatabaseCallRecord] = field(default_factory=list)
+    calcs: list[str] | None = None
     database_count: int = 0
     database_elapsed_ms: float = 0.0
     database_complete: bool = False

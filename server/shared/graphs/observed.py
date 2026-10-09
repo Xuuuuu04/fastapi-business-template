@@ -11,6 +11,7 @@ from shared.graphs.database import database_nodes
 from shared.graphs.imports import import_node, report_header
 from shared.graphs.mermaid import MAX_LABEL, STYLES, label
 from shared.graphs.remotes import remote_table
+from shared.graphs.steps import step_node
 from shared.records.models import (
     RUN_STATUS_TEXT,
     STEP_KIND_TEXT,
@@ -76,26 +77,6 @@ def condition_node(node: str, previous: str, step: StepRecord) -> list[str]:
     ]
     text = "<br/>".join(label(part, limit=None) for part in parts)
     return [f'        {node}_condition{{"{text}"}}', f"        {previous} --> {node}_condition"]
-
-
-# 位置和产出直接写在节点中；完整字段形状保留在结构化记录中。
-def step_node(node: str, index: int, step: StepRecord) -> list[str]:
-    status = STEP_STATUS_TEXT.get(step.status, step.status)
-    parts = [
-        f"{index}. {step.title} | {status} | {duration(step.elapsed_ms)}",
-        step.name,
-        step.error_place or step.source,
-    ]
-    text = "<br/>".join(label(part, limit=None) for part in parts)
-    outputs = "、".join(step.outputs) or "无"
-    text += (
-        f"<br/>产出 {len(step.outputs)}/{len(step.writes)}：{label(outputs)}"
-        if step.outputs_recorded
-        else "<br/>产出未知（旧记录）"
-    )
-    if step.error_code:
-        text += f"<br/>错误：{label(step.error_code)}"
-    return [f'        {node}["{text}"]:::{step.status}']
 
 
 # 外部接口与模型调用的时间也显示在步骤下面，业务正文不进入图。

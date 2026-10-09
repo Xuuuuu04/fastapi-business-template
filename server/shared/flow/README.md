@@ -79,3 +79,5 @@ def count_total(data: QuoteWork) -> None:
 | 带条件更新 | `db.change_or_fail(update(...).where(表.c.状态 == 读到的状态), 业务错误())`：一行都没改到时抛出这个业务错误 |
 
 不要在只读步骤里读、再在后面的保存步骤里无条件写入。
+
+可复用的纯计算放在可选 calc/，步骤 calcs=[函数] 声明直接调用。calc 只接收参数并返回值；步骤依旧写 data，耗时包括所有calc调用。

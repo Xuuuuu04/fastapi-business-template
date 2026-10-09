@@ -131,7 +131,11 @@ def test_default_build_stops_before_resources(
 ) -> None:
     (product / "service/unknown_package").mkdir()
     setup = importlib.import_module("app.setup.build")
-    monkeypatch.setattr(setup, "check_structure", lambda modules: check_structure(modules, product))
+    monkeypatch.setattr(
+        setup,
+        "check_structure",
+        lambda modules, **options: check_structure(modules, product, **options),
+    )
     with pytest.raises(ConfigError, match="unknown_package"):
         setup.build(make_settings(tmp_path))
 

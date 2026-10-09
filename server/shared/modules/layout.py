@@ -1,5 +1,5 @@
 """
-检查脚本生成的业务包结构。文件位置固定，步骤和存储文件可以按用途增加，不能另建业务目录。
+检查脚本生成的业务包结构。文件位置固定，步骤、纯计算和存储文件可以按用途增加，不能另建业务目录。
 module.json 标明包采用的结构版本；它用于发现误建文件，不是限制开发者文件权限的安全机制。
 """
 
@@ -8,13 +8,18 @@ from collections.abc import Iterable
 from pathlib import Path
 
 REQUIRED = {"README.md", "data.py", "public.py", "flow.py", "module.py"}
-AREAS = {"steps", "store", "prompts"}
+AREAS = {"steps", "store", "calc", "prompts"}
 IGNORED = {"__pycache__", ".DS_Store"}
 
 
 # 生成器与旧项目采用命令使用同一份结构说明，不能自定义允许的文件范围。
-def descriptor(name: str) -> dict[str, object]:
-    return {"schema_version": 1, "layout": "standard", "module": name}
+def descriptor(name: str, *, strict: bool = False) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "layout": "standard",
+        "module": name,
+        **({"dependencies": "strict"} if strict else {}),
+    }
 
 
 # 同时检查所有登记模块与目录，关闭模块也不能留下结构违规。
@@ -36,7 +41,7 @@ def check_layout(root: Path, names: Iterable[str], *, markers: bool = True) -> l
     return problems
 
 
-# 包根只接受固定文件和 data_主题.py；其他 Python 文件只能放在 steps 或 store 中。
+# 包根只接受固定文件和 data_主题.py；其他 Python 文件只能放在 steps、calc 或 store 中。
 def check_package(folder: Path, *, markers: bool) -> list[str]:
     problems = [
         f"service/{folder.name}/{name}：缺少标准文件"
@@ -62,7 +67,7 @@ def check_package(folder: Path, *, markers: bool) -> list[str]:
     return problems
 
 
-# 步骤和存储只允许一层命名文件，提示词接受文本和 Markdown，不允许可执行代码。
+# 步骤、纯计算和存储只允许一层命名文件，提示词接受文本和 Markdown，不允许可执行代码。
 def permitted(parts: tuple[str, ...], directory: bool) -> bool:
     if len(parts) == 1:
         if directory:
@@ -87,6 +92,6 @@ def check_marker(folder: Path) -> list[str]:
             f"service/{folder.name}/module.json：缺少有效的结构说明；"
             "新包用 fastapi_module.new_module，旧包用 fastapi_module.adopt_modules"
         ]
-    if content != descriptor(folder.name):
+    if content not in (descriptor(folder.name), descriptor(folder.name, strict=True)):
         return [f"service/{folder.name}/module.json：结构说明与标准业务包不一致"]
     return []

@@ -48,14 +48,15 @@ def step_code(module: str, name: str, rule: str, output: str, invalid: str) -> s
 生成操作的样例计算，业务迁移时按已确认规则替换。
 """
 
+from service.{module}.calc.{name} import normalize_text
 from service.{module}.data import {kind}Work, {output}, {invalid}
 from shared.public import step
 
 
 # 生成样例规则：去掉空白并拒绝空文本。
-@step("整理样例输入", reads=["text"], writes=["result"], rule="{rule}")
+@step("整理样例输入", reads=["text"], writes=["result"], rule="{rule}", calcs=[normalize_text])
 def build_{name}(data: {kind}Work) -> None:
-    value = data.text.strip()
+    value = normalize_text(data.text)
     if not value:
         raise {invalid}()
     data.result = {output}(text=value)
@@ -104,4 +105,33 @@ import pytest
 @pytest.fixture
 async def operation_services(services):
     return services
+'''
+
+
+# 纯函数没有框架和数据库依赖，直接参数输入、结果输出。
+def calc_code() -> str:
+    return '''"""
+生成样例的文本计算，真实业务按确认规则替换。
+"""
+
+
+# 去掉首尾空白；异常由步骤按业务规则判断。
+def normalize_text(text: str) -> str:
+    return text.strip()
+'''
+
+
+# 两个同步短样例，不请求任何数据库夹具。
+def calc_tests(module: str, name: str) -> str:
+    return f'''"""
+纯计算短样例，无需数据库。
+"""
+
+from service.{module}.calc.{name} import normalize_text
+
+
+# 覆盖正常和空值计算，业务异常由步骤测试覆盖。
+def test_normalize_text() -> None:
+    assert normalize_text(" 样例 ") == "样例"
+    assert normalize_text(" ") == ""
 '''

@@ -2,7 +2,7 @@
 $title 的公开数据、流程数据和业务错误。字段含义和规则见 doc/$name/rules.md。
 """
 
-from datetime import datetime
+from service.$name.store.contract import ${Camel}View
 
 from shared.public import BusinessError, Data, Kind, WorkData, meaning
 
@@ -15,13 +15,6 @@ class ${Camel}Input(Data):
 # $title 查询记录时接收的记录编号。
 class ${Camel}Id(Data):
     record_id: int = meaning("记录编号", gt=0)
-
-
-# $title 可公开返回的记录信息。
-class ${Camel}View(Data):
-    id: int = meaning("记录编号")
-    title: str = meaning("标题", rule="R-01")
-    created_at: datetime = meaning("创建时间（UTC）")
 
 
 # $title 未找到记录时返回的失败。

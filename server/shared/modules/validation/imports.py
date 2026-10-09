@@ -6,10 +6,14 @@ shared 不导入 app、service、tools；接口层只导入模块的 public.py�
 """
 
 import ast
+import json
+import os
+import warnings
 from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
+from shared.modules.validation.pure import check_pure, direction_problem
 from shared.modules.validation.report import ROOT, Problem, files_under, relative
 
 WEB_LIBRARIES = ("fastapi", "starlette", "httpx", "httpx2", "requests", "uvicorn")
@@ -17,7 +21,7 @@ DATABASE_LIBRARIES = ("sqlalchemy", "sqlite3", "psycopg", "aiosqlite", "alembic"
 
 
 # 检查全部依赖方向。
-def check_imports(root: Path = ROOT) -> list[Problem]:
+def check_imports(root: Path = ROOT, *, strict: bool | None = None) -> list[Problem]:
     problems = []
     for path in files_under(root, ("service",), ".py"):
         problems += check_service_file(path, root)
@@ -44,7 +48,40 @@ def check_imports(root: Path = ROOT) -> list[Problem]:
         problems += check_api_file(path, root)
     for path in files_under(root, ("service", "shared", "app"), ".py"):
         problems += check_dynamic(path, root)
-    return problems
+    return migration_policy(problems, strict, root)
+
+
+# 新目录立即检查；旧包反向引用先警告，迁移后可升级为错误。
+def migration_policy(problems: list[Problem], strict: bool | None, root: Path) -> list[Problem]:
+    if strict is None:
+        strict = os.getenv("APP_MODULE_DEPENDENCIES_STRICT", "false").lower() in {"1", "true"}
+    errors = []
+    for problem in problems:
+        if (
+            problem.rule == "import_direction"
+            and not strict
+            and not package_strict(root, problem.path)
+        ):
+            warnings.warn(
+                problem.text() + "；迁移后设置 APP_MODULE_DEPENDENCIES_STRICT=true",
+                UserWarning,
+                stacklevel=2,
+            )
+        else:
+            errors.append(problem)
+    return errors
+
+
+# 新生成包采用严格依赖；旧结构说明兼容，不替用户自动改代码。
+def package_strict(root: Path, path: str) -> bool:
+    parts = Path(path).parts
+    if len(parts) < 2 or parts[0] != "service":
+        return False
+    marker = root / "service" / parts[1] / "module.json"
+    try:
+        return json.loads(marker.read_text()).get("dependencies") == "strict"
+    except (OSError, ValueError, AttributeError):
+        return False
 
 
 # 列出一个文件导入的全部模块名和行号；相对导入的名称以点开头。
@@ -86,11 +123,16 @@ def check_service_file(path: Path, root: Path) -> list[Problem]:
         found = service_problem(module, parts[0], area)
         if found is not None:
             problems.append(Problem(name, line, *found))
+    if area == "calc":
+        problems += check_pure(path, root)
     return problems
 
 
 # 判断业务代码的一条导入是否越界，返回规则、说明和建议。
 def service_problem(module: str, own: str, area: str) -> tuple[str, str, str] | None:
+    direction = direction_problem(module, own, area)
+    if direction:
+        return direction
     top = module.split(".")[0]
     if module.startswith("shared") and module != "shared.public":
         return "import_shared", f"业务代码导入了 {module}", "框架功能统一从 shared.public 导入"

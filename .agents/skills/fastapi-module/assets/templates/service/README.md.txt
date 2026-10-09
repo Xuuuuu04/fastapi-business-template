@@ -21,6 +21,7 @@
 - `data.py`：公开数据、流程数据、业务错误。
 - `flow.py`：每个操作的步骤顺序。
 - `steps/`：`check_record.py` 整理输入；`store_records.py` 读写数据库。
+- `calc/`：可复用的标题计算，无数据库测试。
 - `store/`：`contract.py` 声明需要的读写，`sql.py` 是数据库实现，`tables.py` 定义表。
 
 ## 业务文档

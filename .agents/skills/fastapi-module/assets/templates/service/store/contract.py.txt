@@ -4,7 +4,16 @@ $title 的步骤需要的数据访问操作。数据库实现见 sql.py。
 
 from typing import Protocol
 
-from service.$name.data import ${Camel}View
+from datetime import datetime
+
+from shared.public import Data, meaning
+
+
+# $title 可公开返回的记录信息。
+class ${Camel}View(Data):
+    id: int = meaning("记录编号")
+    title: str = meaning("标题", rule="R-01")
+    created_at: datetime = meaning("创建时间（UTC）")
 
 
 # $title 步骤允许使用的数据访问操作。
