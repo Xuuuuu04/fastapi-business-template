@@ -8,6 +8,7 @@ from typing import Any
 
 from shared.data.fields import FieldNote, check_notes, notes_of
 from shared.data.models import Data, WorkData
+from shared.flow.calculations import check_calculations
 from shared.flow.flow import Flow
 from shared.flow.step import PARAMS, Condition, Step
 from shared.model_calls.prompt import Prompt
@@ -36,6 +37,7 @@ def check_flow(
     problems += check_shape(flow, contract, place)
     for item in flow.steps:
         problems += check_step(item, notes, has_store, prompts, remotes)
+        problems += check_calculations(item, contract.name.split(".")[0])
         if "emit" in item.params and not contract.stream:
             problems.append(
                 f"步骤“{item.title}”使用 emit，但操作 {contract.name} 没有声明 stream=True"

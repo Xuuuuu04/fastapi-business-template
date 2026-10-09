@@ -20,6 +20,7 @@
 │                 超过 300 行时按主题拆出 data_主题.py，写法相同
 ├── flow.py       把步骤按顺序连成流程
 ├── steps/        步骤，每个文件放一组相近的步骤
+├── calc/         可选：只接收参数、返回结果的纯计算
 ├── store/        contract.py 声明需要的读写，sql.py 实现，tables.py 定义表
 └── prompts/      大模型提示词文件（需要时）
 ```
@@ -57,3 +58,5 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_module 
 | 需要追溯的修改用 `db.update_tracked`；先读后写用 `change_or_fail` 或 `first_for_update` | 谁改了什么可查；并发修改不会互相覆盖 |
 | 一个流程最多 12 步，太长就拆成本模块的内部操作 | 一个人一次能看懂的范围有限 |
 | 不写多余的防御代码，不吞掉异常 | 出错要在运行记录中看得见，不能悄悄变成空值或零 |
+
+包内依赖：steps → calc/data/store.contract；store → store/calc；calc → 本包calc及纯计算库。calc 不访问数据库、外部、文件、时钟或随机数；由步骤传参，使用 @step(calcs=[函数]) 登记。旧产品反向导入默认警告，迁移后设置 APP_MODULE_DEPENDENCIES_STRICT=true；新生成包默认严格检查，旧结构说明仍有效；新calc立即严格检查。详见 fastapi-module Skill。

@@ -10,6 +10,7 @@ from shared.data.fields import notes_of
 from shared.db.budget import DEFAULT_BUDGET
 from shared.graphs.imports import import_plan_lines
 from shared.graphs.mermaid import STYLES, label, node_id
+from shared.graphs.steps import declaration_location
 from shared.modules.catalog import Binding, Catalog
 from shared.pipelines.plan import FanOut, Pipeline, Wait
 from shared.records.models import STEP_KIND_TEXT
@@ -44,7 +45,7 @@ def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str
         current = f"s{index}"
         rule = f"<br/>规则 {label(part.rule)}" if part.rule else ""
         kind = STEP_KIND_TEXT.get(part.kind, part.kind)
-        location = f"<br/>{label(part.name)} · {label(part.source, limit=None)}"
+        location = declaration_location(part)
         fields = (
             f"<br/>读：{label('、'.join(part.reads) or '无')} → "
             f"写：{label('、'.join(part.writes) or '无')}"

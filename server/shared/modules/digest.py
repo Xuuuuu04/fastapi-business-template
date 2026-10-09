@@ -10,6 +10,7 @@ from dataclasses import asdict
 from typing import Any
 
 from shared.db.budget import DEFAULT_BUDGET
+from shared.flow.step import source_of
 from shared.jobs.plan import JobPlan
 from shared.modules.module import Module
 from shared.pipelines.plan import FanOut, Stage
@@ -39,6 +40,7 @@ def module_shape(module: Module) -> dict[str, Any]:
             for item, flow in sorted(module.provides.items(), key=lambda pair: pair[0].name)
         },
         **endpoint_shapes(module),
+        **calculation_shape(module),
         "query_budgets": query_budgets(module),
         "jobs": [job_shape(j) for j in sorted(module.jobs, key=lambda item: item.contract.name)],
         "schedules": [
@@ -157,3 +159,17 @@ def query_budgets(module: Module) -> dict[str, Any]:
         )
         for item in module.provides
     }
+
+
+# 仅新增calc的模块改变声明摘要，旧短操作摘要保持兼容。
+def calculation_shape(module: Module) -> dict[str, Any]:
+    calcs = {
+        item.name: {
+            part.name: [f"{func.__name__} · {source_of(func)}" for func in part.calcs]
+            for part in flow.steps
+            if part.calcs
+        }
+        for item, flow in module.provides.items()
+        if any(part.calcs for part in flow.steps)
+    }
+    return {"calcs": calcs} if calcs else {}

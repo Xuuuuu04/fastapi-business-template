@@ -100,6 +100,7 @@ def migration_check() -> bool:
 # 保存每轮的检查结果；检查期间源码改变时，该轮不能证明当前版本。
 def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
     from app.setup.catalog import MODULES
+    from shared.config.settings import Settings
     from shared.modules.catalog import Catalog
 
     started = perf_counter()
@@ -108,6 +109,7 @@ def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
     before = fingerprints(PROJECT, modules, links)
     system_before = system_fingerprint(PROJECT)
     env = {**os.environ, "APP_DISABLED_MODULES": "[]", "APP_DEVELOPMENT_REPEAT_DATABASE": "0"}
+    env["APP_MODULE_DEPENDENCIES_STRICT"] = str(Settings().module_dependencies_strict).lower()
     env["APP_DEVELOPMENT_MODULES"] = json.dumps([] if selection.quick else list(selection.modules))
     selected = steps(selection)
     timings: dict[str, float] = {}

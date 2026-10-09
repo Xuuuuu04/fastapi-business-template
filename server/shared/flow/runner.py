@@ -24,7 +24,7 @@ from shared.errors.kinds import BusinessError
 from shared.flow.flow import Flow
 from shared.flow.inject import tools_for
 from shared.flow.scope import Scope
-from shared.flow.step import Condition, Step
+from shared.flow.step import Condition, Step, source_of
 from shared.flow.view import FieldTypes, StepView, missing_writes
 from shared.modules.catalog import Binding
 from shared.records.models import RunRecord, StepRecord
@@ -71,6 +71,7 @@ async def run_part(
         source=part.source,
         reads=list(part.reads),
         writes=list(part.writes),
+        calcs=[f"{func.__name__} · {source_of(func)}" for func in part.calcs],
         database_complete=True,
         database_explain=scope.runtime.query_policy.explain_enabled(),
         query_limits=asdict(binding.contract.query_budget or DEFAULT_BUDGET),

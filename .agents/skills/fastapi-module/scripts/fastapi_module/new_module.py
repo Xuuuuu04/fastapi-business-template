@@ -24,6 +24,9 @@ def targets(name: str) -> dict[str, Path]:
     service = ROOT / "service" / name
     return {
         "service/README.md.txt": service / "README.md",
+        "service/calc_README.md.txt": service / "calc" / "README.md",
+        "service/calc/titles.py.txt": service / "calc" / "titles.py",
+        "tests/test_calc.py.txt": ROOT / "tests" / "modules" / name / "test_calc.py",
         "service/data.py.txt": service / "data.py",
         "service/public.py.txt": service / "public.py",
         "service/flow.py.txt": service / "flow.py",

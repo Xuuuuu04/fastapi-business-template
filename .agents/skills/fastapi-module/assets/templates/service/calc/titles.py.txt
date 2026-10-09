@@ -1,0 +1,8 @@
+"""
+$title 的标题纯计算，不读取外部状态。
+"""
+
+
+# 去掉首尾空白，业务异常由步骤判断。
+def normalize_title(title: str) -> str:
+    return title.strip()

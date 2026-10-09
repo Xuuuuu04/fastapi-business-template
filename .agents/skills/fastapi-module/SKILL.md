@@ -60,13 +60,25 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipelin
 
 | 位置 | 放什么 |
 |---|---|
-| `steps/` | 计算 |
+| `steps/` | 连接输入、纯计算、存储约定和业务异常 |
+| `calc/` | 可选，接收参数并返回结果的纯函数 |
 | `store/` | 数据库操作和外部动作 |
 | `flow.py` | 声明各步骤怎样连接成一个流程 |
 | `data.py` | 输入、流程中间数据、返回结果的数据模型 |
 | `public.py` | 包对外公开的操作，别的包只能从这里导入 |
 
 字段用 `meaning()` 写含义；步骤声明读写哪些字段，并标注对应的规则编号。完整目录见 `server/service/README.md`，步骤与事务写法见 `server/shared/flow/README.md`。
+
+
+## 什么时候把计算放进 calc
+
+需要复用或独立测试的金额、文本、汇算等计算放在可选 `calc/`，小赋值仍可留在步骤里。calc 只接收参数、返回结果；不得访问数据库、网络、文件、时钟和随机数。需要时间、随机值或外部数据，由步骤取得后传入；calc 的短测试直接调用函数，无需 services、settings 或数据库夹具。生成器默认生成纯函数和短测试。
+
+步骤从本包 calc 导入函数，在已有声明添加 `@step(..., calcs=[normalize_text])`；直接调用漏登记、引用外包或异步函数启动时报错。经 store 使用的 calc 也在所属步骤登记。calcs 是可能调用的范围，不强制每次直接执行所有函数。计算图列出函数源码；运行图保留声明，耗时包含在所属步骤，是否逐个实际调用不单独追踪，旧记录明确未知。
+
+包内方向：steps 可用 calc、data、其他步骤与 store.contract；store 只用 store 和 calc，不导入步骤、data、flow、module 或 public。calc 只用本包 calc、纯计算标准库及 shared.public 的纯数据/异常类型。共享的数据约定应移到 store.contract 或由参数传递。calc 的检查是静态约束，不是执行不可信代码的沙箱；反射、动态函数参数以及经数据对象访问外部资源不能据此宣称运行时已证明纯净。
+
+已有产品反向依赖默认在启动和 check 输出文件:行号警告及迁移建议，保持运行。移计算到 calc、改为步骤传参，并重新导出文档；完成后设置 `APP_MODULE_DEPENDENCIES_STRICT=true`，启动和完整检查均按错误处理。新生成包的 module.json 默认 dependencies=strict，反向导入直接报错；旧包结构说明无需改动。新 calc 目录中的不纯导入/调用立即报错。旧短操作无 calc 时写法不变，无数据库迁移。
 
 ## 开发过程中
 

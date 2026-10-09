@@ -76,7 +76,7 @@ def build(
     provider: ModelProvider | None = None,
 ) -> Services:
     if modules is None:
-        check_structure(MODULES)
+        check_structure(MODULES, strict=settings.module_dependencies_strict)
         migration_errors = check_migrations(ROOT, MODULES, settings)
         if migration_errors:
             raise ConfigError(migration_errors)
