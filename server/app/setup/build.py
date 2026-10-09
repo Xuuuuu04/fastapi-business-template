@@ -76,7 +76,9 @@ def build(
     if modules is None:
         check_structure(MODULES)
     selected = enabled_modules(settings) if modules is None else modules
-    catalog = Catalog(with_operations(settings, selected))
+    catalog = Catalog(
+        with_operations(settings, selected), strict_endpoints=settings.remote_endpoints_strict
+    )
     problems = check_production(settings, needs_vault="vault" in store_requirements(catalog))
     problems += unconfigured_remotes(settings, catalog)
     if problems:
@@ -204,7 +206,10 @@ def file_components(settings: Settings) -> tuple[FileStorage, UploadArea]:
 # 只保留启用模块声明过的外部系统地址。
 def remote_service(settings: Settings, catalog: Catalog) -> RemoteService:
     used = {item.name for module in catalog.modules.values() for item in module.remotes}
-    return RemoteService({key: value for key, value in settings.remotes.items() if key in used})
+    return RemoteService(
+        {key: value for key, value in settings.remotes.items() if key in used},
+        strict_endpoints=settings.remote_endpoints_strict,
+    )
 
 
 # 按 APP_FILE_STORAGE 选择文件存储实现。

@@ -16,6 +16,7 @@ from shared.flow.flow import Flow
 from shared.jobs.plan import JobPlan, Schedule
 from shared.model_calls.prompt import Prompt
 from shared.modules.contract import Contract
+from shared.remote_calls.endpoint import Endpoint
 from shared.remote_calls.remote import Remote
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ class Module:
     identity_header: str = ""
     identity_token: Literal["jwt", "opaque"] = "jwt"
     pipelines: tuple["Pipeline", ...] = ()
+    endpoints: tuple[Endpoint[Any, Any], ...] = ()
 
     aliases: tuple[str, ...] = ()
 

@@ -6,8 +6,7 @@
 import asyncio
 import json
 import time
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import replace
 
 import httpx2
 
@@ -24,30 +23,11 @@ from shared.errors.framework import (
 from shared.errors.kinds import BusinessError
 from shared.records.models import RemoteCallRecord
 from shared.remote_calls.breaker import Breaker
+from shared.remote_calls.endpoint import validate_output
 from shared.remote_calls.remote import Remote, RemoteConfig
+from shared.remote_calls.request import RemoteReply, RemoteRequest, is_write
 
-SAFE_METHODS = ("GET", "HEAD")
 RETRY_WAITS = (0.5, 2.0, 5.0)
-
-
-# 外部接口返回的状态与内容，供数据访问实现转换为业务数据。
-@dataclass(frozen=True)
-class RemoteReply:
-    status: int
-    data: Any
-    text: str
-    content: bytes
-
-
-# 发送给外部系统的请求内容，包含方法、路径和请求编号。
-@dataclass(frozen=True)
-class RemoteRequest:
-    method: str
-    path: str
-    params: dict[str, Any] | None = None
-    json: Any = None
-    key: str = ""
-    accepted_statuses: tuple[int, ...] = ()
 
 
 # 发送外部请求并记录结果，按请求安全性处理重试。
@@ -58,8 +38,10 @@ class RemoteService:
         configs: dict[str, RemoteConfig],
         transports: dict[str, httpx2.AsyncBaseTransport] | None = None,
         retry_waits: tuple[float, ...] = RETRY_WAITS,
+        strict_endpoints: bool = False,
     ) -> None:
         self.configs = configs
+        self.strict_endpoints = strict_endpoints
         self.transports = transports or {}
         self.retry_waits = retry_waits
         self.clients: dict[str, httpx2.AsyncClient] = {}
@@ -77,9 +59,10 @@ class RemoteService:
         check_path(request.path)
         check_accepted_statuses(request.accepted_statuses)
         record = RemoteCallRecord(target.name, request.method, request.path.split("?")[0], 0, 0.0)
+        record.endpoint, record.effect = request.endpoint, request.effect
         record.bytes_out = len(str(request.json or "").encode("utf-8"))
         records.append(record)
-        if effects is not None and request.method not in SAFE_METHODS:
+        if effects is not None and is_write(request):
             effects.append(record)
         started = time.perf_counter()
         breaker = self.breakers.setdefault(target.name, Breaker())
@@ -90,13 +73,16 @@ class RemoteService:
                     f"外部系统 {target.title}连续失败，暂停调用，{wait:.0f} 秒后再试"
                 )
             reply = await self.attempts(target, request, record)
+            if request.protocol is not None:
+                output = validate_output(request.protocol, reply.data, record)
+                reply = replace(reply, data=output)
         except (RemoteUnavailable, RemoteResultUnknown) as error:
             if not wait:
                 breaker.failed()
             record.error = error.detail
             raise
         except BusinessError as error:
-            if request.method not in SAFE_METHODS and record.outcome == "unknown":
+            if is_write(request) and record.outcome == "unknown":
                 breaker.failed()
                 message = f"写入外部系统 {target.title}后未取得确定结果，请先查询"
                 record.error = message
@@ -118,14 +104,14 @@ class RemoteService:
     async def attempts(
         self, target: Remote, request: RemoteRequest, record: RemoteCallRecord
     ) -> RemoteReply:
-        retryable = request.method in SAFE_METHODS or bool(request.key)
+        retryable = not is_write(request) or bool(request.key)
         allowed = min(target.retries, len(self.retry_waits)) if retryable else 0
         for attempt in range(allowed + 1):
             try:
                 return await self.once(target, request, record)
             except RemoteUnavailable:
                 if attempt == allowed:
-                    if request.method not in SAFE_METHODS and record.outcome == "unknown":
+                    if is_write(request) and record.outcome == "unknown":
                         raise RemoteResultUnknown(
                             f"写入外部系统 {target.title}后未取得确定结果，请先查询"
                         ) from None
@@ -148,7 +134,7 @@ class RemoteService:
                     client, target, request, record, headers, previously_unknown
                 )
             except ResponseTooLarge as error:
-                if request.method not in SAFE_METHODS:
+                if is_write(request):
                     raise RemoteResultUnknown(
                         f"外部系统 {target.title}返回内容超过上限，写入结果需要确认"
                     ) from error
@@ -174,6 +160,7 @@ class RemoteService:
             params=request.params,
             json=request.json,
             headers=headers,
+            extensions={"endpoint": request.endpoint},
         ) as response:
             record.status = response.status_code
             if (
@@ -182,8 +169,13 @@ class RemoteService:
                 and response.status_code not in (408, 499)
             ):
                 record.outcome = "failed"
+            if response.status_code in request.unknown_on and is_write(request):
+                record.outcome = "unknown"
+                raise RemoteResultUnknown(
+                    f"上游接口 {request.endpoint} 收到待确认状态 HTTP {response.status_code}"
+                )
             captured = response.status_code in request.accepted_statuses
-            if captured and previously_unknown and request.method not in SAFE_METHODS:
+            if captured and previously_unknown and is_write(request):
                 raise RemoteResultUnknown("此前写入仍未确认，捕获HTTP响应不能抹掉未知结果")
             if not captured:
                 raise_for_status(target, response.status_code, request)
@@ -242,7 +234,7 @@ def transport_problem(
     not_sent = isinstance(error, httpx2.ConnectError | httpx2.ConnectTimeout | httpx2.PoolTimeout)
     if not_sent and not previously_unknown:
         record.outcome = "not_sent"
-    if request.method not in SAFE_METHODS and not request.key and not not_sent:
+    if is_write(request) and not request.key and not not_sent:
         return RemoteResultUnknown(f"写入外部系统 {target.title}时连接中断或超时，对方可能已经处理")
     return RemoteUnavailable(f"无法取得外部系统 {target.title}的响应")
 
@@ -252,7 +244,7 @@ def raise_for_status(target: Remote, status: int, request: RemoteRequest) -> Non
     if status < 400:
         return
     if status >= 500 or status in (408, 499):
-        if request.method not in SAFE_METHODS and not request.key:
+        if is_write(request) and not request.key:
             raise RemoteResultUnknown(
                 f"写入外部系统 {target.title}后收到 HTTP {status}，请先查询结果"
             )

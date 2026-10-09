@@ -18,6 +18,7 @@ from shared.modules.digest import digest_of
 from shared.modules.module import Module
 from shared.pipelines.plan import stages_of
 from shared.pipelines.registration import check_pipelines, expand
+from shared.remote_calls.checks import check_endpoints
 
 
 # 一个公开操作与其模块、计算流程和字段说明之间的对应关系。
@@ -32,12 +33,14 @@ class Binding:
 # 统一保存模块和公开操作，启动时检查依赖与流程声明。
 class Catalog:
     # 检查模块声明并建立查找表；有问题时一次列出全部问题。
-    def __init__(self, modules: Sequence[Module]) -> None:
+    def __init__(self, modules: Sequence[Module], *, strict_endpoints: bool = False) -> None:
         pipeline_problems = check_pipelines(modules)
         if pipeline_problems:
             raise DeclarationError(pipeline_problems)
         modules = expand(modules)
         problems = pipeline_problems + check_catalog(modules)
+        if strict_endpoints:
+            problems += check_endpoints(modules, strict=True)
         if problems:
             raise DeclarationError(problems)
         self.modules = {module.name: module for module in modules}
@@ -109,5 +112,13 @@ class Catalog:
             for pipeline in module.pipelines
             for stage in stages_of(pipeline)
             if stage.operation.module != module.name
+        ]
+        edges += [
+            (module.name, endpoint.source.split(".")[1], f"上游协议：{endpoint.name}")
+            for module in self.modules.values()
+            for endpoint in module.endpoints
+            if endpoint.source.startswith("service.")
+            and endpoint.source.split(".")[1] in self.modules
+            and endpoint.source.split(".")[1] != module.name
         ]
         return edges

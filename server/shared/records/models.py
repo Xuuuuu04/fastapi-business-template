@@ -69,6 +69,9 @@ class RemoteCallRecord:
     retries: int = 0
     error: str = ""
     outcome: str = "not_sent"
+    endpoint: str = ""
+    effect: str = ""
+    fields: dict[str, str] = field(default_factory=dict)
 
 
 # 一次业务数据库调用的位置、耗时和行数；不保存 SQL 文本、参数或查询结果。

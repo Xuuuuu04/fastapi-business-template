@@ -34,6 +34,7 @@ def module_shape(module: Module) -> dict[str, Any]:
             item.name: [[part.name, part.reads, part.writes, part.saves] for part in flow.steps]
             for item, flow in sorted(module.provides.items(), key=lambda pair: pair[0].name)
         },
+        **endpoint_shapes(module),
         "jobs": [
             dict(
                 contract=j.contract.name,
@@ -114,3 +115,18 @@ def stage_shape(stage: Stage) -> dict[str, Any]:
             getattr(stage.join, "required", ()),
         ]
     return shape
+
+
+# 只在使用新协议时扩展声明摘要，旧产品无协议的登记格式保持原样。
+def endpoint_shapes(module: Module) -> dict[str, Any]:
+    if not module.endpoints and not any(
+        part.endpoints for flow in module.provides.values() for part in flow.steps
+    ):
+        return {}
+    return {
+        "endpoints": [e.shape() for e in sorted(module.endpoints, key=lambda e: e.name)],
+        "step_endpoints": {
+            item.name: {part.name: [e.name for e in part.endpoints] for part in flow.steps}
+            for item, flow in module.provides.items()
+        },
+    }

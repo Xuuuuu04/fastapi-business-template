@@ -2,6 +2,14 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 2.12.0（2026-10-09）
+
+- 新增声明式Endpoint：上游协议在module.py或store/contract.py定义、public公开复用，Module.endpoints及步骤endpoints登记。请求Data自动序列化、响应Data自动校验，业务与上游共用Data在生成文档只展开一次；有限字段问题进入运行记录，不保存上游正文或取值。
+- 安全性按effect而非HTTP方法决定；unknown_on声明额外HTTP待确认状态，不能削弱原超时/408/499/5xx等保护。确定4xx拒绝沿用2.2 accepted_statuses并返回已校验回执；成功写入回执坏格式仍需确认，拒绝回执坏格式明确协议错误。
+- 启动检查同名重复定义、未登记及源码可识别的未声明调用；动态调用在运行时核对，不冒充完整静态证明。计算图/运行图与project --operation展示接口；协议和步骤引用进入声明摘要。drill原件可按Endpoint名匹配，旧清单保持原写法。
+- 已有产品接入：先更新框架/Skill/framework.lock，无新增数据库迁移；旧短操作和get/post等行为不变，先给迁移警告。零售可将session_collection与调价各自回执包络写成Data，在store/contract.py集中定义协议并从public复用；朝聚可同样声明自己的采集/提交协议，框架不写死系统含义。模块登记endpoints，直接或经store调用的步骤补endpoints，再改为remote.call；核对确定拒绝、额外字段和待确认含义。迁移验证后设置APP_REMOTE_ENDPOINTS_STRICT=true升级为启动/运行错误；真实上游及产品业务另验。
+- framework.lock更新理由：协议声明/安全传输/注入、启动检查与兼容开关、声明摘要、图/项目视图与原件回放一起扩展，独立读写框架样例及说明同步；没有预置业务模块。
+
 ## 2.11.0（2026-10-09）
 
 - 新增Module/contract可选aliases业务别名；启动检查空值、重复与名称冲突，直接附着声明避免别名目标失效，原步骤/任务/流程引用检查保留。别名进入声明摘要、计算图与新运行图；旧运行记录别名明确未知。

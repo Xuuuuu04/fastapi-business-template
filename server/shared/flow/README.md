@@ -45,6 +45,7 @@ def count_total(data: QuoteWork) -> None:
 - 写数据库的步骤要加 `saves=True`；其他步骤拿到的数据库连接是只读的。
 - 需要等待的步骤写 `async def`；耗时的纯计算加 `heavy=True` 放进线程。
 - 步骤不 `return` 结果，结果写到 `data` 的字段上。
+- 上游协议由Module.endpoints登记、步骤endpoints声明；直接或经store调用均用同一权限范围。
 - 外部系统由模块声明，使用它的步骤还需写 `remotes=[...]`。写入事务开始后不能再调用外部接口。
 - 流式操作声明 `stream=True`，异步步骤通过 `emit` 输出分段；客户端断开会取消运行并回滚。
 - 流式输出最多缓冲 16 条事件。客户端断开后等待运行清理，不向无人消费的队列再写结束标记。

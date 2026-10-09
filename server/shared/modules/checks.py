@@ -22,6 +22,7 @@ from shared.modules.aliases import check_aliases
 from shared.modules.contract import Contract
 from shared.modules.identity import check_identity
 from shared.modules.module import STORE_PARAMS, Module
+from shared.remote_calls.checks import check_endpoints
 
 NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
 Provided = dict[Contract[Any, Any], Module]
@@ -31,6 +32,7 @@ Provided = dict[Contract[Any, Any], Module]
 def check_catalog(modules: Sequence[Module]) -> list[str]:
     problems = check_names(modules) + check_aliases(modules)
     problems += check_identity(modules)
+    problems += check_endpoints(modules)
     provided: Provided = {}
     for module in modules:
         for item in module.provides:

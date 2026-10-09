@@ -13,6 +13,7 @@ from typing import Any
 
 from shared.model_calls.prompt import Prompt
 from shared.modules.contract import Contract
+from shared.remote_calls.endpoint import Endpoint
 from shared.remote_calls.remote import Remote
 
 PARAMS = (
@@ -60,6 +61,7 @@ class Step:
     params: tuple[str, ...]
     source: str
     is_async: bool
+    endpoints: tuple[Endpoint[Any, Any], ...] = ()
 
     # 按参数判断步骤的种类：大模型、保存、读取、调用或纯计算。
     @property
@@ -96,6 +98,7 @@ def step(
     prompts: Sequence[Prompt] = (),
     later: Sequence[Contract[Any, Any]] = (),
     remotes: Sequence[Remote] = (),
+    endpoints: Sequence[Endpoint[Any, Any]] = (),
     rule: str = "",
     saves: bool = False,
     when: Condition | None = None,
@@ -114,6 +117,7 @@ def step(
             prompts=tuple(prompts),
             later=tuple(later),
             remotes=tuple(remotes),
+            endpoints=tuple(endpoints),
             rule=rule,
             saves=saves,
             when=when,
