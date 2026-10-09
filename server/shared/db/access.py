@@ -16,6 +16,8 @@ from sqlalchemy import (
     Table,
     TextClause,
     func,
+    insert,
+    literal,
     select,
     update,
 )
@@ -121,6 +123,34 @@ class Db:
             if call is not None:
                 call.rows = count if count >= 0 else None
                 call.bytes = 0
+            return count
+
+    # 使用一次实际SQL批插，保持权限、默认值及行数记录。
+    async def insert_many(self, table: Table, rows: list[dict[str, Any]]) -> int:
+        """一次 SQL 批插：使用可缓存的标准 INSERT，保留逐行默认值及全部权限检查。"""
+        if not rows:
+            return 0
+        if not rows[0]:
+            raise StepRuleBroken("批插必须明确写入字段")
+        dialect = self._connection.dialect
+        limit = min(
+            100,
+            dialect.insertmanyvalues_page_size,
+            ((dialect.insertmanyvalues_max_parameters or 32700) - 1) // len(table.c),
+        )
+        if len(rows) > limit or any(row.keys() != rows[0].keys() for row in rows):
+            raise StepRuleBroken("批插必须使用相同字段，且不超过单条 SQL 参数及100行上限")
+        if not dialect.use_insertmanyvalues or not dialect.insert_executemany_returning:
+            raise StepRuleBroken("当前数据库不支持一次 SQL 批插")
+        statement = insert(table).returning(literal(1))
+        with query_record(self._record, statement, "change", self._target) as call:
+            # 权限检查仍逐行核对写入值；执行时用参数列表复用编译结果。
+            self._check(insert(table).values(rows))
+            await self._bind_org()
+            result = await self._connection.execute(statement, rows)
+            count = len(result.all())
+            if call is not None:
+                call.rows, call.bytes = count, 0
             return count
 
     # 按位置续读一页：按唯一且可排序的列 key 排序，after 是上一页返回的位置；
