@@ -14,6 +14,8 @@ class OperationsConfig(BaseModel):
     capacity: bool = False
     notifications: bool = False
     backup_root: str = "var/backups"
+    # pg_dump/pg_restore 所在目录；为空时用 PATH 中的命令。主版本必须与数据库一致。
+    pg_bin: str = ""
     backup_days: int = Field(default=30, ge=1)
     backup_every_seconds: int = Field(default=86400, ge=60)
     retention_every_seconds: int = Field(default=3600, ge=60)

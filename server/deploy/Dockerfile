@@ -9,9 +9,17 @@ RUN uv sync --locked --no-dev
 COPY . .
 
 FROM python:3.12-slim
-# 内置PostgreSQL备份使用客户端工具；版本应不低于目标服务器。
-RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client \
-    && rm -rf /var/lib/apt/lists/* \
+# 内置PostgreSQL备份使用客户端工具，主版本必须与数据库一致（compose 中为 postgres:17）。
+# 从 PostgreSQL 官方源安装指定主版本；数据库换版本时构建参数同步修改：--build-arg PG_MAJOR=16。
+ARG PG_MAJOR=17
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && . /etc/os-release \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update && apt-get install -y --no-install-recommends postgresql-client-${PG_MAJOR} \
+    && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* \
+    && pg_dump --version | grep -q " ${PG_MAJOR}\." \
     && useradd --create-home --uid 10001 app
 WORKDIR /app
 COPY --from=build --chown=app:app /app /app
