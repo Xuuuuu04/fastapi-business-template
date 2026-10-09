@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import sqlite3
@@ -19,6 +20,42 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 
 Verify = Callable[[str, Path], Awaitable[None]]
+
+
+# 选用配置目录中的工具；为空时从 PATH 查找。
+def tool_path(tool: str, pg_bin: str = "") -> str:
+    return str(Path(pg_bin) / tool) if pg_bin else tool
+
+
+# 读取工具主版本，如 “pg_restore (PostgreSQL) 17.2” 得到 17；无法运行时报告缺少工具。
+async def tool_major(tool: str) -> int:
+    try:
+        process = await asyncio.create_subprocess_exec(
+            tool, "--version", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL
+        )
+    except FileNotFoundError as error:
+        name = Path(tool).name
+        raise RuntimeError(
+            f"找不到{name}，请安装与数据库同版本的PostgreSQL客户端，或配置operations.pg_bin"
+        ) from error
+    out, _ = await process.communicate()
+    found = re.search(rb"(\d+)(?:\.\d+)?", out)
+    if process.returncode or not found:
+        raise RuntimeError(f"无法读取{Path(tool).name}版本")
+    return int(found.group(1))
+
+
+# 备份与恢复工具主版本必须与数据库相同：
+# 新版 pg_restore 会向旧库发出旧库不认识的设置（如 transaction_timeout），恢复必然失败。
+async def check_tools(connection: Any, pg_bin: str) -> None:
+    server = int(await connection.scalar(text("SHOW server_version_num"))) // 10000
+    for tool in ("pg_dump", "pg_restore"):
+        major = await tool_major(tool_path(tool, pg_bin))
+        if major != server:
+            raise RuntimeError(
+                f"{tool}主版本{major}与数据库主版本{server}不一致；请安装postgresql-client-{server}，"
+                f"或把operations.pg_bin设为该版本工具目录。未生成备份。"
+            )
 
 
 # pg工具密码通过环境传递，不写命令行和报告；错误只报告类型/返回码。
@@ -69,7 +106,7 @@ def sqlite_snapshot(source: str, target: Path) -> None:
 
 
 # PostgreSQL导出快照跨pg_dump与行数统计，完成前保持原事务。
-async def snapshot(url: str, folder: Path) -> dict[str, Any]:
+async def snapshot(url: str, folder: Path, pg_bin: str = "") -> dict[str, Any]:
     if make_url(url).get_backend_name() == "sqlite":
         await asyncio.to_thread(sqlite_snapshot, url, folder / "database.db")
         engine = create_async_engine("sqlite+aiosqlite:///" + str(folder / "database.db"))
@@ -81,11 +118,12 @@ async def snapshot(url: str, folder: Path) -> dict[str, Any]:
     engine = create_async_engine(url, isolation_level="REPEATABLE READ")
     try:
         async with engine.begin() as conn:
+            await check_tools(conn, pg_bin)
             schema = str(await conn.scalar(text("SELECT current_schema()")))
             token = str(await conn.scalar(text("SELECT pg_export_snapshot()")))
             rows = await counts(conn)
             await command(
-                "pg_dump",
+                tool_path("pg_dump", pg_bin),
                 url,
                 [
                     "--format=custom",
@@ -157,7 +195,7 @@ def s3_snapshot(storage: Any, bucket: str, folder: Path) -> dict[str, str]:
 
 # 创建随机恢复数据库只在已配置源服务器，源数据库名绝不作为删除对象。
 async def postgres_restore(
-    url: str, folder: Path, verify: Verify, expected: dict[str, Any]
+    url: str, folder: Path, verify: Verify, expected: dict[str, Any], pg_bin: str = ""
 ) -> None:
     name = "fastapi_restore_" + secrets.token_hex(8)
     target = make_url(url).set(database=name)
@@ -169,7 +207,7 @@ async def postgres_restore(
             created = True
         restore = target.render_as_string(hide_password=False)
         await command(
-            "pg_restore",
+            tool_path("pg_restore", pg_bin),
             restore,
             ["--no-owner", "--no-acl", "--exit-on-error", str(folder / "database.dump")],
         )
@@ -215,12 +253,13 @@ async def backup(settings: Any, verify: Verify) -> dict[str, Any]:
     folder = root / ("backup-" + str(int(time.time())) + "-" + secrets.token_hex(4))
     folder.mkdir(parents=True)
     started = time.time()
-    expected = await snapshot(settings.database_url, folder)
+    pg_bin = settings.operations.pg_bin
+    expected = await snapshot(settings.database_url, folder, pg_bin)
     expected["files"] = await files_snapshot(settings, folder / "files")
     expected["started_at"], expected["files_finished_at"] = started, time.time()
     (folder / "manifest.json").write_text(json.dumps(expected, indent=2))
     if make_url(settings.database_url).get_backend_name() == "postgresql":
-        await postgres_restore(settings.database_url, folder, verify, expected)
+        await postgres_restore(settings.database_url, folder, verify, expected, pg_bin)
     else:
         shutil.copyfile(folder / "database.db", folder / "restore.db")
         await verify_restore(
