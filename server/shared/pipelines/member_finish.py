@@ -3,7 +3,6 @@
 """
 
 import json
-import time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import update
@@ -15,6 +14,7 @@ from shared.pipelines.member_pool import advance
 from shared.pipelines.plan import FanOut, Stage, Wait
 from shared.pipelines.schema import data_json
 from shared.pipelines.tables import members
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue, Ticket
@@ -33,7 +33,7 @@ async def finish(
     body: str,
     run_id: str,
 ) -> None:
-    now = time.time()
+    now = business_now()
     joining = parent["state"] == "joining"
     if isinstance(stage, Wait) and now >= member["wait_until"]:
         raise InvalidInput(f"成员{member['key']}阶段{stage.name}等待超时")

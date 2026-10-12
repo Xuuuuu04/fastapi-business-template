@@ -4,7 +4,6 @@
 
 import asyncio
 import hashlib
-import time
 from typing import Any
 
 from shared.access.caller import Caller
@@ -13,12 +12,17 @@ from shared.effects.spec import AdapterReply, EffectAdapter, EffectResult, Provi
 from shared.effects.storage import EffectStore
 from shared.errors.framework import RemoteRejected, RemoteResultUnknown, StepRuleBroken
 from shared.records.models import RemoteCallRecord
+from shared.timing.clock import Clock, RealClock
+from shared.timing.current import clocked, monotonic
+from shared.timing.current import now as business_now
 
 
 # 外部效果的所有适配器共用持久意图与未知保护，没有自动回到未发送的恢复路径。
 class EffectService:
     # 适配器已经由产品配置工厂创建；只为注册过的供应商建立执行位置。
     def __init__(self, store: EffectStore, bindings: dict[ProviderSpec, EffectAdapter]) -> None:
+        self.clock: Clock = RealClock()
+
         self.store, self.bindings = store, bindings
         self.by_name = {spec.name: spec for spec in bindings}
         if len(self.by_name) != len(bindings):
@@ -30,9 +34,10 @@ class EffectService:
 
     # 业务租期使用统一入口，受控Clock将在时间包替换真实时钟。
     def now(self) -> float:
-        return time.time()
+        return self.clock.now()
 
     # 同一个客户端可被多个协议复用，退出时只关闭一次。
+    @clocked
     async def close(self) -> None:
         seen = set()
         for adapter in self.bindings.values():
@@ -41,6 +46,7 @@ class EffectService:
                 await adapter.close()
 
     # 保存意图并发送一次；重复调用从原意图恢复，不重新生成请求。
+    @clocked
     async def call(
         self,
         spec: ProviderSpec,
@@ -60,12 +66,13 @@ class EffectService:
                 key,
                 body,
                 adapter.simulated,
-                time.time(),
+                business_now(),
                 binding_of(adapter),
             )
         return await self.perform(id, caller, records, effects)
 
     # 登记后的任务也走同一执行入口；先取得执行位置再持久化本次发送状态。
+    @clocked
     async def perform(
         self,
         id: str,
@@ -85,13 +92,14 @@ class EffectService:
         if binding_of(adapter) != row["binding"]:
             raise StepRuleBroken("外部意图的供应商账号或连接目标已改变，请使用原适配器查证")
         async with self.limits[spec]:
-            attempt = await self.store.claim(id, spec, time.time(), lookup=lookup)
+            attempt = await self.store.claim(id, spec, business_now(), lookup=lookup)
             if attempt is None:
                 return final_result(self.result(spec, await self.store.read(id, caller)), lookup)
             await self.attempt(spec, adapter, row, id, attempt, records, effects, lookup)
         return final_result(self.result(spec, await self.store.read(id, caller)), lookup)
 
     # 异常、超时、取消和回执保存失败都保留发送前的unknown，不凭异常名称推定未发送。
+    @clocked
     async def attempt(
         self,
         spec: ProviderSpec,
@@ -104,19 +112,21 @@ class EffectService:
         lookup: bool,
     ) -> None:
         record = RemoteCallRecord(spec.name, "lookup" if lookup else spec.transport, id, 0, 0)
-        record.effect, record.endpoint, record.outcome = "write", spec.name, "unknown"
+        record.effect = "read" if lookup else "write"
+        record.endpoint, record.outcome = spec.name, "unknown"
+        record.intent_id, record.provider_state, record.simulated = id, "unknown", adapter.simulated
         records.append(record)
         if not lookup:
             effects.append(record)
-        started = time.perf_counter()
+        started = monotonic()
         try:
             input = spec.input.model_validate_json(self.store.vault.decrypt(row["request"]))
-            async with asyncio.timeout(spec.timeout):
-                reply = await (adapter.lookup(input, id) if lookup else adapter.send(input, id))
+            operation = adapter.lookup(input, id) if lookup else adapter.send(input, id)
+            reply = await self.clock.run(operation, deadline=self.clock.monotonic() + spec.timeout)
             reply = checked_reply(spec, reply, lookup)
             if row["state"] == "accepted" and reply.state in {"not_sent", "refused", "unknown"}:
                 raise StepRuleBroken("已受理的效果不能因查询未找到而改成未执行")
-            if not await self.store.save(id, attempt, reply, time.time()):
+            if not await self.store.save(id, attempt, reply, business_now()):
                 raise RemoteResultUnknown("迟到回执已保留，本次尝试不能改写新状态")
             record.outcome = {
                 "accepted": "ok",
@@ -125,6 +135,7 @@ class EffectService:
                 "not_sent": "not_sent",
                 "unknown": "unknown",
             }[reply.state]
+            record.provider_state = reply.state
         except Exception as error:
             record.error = type(error).__name__
             raise RemoteResultUnknown("外部结果或本地回执尚不能确认，请查询原意图") from error
@@ -132,7 +143,7 @@ class EffectService:
             record.error = "cancelled"
             raise
         finally:
-            record.elapsed_ms = (time.perf_counter() - started) * 1000
+            record.elapsed_ms = (monotonic() - started) * 1000
 
     # 只允许组装中登记过的同一声明对象，不能用伪造供应商扩大权限。
     def adapter(self, spec: ProviderSpec) -> EffectAdapter:

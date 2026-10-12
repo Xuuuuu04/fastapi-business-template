@@ -72,6 +72,9 @@ class RemoteCallRecord:
     endpoint: str = ""
     effect: str = ""
     fields: dict[str, str] = field(default_factory=dict)
+    intent_id: str = ""
+    provider_state: str = ""
+    simulated: bool | None = None
 
 
 # 一次业务数据库调用的位置、耗时和行数；不保存 SQL 文本、参数或查询结果。
@@ -172,6 +175,7 @@ class RunRecord:
     summary: str = ""
     gaps: list[str] = field(default_factory=list)
     source_version: str = ""
+    clock_kind: str = ""
     import_report: dict[str, Any] = field(default_factory=dict)
 
     query_children: dict[str, Any] = field(default_factory=dict)

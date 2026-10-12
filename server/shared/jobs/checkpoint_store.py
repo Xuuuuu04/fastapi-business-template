@@ -4,7 +4,6 @@
 """
 
 import json
-import time
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import insert, select, update
@@ -12,9 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from shared.db.database import Database
 from shared.errors.framework import RemoteResultUnknown, StaleAttempt, StepRuleBroken
+from shared.jobs import resources
 from shared.jobs.checkpoint import Checkpoint
 from shared.jobs.plan import JobPlan
 from shared.jobs.tables import checkpoints, jobs, segments
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import Ticket
@@ -37,7 +38,7 @@ async def load(database: Database, job_id: str) -> tuple[int, dict[str, Any], in
 
 # 核对本次领取仍有效，并持有任务行锁直到段提交完成。
 async def own(connection: AsyncConnection, ticket: "Ticket") -> None:
-    now = time.time()
+    now = business_now()
     changed = await connection.execute(
         update(jobs)
         .where(
@@ -97,7 +98,7 @@ async def save(
             rows=checkpoint.rows,
             total_rows=checkpoint.total_rows + checkpoint.rows,
             elapsed_ms=elapsed_ms,
-            committed_at=time.time(),
+            committed_at=business_now(),
         )
     )
     await connection.execute(update(jobs).where(jobs.c.id == ticket.id).values(last_run_id=run_id))
@@ -132,7 +133,7 @@ async def protect_failure(
     if await external_pending(connection, job_id):
         values.update(
             state="unknown",
-            finished_at=time.time(),
+            finished_at=business_now(),
             error_code="remote_result_unknown",
             error_message="本批有外部写入待确认，请查询原结果后再人工恢复",
         )
@@ -214,8 +215,11 @@ async def extend_lease(
                 jobs.c.attempt == ticket.attempt,
                 jobs.c.state == "running",
             )
-            .values(lease_until=until, updated_at=time.time())
+            .values(lease_until=until, updated_at=business_now())
         )
         if require_current:
-            change = change.where(jobs.c.lease_until > time.time())
-        return (await connection.execute(change)).rowcount == 1
+            change = change.where(jobs.c.lease_until > business_now())
+        changed = (await connection.execute(change)).rowcount == 1
+        if changed:
+            await resources.extend(connection, ticket.id, ticket.attempt, until)
+        return changed

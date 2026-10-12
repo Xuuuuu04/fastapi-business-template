@@ -3,7 +3,6 @@
 """
 
 import json
-import time
 from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
@@ -21,6 +20,7 @@ from shared.pipelines.queued import resume_queued
 from shared.pipelines.schema import declarations
 from shared.pipelines.storage import ACTIVE, compatible, root_for
 from shared.pipelines.tables import runs, stages
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.modules.catalog import Catalog
@@ -128,7 +128,7 @@ async def requeue_stage(
     validate_saved(binding.contract.input, job["input_json"], stage["name"])
     await validate_checkpoint(connection, job["id"], plan, stage["name"])
     await reserve(connection, binding.contract, plan.max_queued)
-    now = time.time()
+    now = business_now()
     await connection.execute(
         update(jobs)
         .where(jobs.c.id == job["id"])

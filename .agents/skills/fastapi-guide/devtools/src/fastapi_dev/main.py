@@ -59,7 +59,8 @@ def inspect_application() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["inspect", *COMMANDS])
-    arguments, remaining = parser.parse_known_args()
+    arguments = parser.parse_args(sys.argv[1:2])
+    remaining = sys.argv[2:]
     bootstrap(project_root())
     if arguments.command == "inspect":
         if remaining:

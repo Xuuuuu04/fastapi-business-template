@@ -2,7 +2,6 @@
 成员故障同步到扇出阶段；未知结果和格式变化立即暂停，普通失败收齐其他成员后汇合判断。
 """
 
-import time
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select, update
@@ -13,6 +12,7 @@ from shared.pipelines.member_store import member_for
 from shared.pipelines.plan import FanOut, Wait
 from shared.pipelines.storage import root_for
 from shared.pipelines.tables import members, runs, stages
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
@@ -40,11 +40,11 @@ async def failed(
     value = {"blocked": "version_blocked", "waiting_retry": "waiting_external"}.get(state, state)
     if state == "cancelled" and parent["state"] == "joining":
         value = "skipped"
-    values: dict[str, Any] = dict(state=value, error=message, updated_at=time.time())
+    values: dict[str, Any] = dict(state=value, error=message, updated_at=business_now())
     if run_id:
         values["run_id"] = run_id
     if member["state"] == "running" and member["started_at"]:
-        values["elapsed_ms"] = member["elapsed_ms"] + (time.time() - member["started_at"]) * 1000
+        values["elapsed_ms"] = member["elapsed_ms"] + (business_now() - member["started_at"]) * 1000
     await connection.execute(update(members).where(members.c.id == member["id"]).values(**values))
     if state == "unknown":
         await pause(connection, root, parent, "unknown", message)
@@ -69,7 +69,7 @@ async def pause(
     await connection.execute(
         update(runs)
         .where(runs.c.id == root["id"])
-        .values(state=state, reason=message, updated_at=time.time())
+        .values(state=state, reason=message, updated_at=business_now())
     )
     await connection.execute(
         update(stages).where(stages.c.id == parent["id"]).values(state=state, error=message)

@@ -5,7 +5,6 @@
 
 import asyncio
 import json
-import time
 from dataclasses import replace
 
 import httpx2
@@ -26,6 +25,8 @@ from shared.remote_calls.breaker import Breaker
 from shared.remote_calls.endpoint import validate_output
 from shared.remote_calls.remote import Remote, RemoteConfig
 from shared.remote_calls.request import RemoteReply, RemoteRequest, is_write
+from shared.timing.clock import Clock, RealClock
+from shared.timing.current import clocked, monotonic, sleep
 
 RETRY_WAITS = (0.5, 2.0, 5.0)
 
@@ -40,6 +41,8 @@ class RemoteService:
         retry_waits: tuple[float, ...] = RETRY_WAITS,
         strict_endpoints: bool = False,
     ) -> None:
+        self.clock: Clock = RealClock()
+
         self.configs = configs
         self.strict_endpoints = strict_endpoints
         self.transports = transports or {}
@@ -49,6 +52,7 @@ class RemoteService:
         self.breakers: dict[str, Breaker] = {}
 
     # 发送一次请求并记录；按方法和请求编号决定是否重试。
+    @clocked
     async def send(
         self,
         target: Remote,
@@ -62,8 +66,10 @@ class RemoteService:
         records.append(record)
         if effects is not None and is_write(request):
             effects.append(record)
-        started = time.perf_counter()
-        breaker = self.breakers.setdefault(target.name, Breaker())
+        started = monotonic()
+        breaker = self.breakers.setdefault(
+            target.name, Breaker(clock=lambda: self.clock.monotonic())
+        )
         try:
             wait = breaker.blocked()
             if wait:
@@ -93,12 +99,13 @@ class RemoteService:
             record.error = type(error).__name__
             raise
         finally:
-            record.elapsed_ms = (time.perf_counter() - started) * 1000
+            record.elapsed_ms = (monotonic() - started) * 1000
         breaker.succeeded()
         record.bytes_in = len(reply.content)
         return reply
 
     # 按重试规则反复发送，直到成功、遇到不可重试的错误或次数用完。
+    @clocked
     async def attempts(
         self, target: Remote, request: RemoteRequest, record: RemoteCallRecord
     ) -> RemoteReply:
@@ -115,10 +122,11 @@ class RemoteService:
                         ) from None
                     raise
                 record.retries += 1
-                await asyncio.sleep(self.retry_waits[attempt])
+                await sleep(self.retry_waits[attempt])
         raise RemoteUnavailable(f"外部系统 {target.name} 重试次数已用完")
 
     # 发送一次请求，把网络错误和状态码转成框架的错误种类。
+    @clocked
     async def once(
         self, target: Remote, request: RemoteRequest, record: RemoteCallRecord
     ) -> RemoteReply:
@@ -143,6 +151,7 @@ class RemoteService:
                 ) from error
 
     # 有界读取响应，并记录哪些写入得到成功结果，哪些明确被拒绝。
+    @clocked
     async def read_reply(
         self,
         client: httpx2.AsyncClient,
@@ -216,6 +225,7 @@ class RemoteService:
         return self.limits.setdefault(target.name, asyncio.Semaphore(target.concurrency))
 
     # 关闭全部连接。
+    @clocked
     async def close(self) -> None:
         for client in self.clients.values():
             await client.aclose()

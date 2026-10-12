@@ -2,7 +2,6 @@
 成员任务执行前核对剩余格式、组织流程与等待容量；完成回调复用worker的原事务。
 """
 
-import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -19,6 +18,7 @@ from shared.pipelines.plan import FanOut, Pipeline, Stage, Wait
 from shared.pipelines.schema import data_json
 from shared.pipelines.storage import own, root_for
 from shared.pipelines.tables import members, runs, stages
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue, Ticket
@@ -106,7 +106,7 @@ async def prepare(queue: "JobQueue", ticket: "Ticket") -> MemberContext | None:
         state, code, message = await decision(connection, context)
     if message:
         context.allowed = False
-        await queue.fail(ticket, state, code, message, run_after=time.time() + 0.01)
+        await queue.fail(ticket, state, code, message, run_after=business_now() + 0.01)
     return context
 
 
@@ -134,11 +134,11 @@ async def decision(connection: AsyncConnection, context: MemberContext) -> tuple
             f"成员{member['key']}阶段{member['phase_name']}或后续格式变化",
         )
     if isinstance(stage, Wait):
-        if time.time() >= member["wait_until"]:
+        if business_now() >= member["wait_until"]:
             return "failed", "member_wait_timeout", f"成员{member['key']}阶段{stage.name}等待超时"
         if not await wait_capacity(connection, context):
             return "waiting_retry", "member_wait_capacity", "等待成员检查容量"
-    now = time.time()
+    now = business_now()
     version = context.queue.catalog.binding(stage.operation).module.version
     member.update(started_at=now, module_version=version, attempt=context.ticket.attempt)
     await connection.execute(
@@ -177,7 +177,7 @@ async def wait_capacity(connection: AsyncConnection, context: MemberContext) -> 
             members.c.phase_name == context.stage.name,
             members.c.state == "running",
             jobs.c.state == "running",
-            jobs.c.lease_until > time.time(),
+            jobs.c.lease_until > business_now(),
             jobs.c.id != context.ticket.id,
         )
     )

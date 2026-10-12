@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from shared.jobs import resources
 from shared.jobs.checkpoint_store import may_resume
 from shared.jobs.tables import jobs
 from shared.modules.catalog import Catalog
@@ -42,5 +43,6 @@ async def expire(
             "执行期限已过，无法确认是否已经产生效果，请人工检查后再决定是否重试"
         )
     await connection.execute(update(jobs).where(jobs.c.id == job_id).values(**values))
+    await resources.release(connection, job_id, attempt, now)
     if values["state"] == "unknown":
         await release(connection, name)

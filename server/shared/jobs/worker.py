@@ -6,8 +6,6 @@ worker：循环领取任务，通过执行器运行对应的操作，并按结�
 import asyncio
 import json
 import logging
-import time
-from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
@@ -20,15 +18,20 @@ from shared.access.keys import ApiKeyConfig, current_caller
 from shared.data.models import Data
 from shared.errors.details import safe_exception_text
 from shared.errors.framework import StaleAttempt
-from shared.errors.kinds import RETRY_KINDS, BusinessError, Kind
+from shared.errors.kinds import BusinessError
 from shared.flow.runtime import Runtime
 from shared.jobs.execution import invoke
+from shared.jobs.failures import guarded, save_business_failure
+from shared.jobs.failures import next_state as next_state
 from shared.jobs.health import WorkerHealth
 from shared.jobs.imports import check_import_source
 from shared.jobs.queue import JobQueue, Ticket
 from shared.jobs.schedule import Scheduler
 from shared.pipelines.context import ExecutionContext
 from shared.pipelines.runner import prepare as prepare_stage
+from shared.timing.clock import Clock
+from shared.timing.current import clocked, sleep, wait_or_stop
+from shared.timing.current import now as business_now
 
 log = logging.getLogger("server.jobs")
 
@@ -51,6 +54,11 @@ class WorkerOptions:
 
 # 领取并执行后台任务，保存结果并处理退出和重试。
 class Worker:
+    # 所有辅助函数继承所属应用时钟，不保留第二份时间状态。
+    @property
+    def clock(self) -> Clock:
+        return self.runtime.clock
+
     # 绑定执行器、任务表、服务密钥配置和运行参数。
     def __init__(
         self, runtime: Runtime, queue: JobQueue, keys: list[ApiKeyConfig], options: WorkerOptions
@@ -77,6 +85,7 @@ class Worker:
         self.cycle_failed = True
 
     # 主循环：处理过期任务、登记定时任务、领取并执行任务，直到收到停止信号。
+    @clocked
     async def run(self, stop: asyncio.Event) -> None:
         self.health.clear()
         try:
@@ -85,12 +94,13 @@ class Worker:
             self.health.clear()
 
     # 正常空队列也报告健康；领取或维护失败时保留上次成功时间。
+    @clocked
     async def loop(self, stop: asyncio.Event) -> None:
         self.stop = stop
         next_reclaim = next_clean = 0.0
         while not stop.is_set():
             self.cycle_failed = False
-            now = time.time()
+            now = business_now()
             if now >= next_reclaim:
                 await guarded("reclaim", self.queue.reclaim(now), self.failed_cycle)
                 next_reclaim = now + RECLAIM_SECONDS
@@ -108,10 +118,11 @@ class Worker:
         await self.drain()
 
     # 在并发上限内领取任务；领取到任何任务返回 True。
+    @clocked
     async def claim_some(self) -> bool:
         claimed = False
         while len(self.tasks) < self.options.concurrency and not self.stop.is_set():
-            ticket = await guarded("claim", self.queue.claim(time.time()), self.failed_cycle)
+            ticket = await guarded("claim", self.queue.claim(business_now()), self.failed_cycle)
             if ticket is None:
                 break
             task = asyncio.create_task(self.execute(ticket))
@@ -125,6 +136,7 @@ class Worker:
         return claimed
 
     # 停止时有限等待在途任务，超时后取消并等待回滚、连接归还完成。
+    @clocked
     async def drain(self) -> None:
         if not self.tasks:
             return
@@ -140,6 +152,7 @@ class Worker:
                 raise result
 
     # 执行一个任务并更新状态。
+    @clocked
     async def execute(self, ticket: Ticket) -> None:
         try:
             context = await prepare_stage(self.queue, ticket)
@@ -191,6 +204,7 @@ class Worker:
                 await heartbeat
 
     # 通过执行器运行任务；完成标记与业务写入同一事务提交。
+    @clocked
     async def run_job(
         self,
         ticket: Ticket,
@@ -221,10 +235,7 @@ class Worker:
         except StaleAttempt:
             log.warning("job_attempt_stale job_id=%s attempt=%s", ticket.id, ticket.attempt)
         except BusinessError as error:
-            state, run_after = next_state(error.kind, ticket.attempt, retries, wait_after)
-            await self.queue.fail(
-                ticket, state, error.code, error.detail, run_after=run_after, run_id=error.run_id
-            )
+            await save_business_failure(self.queue, ticket, error, retries, wait_after)
         except Exception as error:
             run_id = str(getattr(error, "run_id", ""))
             await self.queue.fail(
@@ -245,53 +256,25 @@ class Worker:
     def restore_caller(self, ticket: Ticket) -> Caller | None:
         caller = caller_from_record(json.loads(ticket.caller_json))
         if caller.kind == "service":
-            return current_caller(caller.name, self.keys)
+            current = current_caller(caller.name, self.keys)
+            return current if current and current.org_id == caller.org_id else None
         return caller
 
     # 定期延长执行期限；任务已不属于本次尝试时取消执行。
+    @clocked
     async def keep_lease(
         self, ticket: Ticket, lease: float, runner: asyncio.Task[Any] | None
     ) -> None:
         while True:
-            await asyncio.sleep(lease / 3)
+            await sleep(lease / 3)
             plan = self.runtime.catalog.plan(ticket.contract)
             owned = await guarded(
                 "extend",
                 self.queue.extend(
-                    ticket, time.time() + lease, require_current=bool(plan and plan.segmented)
+                    ticket, business_now() + lease, require_current=bool(plan and plan.segmented)
                 ),
             )
             if owned is False and runner is not None:
                 log.warning("job_lease_lost job_id=%s", ticket.id)
                 runner.cancel()
                 return
-
-
-# 根据错误种类和已尝试次数决定下一个状态。
-def next_state(kind: Kind, attempt: int, retries: int, wait_after: Any) -> tuple[str, float]:
-    if kind in RETRY_KINDS and attempt <= retries:
-        return "waiting_retry", time.time() + float(wait_after(attempt))
-    if kind == Kind.UNKNOWN_RESULT:
-        return "unknown", 0.0
-    return "failed", 0.0
-
-
-# 执行一项后台维护，出错只写日志，避免 worker 主循环退出。
-async def guarded[T](
-    name: str, work: Awaitable[T], on_failure: Callable[[], None] | None = None
-) -> T | None:
-    try:
-        return await work
-    except Exception:
-        if on_failure is not None:
-            on_failure()
-        log.exception("worker_%s_failed", name)
-        return None
-
-
-# 等待一段时间，或在收到停止信号时提前返回。
-async def wait_or_stop(stop: asyncio.Event, seconds: float) -> None:
-    try:
-        await asyncio.wait_for(stop.wait(), timeout=seconds)
-    except TimeoutError:
-        return

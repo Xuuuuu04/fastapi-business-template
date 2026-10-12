@@ -15,6 +15,7 @@ from app.setup.effects import effect_service, with_effects
 from app.setup.files import file_components
 from app.setup.operations import with_operations
 from app.setup.structure import ROOT, check_structure
+from app.setup.timing import bind_clock
 from shared.access.vault import Vault
 from shared.application.spec import ApplicationSpec
 from shared.cache.backends import Cache, MemoryCache, RedisCache
@@ -119,6 +120,7 @@ def build(
         settings, specification, database, services.remotes, effect_adapters
     )
     services.runtime.query_policy = query_policy(settings)
+    bind_clock(services, specification.clock or services.runtime.clock)
     if modules is None:
         services.runtime.source_version = source_version(ROOT)
     return services

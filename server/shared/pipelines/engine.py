@@ -4,7 +4,6 @@
 
 import json
 import secrets
-import time
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import insert, select, update
@@ -20,6 +19,9 @@ from shared.pipelines.plan import Pipeline, PipelineView, StartInput, StartReque
 from shared.pipelines.schema import data_json, declarations, input_source
 from shared.pipelines.storage import ACTIVE, PREFIX, compatible
 from shared.pipelines.tables import runs, stages
+from shared.timing.clock import Clock
+from shared.timing.current import clocked
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
@@ -27,22 +29,28 @@ if TYPE_CHECKING:
 
 # 使用同一个任务队列，不在流程内部另造执行器。
 class PipelineEngine:
+    # 所有辅助函数继承所属应用时钟，不保留第二份时间状态。
+    @property
+    def clock(self) -> Clock:
+        return self.queue.clock
+
     # 保存目录与数据库入口，不在构造时访问数据库。
     def __init__(self, queue: "JobQueue") -> None:
         self.queue = queue
         self.catalog, self.database = queue.catalog, queue.database
 
     # 每轮worker短事务检查成员空位，队列容量恢复后自动继续。
+    @clocked
     async def reconcile(self) -> None:
-        import time
 
         from shared.pipelines.member_reconcile import reconcile
         from shared.pipelines.overdue import check
 
-        await check(self.queue, time.time())
+        await check(self.queue, business_now())
         await reconcile(self.queue)
 
     # 定时任务的启动入口直接派发第一阶段，不额外占用启动任务。
+    @clocked
     async def submit(
         self, connection: AsyncConnection, item: Contract[Any, Any], input: Data, caller: Caller
     ) -> str:
@@ -54,6 +62,7 @@ class PipelineEngine:
         return result.id
 
     # 周期重复触发返回原流程；不同输入不能借用同一个周期。
+    @clocked
     async def start(
         self, connection: AsyncConnection, pipeline: Pipeline, request: StartRequest, caller: Caller
     ) -> PipelineView:
@@ -79,7 +88,7 @@ class PipelineEngine:
                 .values(
                     state=state,
                     reason=f"上一周期{active}尚未结束",
-                    finished_at=time.time() if state == "skipped" else None,
+                    finished_at=business_now() if state == "skipped" else None,
                 )
             )
             return PipelineView(id=row["id"], state=state)
@@ -94,7 +103,7 @@ class PipelineEngine:
                 .values(
                     state=state,
                     reason="另一周期同时取得执行名额",
-                    finished_at=time.time() if state == "skipped" else None,
+                    finished_at=business_now() if state == "skipped" else None,
                 )
             )
             return PipelineView(id=row["id"], state=state)
@@ -113,12 +122,13 @@ class PipelineEngine:
             input_json=body,
             declarations_json=json.dumps(declarations(pipeline, self.catalog)),
             caller_json=json.dumps(caller.to_record()),
-            created_at=time.time(),
-            updated_at=time.time(),
+            created_at=business_now(),
+            updated_at=business_now(),
             reason="",
         )
 
     # 唯一周期以数据库约束为准，重复请求只复用原记录。
+    @clocked
     async def insert_root(self, connection: AsyncConnection, row: dict) -> PipelineView | None:
         try:
             async with connection.begin_nested():
@@ -143,6 +153,7 @@ class PipelineEngine:
         return None
 
     # 查询同组织同流程的活动周期，完成或失败后的周期不占名额。
+    @clocked
     async def active(self, connection: AsyncConnection, name: str, org: str) -> str | None:
         return await connection.scalar(
             select(runs.c.id)
@@ -155,6 +166,7 @@ class PipelineEngine:
         )
 
     # 取得唯一执行名额并登记第一阶段；初始输入只在启动时校验一次。
+    @clocked
     async def claim_cycle(
         self, connection: AsyncConnection, root: dict, pipeline: Pipeline
     ) -> None:
@@ -165,11 +177,12 @@ class PipelineEngine:
                 state="running",
                 current_stage=pipeline.stages[0].name,
                 reason="",
-                updated_at=time.time(),
+                updated_at=business_now(),
             )
         )
 
     # 排队周期取得名额后登记首阶段，提交仍在同一个事务。
+    @clocked
     async def activate(self, connection: AsyncConnection, root: dict, pipeline: Pipeline) -> None:
         await self.claim_cycle(connection, root, pipeline)
         await self.enqueue(connection, root, pipeline, 0)
@@ -179,6 +192,7 @@ class PipelineEngine:
             )
 
     # 阶段输入来自初始Data或某个已成功阶段的有界产出。
+    @clocked
     async def enqueue(
         self, connection: AsyncConnection, root: dict, pipeline: Pipeline, index: int
     ) -> None:
@@ -203,9 +217,9 @@ class PipelineEngine:
                 module_version="",
                 attempt=0,
                 poll_count=0,
-                created_at=time.time(),
+                created_at=business_now(),
                 elapsed_ms=0,
-                wait_until=time.time() + stage.timeout if isinstance(stage, Wait) else None,
+                wait_until=business_now() + stage.timeout if isinstance(stage, Wait) else None,
                 error="",
             )
         )
@@ -215,12 +229,13 @@ class PipelineEngine:
             .values(
                 current_stage=stage.name,
                 state="overdue_paused" if root["state"] == "overdue_paused" else "running",
-                updated_at=time.time(),
+                updated_at=business_now(),
                 reason="",
             )
         )
 
     # 来源必须已成功，输入再次按当前阶段Data校验并限制大小。
+    @clocked
     async def stage_input(
         self, connection: AsyncConnection, root: dict, pipeline: Pipeline, index: int
     ) -> tuple[Data, str]:
@@ -243,6 +258,7 @@ class PipelineEngine:
         return input, body
 
     # 结束一个周期后同事务唤醒最早排队周期，不依赖内存计时器。
+    @clocked
     async def next_cycle(self, connection: AsyncConnection, root: dict) -> None:
         pipeline = self.catalog.pipelines.get(root["pipeline"])
         if pipeline is None:
@@ -275,7 +291,7 @@ class PipelineEngine:
                         state="version_blocked",
                         current_stage=pending["current_stage"],
                         reason="排队期间阶段格式或声明变化，等待人工确认",
-                        updated_at=time.time(),
+                        updated_at=business_now(),
                     )
                 )
                 return

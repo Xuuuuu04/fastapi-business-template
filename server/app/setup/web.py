@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.clock import ClockMiddleware
 from app.api.errors import add_error_handlers
 from app.api.middleware import RequestLimits, RequestMiddleware
 from app.api.routers import routers_for
@@ -51,6 +52,7 @@ def create_app(
     app.state.services = services
     app.state.application = specification
     configure_http(app, settings)
+    app.add_middleware(ClockMiddleware, clock=services.runtime.clock)
     for router in routers_for(services.catalog.modules):
         app.include_router(router)
     for router in specification.routers:

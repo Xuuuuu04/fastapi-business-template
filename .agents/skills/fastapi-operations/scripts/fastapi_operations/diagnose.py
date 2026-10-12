@@ -9,7 +9,9 @@
 
 import argparse
 import asyncio
+import json
 import time
+from typing import Literal
 
 from app.setup.application import application, application_modules
 from shared.db.database import Database
@@ -18,6 +20,7 @@ from shared.graphs.observed import run_report
 from shared.graphs.static import flow_graph
 from shared.modules.catalog import Catalog
 from shared.records.stores import RunFilter, SqlRunStore
+from shared.timing.budgets import budget_report
 
 
 # 打印最近的运行。
@@ -71,6 +74,12 @@ def show_field(catalog: Catalog, name: str, field: str) -> None:
 # 解析命令并执行。
 async def run(args: argparse.Namespace) -> None:
     catalog = Catalog(application_modules())
+    if args.command == "budgets":
+        mode: Literal["runtime", "offline"] = "runtime" if args.runtime_config else "offline"
+        report = budget_report(catalog, application().settings(mode))
+        report["configuration"] = "实际运行配置" if args.runtime_config else "离线默认配置"
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return
     if args.command == "flow":
         show_flow(catalog, args.name)
         return
@@ -97,6 +106,8 @@ async def run(args: argparse.Namespace) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="查看运行记录、流程和字段来源")
     commands = parser.add_subparsers(dest="command", required=True)
+    budgets = commands.add_parser("budgets", help="时间预算及具体配置位置，不访问数据库")
+    budgets.add_argument("--runtime-config", action="store_true", help="明确读取运行配置中的预算")
     runs = commands.add_parser("runs", help="最近的运行")
     runs.add_argument("--status", default="")
     runs.add_argument("--module", default="")

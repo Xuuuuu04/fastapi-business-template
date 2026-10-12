@@ -4,9 +4,7 @@
 每次运行都留下运行记录，异常会带上运行编号，方便按编号查询排查信息。
 """
 
-import asyncio
 import logging
-import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import suppress
 from dataclasses import replace
@@ -36,6 +34,8 @@ from shared.records.models import RunRecord, StepRecord
 from shared.records.opening import open_record
 from shared.records.recorder import Recorder
 from shared.records.segments import warn_slow_batch
+from shared.timing.clock import Clock, RealClock
+from shared.timing.current import clocked
 
 if TYPE_CHECKING:
     from shared.access.vault import Vault
@@ -76,6 +76,7 @@ class Runtime:
         heavy: HeavySteps | None = None,
         query_policy: QueryPolicy | None = None,
         effects: "EffectService | None" = None,
+        clock: Clock | None = None,
     ) -> None:
         self.catalog = catalog
         self.database = database
@@ -95,8 +96,11 @@ class Runtime:
         self.heavy = heavy or HeavySteps()
         self.query_policy = query_policy or QueryPolicy()
         self.effects = effects
+        self.clock = clock or RealClock()
+        self._started: dict[str, float] = {}
 
     # 从接口或任务入口执行一个操作：检查权限，结束时提交或回滚写入。
+    @clocked
     async def run[In: Data, Out: Data](
         self,
         item: Contract[In, Out],
@@ -110,11 +114,13 @@ class Runtime:
         emitter: Callable[[str], Awaitable[None]] | None = None,
         checkpoint: Checkpoint | None = None,
         record_success: bool = True,
+        deadline: float | None = None,
     ) -> Out:
         binding = self.catalog.binding(item)
         if not item.entry:
             raise StepRuleBroken(f"操作 {item.name} 是内部操作，只能由其他模块调用")
-        deadline = asyncio.get_running_loop().time() + item.timeout
+        own_deadline = self.clock.monotonic() + item.timeout
+        deadline = min(own_deadline, deadline) if deadline is not None else own_deadline
         scope = Scope(self, caller, request_id, job_id, deadline, tx=Transaction(), emitter=emitter)
         scope.checkpoint, scope.record_success = checkpoint, record_success
         run = self.open_run(binding, scope, None, None)
@@ -157,8 +163,9 @@ class Runtime:
             plan = self.catalog.plan(item.name)
             import_plan = plan.import_plan if plan is not None else None
             begin_import(import_plan, scope.checkpoint, run)
-            async with asyncio.timeout_at(scope.deadline):
-                result = await execute(binding, input, scope, run)
+            result = await self.clock.run(
+                execute(binding, input, scope, run), deadline=scope.deadline
+            )
             check_query_budget(self, run, item)
             if scope.checkpoint is not None:
                 scope.checkpoint.validate()
@@ -198,7 +205,7 @@ class Runtime:
         binding = self.catalog.binding(item)
         if parent.depth + 1 > MAX_DEPTH:
             raise StepRuleBroken(f"模块调用超过 {MAX_DEPTH} 层，请检查调用关系")
-        loop_time = asyncio.get_running_loop().time()
+        loop_time = self.clock.monotonic()
         scope = replace(
             parent, depth=parent.depth + 1, deadline=min(parent.deadline, loop_time + item.timeout)
         )
@@ -213,8 +220,9 @@ class Runtime:
         token = otel_context.attach(trace.set_span_in_context(span)) if span else None
         parent_step.children.append(run.id)
         try:
-            async with asyncio.timeout_at(scope.deadline):
-                result = await execute(binding, input, scope, run)
+            result = await self.clock.run(
+                execute(binding, input, scope, run), deadline=scope.deadline
+            )
             check_query_budget(self, run, item)
         except BaseException as error:
             problem = translate(error)
@@ -236,6 +244,7 @@ class Runtime:
                 span.end()
 
     # 在独立的短事务中登记一个后台任务，返回任务编号。
+    @clocked
     async def submit(
         self,
         item: Contract[Data, Data],
@@ -271,15 +280,18 @@ class Runtime:
     def open_run(
         self, binding: Binding, scope: Scope, parent: RunRecord | None, step: StepRecord | None
     ) -> RunRecord:
-        return open_record(self, binding, scope, parent, step)
+        run = open_record(self, binding, scope, parent, step)
+        self._started[run.id] = self.clock.monotonic()
+        return run
 
     # 结束运行记录；记录器出错只写日志，不影响业务结果。
     async def close_run(self, run: RunRecord, status: str) -> None:
         if not run.query_budget:
             check_query_budget(self, run, self.catalog.by_name[run.contract].contract, failed=True)
         run.status = status
-        run.ended_at = time.time()
-        run.elapsed_ms = (run.ended_at - run.started_at) * 1000
+        run.ended_at = self.clock.now()
+        started = self._started.pop(run.id, self.clock.monotonic())
+        run.elapsed_ms = max(0, self.clock.monotonic() - started) * 1000
         warn_slow_batch(run)
         try:
             await self.recorder.finish(run)

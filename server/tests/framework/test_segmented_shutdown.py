@@ -152,11 +152,14 @@ async def test_worker_budget_is_recorded_with_warning(segmented: Services) -> No
 
 
 # 执行中的批次也提醒，不能等到部署已经强杀后才记录超时预算。
-def test_running_batch_warns_before_completion(monkeypatch) -> None:
+def test_running_batch_warns_before_completion() -> None:
     record = RunRecord("r", "r", "", "", "c", "t", "m", "1", "dev", "", "", "x", 0)
     record.segment_number, record.segment_shutdown_seconds = 1, 20
-    monkeypatch.setattr("shared.records.recorder.time.time", lambda: 25)
-    observed = mark_lost(record)
+    from shared.timing.clock import FakeClock
+    from shared.timing.current import use_clock
+
+    with use_clock(FakeClock(25)):
+        observed = mark_lost(record)
     assert observed.status == "running" and observed.segment_warning
     assert "提醒：" in observed.summary and "job_shutdown_seconds=20秒" in observed.summary
     assert not record.segment_warning

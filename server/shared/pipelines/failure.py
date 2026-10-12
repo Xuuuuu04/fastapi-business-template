@@ -2,8 +2,9 @@
 后台失败、重试和租约恢复同步流程状态，避免任务失败而流程仍假装运行。
 """
 
-import time
 from typing import TYPE_CHECKING
+
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
@@ -48,7 +49,7 @@ async def failed(
     root_state = "waiting_external" if state == "waiting_retry" else value
     values: dict[str, object] = dict(state=value, error=message)
     if stage["state"] == "running" and stage["started_at"] is not None:
-        values["elapsed_ms"] = stage["elapsed_ms"] + (time.time() - stage["started_at"]) * 1000
+        values["elapsed_ms"] = stage["elapsed_ms"] + (business_now() - stage["started_at"]) * 1000
     if run_id:
         values["run_id"] = run_id
     await connection.execute(update(stages).where(stages.c.id == stage["id"]).values(**values))
@@ -57,9 +58,9 @@ async def failed(
         .where(runs.c.id == root["id"])
         .values(
             state=root_state,
-            updated_at=time.time(),
+            updated_at=business_now(),
             reason=message,
-            finished_at=time.time() if state in ("failed", "cancelled") else None,
+            finished_at=business_now() if state in ("failed", "cancelled") else None,
         )
     )
     if state in ("failed", "cancelled"):

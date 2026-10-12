@@ -8,7 +8,6 @@ import json
 import mimetypes
 import re
 import secrets
-import time
 from collections.abc import AsyncIterator
 from dataclasses import asdict, dataclass
 from pathlib import Path, PurePath
@@ -16,6 +15,7 @@ from pathlib import Path, PurePath
 import anyio
 
 from shared.errors.framework import FileTooLarge, FileTypeNotAllowed, StepRuleBroken
+from shared.timing.current import now as business_now
 
 TEMP_ID = re.compile(r"^[0-9a-f]{32}$")
 
@@ -90,7 +90,7 @@ class UploadArea:
         folder = anyio.Path(self.root)
         if not await folder.is_dir():
             return 0
-        cutoff, count = time.time() - older_than, 0
+        cutoff, count = business_now() - older_than, 0
         async for path in folder.iterdir():
             if (await path.stat()).st_mtime < cutoff:
                 await path.unlink(missing_ok=True)

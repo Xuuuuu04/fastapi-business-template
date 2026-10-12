@@ -16,6 +16,7 @@ from shared.errors.framework import ConfigError
 from shared.model_calls.providers import ModelProvider
 from shared.modules.module import Module
 from shared.remote_calls.service import RemoteService
+from shared.timing.clock import Clock
 
 FRAMEWORK_VERSION = "3.0.0"
 
@@ -43,6 +44,7 @@ class ApplicationSpec:
     workers: tuple[WorkerSpec, ...] = ()
     providers: tuple[ProviderSpec, ...] = ()
     adapters: Callable[[Settings, RemoteService], dict[ProviderSpec, EffectAdapter]] | None = None
+    clock: Clock | None = None
 
     # 实际运行可以读取部署环境，离线和测试配置只接受显式输入及声明默认值。
     def settings(
@@ -105,6 +107,7 @@ class ApplicationSpec:
             "model_provider": location(self.model_provider),
             "providers": [spec.shape() for spec in self.providers],
             "adapters": location(self.adapters),
+            "clock": location(self.clock),
             "modules": None if self.modules is None else [item.name for item in self.modules],
             "routers": [getattr(router, "prefix", "") for router in self.routers],
             "workers": [

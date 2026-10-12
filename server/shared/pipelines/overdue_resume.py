@@ -2,7 +2,6 @@
 人工继续逾期暂停：保留已完成阶段和当前游标，不重复正在执行的动作。
 """
 
-import time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, update
@@ -13,6 +12,7 @@ from shared.jobs.queue import reserve
 from shared.jobs.tables import jobs
 from shared.pipelines.plan import FanOut
 from shared.pipelines.tables import members, runs, stages
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
@@ -50,7 +50,7 @@ async def resume(connection: AsyncConnection, queue: "JobQueue", root: dict) -> 
     await connection.execute(
         update(runs)
         .where(runs.c.id == root["id"])
-        .values(state=state, reason="人工继续逾期流程，保留逾期事实", updated_at=time.time())
+        .values(state=state, reason="人工继续逾期流程，保留逾期事实", updated_at=business_now())
     )
     return "已继续逾期流程，已有产出和游标保留"
 
@@ -73,10 +73,10 @@ async def restore_job(connection: AsyncConnection, queue: "JobQueue", job_id: st
         .where(jobs.c.id == job_id)
         .values(
             state="queued",
-            run_after=time.time(),
+            run_after=business_now(),
             finished_at=None,
             lease_until=None,
-            updated_at=time.time(),
+            updated_at=business_now(),
             error_code="",
             error_message="",
         )
@@ -101,7 +101,7 @@ async def restore_members(connection: AsyncConnection, queue: "JobQueue", parent
         await connection.execute(
             update(members)
             .where(members.c.id == member["id"])
-            .values(state="queued", error="", updated_at=time.time())
+            .values(state="queued", error="", updated_at=business_now())
         )
     await connection.execute(
         update(stages).where(stages.c.id == parent["id"]).values(state="waiting_members", error="")
@@ -116,7 +116,7 @@ async def ensure_boundary(connection: AsyncConnection, run_id: str) -> None:
         .where(
             stages.c.pipeline_id == run_id,
             jobs.c.state == "running",
-            jobs.c.lease_until > time.time(),
+            jobs.c.lease_until > business_now(),
         )
         .limit(1)
     )
@@ -126,7 +126,7 @@ async def ensure_boundary(connection: AsyncConnection, run_id: str) -> None:
         .where(
             members.c.pipeline_id == run_id,
             jobs.c.state == "running",
-            jobs.c.lease_until > time.time(),
+            jobs.c.lease_until > business_now(),
         )
         .limit(1)
     )

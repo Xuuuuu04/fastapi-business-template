@@ -19,6 +19,12 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
     problems = []
     for module in modules:
         problems += provider_problems(module)
+        problems += [
+            issue
+            for plan in module.jobs
+            if plan.revalidate is not None
+            for issue in dependency_problems(module, plan.contract, plan.revalidate)
+        ]
         if module.kind not in (None, "capability", "workflow"):
             problems.append(f"模块 {module.name} 的kind无效")
         unknown = sorted(

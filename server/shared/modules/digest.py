@@ -82,6 +82,12 @@ def job_shape(plan: JobPlan) -> dict[str, Any]:
         critical=plan.critical,
         import_plan=plan.import_plan.shape() if plan.import_plan else None,
         segmented=plan.segmented,
+        serial=asdict(plan.serial) if plan.serial else None,
+        resources=[asdict(resource) for resource in plan.resources],
+        queue_timeout=plan.queue_timeout,
+        valid_until_field=plan.valid_until_field,
+        revalidate=plan.revalidate.name if plan.revalidate else None,
+        attempt_timeout=plan.attempt_timeout,
         cursor=plan.cursor.model_json_schema() if plan.cursor else None,
     )
 

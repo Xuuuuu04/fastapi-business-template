@@ -21,6 +21,7 @@ from shared.effects.smtp import MailInput, MailReceipt, SmtpAdapter, SmtpConfig
 from shared.effects.spec import AdapterReply, EffectResult, ProviderSpec
 from shared.errors.framework import NotAllowed
 from shared.errors.kinds import BusinessError, Kind
+from shared.files.artifacts import ArtifactRef
 from shared.files.gate import ModuleFiles
 from shared.files.storage import SavedFile
 from shared.flow.flow import Flow
@@ -28,7 +29,9 @@ from shared.flow.inject import Call, Emitter, Later
 from shared.flow.inject import NoteWriter as Note
 from shared.flow.step import condition, step
 from shared.jobs.checkpoint import Checkpoint
+from shared.jobs.defer import RetryLater
 from shared.jobs.imports import ImportPlan, ImportReference, Reconcile
+from shared.jobs.limits import ResourceLimit, SerialKey, Validity
 from shared.jobs.plan import JobPlan, Retry, Schedule
 from shared.model_calls.gate import ModelGate as Model
 from shared.model_calls.prompt import prompt
@@ -49,8 +52,17 @@ from shared.remote_calls.endpoint import Endpoint, EndpointReply
 from shared.remote_calls.gate import RemoteGate as RemoteClient
 from shared.remote_calls.remote import remote
 from shared.remote_calls.request import FilePart
+from shared.timing.clock import Clock, FakeClock, RealClock
 
 __all__ = [
+    "RetryLater",
+    "ArtifactRef",
+    "SerialKey",
+    "ResourceLimit",
+    "Validity",
+    "Clock",
+    "FakeClock",
+    "RealClock",
     "ProviderSpec",
     "EffectGate",
     "AdapterReply",

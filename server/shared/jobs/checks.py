@@ -3,9 +3,12 @@
 普通任务误用 checkpoint 时在启动阶段指出声明位置。
 """
 
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from shared.data.models import Data
 from shared.flow.flow import Flow
 from shared.jobs.imports import check_import
+from shared.jobs.limits import limit_problems
 from shared.jobs.organizations import validate_orgs
 from shared.jobs.slot import check_slot
 from shared.modules.module import Module
@@ -15,6 +18,7 @@ from shared.modules.module import Module
 def check_segmented_jobs(module: Module) -> list[str]:
     problems = []
     for plan in module.jobs:
+        problems += limit_problems(plan)
         if plan.import_plan is not None:
             problems += check_import(plan.import_plan, module.tables)
             if not plan.segmented:
@@ -50,4 +54,32 @@ def check_schedules(module: Module) -> list[str]:
             except ValueError as error:
                 problems.append(f"定时计划{schedule.name}：{error}")
         problems += check_slot(schedule)
+    return problems
+
+
+# 检查后台任务和定时计划的声明。
+def check_jobs(module: Module) -> list[str]:
+    problems = []
+    problems += check_segmented_jobs(module)
+    problems += check_schedules(module)
+    planned = {plan.contract for plan in module.jobs}
+    for plan in module.jobs:
+        if plan.contract not in module.provides:
+            problems.append(f"任务 {plan.contract.name} 不是模块 {module.name} 提供的操作")
+        elif not plan.contract.entry:
+            problems.append(
+                f"任务 {plan.contract.name} 是内部操作（entry=False），不能作为任务运行"
+            )
+    for schedule in module.schedules:
+        place = f"定时计划“{schedule.title}”"
+        if schedule.contract not in planned:
+            problems.append(f"{place} 的操作 {schedule.contract.name} 需要先在 jobs 中声明")
+        if (schedule.every is None) == (schedule.daily_at is None):
+            problems.append(f"{place} 必须且只能设置 every 或 daily_at 其中一个")
+        if not isinstance(schedule.input, schedule.contract.input):
+            problems.append(f"{place} 的输入类型必须是 {schedule.contract.input.__name__}")
+        try:
+            ZoneInfo(schedule.zone)
+        except (ZoneInfoNotFoundError, ValueError):
+            problems.append(f"{place} 的时区 {schedule.zone} 无法识别")
     return problems

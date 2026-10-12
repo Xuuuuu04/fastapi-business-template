@@ -148,6 +148,7 @@ def simple_tools(
         "checkpoint": lambda: batch_checkpoint(scope),
         "pipeline": lambda: PipelineGate(scope, run, saves=part.saves),
         "effects": lambda: EffectGate(scope, record, part.providers, part.saves),
+        "clock": lambda: scope.runtime.clock,
     }
     return {name: make() for name, make in makers.items() if name in params}
 
@@ -174,7 +175,9 @@ async def build_store(
     if scope.runtime.vault is not None:
         available["vault"] = scope.runtime.vault
     if scope.runtime.files is not None and scope.runtime.uploads is not None:
-        available["files"] = ModuleFiles(scope.runtime.files, scope.runtime.uploads, module.name)
+        available["files"] = ModuleFiles(
+            scope.runtime.files, scope.runtime.uploads, module.name, scope.caller
+        )
     names = set(inspect.signature(factory).parameters)
     if "db" in names:
         connection = await store_connection(part, scope, stack)

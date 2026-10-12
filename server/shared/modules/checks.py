@@ -8,7 +8,6 @@ import inspect
 import re
 from collections.abc import Sequence
 from typing import Any
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from shared.access.caller import PUBLIC, SIGNED_IN
 from shared.data.fields import check_notes
@@ -17,7 +16,7 @@ from shared.errors.kinds import BusinessError
 from shared.flow.checks import check_flow
 from shared.flow.flow import Flow
 from shared.flow.step import Step
-from shared.jobs.checks import check_schedules, check_segmented_jobs
+from shared.jobs.checks import check_jobs
 from shared.model_calls.prompt import load_prompt
 from shared.modules.aliases import check_aliases
 from shared.modules.contract import Contract
@@ -138,37 +137,15 @@ def check_prompts(module: Module) -> list[str]:
     return problems
 
 
-# 检查后台任务和定时计划的声明。
-def check_jobs(module: Module) -> list[str]:
-    problems = []
-    problems += check_segmented_jobs(module)
-    problems += check_schedules(module)
-    planned = {plan.contract for plan in module.jobs}
-    for plan in module.jobs:
-        if plan.contract not in module.provides:
-            problems.append(f"任务 {plan.contract.name} 不是模块 {module.name} 提供的操作")
-        elif not plan.contract.entry:
-            problems.append(
-                f"任务 {plan.contract.name} 是内部操作（entry=False），不能作为任务运行"
-            )
-    for schedule in module.schedules:
-        place = f"定时计划“{schedule.title}”"
-        if schedule.contract not in planned:
-            problems.append(f"{place} 的操作 {schedule.contract.name} 需要先在 jobs 中声明")
-        if (schedule.every is None) == (schedule.daily_at is None):
-            problems.append(f"{place} 必须且只能设置 every 或 daily_at 其中一个")
-        if not isinstance(schedule.input, schedule.contract.input):
-            problems.append(f"{place} 的输入类型必须是 {schedule.contract.input.__name__}")
-        try:
-            ZoneInfo(schedule.zone)
-        except (ZoneInfoNotFoundError, ValueError):
-            problems.append(f"{place} 的时区 {schedule.zone} 无法识别")
-    return problems
-
-
 # 检查步骤调用和登记的操作都由已启用的模块提供。
 def check_uses(modules: Sequence[Module], provided: Provided) -> list[str]:
     problems = []
+    problems += [
+        f"任务 {plan.contract.name} 的执行前查询未登记"
+        for module in modules
+        for plan in module.jobs
+        if plan.revalidate is not None and plan.revalidate not in provided
+    ]
     planned = {plan.contract for module in modules for plan in module.jobs}
     for module, item in steps_of(modules):
         place = f"模块 {module.name} 的步骤“{item.title}”"
@@ -199,6 +176,10 @@ def steps_of(modules: Sequence[Module]) -> list[tuple[Module, Step]]:
 # 检查操作之间、模块之间没有循环调用。
 def check_cycles(modules: Sequence[Module], provided: Provided) -> list[str]:
     calls = {item: used_by(flow) for module in modules for item, flow in module.provides.items()}
+    for module in modules:
+        for plan in module.jobs:
+            if plan.revalidate is not None:
+                calls.setdefault(plan.contract, set()).add(plan.revalidate)
     problems = [
         f"操作之间存在循环调用：{' → '.join(item.name for item in loop)}"
         for loop in find_loops(calls)

@@ -3,12 +3,13 @@
 """
 
 import secrets
-import time
 from typing import TYPE_CHECKING
 
 from shared.flow.scope import Scope
 from shared.modules.catalog import Binding
 from shared.records.models import RunRecord, StepRecord
+from shared.timing.clock import clock_kind
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.flow.runtime import Runtime
@@ -36,10 +37,11 @@ def open_record(
         module_version=binding.module.version,
         code_version=runtime.code_version,
         source_version=runtime.source_version,
+        clock_kind=clock_kind(runtime.clock),
         request_id=scope.request_id,
         job_id=scope.job_id,
         caller=f"{scope.caller.kind}:{scope.caller.id}",
-        started_at=time.time(),
+        started_at=business_now(),
         planned=[part.name for part in binding.flow.steps],
     )
     if scope.checkpoint is not None:

@@ -3,7 +3,6 @@
 """
 
 import json
-import time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import update
@@ -13,6 +12,7 @@ from shared.errors.framework import InvalidInput
 from shared.pipelines.schema import declarations
 from shared.pipelines.storage import root_for
 from shared.pipelines.tables import runs
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.db.database import Database
@@ -42,7 +42,7 @@ async def resume_queued(
         update(runs)
         .where(runs.c.id == run_id)
         .values(
-            declarations_json=json.dumps(declarations(pipeline, catalog)), updated_at=time.time()
+            declarations_json=json.dumps(declarations(pipeline, catalog)), updated_at=business_now()
         )
     )
     await queue.pipelines.activate(connection, root, pipeline)

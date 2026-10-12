@@ -31,6 +31,7 @@ PARAMS = (
     "checkpoint",
     "pipeline",
     "effects",
+    "clock",
 )
 
 

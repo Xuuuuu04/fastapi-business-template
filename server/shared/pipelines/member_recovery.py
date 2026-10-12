@@ -3,7 +3,6 @@
 """
 
 import json
-import time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, update
@@ -17,6 +16,7 @@ from shared.pipelines.plan import FanOut, Pipeline
 from shared.pipelines.schema import declarations, stage_declaration
 from shared.pipelines.storage import ACTIVE
 from shared.pipelines.tables import members, runs, stages
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
@@ -50,7 +50,7 @@ async def resume(
             state="waiting_members",
             declarations_json=json.dumps(declarations(pipeline, queue.catalog)),
             finished_at=None,
-            updated_at=time.time(),
+            updated_at=business_now(),
             reason="人工恢复失败成员，成功结果复用",
         )
     )
@@ -90,7 +90,7 @@ async def validate_resume(
         .where(
             members.c.stage_id == parent["id"],
             jobs.c.state == "running",
-            jobs.c.lease_until > time.time(),
+            jobs.c.lease_until > business_now(),
         )
         .limit(1)
     )
@@ -144,7 +144,7 @@ async def restore_member(
             raise InvalidInput(f"成员{member['key']}操作名称变化，需要迁移当前任务")
         await validate_checkpoint(connection, member["job_id"], plan, member["key"])
     declared = json.dumps([stage_declaration(child, queue.catalog) for child in group.stages])
-    values = dict(declarations_json=declared, updated_at=time.time())
+    values = dict(declarations_json=declared, updated_at=business_now())
     if member["state"] in ("failed", "unknown", "version_blocked", "cancelled"):
         values |= dict(state="planned", error="", finished_at=None, wait_until=None)
     await connection.execute(update(members).where(members.c.id == member["id"]).values(**values))

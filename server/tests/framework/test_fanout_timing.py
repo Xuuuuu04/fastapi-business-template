@@ -9,7 +9,6 @@ import pytest
 from sqlalchemy import func, select, update
 
 from app.setup.build import Services
-from shared.jobs import queue as job_queue
 from shared.jobs.tables import jobs
 from shared.jobs.worker import Worker, WorkerOptions
 from shared.pipelines.tables import members
@@ -53,7 +52,7 @@ async def test_host_delay_does_not_expire_synthetic_wait(fanout: Services, monke
 @pytest.mark.parametrize("boundary", ["prepare", "commit"])
 async def test_member_deadline_is_enforced(fanout: Services, monkeypatch, boundary) -> None:
     run_id, member = await waiting(fanout)
-    clock = job_queue.time
+    clock = fanout.queue.clock
     if boundary == "prepare":
         clock.advance_to(member["wait_until"])
     else:
@@ -96,7 +95,7 @@ async def test_failure_snapshot_includes_pre_execution_rejection(
     fanout: Services, request, tmp_path: Path
 ) -> None:
     run_id, member = await waiting(fanout)
-    job_queue.time.advance_to(member["wait_until"])
+    fanout.queue.clock.advance_to(member["wait_until"])
     assert (await drain(fanout, run_id))["state"] == "failed"
     assert all(run.status == "ok" for run in FINISHED)
     path = save_finished_runs(tmp_path, request.node.nodeid, FINISHED)
