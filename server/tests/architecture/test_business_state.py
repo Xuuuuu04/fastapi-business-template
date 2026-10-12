@@ -52,7 +52,7 @@ def test_generated_state_preserves_manual_and_detects_expiry(tmp_path: Path) -> 
     path.write_text(path.read_text().split(END)[0] + END + manual)
     update(catalog, tmp_path, set())
     assert path.read_text().endswith(manual)
-    assert "未知：未读取数据库" in path.read_text()
+    assert "未知（还没有连接数据库读取过）" in path.read_text()
     assert outdated(catalog, tmp_path, set()) == []
     data = read(path)
     assert data and outdated(catalog, tmp_path, set(), now=data["generated_at"] + MAX_AGE + 1) == [
@@ -62,7 +62,7 @@ def test_generated_state_preserves_manual_and_detects_expiry(tmp_path: Path) -> 
     (tmp_path / "server/service/ops_sample/module.py").write_text("# 已修改计算\n")
     assert outdated(catalog, tmp_path, set()) == [path]
     update(catalog, tmp_path, set())
-    path.write_text(path.read_text().replace("最近运行：", "虚构运行："))
+    path.write_text(path.read_text().replace("**最近运行**：", "**虚构运行**："))
     assert outdated(catalog, tmp_path, set()) == [path]
     update(catalog, tmp_path, set())
     assert path.read_text().endswith(manual) and outdated(catalog, tmp_path, set()) == []
@@ -94,7 +94,9 @@ def test_bounded_preview_keeps_complete_json(tmp_path: Path) -> None:
         )
     }
     [path] = update(catalog, tmp_path, set(), facts)
-    assert '"count": 50' in path.read_text() and '"omitted": 47' in path.read_text()
+    assert "有 50 条" in path.read_text()
+    detail = path.with_suffix(".json").read_text()
+    assert '"count": 50' in detail and '"omitted": 40' in detail
     data = json.loads(path.with_suffix(".json").read_text())
     assert len(data["runtime"]["confirmation"]["examples"]) == 10
     assert outdated(catalog, tmp_path, set()) == []

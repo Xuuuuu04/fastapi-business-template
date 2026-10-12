@@ -19,6 +19,18 @@ LIMITS = {
     "exclusiveMinimum": "大于",
     "enum": "可选值",
 }
+# FastAPI 自动生成的状态码说明是英文，这里换成中文；业务自己写的说明保持原样。
+STATUS_TEXT = {
+    "Successful Response": "请求成功",
+    "Validation Error": "输入不符合要求",
+    "No Content": "成功，没有返回内容",
+    "Not Found": "没有找到这个路径",
+}
+# 框架自动生成的模型名显示成中文，括号里保留原名便于对照。
+MODEL_TEXT = {
+    "HTTPValidationError": "输入错误明细（HTTPValidationError）",
+    "ValidationError": "输入错误（ValidationError）",
+}
 
 
 # 用于生成文档的应用：测试配置、开放接口文档，不连接外部服务。
@@ -35,7 +47,7 @@ def api_markdown(app: FastAPI) -> tuple[dict[str, Any], str]:
     lines = [
         f"# {schema['info']['title']} 接口清单",
         "",
-        "由实际路由自动生成。服务密钥放在请求头 X-API-Key。",
+        "这份清单根据服务的实际路由自动生成。调用接口时，服务密钥放在请求头 X-API-Key 里。",
         "",
     ]
     for path, entries in schema["paths"].items():
@@ -73,9 +85,8 @@ def operation_lines(method: str, path: str, item: dict[str, Any]) -> list[str]:
     lines += ["| 状态码 | 含义 | 返回模型 |", "| --- | --- | --- |"]
     for status, reply in item["responses"].items():
         models = [type_name(part.get("schema", {})) for part in reply.get("content", {}).values()]
-        lines.append(
-            f"| {status} | {cell(reply.get('description', ''))} | {'、'.join(models) or '空响应'} |"
-        )
+        description = STATUS_TEXT.get(reply.get("description", ""), reply.get("description", ""))
+        lines.append(f"| {status} | {cell(description)} | {'、'.join(models) or '无返回内容'} |")
     return [*lines, ""]
 
 
@@ -106,12 +117,13 @@ def model_lines(name: str, model: dict[str, Any]) -> list[str]:
 # 把模型引用和组合类型整理成简短的类型说明。
 def type_name(model: dict[str, Any]) -> str:
     if "$ref" in model:
-        return str(model["$ref"]).rsplit("/", 1)[-1]
+        name = str(model["$ref"]).rsplit("/", 1)[-1]
+        return MODEL_TEXT.get(name, name)
     if "anyOf" in model:
         return " 或 ".join(type_name(item) for item in model["anyOf"])
     if model.get("type") == "array":
         return f"列表[{type_name(model.get('items', {}))}]"
-    return str(model.get("format", model.get("type", "未指定")))
+    return str(model.get("format", model.get("type", "无固定格式")))
 
 
 # 把字段限制整理成文字。

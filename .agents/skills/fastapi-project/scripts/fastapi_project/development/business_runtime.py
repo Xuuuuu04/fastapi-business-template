@@ -39,6 +39,10 @@ async def recent_operation(connection: Any, name: str) -> Any:
     return (await connection.execute(query)).mappings().first()
 
 
+# 运行记录缺失时的统一说法。
+MISSING = "未知（数据库里没有保留这个流程的运行记录）"
+
+
 # 最近运行只列历史事实；当前源码是否成功、真实业务是否验收仍需相应证据。
 async def observe(database: Database, catalog: Catalog) -> dict[str, Any]:
     result = {}
@@ -59,7 +63,7 @@ async def observe(database: Database, catalog: Catalog) -> dict[str, Any]:
                     .mappings()
                     .first()
                 )
-                latest[pipeline.name] = dict(row) if row else "未知：无持久运行记录"
+                latest[pipeline.name] = dict(row) if row else MISSING
             overdue = await attention(
                 connection,
                 runs,
@@ -77,7 +81,7 @@ async def observe(database: Database, catalog: Catalog) -> dict[str, Any]:
             )
             result[name] = dict(
                 last=dict(
-                    operation=dict(recent) if recent else "未知：无持久运行记录",
+                    operation=dict(recent) if recent else MISSING,
                     pipelines=latest,
                     evidence="数据库历史观察，不证明当前源码成功或业务验收",
                 ),

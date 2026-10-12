@@ -1,6 +1,7 @@
 """
 检查业务文档：每个模块在 doc/ 下有需求、规则、变化记录；长度不超过上限；
 代码中引用的规则编号必须在 rules.md 中有对应标题；自动生成的 flows.md 必须与当前声明一致。
+文风检查保证写给人看的文字符合约定：不用禁用词，不残留未翻译的英文。
 """
 
 import re
@@ -12,6 +13,21 @@ from fastapi_docs.export_docs import outdated
 
 from shared.data.fields import notes_of
 from shared.modules.catalog import Catalog
+
+# 文风硬规则：这些词在写给人看的文档里不该出现。约定见 fastapi-docs 的 writing-style.md。
+BANNED_WORDS = ("阻断", "巡检", "巡查", "红线", "门禁", "判官", "————", "「", "」")
+BANNED_PHRASES = ("Successful Response", "Validation Error")
+# 约定文件自身要引用这些词；生成文件由“生成文档是否过期”间接保证合规。
+STYLE_SKIP = ("writing-style.md",)
+# 生成文件与模板块不检查：它们的内容由生成器版本决定；out/var 是测试和本机产物。
+STYLE_GENERATED = (
+    "doc/api/",
+    "doc/modules.md",
+    "doc/development.md",
+    "doc/progress.md",
+    "server/out/",
+    "server/var/",
+)
 
 
 # 检查全部模块的业务文档。
@@ -99,3 +115,33 @@ def rule_ids(catalog: Catalog, name: str) -> set[str]:
         for model in (flow.work, item.input, item.output):
             found |= {note.rule for note in notes_of(model).values() if note.rule}
     return found
+
+
+# 检查写给人看的 Markdown 是否符合文风约定：禁用词和未翻译的英文残留。
+# 检查范围是随源码提交的文档（业务文档、README、AGENTS.md、项目 Skill），
+# 不检查生成文件和本机记录。
+def check_writing_style(project: Path = PROJECT) -> list[Problem]:
+    problems: list[Problem] = []
+    folders = [project / "doc", project / ".agents" / "skills", project / "server"]
+    singles = [project / "AGENTS.md", project / "README.md"]
+    for path in singles + [item for folder in folders for item in folder.rglob("*.md")]:
+        if not path.exists() or path.name in STYLE_SKIP:
+            continue
+        relative = path.relative_to(project).as_posix()
+        if any(relative.startswith(prefix) for prefix in STYLE_GENERATED):
+            continue
+        if "/.agents/records/" in f"/{relative}":
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            for word in BANNED_WORDS + BANNED_PHRASES:
+                if word in line:
+                    problems.append(
+                        Problem(
+                            relative,
+                            number,
+                            "writing_style",
+                            f"出现了禁用词 {word}",
+                            "按文风与术语约定换成人能直接读懂的写法（fastapi-docs/references/writing-style.md）",
+                        )
+                    )
+    return problems

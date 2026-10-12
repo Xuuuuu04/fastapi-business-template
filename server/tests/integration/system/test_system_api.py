@@ -47,7 +47,8 @@ def test_modules(sample_client: TestClient) -> None:
 # 操作的流程图和字段来源；不存在的字段返回 404。
 def test_flow_and_field(sample_client: TestClient) -> None:
     flow = sample_client.get("/api/system/flows/sample_calc.calc", headers=KEY).json()
-    assert "4. 整理结果（计算）" in flow["graph"] and flow["doc"] == "doc/sample_calc"
+    assert "4. 整理结果" in flow["graph"] and "（计算）" not in flow["graph"]
+    assert flow["doc"] == "doc/sample_calc"
     field = sample_client.get("/api/system/fields/sample_calc.calc/total", headers=KEY).json()
     assert field["explain"][0].startswith("- 应付（total）：由步骤“计算应付”写入")
     missing = sample_client.get("/api/system/fields/sample_calc.calc/nope", headers=KEY)

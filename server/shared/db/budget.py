@@ -116,23 +116,23 @@ def evaluate(run: RunRecord, budget: QueryBudget, declared: bool, mode: str) -> 
 # 摘要只放总量和超额/循环提示，存储函数位置仍在结构化记录中。
 def budget_text(result: dict[str, Any]) -> str:
     if not result:
-        return "查询额度：未知（旧记录）"
+        return "查询额度未知（旧记录没有保存额度数据）"
     actual, limits = result["actual"], result["limits"]
-    counts = "；".join(
-        f"{key}={actual[key]}/{limits[key]}"
+    names = {"queries": "查询", "rows": "行", "bytes": "内容"}
+    counts = "，".join(
+        f"{names[key]} {actual[key]}/{limits[key]}"
         + ("（部分未知）" if result["unknown"].get(key) else "")
         for key in ("queries", "rows", "bytes")
     )
     repeated = result["repeated"]
-    return (
-        ("存储函数统计不完整；" if not result["functions_complete"] else "")
-        + f"查询额度：{counts}；超额：{'、'.join(result['exceeded']) or '无'}"
-        + (
-            f"；疑似循环里逐行查询：{repeated[0]['source']} {repeated[0]['queries']}次"
-            if repeated
-            else ""
-        )
-    )
+    parts = []
+    if not result["functions_complete"]:
+        parts.append("存储函数的统计不完整")
+    parts.append(f"查询额度：{counts}；超额：{'、'.join(result['exceeded']) or '无'}")
+    if repeated:
+        first = repeated[0]
+        parts.append(f"疑似在循环里逐行查询：{first['source']} 调用了 {first['queries']} 次")
+    return "；".join(parts)
 
 
 # 子操作总量累加，最多保留200种步骤/函数位置，不随循环调用次数增长。

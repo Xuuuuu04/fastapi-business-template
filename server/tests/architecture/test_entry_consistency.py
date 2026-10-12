@@ -62,7 +62,10 @@ def test_agents_current_state_generation(tmp_path: Path) -> None:
     path = tmp_path / "AGENTS.md"
     path.write_text("# 我的产品\n\n手写判断：保留。\n")
     current = render(catalog, tmp_path, set())
-    assert "手写判断：保留。" in current and "公开操作5；定时1；流程1；启用" in current
+    assert (
+        "手写判断：保留。" in current
+        and "对外 5 个操作、1 个定时入口、1 个多阶段流程；启用" in current
+    )
     path.write_text(current)
     assert not stale(catalog, tmp_path, set())
     assert stale(catalog, tmp_path, {"pipeline_sample"})
@@ -87,4 +90,4 @@ def test_global_summary_is_one_screen() -> None:
     }
     summary = dict(name="大项目", modules=modules, pipelines=[], lines=[], attention=[])
     text = render(summary)
-    assert len(text.splitlines()) <= 28 and "另有38模块" in text and "--module" in text
+    assert len(text.splitlines()) <= 28 and "另外还有 38 个模块" in text and "--module" in text

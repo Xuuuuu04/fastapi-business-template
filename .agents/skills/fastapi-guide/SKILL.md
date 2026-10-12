@@ -5,26 +5,26 @@ description: 第一次接触本 FastAPI 模板、要启动项目或规划开发�
 
 # 模板入门
 
-找不到该改哪里时，先在 `server/` 执行 `uv run python ../.agents/skills/fastapi-project/scripts/run_project.py locate --query "业务词或旧接口路径" --limit 10 --json`，再按结果执行 `project --operation 模块.操作 --json`。定位只读本地声明和规则文档，不访问数据库；未保留的旧路径关系未知。
+找不到该改哪里时，先在 `server/` 下执行 `uv run python ../.agents/skills/fastapi-project/scripts/run_project.py locate --query "业务词或旧接口路径" --limit 10 --json`，再按结果执行 `project --operation 模块.操作 --json`。定位只读本地声明和规则文档，不访问数据库；旧路径如果没有保留下来，它们的关系就是未知的。
 
 ## 项目结构
 
-这是一个没有预置业务的 FastAPI 单体后端：
+这是一个没有预置业务的 FastAPI 单体后端，分三块：
 
 - `server/service/`：业务包，每个业务一个包，目录结构固定。
-- `server/shared/`：所有业务共用的能力，如事务、流程执行、后台任务。
+- `server/shared/`：所有业务共用的框架能力，比如事务、流程执行、后台任务。
 - `server/app/`：HTTP 接口和启动。
 
-业务代码的分工：步骤（`steps/`）声明自己读写哪些字段并做计算；SQL 只写在存储（`store/`）里；一个包要用另一个包，只能调用对方公开的操作。
+业务代码的分工：步骤（`steps/`）声明自己读写哪些字段并做计算；SQL 只写在存储（`store/`）里；一个包要用另一个包的能力，只能调用对方公开的操作。
 
 ## 开始之前
 
-1. 在项目根目录读 `AGENTS.md`、`project-plan.json` 和 `doc/README.md`，只展开当前要做的业务相关的文档。
-2. 先做出一项能检查、能使用的业务。一项业务内部按依赖先后安排即可，不需要整个项目先把底层全做完再往上做。
+1. 在项目根目录读 `AGENTS.md`、`project-plan.json` 和 `doc/README.md`，只展开和当前业务相关的文档。
+2. 先做出一项能检查、能使用的完整业务。一项业务内部按依赖先后安排就够了，不需要整个项目先把底层全做完再往上做。
 
 ## 启动
 
-在 `server/` 执行：
+在 `server/` 目录执行：
 
 ```bash
 uv sync --locked
@@ -33,8 +33,8 @@ uv run alembic upgrade head
 uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 ```
 
-- 第一次使用需要填写 `.env`，已有的 `.env` 不要覆盖。
-- 模板自带的初始迁移只用于全新数据库。已经上线的产品保留自己的迁移历史。
+- 第一次使用需要填写 `.env`；已经存在的 `.env` 不要覆盖。
+- 模板自带的初始迁移只用于全新的数据库。已经上线的产品保留自己的迁移历史。
 - 部署、写入真实外部系统、删除真实数据，只在用户明确授权的范围内做。
 
 ## 按任务选 Skill
@@ -49,6 +49,8 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 查运行报告、处理后台任务、生成服务密钥 | `fastapi-operations` |
 | 把旧系统业务逐项迁进来 | `fastapi-migration` |
 | 给 Vue3 前端提供接口、前后端字段对不上、前端出错查后端 | `fastapi-frontend` |
+
+写文档和生成文字时，遵循 [文风与术语约定](references/writing-style.md)：完整句子、统一术语、图上只放流程、细节进表格。
 
 ## 复制项目时
 

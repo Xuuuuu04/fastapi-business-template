@@ -9,11 +9,13 @@ from tests.framework.sample_modules import calc, calc_module, outer, outer_modul
 
 
 # 跨模块调用保留业务种类，只在图中使用不会触发 call 语法的样式名。
+# 节点标签只含序号和标题，类型信息由样式（颜色）表达。
 def test_call_step_uses_parser_safe_style() -> None:
     binding = Catalog([calc_module, outer_module]).bindings[outer]
     graph = flow_graph(binding)
     assert binding.flow.steps[1].kind == "call"
-    assert 's2["2. 调用示例计算（调用）' in graph
+    assert 's2["2. 调用示例计算' in graph
+    assert "（调用）" not in graph
     assert ":::invoke" in graph
     assert "classDef invoke fill:#f5f0ff,stroke:#7a5ab5" in graph
     assert "classDef call " not in graph

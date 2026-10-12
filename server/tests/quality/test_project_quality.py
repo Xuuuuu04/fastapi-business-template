@@ -4,7 +4,7 @@
 """
 
 from fastapi_check.quality.blocking import check_blocking
-from fastapi_check.quality.docs import check_business_docs
+from fastapi_check.quality.docs import check_business_docs, check_writing_style
 from fastapi_check.quality.files import check_files
 from fastapi_check.quality.naming import check_naming
 from fastapi_check.quality.readmes import check_readmes
@@ -50,6 +50,12 @@ def test_readmes() -> None:
 # 业务文档齐全、没有超长、规则编号能找到、生成文档没有过期。
 def test_business_docs() -> None:
     problems = without_allowed(check_business_docs(Catalog(MODULES)))
+    assert problems == [], listed(problems)
+
+
+# 文风：写给人看的文档不用禁用词，不残留未翻译的英文。
+def test_writing_style() -> None:
+    problems = without_allowed(check_writing_style())
     assert problems == [], listed(problems)
 
 

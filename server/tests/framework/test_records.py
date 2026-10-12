@@ -78,11 +78,12 @@ def test_value_descriptions() -> None:
     )
 
 
-# 流程图列出步骤、条件和规则；字段来源逐层说明。
+# 流程图列出步骤和条件；节点只放序号和标题，类型用颜色表达。
 def test_flow_graph_and_lineage() -> None:
     binding = Catalog([calc_module]).bindings[calc]
     graph = flow_graph(binding)
-    assert '|"条件：是会员"|' in graph and "计算应付（计算）" in graph
+    assert '|"条件：是会员"|' in graph and "计算应付" in graph
+    assert "（计算）" not in graph and ":::compute" in graph
     lines = explain(binding, "result")
     assert lines[0].startswith("- 结果（result）：由步骤“整理结果”写入")
     assert any("应付（total）：由步骤“计算应付”写入" in line for line in lines)

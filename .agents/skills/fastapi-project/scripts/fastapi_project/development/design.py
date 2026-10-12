@@ -56,18 +56,22 @@ def design_text(graph: list[str], rows: list[str]) -> str:
         [
             "# 项目设计与结构进度",
             "",
-            "> 由 fastapi_docs.export_docs 生成。计划来自 project-plan.json；"
-            "登记数量来自代码，不能表示测试通过。",
+            "> 这份文件由 fastapi_docs.export_docs 生成。计划来自 project-plan.json，",
+            "> 登记数量来自代码。登记了多少个操作只说明代码里有了它们，不代表测试通过。",
             "",
-            "主代理先读摘要：`uv run python ../.agents/skills/fastapi-project/scripts/"
-            "run_project.py project --summary --json`。",
-            "单包操作与规则样例：`uv run python ../.agents/skills/fastapi-project/scripts/"
-            "run_project.py project --module 模块名 --summary --json`。",
-            "单操作步骤与证据：`uv run python ../.agents/skills/fastapi-project/scripts/"
-            "run_project.py project --operation 模块.操作 --json`。",
-            "修改后的调用方范围：`uv run python ../.agents/skills/fastapi-project/scripts/"
-            "run_project.py impact --base origin/main --json`。",
-            "完整 JSON 仍保留供按需读取；局部检查不代替全量检查，登记和测试执行不等于业务验收。",
+            "下面几条命令用来看项目的实际状态：",
+            "",
+            "- 看全项目摘要：`uv run python ../.agents/skills/fastapi-project/scripts/"
+            "run_project.py project --summary --json`",
+            "- 看一个业务包：`uv run python ../.agents/skills/fastapi-project/scripts/"
+            "run_project.py project --module 模块名 --summary --json`",
+            "- 看一个操作的步骤和证据：`uv run python ../.agents/skills/fastapi-project/scripts/"
+            "run_project.py project --operation 模块.操作 --json`",
+            "- 看改动会影响哪些调用方：`uv run python ../.agents/skills/fastapi-project/scripts/"
+            "run_project.py impact --base origin/main --json`",
+            "",
+            "完整的 JSON 仍然保留，需要时再读取。局部检查不能代替完整检查；",
+            "登记和测试执行也不等于业务验收，这三件事要分别确认。",
             "",
             "```mermaid",
             *graph,
@@ -75,7 +79,13 @@ def design_text(graph: list[str], rows: list[str]) -> str:
             "",
             "| 业务线 | 开发包 | 已登记/计划操作 | 尚未登记 |",
             "| --- | --- | --- | --- |",
-            *(rows or ["尚未填写开发包，完成比例未知。"]),
+            *(
+                rows
+                or [
+                    "还没有在 project-plan.json 里填写业务线和开发包；填写之后，"
+                    "这里会显示每个包的计划和登记进度。",
+                ]
+            ),
             "",
         ]
     )

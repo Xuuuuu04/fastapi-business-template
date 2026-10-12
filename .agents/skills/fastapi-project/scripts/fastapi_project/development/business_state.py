@@ -8,6 +8,15 @@ import time
 from pathlib import Path
 from typing import Any
 
+from fastapi_project.development.business_state_text import (
+    attention_text,
+    footer_text,
+    jobs_text,
+    last_text,
+    preview,
+    schedule_text,
+    time_text,
+)
 from fastapi_project.development.history import fingerprints
 from sqlalchemy.engine import make_url
 
@@ -19,7 +28,14 @@ END = "<!-- fastapi-business-state:end -->"
 META = "<!-- business-state-meta:"
 MAX_AGE = 86400
 FOLDER = ".agents/records/business-state"
-MANUAL = "\n## 手写部分\n\n- 业务判断：未知。\n- 外部依赖：未知。\n- 下一步：待填写。\n"
+MANUAL = (
+    "\n## 手写部分\n\n"
+    "这一部分由人填写，命令刷新时不会覆盖它。请写人能直接读懂的完整句子，"
+    "不要用只有自己知道的编号和缩写。\n\n"
+    "- 业务判断：这个模块在业务上现在是什么状态。\n"
+    "- 外部依赖：依赖哪些外部系统或人工步骤。\n"
+    "- 下一步：接下来要做什么、现在卡在哪里。\n"
+)
 
 
 # 库目标仅保留无密码的单向摘要，换库/角色/搜索路径后旧观察过期，不泄露连接目标。
@@ -87,72 +103,45 @@ def metadata(data: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-# 一屏优先，长清单明确省略数量，完整操作通过project详情深入。
-def preview(items: list[str], maximum: int = 8) -> str:
-    if not items:
-        return "无"
-    result = "、".join(items[:maximum])
-    return result + (
-        f"（另有{len(items) - maximum}项，使用project --module查看）"
-        if len(items) > maximum
-        else ""
-    )
-
-
-# 运行摘要最多展开三个实例/流程，完整明细在同名JSON。
-def fact_preview(value: Any) -> str:
-    if not isinstance(value, dict):
-        return str(value)
-    value = dict(value)
-    if "examples" in value:
-        rows = value["examples"]
-        value["examples"] = rows[:3]
-        value["omitted"] = value.get("omitted", 0) + max(0, len(rows) - 3)
-    if "pipelines" in value:
-        rows = list(value["pipelines"].items())
-        value["pipelines"] = dict(rows[:3])
-        value["omitted_pipelines"] = max(0, len(rows) - 3)
-    return json.dumps(value, ensure_ascii=False)
-
-
 # 运行部分仅保存状态/编号/时间/数量，不保存业务输入、SQL参数或连接目标。
 def block(data: dict[str, Any]) -> str:
     declared = data["declaration"]
     runtime = data["runtime"]
+    state = "已关闭" if declared["disabled"] else "启用"
     lines = [
         BEGIN,
         "## 生成部分（命令维护）",
         "",
-        "登记不等于业务完成；未知不等于未运行，观察不是业务验收。",
-        f"模块：{declared['name']} / {declared['title']} / {declared['version']}；"
-        + ("已关闭" if declared["disabled"] else "启用"),
-        "操作：" + preview(declared["operations"]),
-        "后台："
-        + preview(
-            [
-                item["name"] + ("（分段）" if item["segmented"] else "（普通）")
-                for item in declared["jobs"]
-            ]
+        "下面是命令自动生成的登记和观察事实。登记只说明代码里有了它，不代表业务已经完成；",
+        "查不到的写“未知”，不代表没有发生过；观察到的成功，也不能代替业务验收。",
+        "",
+        f"- **模块**：{declared['title']}（{declared['name']}），"
+        f"版本 {declared['version']}，当前{state}。",
+        "- **对外操作**：共 "
+        + str(len(declared["operations"]))
+        + " 个："
+        + preview(declared["operations"]),
+        f"- **后台任务**：{jobs_text(declared)}",
+        "- **定时入口**："
+        + (
+            "、".join(schedule_text(item) for item in declared["schedules"])
+            if declared["schedules"]
+            else "无"
         ),
-        "定时："
-        + preview([item["name"] + " → " + item["operation"] for item in declared["schedules"]]),
-        "流程："
-        + preview(
-            [
-                item["name"] + "（" + " → ".join(item["stages"]) + "）"
-                for item in declared["pipelines"]
-            ]
+        "- **多阶段流程**："
+        + (
+            "；".join(
+                f"{item['name']}（{' → '.join(item['stages'])}）" for item in declared["pipelines"]
+            )
+            if declared["pipelines"]
+            else "无"
         ),
-        "最近运行：" + fact_preview(runtime["last"]),
-        "逾期：" + fact_preview(runtime["overdue"]),
-        "待确认：" + fact_preview(runtime["confirmation"]),
-        "观察时刻：" + str(runtime.get("observed_at") or "未知：尚未读取数据库"),
-        "生成时刻：" + str(data["generated_at"]),
-        "深入：project --module "
-        + declared["name"]
-        + " --summary；project --module "
-        + declared["name"]
-        + " --runs。",
+        "- **最近运行**：" + last_text(runtime["last"]),
+        "- **逾期情况**：" + attention_text(runtime["overdue"], "逾期"),
+        "- **待确认的任务**：" + attention_text(runtime["confirmation"], "结果待确认"),
+        f"- **观察时刻**：{time_text(runtime.get('observed_at'))}；"
+        f"生成时刻：{time_text(data['generated_at'])}。",
+        footer_text(declared["name"]),
         META + json.dumps(metadata(data), ensure_ascii=False, separators=(",", ":")) + " -->",
         END,
     ]
@@ -161,10 +150,11 @@ def block(data: dict[str, Any]) -> str:
 
 # 不访问数据库时如实未知；显式不读取不会把旧证据当当前真实状态。
 def unknown() -> dict[str, Any]:
+    message = "未知（还没有连接数据库读取过）"
     return dict(
-        last="未知：未读取数据库",
-        overdue="未知：未读取数据库",
-        confirmation="未知：未读取数据库",
+        last=message,
+        overdue=message,
+        confirmation=message,
         observed_at=None,
     )
 

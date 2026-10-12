@@ -118,9 +118,13 @@ def progress_doc(catalog: Catalog, project: Path) -> str:
 # 待确认的业务问题一节。
 def pending_lines(pending: list[Pending]) -> list[str]:
     lines = ["", "## 待确认的业务问题", ""]
-    lines += ["需要人决定。确认后改写对应规则，删去“待确认”，并在 changes.md 记录。", ""]
+    lines += [
+        "下面这些业务问题需要人来决定。确认之后，把对应的规则改写清楚、"
+        "删掉“待确认”字样，并在 changes.md 里记录这次变化。",
+        "",
+    ]
     if not pending:
-        return [*lines, "没有。"]
+        return [*lines, "目前没有待确认的问题。"]
     rows = [f"| {one.module} | {one.rule} | {cell(one.text)} | {one.place} |" for one in pending]
     return [*lines, "| 模块 | 规则 | 内容 | 位置 |", "| --- | --- | --- | --- |", *rows]
 
@@ -128,9 +132,13 @@ def pending_lines(pending: list[Pending]) -> list[str]:
 # 还没有测试标注的规则一节。
 def untested_lines(untested: list[str]) -> list[str]:
     lines = ["", "## 还没有测试标注的规则", ""]
-    lines += ["测试的注释或说明中写上规则编号（例如“R-03：……”），这条规则才算有测试。", ""]
+    lines += [
+        "一条规则要有测试，需要在测试的注释或说明里写上规则编号"
+        "（例如“R-03：……”）。下面这些规则还没有找到对应的测试标注。",
+        "",
+    ]
     if not untested:
-        return [*lines, "没有，每条规则都有测试标注。"]
+        return [*lines, "没有遗漏，每条规则都有测试标注。"]
     return [*lines, "| 模块 | 规则 | 标题 |", "| --- | --- | --- |", *untested]
 
 

@@ -2,6 +2,7 @@
 生成 doc/模块名/flows.md：公开操作与接口路径、每个操作的流程图和字段来源、数据模型、数据表。
 同一个数据模型只展开一次，操作章节只写模型名，改动时差异集中、便于审查。
 接口路径从实际路由中读取：看每个接口函数引用了哪些操作约定，不靠名字猜测。
+图上的节点只放序号和业务标题；规则、代码位置、读写字段放在图下方的表格里，两边分工。
 """
 
 import ast
@@ -20,14 +21,17 @@ from sqlalchemy import Table
 from shared.data.fields import notes_of
 from shared.graphs.lineage import field_sources
 from shared.graphs.static import flow_graph
+from shared.graphs.steps import location_text
 from shared.modules.catalog import Binding, Catalog
 from shared.modules.contract import Contract
 from shared.modules.module import Module
+from shared.records.models import STEP_KIND_TEXT
 from shared.remote_calls.endpoint import Endpoint
 
 HEADER = (
-    "> 本文件由 `uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py "
-    "export_docs` 根据代码中的声明生成，不要手工修改；业务含义写在 needs.md 和 rules.md。"
+    "> 这份文件由命令 `uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py "
+    "export_docs` 根据代码里的声明自动生成，请不要手工修改（改了也会在下次生成时被覆盖）。"
+    "业务含义写在同目录的 needs.md（需求）和 rules.md（规则）里。"
 )
 
 
@@ -64,12 +68,12 @@ def contracts_used(endpoint: Any) -> set[str]:
 def module_doc(catalog: Catalog, name: str, routes: dict[str, list[str]]) -> str:
     module = catalog.modules[name]
     links = catalog.links().get(name, {})
-    depends = (
-        "、".join(f"{target}（{'、'.join(titles)}）" for target, titles in links.items()) or "无"
-    )
+    depends = depend_text(links)
     lines = [f"# {module.title}：操作与流程", "", HEADER, ""]
-    lines += [f"模块 `{name}`，版本 {module.version}。调用的其他模块：{depends}。", ""]
+    lines += [f"模块 `{name}`，版本 {module.version}。{depends}", ""]
+    lines += reading_guide()
     lines += operation_table(module, routes)
+    lines += error_table(module)
     for item in module.provides:
         lines += contract_section(catalog.bindings[item])
     lines += endpoint_section(module)
@@ -78,7 +82,33 @@ def module_doc(catalog: Catalog, name: str, routes: dict[str, list[str]]) -> str
     return "\n".join(lines).rstrip() + "\n"
 
 
-# 公开操作一览：名称、权限、接口路径、业务错误。
+# 开头一段“怎么读”：图讲流程，表讲细节，各是什么。
+def reading_guide() -> list[str]:
+    return [
+        "## 怎么读这份文档",
+        "",
+        "“公开操作”列出这个模块对外提供的服务。每个操作有一张流程图和两张明细表："
+        "图上的节点只有序号和步骤名，用颜色区分步骤类型（蓝色是计算、绿色是读数据、"
+        "橙色是写数据、紫色是调用其他模块、粉色是调用大模型）；"
+        "“步骤明细”表补充每一步的规则编号和代码位置，“字段来源”表说明每个输出字段从哪一步来。"
+        "业务错误统一在“业务错误一览”里解释一次，操作表里只写错误代码。",
+        "",
+    ]
+
+
+# 依赖说明写成一句自然的话：每个模块给出操作总数和两三个例子，不再全部罗列。
+def depend_text(links: dict[str, list[str]]) -> str:
+    if not links:
+        return "本模块不调用其他业务模块。"
+    parts = []
+    for target, titles in links.items():
+        sample = "、".join(f"“{title}”" for title in titles[:3])
+        total = f"共 {len(titles)} 个操作" if len(titles) > 3 else f"{len(titles)} 个操作"
+        parts.append(f"{target}（{total}，如 {sample}）")
+    return "本模块调用了这些模块：" + "、".join(parts) + "。具体调用关系画在各操作的流程图里。"
+
+
+# 公开操作一览：名称、权限、接口路径、可能返回的错误代码（含义见错误一览表）。
 def operation_table(module: Module, routes: dict[str, list[str]]) -> list[str]:
     lines = [
         "## 公开操作",
@@ -93,26 +123,54 @@ def operation_table(module: Module, routes: dict[str, list[str]]) -> list[str]:
         ways = routes.get(item.name, []) if item.entry else ["只供其他模块调用"]
         ways += ["定时计划"] if item in scheduled else []
         ways += ["后台任务"] if item in queued and item not in scheduled else []
-        ways += ["分段提交（游标恢复）"] if item in segmented else []
-        way = "<br/>".join(ways) or "没有接到接口或任务"
-        errors = "、".join(f"{error.code}（{error.message}）" for error in item.errors) or "无"
+        ways += ["分段提交（按游标恢复）"] if item in segmented else []
+        way = "<br/>".join(ways) or "没有接到接口或任务上"
+        errors = "、".join(error.code for error in item.errors) or "无"
         values = [item.action, item.title, item.access, way, errors]
         lines.append("| " + " | ".join(cell(value) for value in values) + " |")
     return [*lines, ""]
 
 
-# 一个操作的章节：输入输出模型名、流程图、字段来源。
+# 业务错误只解释一次：含义集中在这张表，其他位置只写错误代码。
+def error_table(module: Module) -> list[str]:
+    errors: dict[str, str] = {}
+    for item in module.provides:
+        for error in item.errors:
+            errors.setdefault(error.code, error.message)
+    if not errors:
+        return []
+    lines = [
+        "## 业务错误一览",
+        "",
+        "| 错误代码 | 含义 |",
+        "| --- | --- |",
+    ]
+    lines += [f"| {code} | {message} |" for code, message in errors.items()]
+    return [*lines, ""]
+
+
+# 一个操作的章节：输入输出、流程图、步骤明细、字段来源。
 def contract_section(binding: Binding) -> list[str]:
     item = binding.contract
     lines = [f"## {item.title}（{item.name}）", ""]
     lines += [
-        f"输入 `{model_name(item.input)}`，输出 `{model_name(item.output)}`，字段见“数据模型”。",
+        f"输入 `{model_name(item.input)}`，输出 `{model_name(item.output)}`，"
+        "字段的含义见下方“数据模型”。",
         "",
     ]
-    lines += ["计算流程：", "", "```mermaid", flow_graph(binding), "```", ""]
+    lines += ["### 计算流程", "", "```mermaid", flow_graph(binding), "```", ""]
     lines += [
-        "字段来源：",
+        "### 步骤明细",
         "",
+        "| 序号 | 步骤 | 类型 | 规则 | 代码位置 |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for index, part in enumerate(binding.flow.steps, start=1):
+        kind = STEP_KIND_TEXT.get(part.kind, part.kind)
+        values = [index, part.title, kind, part.rule or "", location_text(part)]
+        lines.append("| " + " | ".join(cell(value) for value in values) + " |")
+    lines += ["", "### 字段来源", "", "每个输出字段是哪一步写下的、用了哪些输入。", ""]
+    lines += [
         "| 字段 | 含义 | 来源 | 写入步骤 | 规则 | 用到的字段 |",
         "| --- | --- | --- | --- | --- | --- |",
     ]

@@ -1,6 +1,6 @@
 # FastAPI 通用后端模板 接口清单
 
-由实际路由自动生成。服务密钥放在请求头 X-API-Key。
+这份清单根据服务的实际路由自动生成。调用接口时，服务密钥放在请求头 X-API-Key 里。
 
 ## GET /health/live
 
@@ -10,7 +10,7 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
+| 200 | 请求成功 | object |
 
 ## GET /health/ready
 
@@ -20,7 +20,7 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | 未指定 |
+| 200 | 请求成功 | 无固定格式 |
 
 ## GET /api/system/modules
 
@@ -30,7 +30,7 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
+| 200 | 请求成功 | object |
 
 ## GET /api/system/flows/{name}
 
@@ -44,8 +44,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/fields/{name}/{field}
 
@@ -60,8 +60,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/runs
 
@@ -81,8 +81,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/runs/{run_id}
 
@@ -96,8 +96,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/runs/{run_id}/report
 
@@ -111,8 +111,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | string |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | string |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/runtime
 
@@ -122,7 +122,7 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
+| 200 | 请求成功 | object |
 
 ## GET /api/system/stats
 
@@ -137,8 +137,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/jobs/{job_id}
 
@@ -152,8 +152,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/jobs
 
@@ -169,8 +169,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/jobs/{job_id}/segments
 
@@ -186,8 +186,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/pipelines
 
@@ -201,8 +201,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/pipelines/{run_id}
 
@@ -216,8 +216,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## POST /api/system/pipelines/{run_id}/resume
 
@@ -233,8 +233,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/pipelines/{run_id}/members
 
@@ -251,8 +251,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/audit
 
@@ -266,8 +266,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## GET /api/system/changes
 
@@ -283,8 +283,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | object |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | object |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## POST /api/v1/stream/{name}
 
@@ -300,8 +300,8 @@
 
 | 状态码 | 含义 | 返回模型 |
 | --- | --- | --- |
-| 200 | Successful Response | 未指定 |
-| 422 | Validation Error | HTTPValidationError |
+| 200 | 请求成功 | 无固定格式 |
+| 422 | 输入不符合要求 | 输入错误明细（HTTPValidationError） |
 
 ## 数据模型
 
@@ -309,7 +309,7 @@
 
 | 字段 | 类型 | 必填 | 说明 | 限制 |
 | --- | --- | --- | --- | --- |
-| detail | 列表[ValidationError] | 否 |  |  |
+| detail | 列表[输入错误（ValidationError）] | 否 |  |  |
 
 ### ResumeRequest
 
@@ -325,6 +325,6 @@
 | loc | 列表[string 或 integer] | 是 |  |  |
 | msg | string | 是 |  |  |
 | type | string | 是 |  |  |
-| input | 未指定 | 否 |  |  |
+| input | 无固定格式 | 否 |  |  |
 | ctx | object | 否 |  |  |
 

@@ -98,4 +98,4 @@ async def test_development_evidence_omits_business_values(sample: Services) -> N
         ):
             step.pop(field)
     old = run_from_dict(legacy)
-    assert old.source_version == "" and "产出未知（旧记录）" in run_graph([old])
+    assert old.source_version == "" and "产出未知（旧记录没有保存）" in run_graph([old])

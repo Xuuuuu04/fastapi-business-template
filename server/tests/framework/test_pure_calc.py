@@ -15,7 +15,7 @@ from shared.flow.calculations import check_calculations
 from shared.flow.flow import Flow
 from shared.flow.step import step
 from shared.graphs.observed import step_node
-from shared.graphs.static import flow_graph
+from shared.graphs.steps import location_text
 from shared.modules.catalog import Catalog
 from shared.modules.module import Module
 from shared.modules.validation.imports import check_imports
@@ -113,7 +113,7 @@ def test_calc_declaration_and_graph() -> None:
             steps=[build_text],
         ),
     )
-    assert "纯计算" in flow_graph(binding)
+    assert "纯计算" in location_text(binding.flow.steps[0])
     record = StepRecord(
         "one",
         "build_text",
@@ -124,9 +124,9 @@ def test_calc_declaration_and_graph() -> None:
         calcs=["calc/text.py:1"],
         elapsed_ms=1.5,
     )
-    assert "耗时计入本步骤" in step_node("one", 1, record)[0]
+    assert "耗时算在本步骤内" in step_node("one", 1, record)[0]
     record.calcs = None
-    assert "未知（旧记录）" in step_node("one", 1, record)[0]
+    assert "产出未知" in step_node("one", 1, record)[0]
 
 
 # 构建直接或经存储约定使用calc的独立声明，不登记到正式业务目录。
@@ -197,7 +197,7 @@ async def test_runtime_includes_calc_in_step(through_store: bool) -> None:
         records = await services.recorder.store.recent(RunFilter(), 1)
         assert records[0].steps[0].calcs and "normalize" in records[0].steps[0].calcs[0]
         assert records[0].steps[0].elapsed_ms >= 0
-        assert "耗时计入本步骤" in step_node("one", 1, records[0].steps[0])[0]
+        assert "耗时算在本步骤内" in step_node("one", 1, records[0].steps[0])[0]
     finally:
         await services.close()
 
