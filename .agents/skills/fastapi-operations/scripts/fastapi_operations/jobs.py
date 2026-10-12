@@ -12,17 +12,19 @@ import argparse
 import asyncio
 from dataclasses import asdict
 
-from app.setup.catalog import MODULES
-from shared.config.settings import Settings
+from app.setup.application import application, application_modules
 from shared.db.database import Database
 from shared.jobs.checkpoint_store import list_segments, progress
+from shared.jobs.limits import ResourceLimit
+from shared.jobs.resources import reconfigure
 from shared.jobs.views import cancel, get_job, list_jobs, requeue
 from shared.modules.catalog import Catalog
+from shared.timing.current import now
 
 
 # 执行一个命令。
 async def run(args: argparse.Namespace) -> None:
-    database = Database(Settings().database_url)
+    database = Database(application().settings().database_url)
     try:
         if args.command == "list":
             for job in await list_jobs(database, state=args.state, limit=args.limit):
@@ -40,8 +42,12 @@ async def run(args: argparse.Namespace) -> None:
         elif not args.yes:
             print("修改任务状态需要加 --yes 确认")
         elif args.command == "requeue":
-            catalog = Catalog(MODULES)
+            catalog = Catalog(application_modules())
             print(await requeue(database, catalog, args.job_id, accept_version=args.accept_version))
+        elif args.command == "resource":
+            async with database.write() as connection:
+                await reconfigure(connection, ResourceLimit(args.name, args.capacity), now())
+            print("资源额度已调整；请使用匹配声明启动worker")
         else:
             print(await cancel(database, args.job_id))
     finally:
@@ -67,6 +73,10 @@ def main() -> None:
     stop = commands.add_parser("cancel", help="取消尚未开始的任务")
     stop.add_argument("job_id")
     stop.add_argument("--yes", action="store_true")
+    resource = commands.add_parser("resource", help="无在途尝试时明确调整资源额度")
+    resource.add_argument("name")
+    resource.add_argument("--capacity", type=int, required=True)
+    resource.add_argument("--yes", action="store_true")
     asyncio.run(run(parser.parse_args()))
 
 

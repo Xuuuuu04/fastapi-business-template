@@ -30,6 +30,9 @@ class EffectService:
         for spec, adapter in bindings.items():
             spec.validate()
             binding_of(adapter)
+            configure = getattr(adapter, "configure_limit", None)
+            if configure is not None:
+                configure(spec.concurrency)
         self.limits = {spec: asyncio.Semaphore(spec.concurrency) for spec in bindings}
 
     # 业务租期使用统一入口，受控Clock将在时间包替换真实时钟。

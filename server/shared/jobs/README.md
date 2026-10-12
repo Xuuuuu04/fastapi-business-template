@@ -115,7 +115,7 @@ APP_OPERATIONS 按配置开启备份、分段保留、容量和提醒，默认�
 
 `JobPlan(serial=SerialKey("conversation", "session_id"))`按组织与冻结输入的业务键跨worker串行。同一时刻的提交也保留数据库登记顺序；未知结果保留这个业务键的恢复顺序，后续任务不能越过它。只有明确处理了原任务，才能继续后面的任务。
 
-`resources=(ResourceLimit("model", concurrency=4, cooldown=10),)`声明跨worker执行位置与执行间隔。领取使用短事务，资源用满或冷却时延后领取；完成、失败和等待重试归还位置，心跳只延长本次位置，旧租期不能复活。更改已登记资源额度需停止旧worker并明确调整，不能让不同worker各用不同额度。
+`resources=(ResourceLimit("model", concurrency=4, cooldown=10),)`声明跨worker执行位置与执行间隔。领取使用短事务，资源用满或冷却时延后领取；完成、失败和等待重试归还位置，心跳只延长本次位置，旧租期不能复活。更改已登记资源额度先停止旧worker，等待在途位置结束，再用`uv run dev jobs resource model --capacity 4 --yes`明确调整；命令会拒绝在途资源和串行键，不能让不同worker各用不同额度。
 
 `queue_timeout`限制首次执行前的排队预算，`attempt_timeout`限制一次尝试，`valid_until_field`读取输入中带时区的datetime。有效期冻结保存，每次领取与执行前再次核对；资源等待期间的过期任务也及时结束，不等到冷却结束。分段任务每批使用操作预算，明确声明attempt_timeout时还受整次尝试预算约束。
 

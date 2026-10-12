@@ -60,7 +60,7 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("APP_DATABASE_URL", settings.database_url)
     monkeypatch.setenv("APP_RUN_RECORDS", "database")
     monkeypatch.setattr(fastapi_operations.diagnose, "application_modules", lambda: tuple(MODULES))
-    monkeypatch.setattr(fastapi_operations.jobs, "MODULES", MODULES)
+    monkeypatch.setattr(fastapi_operations.jobs, "application_modules", lambda: tuple(MODULES))
     return settings
 
 

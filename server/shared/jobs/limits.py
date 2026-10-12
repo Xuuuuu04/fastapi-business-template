@@ -8,7 +8,7 @@ import math
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, get_args
 
 from shared.access.caller import Caller
 from shared.data.fields import meaning
@@ -85,7 +85,7 @@ def limit_problems(plan: "JobPlan") -> list[str]:
         problems.append(f"任务 {plan.contract.name} 的排队预算无效")
     paths = [plan.valid_until_field, plan.serial.field if plan.serial else ""]
     for path in filter(None, paths):
-        if path.split(".")[0] not in plan.contract.input.model_fields:
+        if declared_field(plan.contract.input, path) is None:
             problems.append(f"任务 {plan.contract.name} 的输入字段 {path} 未声明")
     if plan.serial and not re.fullmatch(r"[a-z][a-z0-9_.-]{0,99}", plan.serial.namespace):
         problems.append(f"任务 {plan.contract.name} 的串行名称无效")
@@ -112,3 +112,23 @@ def resource_problems(resources: tuple[ResourceLimit, ...], operation: str) -> l
         if not math.isfinite(resource.cooldown) or resource.cooldown < 0:
             problems.append(f"资源 {resource.name} 的冷却无效")
     return problems
+
+
+# 嵌套路径必须逐层属于明确Data，不能因为顶层存在就接受拼错的子字段。
+def declared_field(model: type[Data], path: str) -> Any:
+    current: Any = model
+    for part in path.split("."):
+        if not isinstance(current, type) or not issubclass(current, Data):
+            choices = [
+                value
+                for value in get_args(current)
+                if isinstance(value, type) and issubclass(value, Data)
+            ]
+            if len(choices) != 1:
+                return None
+            current = choices[0]
+        field = current.model_fields.get(part)
+        if field is None:
+            return None
+        current = field.annotation
+    return current

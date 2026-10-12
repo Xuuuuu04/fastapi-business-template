@@ -2,7 +2,6 @@
 SMTP发送适配器，每项意图只发送给一个收件人；服务器受理与收件人实际收到分别表达。
 """
 
-import asyncio
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -13,6 +12,7 @@ from pydantic import BaseModel, Field, SecretStr
 from shared.data.fields import meaning
 from shared.data.models import Data
 from shared.effects.spec import AdapterReply
+from shared.flow.heavy import HeavySteps
 
 
 # 地址和内容保存为加密意图，不进入运行摘要。
@@ -47,10 +47,17 @@ class SmtpAdapter:
     def __init__(self, config: SmtpConfig) -> None:
         self.config = config
         self.identity = f"{config.account}@{config.host}:{config.port}/{config.username}"
+        self.work = HeavySteps(8)
+
+    # 产品组装按ProviderSpec绑定限额，实际线程结束之前不会归还位置。
+    def configure_limit(self, concurrency: int) -> None:
+        if self.work.running:
+            raise ValueError("正在发送时不能改变SMTP线程限额")
+        self.work.concurrency = concurrency
 
     # 同步SMTP在线程执行；取消等待不能停止已发送的邮件，因此上层保留unknown。
     async def send(self, input: Data, key: str) -> AdapterReply:
-        return await asyncio.to_thread(self.send_once, MailInput.model_validate(input), key)
+        return await self.work.run(self.send_once, MailInput.model_validate(input), key)
 
     # 协议没有查询接口；结果未知不能伪装为未发送。
     async def lookup(self, input: Data, key: str) -> AdapterReply:
@@ -58,7 +65,7 @@ class SmtpAdapter:
 
     # 每次连接在发送函数中释放；取消后仍在发送的线程只能留下未知证据。
     async def close(self) -> None:
-        return None
+        await self.work.close()
 
     # 明确的SMTP拒绝可以记为refused，其他异常由统一效果服务保留unknown。
     def send_once(self, input: MailInput, key: str) -> AdapterReply:

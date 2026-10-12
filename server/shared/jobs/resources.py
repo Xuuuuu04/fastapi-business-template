@@ -150,3 +150,21 @@ async def serial_position(connection: AsyncConnection, key: str) -> int:
         .returning(pools.c.next_position)
     )
     return int(result.scalar_one())
+
+
+# 明确调整额度前要求没有在途位置；旧worker再领取时会发现声明不一致并停止。
+async def reconfigure(connection: AsyncConnection, resource: ResourceLimit, now: float) -> None:
+    if resource.concurrency < 1 or resource.name.startswith("serial."):
+        raise StepRuleBroken("只允许调整明确资源的正整数额度，串行键不改为并行")
+    id = await register_pool(connection, resource)
+    await connection.execute(select(pools.c.id).where(pools.c.id == id).with_for_update())
+    count = await connection.scalar(
+        select(func.count())
+        .select_from(leases)
+        .where(leases.c.pool_id == id, leases.c.lease_until > now)
+    )
+    if count:
+        raise StepRuleBroken("资源仍有在途尝试，请先停止领取并等待尝试结束")
+    await connection.execute(
+        update(pools).where(pools.c.id == id).values(capacity=resource.concurrency)
+    )

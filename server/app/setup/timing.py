@@ -5,7 +5,7 @@
 from typing import TYPE_CHECKING
 
 from shared.errors.framework import ConfigError
-from shared.timing.clock import Clock, FakeClock
+from shared.timing.clock import Clock, clock_kind
 
 if TYPE_CHECKING:
     from app.setup.build import Services
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 # 绑定只赋值，不访问网络和数据库；正式环境仍由RealClock提供时间。
 def bind_clock(services: "Services", clock: Clock) -> None:
-    if services.settings.env == "production" and isinstance(clock, FakeClock):
+    if services.settings.env == "production" and clock_kind(clock) == "simulated":
         raise ConfigError(["生产组装不能使用模拟时钟"])
     services.runtime.clock = clock
     services.queue.clock = clock
