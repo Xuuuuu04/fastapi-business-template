@@ -179,8 +179,10 @@ def read_checks(
 def module_checks(checks: list[dict[str, Any]], module: str, current: str) -> dict[str, Any]:
     selected = [check for check in checks if module in check["fingerprints"]]
     latest: dict[str, Any] = {}
+    sources: dict[str, dict[str, Any]] = {}
     for check in selected:
         for suite in check["suites"]:
+            sources[suite["database"]] = suite
             latest[suite["database"]] = {
                 **suite,
                 "finished_at": check["finished_at"],
@@ -189,6 +191,6 @@ def module_checks(checks: list[dict[str, Any]], module: str, current: str) -> di
                 "source_changed": check["source_changed"],
                 "fingerprints": check["fingerprints"],
             }
-    for suite in latest.values():
-        suite["cases"] = load_cases(suite)
+    for database, suite in latest.items():
+        suite["cases"] = load_cases(sources[database])
     return {"rounds": len(selected), "latest": latest}

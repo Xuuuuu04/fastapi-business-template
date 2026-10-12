@@ -40,7 +40,7 @@ LOCKED = (
     "alembic.ini",
 )
 REGISTRATION = ("app/setup/catalog.py",)
-SUFFIXES = (".py", ".md", ".mako", ".toml", ".ini", ".txt", ".html", ".js")
+SUFFIXES = (".py", ".md", ".mako", ".toml", ".ini", ".txt", ".html", ".js", ".css", ".json")
 
 
 # pyproject.toml 中只取 [tool] 下的配置（ruff、mypy、pytest 等），依赖版本不参与摘要。

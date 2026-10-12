@@ -84,7 +84,7 @@ def source_snapshot(project: Path) -> dict[str, str]:
         for path in paths
         if path.is_file()
         and not path.is_symlink()
-        and path.suffix in {".py", ".md", ".json", ".toml", ".txt", ".lock"}
+        and path.suffix in {".py", ".md", ".json", ".toml", ".txt", ".lock", ".html", ".js", ".css"}
         and not any(
             part in {"__pycache__", ".venv", "out", "var", "temp", "sources"}
             for part in path.relative_to(project).parts

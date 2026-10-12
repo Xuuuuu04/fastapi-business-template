@@ -77,6 +77,7 @@ def test_real_task_commands_use_fresh_database_evidence(tmp_path: Path) -> None:
     output = run(copy, ["-c", PRIVATE_FINISH, card["id"]], env)
     result = conclusion(output)
     assert result["state"] == "complete" and result["checks"]
+    assert (copy / result["panel"]).is_file()
     record = json.loads(
         (copy / "server/var/development/checks" / (result["checks"][-1] + ".json")).read_text()
     )

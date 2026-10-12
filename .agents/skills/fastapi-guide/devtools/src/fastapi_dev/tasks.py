@@ -16,6 +16,7 @@ from fastapi_project.development.selection import Selection
 from fastapi_project.development.task_baseline import review_pack
 from fastapi_project.development.task_models import read_card
 from fastapi_project.development.tasks import finish_task, related_modules, start_task
+from fastapi_project.panel import generate
 
 from app.setup.application import application_modules
 from shared.modules.catalog import Catalog
@@ -46,6 +47,7 @@ def finish(project: Path, catalog: Catalog, identity: str, postgres: str) -> dic
     )
     required = ("sqlite", "postgresql") if postgres or workflow else ("sqlite",)
     completed = finish_task(project, catalog, card, fresh[0], required)
+    panel = generate(project, catalog)
     return {
         "id": completed.id,
         "state": completed.state,
@@ -53,6 +55,7 @@ def finish(project: Path, catalog: Catalog, identity: str, postgres: str) -> dic
         "outside": completed.outside,
         "problems": completed.problems,
         "review": f".agents/records/reviews/{completed.id}.json",
+        "panel": panel.relative_to(project).as_posix(),
     }
 
 

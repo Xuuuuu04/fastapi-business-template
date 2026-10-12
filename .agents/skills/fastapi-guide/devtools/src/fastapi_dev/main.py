@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 COMMANDS = {
+    "panel": "fastapi_project.panel",
     "skeleton": "fastapi_module.skeleton",
     "start": "fastapi_dev.tasks",
     "finish": "fastapi_dev.tasks",
