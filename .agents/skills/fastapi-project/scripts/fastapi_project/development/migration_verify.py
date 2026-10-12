@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi_check.matrix import clean_environment
+from fastapi_project.development.check_assets import atomic_bytes
 from fastapi_project.development.database_leases import allocate_database, release_database
 from sqlalchemy import MetaData, Table, insert, inspect, select
 from sqlalchemy.engine import Connection
@@ -72,7 +73,7 @@ def schema(connection: Any) -> dict:
                 key=lambda item: str(item.get("name")),
             ),
         }
-    return result
+    return json.loads(json.dumps(result, default=str, sort_keys=True))
 
 
 # 反射回调明确绑定本次表名，异步循环不捕获后来变化的行变量。
@@ -135,6 +136,15 @@ async def compare_paths(
     equal = structures[0] == structures[1]
     retained = await preserved(incremental, rows)
     if not equal or not retained:
+        diagnostic = {
+            "incremental": structures[0],
+            "fresh": structures[1],
+            "seed_rows_preserved": retained,
+        }
+        atomic_bytes(
+            project / ".agents/records/migration-structure-diff.json",
+            json.dumps(diagnostic, default=str, ensure_ascii=False, indent=2).encode(),
+        )
         raise ValueError("增量结构与全新建库不一致，或合成旧行未保留")
     digest = hashlib.sha256(
         json.dumps(structures[0], default=str, sort_keys=True).encode()

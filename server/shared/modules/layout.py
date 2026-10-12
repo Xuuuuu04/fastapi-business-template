@@ -12,6 +12,19 @@ AREAS = {"steps", "store", "calc", "prompts"}
 IGNORED = {"__pycache__", ".DS_Store"}
 
 
+# 切换分支可留下字节码缓存；独立空目录仍属于误建的业务目录。
+def actual_files(folder: Path) -> bool:
+    entries = list(folder.rglob("*"))
+    if not entries:
+        return True
+    for path in entries:
+        if any(part in IGNORED for part in path.relative_to(folder).parts):
+            continue
+        if path.is_symlink() or path.is_file() or not any(path.iterdir()):
+            return True
+    return False
+
+
 # 生成器与旧项目采用命令使用同一份结构说明，不能自定义允许的文件范围。
 def descriptor(name: str, *, strict: bool = False) -> dict[str, object]:
     return {
@@ -29,6 +42,8 @@ def check_layout(root: Path, names: Iterable[str], *, markers: bool = True) -> l
     problems = []
     for path in sorted(service.iterdir()):
         if path.name in IGNORED or path.name in {"README.md", "__init__.py"}:
+            continue
+        if path.is_dir() and not path.is_symlink() and not actual_files(path):
             continue
         if path.is_symlink() or not path.is_dir() or path.name not in listed:
             problems.append(f"service/{path.name}：不属于已登记的标准业务包")

@@ -161,6 +161,8 @@ def contexts(function: ast.FunctionDef) -> tuple[dict[str, str | None], list[str
 
 # 仅允许类型构造表达式，绑定连接、未知模块方法和帮助函数都需要实际人工分析。
 def known_constructor(call: ast.Call) -> bool:
+    if ast.unparse(call.func) in {"shared.db.types.UtcTime", "shared.db.types.ExactNumber"}:
+        return True
     node = call.func
     while isinstance(node, ast.Attribute):
         node = node.value

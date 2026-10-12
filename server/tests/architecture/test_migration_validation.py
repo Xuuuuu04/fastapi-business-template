@@ -40,7 +40,10 @@ asyncio.run(main())
         "a0",
         None,
         'op.create_table("seed_rows", sa.Column("id", sa.Integer(), primary_key=True), '
-        'sa.Column("value", sa.String()))',
+        'sa.Column("value", sa.String()))\n'
+        'op.create_index("ix_seed_value", "seed_rows", ["value"], '
+        'sqlite_where=sa.text("value IS NOT NULL"), '
+        'postgresql_where=sa.text("value IS NOT NULL"))',
     )
     revision(
         root,
