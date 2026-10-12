@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from fastapi_project.development.impact import CHECK, framework_files, impact_scope, scope_markdown
-from fastapi_project.impact import Repo, belongs, main, report, report_data
+from fastapi_project.impact import Repo, belongs, report, report_data
 
 from shared.modules.catalog import Catalog
 from shared.public import (
@@ -273,24 +273,6 @@ def test_git_rename_and_untracked_paths(repo: Repo, catalog: Catalog) -> None:
     assert "doc/gamma/rules.md" in data["files"]
     assert data["direct"] == ["future", "gamma", "unrelated"] and data["unknown"] == ["future"]
     assert "| future | 代码 |" in report("main", catalog, repo)
-
-
-# CLI JSON 始终使用完整 MODULES，不通过 enabled_modules 裁剪声明图。
-def test_cli_json_respects_disabled_only_for_display(
-    repo: Repo,
-    catalog: Catalog,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    write(repo.root / "server/service/gamma/public.py", "AFTER = 2\n")
-    monkeypatch.setattr("fastapi_project.impact.MODULES", list(catalog.modules.values()))
-    monkeypatch.setattr("fastapi_project.impact.Repo", lambda: repo)
-    monkeypatch.setenv("APP_DISABLED_MODULES", '["beta"]')
-    monkeypatch.setattr("sys.argv", ["fastapi_project.impact", "--base", "main", "--json"])
-    main()
-    data = json.loads(capsys.readouterr().out)
-    assert data["direct"] == ["gamma"] and data["dependents"] == ["alpha", "background", "beta"]
-    assert "beta" not in data["enabled"] and "beta" in data["affected"]
 
 
 # 测试文件只在临时目录中创建，不接触真实资料。

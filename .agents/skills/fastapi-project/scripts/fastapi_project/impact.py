@@ -218,11 +218,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="列出与基准分支相比的改动影响")
     parser.add_argument("--base", default="origin/main", help="基准分支或提交，默认 origin/main")
     parser.add_argument("--json", action="store_true", help="输出 schema_version=1 的稳定 JSON")
+    parser.add_argument("--disabled-module", action="append", default=[], help="仅用于展示关闭状态")
     args = parser.parse_args()
     data = report_data(
         args.base,
         Catalog(application_modules()),
-        disabled_modules=application().settings("offline").disabled_modules,
+        disabled_modules=[
+            *application().settings("offline").disabled_modules,
+            *args.disabled_module,
+        ],
     )
     print(json.dumps(data, ensure_ascii=False, indent=2) if args.json else markdown(data))
 

@@ -112,7 +112,10 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: development-checks
-          path: server/var/development/checks/*.json
+          path: |
+            server/var/development/checks/*.json
+            server/var/development/checks/_cases/**
+            server/var/development/checks/_runs/**
           if-no-files-found: warn
           retention-days: 14
 

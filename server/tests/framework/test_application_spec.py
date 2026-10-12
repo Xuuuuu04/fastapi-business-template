@@ -56,7 +56,8 @@ def test_api_uses_declared_routes_configuration_and_version(tmp_path) -> None:
         name="合成产品", version="1.2.3", modules=(), routers=(router,), configure=configure
     )
     settings = spec.settings("test", database_url=f"sqlite+aiosqlite:///{tmp_path}/test.db")
-    with TestClient(create_app(settings, application=spec)) as client:
+    services = build(settings, modules=[], application=spec)
+    with TestClient(create_app(settings, services, application=spec)) as client:
         assert client.get("/product/limits").json() == {"max": 17}
         assert client.app.openapi()["info"]["version"] == "1.2.3"
         assert client.get("/api/system/modules").status_code == 401
@@ -162,5 +163,6 @@ def test_api_extension_installs_identity_policy(tmp_path) -> None:
 
     spec = ApplicationSpec(modules=(), api_setup=install)
     settings = spec.settings("test", database_url=f"sqlite+aiosqlite:///{tmp_path}/test.db")
-    with TestClient(create_app(settings, application=spec)) as client:
+    services = build(settings, modules=[], application=spec)
+    with TestClient(create_app(settings, services, application=spec)) as client:
         assert client.get("/api/system/modules").status_code == 200

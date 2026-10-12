@@ -45,6 +45,7 @@ fastapi-template-dev = { path = "../.agents/skills/fastapi-guide/devtools", edit
 
 [tool.pytest.ini_options]
 testpaths = [
+  "tests/unit",
   "tests/framework", "tests/modules", "tests/integration", "tests/contracts",
   "tests/architecture", "tests/quality", "tests/security", "tests/recovery",
 ]
@@ -59,6 +60,8 @@ pythonpath = [".",
   "../.agents/skills/fastapi-template/scripts",
 ]
 markers = [
+  "database_rebuild: DDL、迁移、权限或策略变化的测试独立重建数据库结构",
+  "test_group(name): 纯计算pure、模块module、整链flow、框架framework",
   "sqlite_template: 固定使用 SQLite 的模板生成测试，两数据库检查时在前轮成功后不重复",
   "postgres_only: 只在 PostgreSQL 上有意义的检查，SQLite 下自动跳过",
   "rule_case(id): 对应业务规则表声明的确认样例，如 order_records.R-05-C01",

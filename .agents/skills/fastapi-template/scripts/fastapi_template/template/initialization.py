@@ -93,7 +93,7 @@ def product_entry(target: Path, name: str) -> None:
         target / "server/app/product.py",
         '"""\n产品组装的唯一声明入口。\n"""\n\n'
         "from shared.application.spec import ApplicationSpec\n\n"
-        f"APPLICATION = ApplicationSpec(name={name!r})\n",
+        f"APPLICATION = ApplicationSpec(name={json.dumps(name, ensure_ascii=False)})\n",
     )
     write(
         target / "README.md",
