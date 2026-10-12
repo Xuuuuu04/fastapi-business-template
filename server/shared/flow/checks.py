@@ -93,6 +93,10 @@ def check_step(
     if item.when is not None:
         problems += check_condition(item.when, notes)
     problems += check_params(item, place, has_store)
+    if len(set(item.observes)) != len(item.observes) or set(item.observes) - set(
+        (*item.reads, *item.writes)
+    ):
+        problems.append(f"{place} 的观察字段必须在本步骤读写范围内，且不能重复")
     for used in item.prompts:
         if used not in prompts:
             problems.append(f"{place} 使用的提示词“{used.title}”没有在模块声明的 prompts 中登记")

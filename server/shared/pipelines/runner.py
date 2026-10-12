@@ -18,6 +18,7 @@ from shared.pipelines.plan import FanOut, Pipeline, Stage, Wait
 from shared.pipelines.schema import data_json, declarations, format_of
 from shared.pipelines.storage import compatible, is_pipeline_job, own, root_for, stage_for
 from shared.pipelines.tables import runs, stages
+from shared.scenarios.observations import ObservationPosition
 from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
@@ -34,6 +35,11 @@ class StageContext:
     pipeline: Pipeline | None
     stage: Stage | None
     allowed: bool = True
+
+    # 真实任务尝试为观察位置，不从产出字段反推。
+    @property
+    def observation_position(self) -> ObservationPosition:
+        return ObservationPosition(attempt=self.ticket.attempt)
 
     # 阶段产出、任务结束、下一阶段登记全部使用业务写入事务。
     async def finish(self, connection: AsyncConnection, result: Data, run_id: str) -> None:

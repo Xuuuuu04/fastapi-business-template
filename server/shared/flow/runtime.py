@@ -28,12 +28,14 @@ from shared.flow.scope import Scope, Transaction
 from shared.flow.streaming import stream_events
 from shared.jobs.checkpoint import Checkpoint
 from shared.jobs.imports import begin_import, reconcile_import
+from shared.jobs.submission import submit_entry
 from shared.modules.catalog import Binding, Catalog
 from shared.modules.contract import Contract
 from shared.records.models import RunRecord, StepRecord
 from shared.records.opening import open_record
 from shared.records.recorder import Recorder
 from shared.records.segments import warn_slow_batch
+from shared.scenarios.observations import ObservationPosition
 from shared.timing.clock import Clock, RealClock
 from shared.timing.current import clocked
 
@@ -115,6 +117,7 @@ class Runtime:
         checkpoint: Checkpoint | None = None,
         record_success: bool = True,
         deadline: float | None = None,
+        observation_position: ObservationPosition | None = None,
     ) -> Out:
         binding = self.catalog.binding(item)
         if not item.entry:
@@ -123,6 +126,7 @@ class Runtime:
         deadline = min(own_deadline, deadline) if deadline is not None else own_deadline
         scope = Scope(self, caller, request_id, job_id, deadline, tx=Transaction(), emitter=emitter)
         scope.checkpoint, scope.record_success = checkpoint, record_success
+        scope.observation_position = observation_position
         run = self.open_run(binding, scope, None, None)
         span = (
             self.telemetry.tracer.start_span(
@@ -254,13 +258,7 @@ class Runtime:
         key: str = "",
         request_id: str = "",
     ) -> str:
-        if self.jobs is None:
-            raise StepRuleBroken("没有启用后台任务功能")
-        check_access(item, caller)
-        async with self.database.write() as connection:
-            return await self.jobs.submit(
-                connection, item, input, caller, key=key, request_id=request_id
-            )
+        return await submit_entry(self, item, input, caller, key, request_id)
 
     # 处理入口调用的失败：回滚写入、整理错误、结束运行记录。
     async def settle(self, scope: Scope, run: RunRecord, error: BaseException) -> BaseException:

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi_docs.progress_doc import RULE_HEADING
+from fastapi_project.development.glossary import match_terms
 from pydantic import BaseModel
 
 from shared.data.fields import nested_models, notes_of
@@ -152,6 +153,8 @@ def locate(
     if not query or not 1 <= limit <= 100:
         raise ValueError("query 不能为空，limit 必须在 1 到 100 之间")
     routes = routes or {}
+    glossary = match_terms(project, query)
+    targeted = {operation for term in glossary for operation in term.operations}
     rules = {name: rule_details(project, name) for name in catalog.modules}
     matches = []
     for binding in catalog.bindings.values():
@@ -159,7 +162,7 @@ def locate(
             binding, rules[binding.module.name], routes.get(binding.contract.name, [])
         )
         folded = [term.casefold() for term in terms if term]
-        if any(query in term for term in folded):
+        if binding.contract.name in targeted or any(query in term for term in folded):
             matches.append((query not in folded, binding.contract.name, binding))
     matches.sort(key=lambda match: match[:2])
     results = [
@@ -173,6 +176,10 @@ def locate(
         result["matched"] = bounded(list(dict.fromkeys(t for t in terms if query in t.casefold())))
     return {
         "query": query,
+        "glossary": {
+            "items": [term.model_dump(mode="json") for term in glossary[:limit]],
+            "omitted": max(0, len(glossary) - limit),
+        },
         "limit": limit,
         "total": len(matches),
         "omitted": max(0, len(matches) - limit),

@@ -125,8 +125,7 @@ def execute(
         if cached:
             print(f"沿用检查 {cached['id']}（{cached['finished_at']}），没有重新执行")
             return list(cached["checks"].items())
-    env = check_environment(selection, postgres)
-    env["APP_TEST_GROUP"] = options.group
+    env = check_environment(selection, postgres, options)
     selected = steps(selection)
     results, timings = run_static_checks(selected, env)
     outcomes = execute_matrix(
@@ -182,11 +181,16 @@ def check_versions(
 
 
 # 测试环境明确选择数据库，产品策略从隔离配置读取。
-def check_environment(selection: Selection, postgres: str) -> dict[str, str]:
+def check_environment(
+    selection: Selection, postgres: str, options: CheckOptions | None = None
+) -> dict[str, str]:
     from app.setup.application import application
 
+    options = options or CheckOptions()
     env = {
         **clean_environment(),
+        "APP_TEST_GROUP": options.group,
+        "APP_DEVELOPMENT_DELIVERY": "1" if options.delivery else "0",
         "APP_DISABLED_MODULES": "[]",
         "APP_DEVELOPMENT_REPEAT_DATABASE": "0",
     }

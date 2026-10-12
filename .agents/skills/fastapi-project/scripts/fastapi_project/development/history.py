@@ -23,6 +23,8 @@ from fastapi_project.development.versions import (
 from shared.modules.libraries import library_closure, library_links, library_specs
 
 COMMON = (
+    "../doc/rules-ledger.json",
+    "../doc/glossary.json",
     "shared",
     "../.agents/skills",
     "app",
@@ -75,6 +77,7 @@ def module_paths(project: Path, name: str) -> list[Path]:
     return [
         server / "service" / name,
         project / "doc" / name / "rules.md",
+        project / "doc" / name / "cases",
         project / "doc" / name / "needs.md",
         server / "tests/modules" / name,
         server / "tests/integration" / name,

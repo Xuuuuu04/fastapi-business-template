@@ -18,6 +18,7 @@ from shared.pipelines.plan import FanOut, Pipeline, Stage, Wait
 from shared.pipelines.schema import data_json
 from shared.pipelines.storage import own, root_for
 from shared.pipelines.tables import members, runs, stages
+from shared.scenarios.observations import ObservationPosition
 from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
@@ -36,6 +37,11 @@ class MemberContext:
     group: FanOut | None
     stage: Stage | None
     allowed: bool = True
+
+    # 成员键和任务尝试来自持久状态机。
+    @property
+    def observation_position(self) -> ObservationPosition:
+        return ObservationPosition(member=self.member["key"], attempt=self.ticket.attempt)
 
     # 数据保存、子任务和外层下一阶段全部使用同一个业务提交事务。
     async def finish(self, connection: AsyncConnection, result: Data, run_id: str) -> None:

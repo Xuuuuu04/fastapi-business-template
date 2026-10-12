@@ -77,7 +77,12 @@ def propose(project: Path, rule: LedgerRule, *, reason: str) -> LedgerRule:
     previous = next((item for item in ledger.rules if item.id == rule.id), None)
     if previous:
         rule = rule.model_copy(
-            update={"revision": previous.revision + 1, "state": "inferred", "confirmations": []}
+            update={
+                "revision": previous.revision + 1,
+                "state": "inferred",
+                "confirmations": [],
+                "case_digests": {},
+            }
         )
         ledger.rules = [item for item in ledger.rules if item.id != rule.id]
     elif rule.state != "inferred" or rule.revision != 1 or rule.confirmations:
@@ -107,6 +112,8 @@ def transition(
 # 明确确认记录是人类确认声明，不声称记录者身份已被摘要或工具验证。
 @serialized
 def confirm(project: Path, id: str, confirmation: RuleConfirmation) -> LedgerRule:
+    from fastapi_project.development.confirmed_cases import rule_cases
+
     ledger = read_ledger(project)
     previous = next(item for item in ledger.rules if item.id == id)
     if previous.state not in {"adopted", "confirmed"} or confirmation.revision != previous.revision:
@@ -116,7 +123,15 @@ def confirm(project: Path, id: str, confirmation: RuleConfirmation) -> LedgerRul
     else:
         state = "confirmed"
     rule = previous.model_copy(
-        update={"state": state, "confirmations": [*previous.confirmations, confirmation]}
+        update={
+            "state": state,
+            "confirmations": [*previous.confirmations, confirmation],
+            "case_digests": (
+                rule_cases(project, id)
+                if confirmation.kind == "human_explicit"
+                else previous.case_digests
+            ),
+        }
     )
     ledger.rules = [rule if item.id == id else item for item in ledger.rules]
     record(ledger, rule, "confirm", confirmation.note)

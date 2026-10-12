@@ -19,6 +19,7 @@ from fastapi_project.development.business_state import database_identity
 from fastapi_project.development.business_state import outdated as state_outdated
 from fastapi_project.development.business_state import update as update_state
 from fastapi_project.development.design import design_doc
+from fastapi_project.development.ledger_docs import ledger_documents
 from fastapi_project.development.plan import read_plan
 from fastapi_project.development.plan_entries import capture, check_entries
 
@@ -58,6 +59,7 @@ def generated(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
     }
     for name, module in catalog.modules.items():
         files[project / module.doc / "flows.md"] = module_doc(catalog, name, routes)
+    files.update(ledger_documents(project))
     return files
 
 

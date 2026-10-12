@@ -15,6 +15,7 @@ from fastapi_project.development.evidence import (
     latest_full_check,
 )
 from fastapi_project.development.history import fingerprints, module_checks, read_checks
+from fastapi_project.development.ledger import read_ledger
 from fastapi_project.development.operations import operation_status
 from fastapi_project.development.pipelines import overview
 from fastapi_project.development.plan import read_plan
@@ -83,6 +84,11 @@ def module_status(
         "code": f"server/service/{name}",
         "fingerprint": fingerprint,
         "rules": rules,
+        "rule_ledger": [
+            r.model_dump(mode="json")
+            for r in read_ledger(project).rules
+            if r.id.startswith(name + ".")
+        ],
         "test_annotations": tested_rules(project, name),
         "pending": [item.text for item in pending_of(project, name)],
         "tests": tests,

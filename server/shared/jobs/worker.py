@@ -231,6 +231,7 @@ class Worker:
                 self.stop,
                 self.options.shutdown_seconds,
                 finish,
+                context.observation_position if context else None,
             )
         except StaleAttempt:
             log.warning("job_attempt_stale job_id=%s attempt=%s", ticket.id, ticket.attempt)

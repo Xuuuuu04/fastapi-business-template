@@ -52,9 +52,21 @@ from shared.remote_calls.endpoint import Endpoint, EndpointReply
 from shared.remote_calls.gate import RemoteGate as RemoteClient
 from shared.remote_calls.remote import remote
 from shared.remote_calls.request import FilePart
+from shared.scenarios.observations import (
+    ExpectedObservation,
+    ObservationJournal,
+    ObservationPoint,
+    ObservationPosition,
+    capture,
+)
 from shared.timing.clock import Clock, FakeClock, RealClock
 
 __all__ = [
+    "ObservationJournal",
+    "ObservationPoint",
+    "ObservationPosition",
+    "ExpectedObservation",
+    "capture",
     "RetryLater",
     "ArtifactRef",
     "SerialKey",

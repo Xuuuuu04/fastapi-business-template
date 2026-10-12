@@ -28,6 +28,7 @@ from shared.flow.view import FieldTypes, StepView, missing_writes
 from shared.modules.catalog import Binding
 from shared.records.models import RunRecord, StepRecord
 from shared.records.values import describe_value, shape_text
+from shared.scenarios.recording import record_step
 from shared.timing.current import monotonic
 from shared.timing.current import now as business_now
 
@@ -95,6 +96,7 @@ async def run_part(
             record.status = "skipped"
             return
         await run_step(part, values, scope, run, record, binding)
+        record_step(part, values, scope, run.contract)
         record.status = "ok"
     except BaseException as error:
         record.status = "failed"

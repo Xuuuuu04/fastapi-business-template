@@ -16,6 +16,7 @@ from shared.jobs import checkpoint_store
 from shared.jobs.checkpoint import Checkpoint
 from shared.jobs.queue import JobQueue, Ticket
 from shared.jobs.revalidation import allowed
+from shared.scenarios.observations import ObservationPosition
 from shared.timing.current import now as business_now
 
 
@@ -31,6 +32,7 @@ async def run_segments(
     before_finish: Hook | None = None,
     *,
     deadline: float | None = None,
+    observation_position: ObservationPosition | None = None,
 ) -> None:
     binding = runtime.catalog.by_name[ticket.contract]
     number, cursor, total_rows = await checkpoint_store.load(runtime.database, ticket.id)
@@ -60,6 +62,8 @@ async def run_segments(
             before_commit=commit,
             checkpoint=checkpoint,
             deadline=batch_deadline,
+            observation_position=observation_position
+            or ObservationPosition(attempt=ticket.attempt),
         )
         if checkpoint.done:
             return

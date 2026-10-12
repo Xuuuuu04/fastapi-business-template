@@ -9,11 +9,14 @@ from pathlib import Path
 from fastapi_check.quality.rules import PROJECT
 from fastapi_project.development.ledger import add_source, confirm, propose, read_ledger, transition
 from fastapi_project.development.ledger_models import LedgerRule, RuleConfirmation, RuleSource
+from fastapi_project.development.rule_documents import adopt_markdown, confirm_sheet, supersede
 
 
 # 命令只改开发资料，不读取数据库和产品凭据；原文默认进入本机忽略目录。
 def run(args: argparse.Namespace, project: Path) -> None:
     result: RuleSource | LedgerRule
+    if run_document(args, project):
+        return
     if args.action == "show":
         print(read_ledger(project).model_dump_json(indent=2))
         return
@@ -55,11 +58,37 @@ def run(args: argparse.Namespace, project: Path) -> None:
     print(result.model_dump_json(indent=2))
 
 
+# 资料命令独立于生命周期写入，返回是否已处理当前命令。
+def run_document(args: argparse.Namespace, project: Path) -> bool:
+    if args.action == "confirm_sheet":
+        print(confirm_sheet(project))
+        return True
+    if args.action == "adopt_markdown":
+        print(adopt_markdown(project, args.module))
+        return True
+    if args.action == "supersede":
+        print(
+            supersede(project, args.id, args.text, args.source, args.reason).model_dump_json(
+                indent=2
+            )
+        )
+        return True
+    return False
+
+
 # 原始材料和确认原因都显式提供，不从实现或运行成功反推业务预期。
 def parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
     commands.add_parser("show")
+    commands.add_parser("confirm_sheet")
+    imported = commands.add_parser("adopt_markdown")
+    imported.add_argument("module")
+    revised = commands.add_parser("supersede")
+    revised.add_argument("id")
+    revised.add_argument("--text", required=True)
+    revised.add_argument("--source", required=True)
+    revised.add_argument("--reason", required=True)
     source = commands.add_parser("source")
     source.add_argument("id")
     source.add_argument(

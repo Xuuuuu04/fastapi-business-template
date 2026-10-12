@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from shared.access.caller import Caller
 from shared.db.database import Database
 from shared.records.models import RemoteCallRecord
+from shared.scenarios.observations import ObservationPosition
 
 if TYPE_CHECKING:
     from shared.flow.runtime import Runtime
@@ -64,3 +65,4 @@ class Scope:
     remote_writes: list[RemoteCallRecord] = field(default_factory=list)
     checkpoint: "Checkpoint | None" = None
     record_success: bool = True
+    observation_position: ObservationPosition | None = None

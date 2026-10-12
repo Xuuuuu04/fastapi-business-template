@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 COMMANDS = {
+    "glossary": "fastapi_dev.glossary",
     "rules": "fastapi_dev.rules",
     "plan": "fastapi_dev.plan",
     "new-library": "fastapi_module.new_library",

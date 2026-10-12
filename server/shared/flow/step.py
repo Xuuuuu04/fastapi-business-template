@@ -67,6 +67,7 @@ class Step:
     endpoints: tuple[Endpoint[Any, Any], ...] = ()
     calcs: tuple[Callable[..., Any], ...] = ()
     providers: tuple[ProviderSpec, ...] = ()
+    observes: tuple[str, ...] = ()
 
     # 按参数判断步骤的种类：大模型、保存、读取、调用或纯计算。
     @property
@@ -110,6 +111,7 @@ def step(
     heavy: bool = False,
     calcs: Sequence[Callable[..., Any]] = (),
     providers: Sequence[ProviderSpec] = (),
+    observes: Sequence[str] = (),
 ) -> Callable[[Callable[..., Any]], Step]:
     # 把步骤函数包装成步骤声明。
     def wrap(func: Callable[..., Any]) -> Step:
@@ -134,6 +136,7 @@ def step(
             is_async=inspect.iscoroutinefunction(func),
             calcs=tuple(calcs),
             providers=tuple(providers),
+            observes=tuple(observes),
         )
 
     return wrap

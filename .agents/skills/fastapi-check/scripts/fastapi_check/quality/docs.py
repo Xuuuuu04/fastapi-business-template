@@ -32,7 +32,24 @@ STYLE_GENERATED = (
 
 # 检查全部模块的业务文档。
 def check_business_docs(catalog: Catalog, project: Path = PROJECT) -> list[Problem]:
-    problems = []
+    import os
+
+    from fastapi_project.development.confirmed_cases import case_problems
+    from fastapi_project.development.glossary import target_problems
+    from fastapi_project.development.ledger import read_ledger
+
+    problems = [
+        Problem("doc/rules-ledger.json", 0, "confirmed_case", problem)
+        for problem in case_problems(
+            project,
+            read_ledger(project),
+            delivery=os.environ.get("APP_DEVELOPMENT_DELIVERY") == "1",
+        )
+    ]
+    problems += [
+        Problem("doc/glossary.json", 0, "glossary_target", problem)
+        for problem in target_problems(project, catalog)
+    ]
     index = project / "doc" / "README.md"
     index_text = index.read_text(encoding="utf-8") if index.exists() else ""
     for name, module in catalog.modules.items():

@@ -5,7 +5,7 @@
 import hashlib
 import json
 import secrets
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import case, insert, select, update
 from sqlalchemy.exc import IntegrityError
@@ -14,11 +14,28 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from shared.access.caller import Caller, caller_from_record
 from shared.data.models import Data
 from shared.errors.framework import DuplicateRequest, QueueFull, StepRuleBroken
+from shared.flow.entry_errors import check_access
 from shared.jobs import resources
 from shared.jobs.limits import submission_limits
 from shared.jobs.plan import JobPlan
 from shared.jobs.tables import job_counts, jobs
 from shared.modules.contract import Contract
+
+if TYPE_CHECKING:
+    from shared.flow.runtime import Runtime
+
+
+# 公开提交入口沿用权限与短事务，不复制后台登记实现。
+async def submit_entry(
+    runtime: "Runtime", item: Contract, input: Data, caller: Caller, key: str, request_id: str
+) -> str:
+    if runtime.jobs is None:
+        raise StepRuleBroken("没有启用后台任务功能")
+    check_access(item, caller)
+    async with runtime.database.write() as connection:
+        return await runtime.jobs.submit(
+            connection, item, input, caller, key=key, request_id=request_id
+        )
 
 
 # 按请求编号查找已有任务；内容不同则报冲突。

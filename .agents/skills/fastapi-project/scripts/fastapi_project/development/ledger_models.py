@@ -39,6 +39,7 @@ class LedgerRule(BaseModel):
     sources: list[str] = Field(min_length=1)
     replaces: list[str] = Field(default_factory=list)
     confirmations: list[RuleConfirmation] = Field(default_factory=list)
+    case_digests: dict[str, str] = Field(default_factory=dict)
 
 
 # 历史事件不能覆盖当前状态，保存当时的完整修订内容与变更理由。

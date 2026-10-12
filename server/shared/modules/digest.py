@@ -46,6 +46,7 @@ def module_shape(module: Module) -> dict[str, Any]:
         },
         **endpoint_shapes(module),
         **calculation_shape(module),
+        **observation_shape(module),
         "query_budgets": query_budgets(module),
         "jobs": [job_shape(j) for j in sorted(module.jobs, key=lambda item: item.contract.name)],
         "schedules": [
@@ -184,3 +185,13 @@ def calculation_shape(module: Module) -> dict[str, Any]:
         if any(part.calcs for part in flow.steps)
     }
     return {"calcs": calcs} if calcs else {}
+
+
+# 观察声明改变时检查证据过期，未声明观察的旧模块摘要保持兼容。
+def observation_shape(module: Module) -> dict[str, Any]:
+    values = {
+        item.name: {part.name: part.observes for part in flow.steps if part.observes}
+        for item, flow in module.provides.items()
+        if any(part.observes for part in flow.steps)
+    }
+    return {"observations": values} if values else {}
