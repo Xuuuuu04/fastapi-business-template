@@ -43,7 +43,7 @@ COMMANDS = {
 
 # 当前产品优先，编辑安装的源码位置作为备用，不扫描其他项目或凭据目录。
 def project_root() -> Path:
-    for root in (Path.cwd(), *Path.cwd().parents, Path(__file__).resolve().parents[6]):
+    for root in (Path.cwd(), *Path.cwd().parents, *Path(__file__).resolve().parents):
         if (root / "server/pyproject.toml").is_file() and (root / ".agents/skills").is_dir():
             return root
     raise SystemExit("找不到产品，请在产品或server目录执行dev")

@@ -1,8 +1,3 @@
----
-name: fastapi-frontend
-description: 后端要给 Vue3 前端模板提供接口、前后端字段对不上、前端出错需要查后端原因，或要在真实后台上验证前端时使用。
----
-
 # 与前端对接
 
 配套的前端是 Vue3 模板（`Vue3 前端模板`，同样采用开发包和固定文件的做法）。两边的约定只有下面这些，改动前先看这里。
@@ -11,7 +6,7 @@ description: 后端要给 Vue3 前端模板提供接口、前后端字段对不�
 
 | 项目 | 约定 |
 |---|---|
-| 接口清单 | `doc/api/openapi.json`（`fastapi-docs` 生成）。前端的 `api.ts` 和响应类型要和它保持一致 |
+| 接口清单 | `doc/api/openapi.json`（`dev docs` 生成）。前端的 `api.ts` 和响应类型要和它保持一致 |
 | 登录凭据 | 请求头 `Authorization: Bearer 令牌`。前端只在页面内存里保存令牌，刷新后重新登录 |
 | 请求编号 | 前端每个请求带 `X-Request-ID`；后端响应头回带同一个 `X-Request-ID`，有运行记录时还带 `X-Run-ID` |
 | 错误响应 | JSON：`code`、`kind`、`message`、`request_id`、`run_id`、`fields`（字段问题列表）。前端显示 `message` 的前 300 个字，按 `code` 区分 |
@@ -22,10 +17,10 @@ description: 后端要给 Vue3 前端模板提供接口、前后端字段对不�
 
 ## 改接口时
 
-1. 改完代码后运行 `fastapi-docs` 的 `export_docs`，看 `doc/api/openapi.json` 的差异。
+1. 改完代码后运行 `uv run dev docs`，看 `doc/api/openapi.json` 的差异。
 2. 删除字段、改名、把必填改成可选、改枚举值，都会让前端运行时报"返回的数据格式不符合约定"。这类改动要先在前端的 `api.ts`、`data.ts` 里同步，或者保留旧字段一段时间。
 3. 新增字段不影响前端（前端只检查它声明的字段），但前端要用的话得先登记。
-4. 用 `fastapi-migration` 里的 `compare_api` 比较改前改后的两份 openapi，把差异告诉做前端的人。
+4. 用兼容工具 `fastapi_migration.compare_api` 比较改前改后的两份 openapi，把差异告诉做前端的人。
 
 ## 前端出错时怎么查
 

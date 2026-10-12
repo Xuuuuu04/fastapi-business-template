@@ -17,8 +17,8 @@ MAX_MODULE_README_LINES = 120
 MAX_README_LINES = 150
 MAX_BUSINESS_DOC_LINES = 200
 
-CODE_DIRS = ("app", "service", "shared", "../.agents/skills", "tests", "deploy")
-README_DIRS = ("app", "service", "shared", "tests", "deploy", "migrations")
+CODE_DIRS = ("app", "service", "shared", "../.agents/skills", "devtools", "tests", "deploy")
+README_DIRS = ("app", "service", "shared", "devtools", "tests", "deploy", "migrations")
 SKIP_PARTS = ("__pycache__", ".venv", "versions", "temp")
 
 VAGUE_NAMES = frozenset(

@@ -66,3 +66,5 @@ uv run python ../.agents/skills/fastapi-check/scripts/run_check.py framework_loc
 每次检查都记下：代码版本、数据库类型、实际运行的命令和结果。完整检查失败之后，不能用之后一次局部检查的成功去覆盖它。
 
 查询额度在公开的 contract 里声明 QueryBudget；显式声明后，测试超额默认失败，旧的未声明操作只警告。APP_QUERY_BUDGET_MODE=warn 可以临时只警告；逐项迁移完成后改成 error，让默认额度也在测试中报错。生产环境只记录。接入方法和测量含义见 server/shared/db/README.md。
+
+命名检查的来历和删除条件见[检查说明](references/check-rationale.md)；没有当前替代证据时，不因为耗时或以前通过而删除检查。

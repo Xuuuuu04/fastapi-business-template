@@ -4,7 +4,7 @@
 
 本后端是空业务模板，提供 HTTP、事务、后台任务、令牌校验和文件存储等公共能力。当前没有预置账号登录、用户管理或文件业务接口。
 
-配套 Vue3 前端模板已有界面和独立演示服务。产品集成前，需要增加自己的登录、权限及文件业务，确认接口路径、字段、上传格式和错误响应，再按生成的 OpenAPI 同步前端。前端生产构建使用 `VITE_API_MODE=real`；演示页面可用不代表真实业务已接通。具体约定见 [前后端对接 Skill](../../.agents/skills/fastapi-frontend/SKILL.md)。
+配套 Vue3 前端模板已有界面和独立演示服务。产品集成前，需要增加自己的登录、权限及文件业务，确认接口路径、字段、上传格式和错误响应，再按生成的 OpenAPI 同步前端。前端生产构建使用 `VITE_API_MODE=real`；演示页面可用不代表真实业务已接通。具体约定见 [前后端对接 Skill](../../.agents/skills/fastapi-module/references/frontend-interface.md)。
 
 | 文件 | 用途 |
 | --- | --- |

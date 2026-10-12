@@ -25,6 +25,7 @@ from fastapi_project.development.versions import (
 from shared.modules.libraries import library_closure, library_links, library_specs
 
 COMMON = (
+    "devtools",
     "../doc/glossary.json",
     "shared",
     "../.agents/skills",

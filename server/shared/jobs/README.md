@@ -107,7 +107,7 @@ APP_OPERATIONS 按配置开启备份、分段保留、容量和提醒，默认�
 
 `JobPlan(..., segmented=True, repeat_safe=True, import_plan=ImportPlan(...))` 复用分段事务。来源版本、范围键、实际目标与预期必须明确；队列自动按计划摘要去重，输入不同会拒绝重复键。最后一批 `checkpoint.finish` 之后、提交之前，框架自动读取目标表对账；短操作和未声明导入的任务不受影响。行数必须完全相等，合计精确相等，质量非空率达到最小值，非空引用必须存在。质量字段只统计 SQL 的非 NULL（空字符串是否算有效由产品规则决定）；空来源默认拒绝，确认是空集才声明 `allow_empty=True`。只需要核对行数时可以不声明其他指标，但没有登记的指标不代表已验证；金额用 ExactNumber/Decimal。
 
-对账失败会让任务失败并撤销最后一批；已提交的批次保留。不能把恢复工具返回 0 当作导入成功。任务失败后，由产品核对来源和已提交的数据，再按原来的固定范围恢复；不要随意改计划的去重键重导。运行记录会持久化对账的实测值、预期值、是否通过与来源；还没到最后一批时，对账状态是未知。计算图显示对账节点，运行图和报告显示结果；配置 `APP_RUN_RECORDS=database` 保留跨进程证据。声明例子和接入步骤见[迁移 Skill](../../../.agents/skills/fastapi-migration/SKILL.md)，独立双库样例见 `tests/framework/import_sample.py` 和 `test_import_ownership.py`。
+对账失败会让任务失败并撤销最后一批；已提交的批次保留。不能把恢复工具返回 0 当作导入成功。任务失败后，由产品核对来源和已提交的数据，再按原来的固定范围恢复；不要随意改计划的去重键重导。运行记录会持久化对账的实测值、预期值、是否通过与来源；还没到最后一批时，对账状态是未知。计算图显示对账节点，运行图和报告显示结果；配置 `APP_RUN_RECORDS=database` 保留跨进程证据。声明例子和接入步骤见[迁移 Skill](../../../.agents/skills/fastapi-template/references/product-migration.md)，独立双库样例见 `tests/framework/import_sample.py` 和 `test_import_ownership.py`。
 
 ## 第三代时间与排队
 

@@ -26,7 +26,7 @@ from fastapi_project.development.selection import (
     validate_modules,
 )
 
-TYPED = ("app", "service", "library", "shared", "../.agents/skills", "deploy")
+TYPED = ("app", "service", "library", "shared", "../.agents/skills", "devtools/src", "deploy")
 INTEGRITY = (
     "tests/architecture/test_structure.py::test_import_rules",
     "tests/architecture/test_structure.py::test_registry_is_complete",

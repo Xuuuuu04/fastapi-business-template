@@ -12,7 +12,7 @@
 
 从产品业务线到开发包的层次见[项目设计](../../doc/development.md)，分组在根目录 `project-plan.json` 里填写。
 代码保留统一的模块路径，避免改变生成器、模块导入和已有产品。开发时用 `fastapi_project.project --module 模块名` 一次看到本模块的操作、条件分支、计算图、源码和最近的测试情况。
-开发按一项完整业务推进；迁移旧系统见[业务迁移 Skill](../../.agents/skills/fastapi-migration/SKILL.md)。
+开发按一项完整业务推进；迁移旧系统见[业务迁移 Skill](../../.agents/skills/fastapi-template/references/product-migration.md)。
 
 ## 每个模块的固定结构
 

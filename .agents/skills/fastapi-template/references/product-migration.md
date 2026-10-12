@@ -1,8 +1,3 @@
----
-name: fastapi-migration
-description: 把大型旧系统的业务逐项迁进本 FastAPI 模板时使用。每次迁一项用户能操作的业务，复用可信的旧计算，比较新旧接口，如实记录哪些已经能用。
----
-
 # 业务迁移
 
 ## 目标和做法
@@ -38,7 +33,7 @@ description: 把大型旧系统的业务逐项迁进本 FastAPI 模板时使用�
 uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipeline report daily --title 经营日报 --stages collect,wait,calculate,publish --wait wait
 ```
 
-选择方法：短保存用普通 `Flow(...steps=[validate, save])`，必须一起回滚；固定范围的大量数据用 `JobPlan(parse, segmented=True, repeat_safe=True, cursor=Cursor)` 每批 5000 行推进 Checkpoint；采集、等待、汇算、发布用 `Pipeline(...Stage/Wait...)`，每个阶段独立事务，汇算 Stage 内部可以再分段。完整声明片段和独立样例见[模块开发](../fastapi-module/SKILL.md)、[步骤与事务](../../../server/shared/flow/README.md)、[后台任务](../../../server/shared/jobs/README.md)。生成的正常样例只证明骨架是通的，必须换成确认过的实际结果。
+选择方法：短保存用普通 `Flow(...steps=[validate, save])`，必须一起回滚；固定范围的大量数据用 `JobPlan(parse, segmented=True, repeat_safe=True, cursor=Cursor)` 每批 5000 行推进 Checkpoint；采集、等待、汇算、发布用 `Pipeline(...Stage/Wait...)`，每个阶段独立事务，汇算 Stage 内部可以再分段。完整声明片段和独立样例见[模块开发](../../fastapi-module/SKILL.md)、[步骤与事务](../../../../server/shared/flow/README.md)、[后台任务](../../../../server/shared/jobs/README.md)。生成的正常样例只证明骨架是通的，必须换成确认过的实际结果。
 
 ## 怎样处理旧函数
 
@@ -51,7 +46,7 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipelin
 
 迁进来的计算函数不能再读全局配置、访问数据库、调用网络或偷偷写文件。步骤声明输入和输出字段，结果写回流程的工作数据，这样计算仍然出现在流程图和运行记录里。
 
-旧数据表单独定义在 `server/legacy/`，只通过存储里的只读入口使用，不放进新库的迁移。完整例子见[日报迁移样板](references/report-example.md)。
+旧数据表单独定义在 `server/legacy/`，只通过存储里的只读入口使用，不放进新库的迁移。完整例子见[日报迁移样板](product-migration-report.md)。
 
 ## 数据导入计划与对账
 
@@ -79,11 +74,11 @@ import_plan = ImportPlan(
 
 复用分段提交：每批只读写一段并声明 checkpoint.advance，最后声明 finish。框架在最后一批提交前自动对账目标里的实际数据：行数精确相等、合计精确相等、最低非空率、非空引用完整。没有登记的指标仍然是未验证的，不会默认替产品选择质量字段。对账不通过时任务失败并撤销最后一批，之前已提交的批次保留；运行报告记录每个指标的预期和实测；对账还没有执行时标未知。确认来源为空时才使用 `Reconcile(...rows=0, allow_empty=True)`，不能为了让对账通过而改行数。
 
-生成迁移之前先登记表归属，方法见[迁移说明](../../../server/migrations/README.md)。旧产品先处理历史危险动作的警告，之后开启 APP_MIGRATION_STRICT；外部表只保留，不属于本产品维护的表不能删除、改名或改类型。
+生成迁移之前先登记表归属，方法见[迁移说明](../../../../server/migrations/README.md)。旧产品先处理历史危险动作的警告，之后开启 APP_MIGRATION_STRICT；外部表只保留，不属于本产品维护的表不能删除、改名或改类型。
 
 ## 联合验证
 
-含定时或长流程的迁移，完成条件是：先用 `fastapi-operations drill` 在隔离库按真实规模打通从定时首入口到发布的整条链，再补局部细节。使用录下来的上游原始响应回放，不访问真实系统；记录每个阶段的耗时、实际行数、最慢 SQL、内存峰值、是否需要人工，以及回放覆盖和未覆盖的阶段。配置与命令见[系统操作](../fastapi-operations/SKILL.md)。只有样例规模、模拟模型或未覆盖的外部写操作，不能算真实业务已验收；原件来源未知时明确标未知。
+含定时或长流程的迁移，完成条件是：先用 `fastapi-operations drill` 在隔离库按真实规模打通从定时首入口到发布的整条链，再补局部细节。使用录下来的上游原始响应回放，不访问真实系统；记录每个阶段的耗时、实际行数、最慢 SQL、内存峰值、是否需要人工，以及回放覆盖和未覆盖的阶段。配置与命令见[系统操作](../../fastapi-operations/SKILL.md)。只有样例规模、模拟模型或未覆盖的外部写操作，不能算真实业务已验收；原件来源未知时明确标未知。
 
 尽早把数据来源、计算、保存和旧接口放在同一份代码里验证。每次记下：提交编号、迁移版本、配置、实际使用的应用角色、输入数据来源。
 

@@ -10,6 +10,7 @@ from shared.modules.catalog import Catalog
 
 BEGIN = "<!-- fastapi-current-state:begin -->"
 END = "<!-- fastapi-current-state:end -->"
+MAX_ITEMS = 3
 
 
 # 最近变更取已提交的业务变化记录；没有记录时说明情况，不依赖变化的Git时间。
@@ -35,7 +36,9 @@ def block(catalog: Catalog, project: Path, disabled: set[str]) -> str:
         "实际运行情况看业务现状档案，或用 project --summary 查询。",
         "",
     ]
-    for module in catalog.modules.values():
+    modules = list(catalog.modules.values())
+    unknown = sorted(disabled - catalog.modules.keys())
+    for module in modules[:MAX_ITEMS]:
         count = sum(item.entry for item in module.provides)
         state = "已关闭" if module.name in disabled else "启用"
         lines.append(
@@ -46,8 +49,11 @@ def block(catalog: Catalog, project: Path, disabled: set[str]) -> str:
         )
     if not catalog.modules:
         lines.append("- 当前还没有业务模块。新建模块后，这里会自动出现它的登记情况。")
-    for name in sorted(disabled - catalog.modules.keys()):
+    for name in unknown[: max(0, MAX_ITEMS - len(modules))]:
         lines.append(f"- {name}：配置为关闭，当前没有登记，职责和操作未知。")
+    omitted = max(0, len(modules) + len(unknown) - MAX_ITEMS)
+    if omitted:
+        lines.append(f"- 另有 {omitted} 个登记项；完整清单用 `uv run dev status --summary` 查看。")
     lines += [
         "",
         "想看细节：project --module 模块名 --summary；project --operation 完整操作名。",
@@ -61,6 +67,10 @@ def render(catalog: Catalog, project: Path, disabled: set[str]) -> str:
     path = project / "AGENTS.md"
     text = path.read_text() if path.exists() else "# 项目入口\n"
     generated = block(catalog, project, disabled)
+    if (BEGIN in text or END in text) and (
+        text.count(BEGIN) != 1 or text.count(END) != 1 or text.index(END) < text.index(BEGIN)
+    ):
+        raise ValueError("AGENTS生成边界损坏，请先保留并修复原件")
     if BEGIN in text and END in text:
         first = text.index(BEGIN)
         last = text.index(END, first) + len(END)

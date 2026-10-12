@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi_project.development.history import read_checks
+from fastapi_project.development.ledger import read_ledger
+from fastapi_project.development.ledger_models import LedgerRule
 from fastapi_project.development.panel_dependencies import dependency_issues
 from fastapi_project.development.panel_duplicates import duplicate_hints
 from fastapi_project.development.panel_evidence import node_evidence
@@ -51,6 +53,20 @@ def module_detail(module: dict) -> dict:
 
 
 # 已登记但未写入计划的包也明确列出，工具包单独展示真实使用者。
+def node_detail(name: str, module: dict | None, rules: list[LedgerRule]) -> dict:
+    if module:
+        return module_detail(module)
+    return {
+        "operations": [],
+        "rules": [
+            {key: rule.model_dump()[key] for key in ("id", "risk", "state", "revision")}
+            for rule in rules
+            if rule.id.split(".")[0] == name
+        ],
+    }
+
+
+# 计划包的规则先于代码登记存在，高风险待确认状态不能被空实现掩盖。
 def nodes(project: Path, status: dict, checks: list[dict]) -> list[dict]:
     planned = {
         package["module"]: (line["name"], package)
@@ -59,13 +75,14 @@ def nodes(project: Path, status: dict, checks: list[dict]) -> list[dict]:
     }
     libraries = {library["name"]: library for library in status["libraries"]}
     result = []
+    rules = read_ledger(project).rules
     for name in dict.fromkeys([*planned, *status["modules"], *libraries]):
         line, package = planned.get(name, ("计划外", {"title": name, "operations": []}))
         module = status["modules"].get(name)
-        detail = module_detail(module) if module else {"operations": [], "rules": []}
+        detail = node_detail(name, module, rules)
         evidence = node_evidence(name, status, checks)
         if name in libraries:
-            detail = {**libraries[name], "operations": [], "rules": []}
+            detail = {**libraries[name], "operations": [], "rules": detail["rules"]}
             evidence = {
                 "state": "unknown",
                 "reason": "工具源码已登记，尚无独立整链稳定证据",

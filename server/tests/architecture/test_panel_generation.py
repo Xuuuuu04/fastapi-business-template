@@ -88,3 +88,31 @@ def test_panel_assets_are_managed_upgrade_files(tmp_path: Path) -> None:
         "panel.js",
         "page.html",
     }
+
+
+# 尚未生成源码的计划包仍显示已经提出的高风险规则，不借登记缺失隐藏待确认事项。
+def test_planned_package_keeps_high_risk_unconfirmed_rules(tmp_path: Path) -> None:
+    from fastapi_project.development.ledger import add_source, propose
+    from fastapi_project.development.ledger_models import LedgerRule, RuleSource
+
+    planned_project(tmp_path)
+    add_source(
+        tmp_path,
+        RuleSource(
+            id="synthetic-rule", kind="fixture", summary="合成材料", locator="fixture:planned"
+        ),
+    )
+    propose(
+        tmp_path,
+        LedgerRule(
+            id="sample_package0.R-01",
+            text="合成高风险规则",
+            sources=["synthetic-rule"],
+            risk="high",
+        ),
+        reason="计划阶段提出",
+    )
+    data = panel_data(tmp_path, Catalog([]))
+    node = next(node for node in data["nodes"] if node["id"] == "sample_package0")
+    assert node["state"] == "planned" and node["pending_confirmation"]
+    assert node["rules"][0]["id"] == "sample_package0.R-01"

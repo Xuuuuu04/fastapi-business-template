@@ -17,6 +17,7 @@ from shared.modules.validation.report import ROOT
 
 LOCK_FILE = ROOT / "framework.lock"
 LOCKED = (
+    "devtools",
     "shared",
     "app/setup",
     "app/api/system",
@@ -95,8 +96,16 @@ def differences(root: Path = ROOT, *, include_skills: bool = True) -> list[str]:
     saved: dict[str, str] = json.loads(lock.read_text(encoding="utf-8"))
     current = digests(root)
     if not include_skills:
-        saved = {name: value for name, value in saved.items() if not name.startswith("../")}
-        current = {name: value for name, value in current.items() if not name.startswith("../")}
+        saved = {
+            name: value
+            for name, value in saved.items()
+            if not name.startswith(("../", "devtools/"))
+        }
+        current = {
+            name: value
+            for name, value in current.items()
+            if not name.startswith(("../", "devtools/"))
+        }
     changes = [f"新增：{name}" for name in sorted(current.keys() - saved.keys())]
     changes += [f"删除：{name}" for name in sorted(saved.keys() - current.keys())]
     changes += [

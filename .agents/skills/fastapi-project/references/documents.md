@@ -1,8 +1,3 @@
----
-name: fastapi-docs
-description: 业务代码、字段、接口、规则或计划改变后，生成或检查接口文档和流程文档时使用。
----
-
 # 文档生成
 
 ## 哪些手写，哪些生成
@@ -12,7 +7,7 @@ description: 业务代码、字段、接口、规则或计划改变后，生成�
 | `doc/模块名/needs.md`（需求）、`rules.md`（规则）、`changes.md`（变化记录） | 由人维护 |
 | 字段、接口、数据表、流程 | 从代码自动生成 |
 
-开发方法和迁移方法只写在对应的 Skill 里，`doc/` 下不重复。所有生成文字遵循 [文风与术语约定](references/writing-style.md)。
+开发方法和迁移方法只写在对应的 Skill 里，`doc/` 下不重复。所有生成文字遵循 [文风与术语约定](../../fastapi-guide/references/writing-style.md)。
 
 ## 命令
 
@@ -20,9 +15,9 @@ description: 业务代码、字段、接口、规则或计划改变后，生成�
 
 ```bash
 # 生成文档
-uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs
+uv run dev docs
 # 只比较声明文档/业务现状，不刷新它们；本机汇总仍会生成
-uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs --check
+uv run dev docs --check
 ```
 
 随源码提交的生成结果有：`doc/api/`、每个业务包的 `flows.md`，以及 AGENTS.md 的当前状态生成段。
