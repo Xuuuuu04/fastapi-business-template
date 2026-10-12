@@ -6,7 +6,6 @@
 
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import suppress
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
@@ -17,10 +16,10 @@ from shared.access.caller import Caller
 from shared.data.models import Data
 from shared.db.budget import QueryPolicy, merge_child
 from shared.db.database import Database
-from shared.errors.framework import NotAllowed, NotSignedIn, StepRuleBroken
+from shared.errors.framework import StepRuleBroken
 from shared.flow.auditing import audit_failure, audit_hook
 from shared.flow.commit import Hook, commit_writes
-from shared.flow.entry_errors import after_external_write, check_access, fill_error, translate
+from shared.flow.entry_errors import check_access, fill_error, settle_entry, translate
 from shared.flow.heavy import HeavySteps
 from shared.flow.query_budget import check_query_budget
 from shared.flow.runner import execute
@@ -36,6 +35,7 @@ from shared.records.opening import open_record
 from shared.records.recorder import Recorder
 from shared.records.segments import warn_slow_batch
 from shared.scenarios.observations import ObservationPosition
+from shared.scenarios.simulation import mark_simulated
 from shared.timing.clock import Clock, RealClock
 from shared.timing.current import clocked
 
@@ -57,6 +57,8 @@ MAX_DEPTH = 8
 
 # 执行已登记的业务操作，管理步骤、事务、模块调用与运行记录。
 class Runtime:
+    allow_simulation: bool = False
+
     # 汇总执行所需的模块目录、数据库、记录器、大模型服务和任务登记入口。
     def __init__(
         self,
@@ -242,6 +244,7 @@ class Runtime:
             return cast(Out, result)
         finally:
             merge_child(parent_run, run)
+            mark_simulated(parent_run, parent_step, run)
             if span is not None and token is not None:
                 span.set_attribute("run.status", run.status)
                 otel_context.detach(token)
@@ -262,17 +265,7 @@ class Runtime:
 
     # 处理入口调用的失败：回滚写入、整理错误、结束运行记录。
     async def settle(self, scope: Scope, run: RunRecord, error: BaseException) -> BaseException:
-        problem = translate(error)
-        if run.writes != "unknown":
-            run.writes = await scope.tx.rollback()
-        problem = after_external_write(problem, scope.remote_writes)
-        fill_error(run, problem)
-        refused = isinstance(problem, NotAllowed | NotSignedIn) and not run.steps
-        status = "refused" if refused else "failed"
-        await self.close_run(run, status)
-        with suppress(AttributeError):
-            problem.run_id = run.id  # type: ignore[attr-defined]
-        return problem
+        return await settle_entry(self, scope, run, error)
 
     # 创建一条运行记录并交给记录器。
     def open_run(

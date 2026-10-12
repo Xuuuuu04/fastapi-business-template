@@ -170,6 +170,11 @@ def project_summary(status: dict[str, Any], module: str = "") -> dict[str, Any]:
         "meaning": "登记、测试成功执行和业务验收分开判断；测试标注不证明业务正确。",
         "libraries": status.get("libraries", []),
         "library_dependencies": status.get("library_dependencies", {}),
+        "tasks": [
+            {key: task[key] for key in ("id", "package", "state", "reasons", "file")}
+            for task in status.get("tasks", [])
+            if not module or task["package"] == module
+        ],
     }
 
 

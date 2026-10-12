@@ -59,9 +59,11 @@ from shared.scenarios.observations import (
     ObservationPosition,
     capture,
 )
+from shared.scenarios.simulation import simulate
 from shared.timing.clock import Clock, FakeClock, RealClock
 
 __all__ = [
+    "simulate",
     "ObservationJournal",
     "ObservationPoint",
     "ObservationPosition",

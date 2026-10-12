@@ -47,6 +47,7 @@ def module_shape(module: Module) -> dict[str, Any]:
         **endpoint_shapes(module),
         **calculation_shape(module),
         **observation_shape(module),
+        **simulation_shape(module),
         "query_budgets": query_budgets(module),
         "jobs": [job_shape(j) for j in sorted(module.jobs, key=lambda item: item.contract.name)],
         "schedules": [
@@ -195,3 +196,13 @@ def observation_shape(module: Module) -> dict[str, Any]:
         if any(part.observes for part in flow.steps)
     }
     return {"observations": values} if values else {}
+
+
+# 模拟身份影响声明版本；换成真实实现后旧骨架检查不能沿用。
+def simulation_shape(module: Module) -> dict[str, Any]:
+    values = {
+        item.name: [part.name for part in flow.steps if part.simulated]
+        for item, flow in module.provides.items()
+        if any(part.simulated for part in flow.steps)
+    }
+    return {"simulations": values} if values else {}

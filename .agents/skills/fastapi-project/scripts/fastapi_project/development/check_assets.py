@@ -12,6 +12,7 @@ from typing import Any
 
 MAX_DETAIL_BYTES = 8 * 1024 * 1024
 RUN_FIELDS = (
+    "simulated",
     "id",
     "root_id",
     "parent_id",
@@ -30,6 +31,7 @@ RUN_FIELDS = (
     "writes",
 )
 STEP_FIELDS = (
+    "simulated",
     "name",
     "title",
     "status",

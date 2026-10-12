@@ -13,6 +13,7 @@ from time import perf_counter
 
 from fastapi_check.arguments import arguments
 from fastapi_check.cache import cached_round, execution_profile
+from fastapi_check.development_rules import check_development
 from fastapi_check.matrix import CheckOptions, clean_environment, databases, execute_matrix
 from fastapi_check.quality.rules import PROJECT, ROOT
 from fastapi_project.development.evidence import system_fingerprint
@@ -159,7 +160,10 @@ def run_static_checks(
     selected: list[tuple[str, list[str]]], env: dict[str, str]
 ) -> tuple[list[tuple[str, bool]], dict[str, float]]:
     timings: dict[str, float] = {}
-    results = [("迁移表归属", migration_check())]
+    results = [
+        ("迁移表归属", migration_check()),
+        ("规则与实现状态", check_development(env.get("APP_DEVELOPMENT_DELIVERY") == "1")),
+    ]
     for title, command in selected[:-1]:
         start = perf_counter()
         results.append((title, run(title, command, env)))

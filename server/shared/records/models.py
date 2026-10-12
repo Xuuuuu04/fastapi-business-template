@@ -108,6 +108,7 @@ class StepRecord:
     source: str
     reads: list[str] = field(default_factory=list)
     writes: list[str] = field(default_factory=list)
+    simulated: bool = False
     status: str = "running"
     condition: str = ""
     condition_source: str = ""
@@ -161,6 +162,7 @@ class RunRecord:
     job_id: str
     caller: str
     started_at: float
+    simulated: bool = False
     status: str = "running"
     updated_at: float = 0.0
     ended_at: float = 0.0

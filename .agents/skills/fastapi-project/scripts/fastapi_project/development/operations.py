@@ -41,6 +41,7 @@ def operation_status(
     steps = [
         {
             "name": part.name,
+            "simulated": part.simulated,
             "title": part.title,
             "source": part.source,
             "calcs": [f"{func.__name__} · {source_of(func)}" for func in part.calcs],
@@ -60,6 +61,7 @@ def operation_status(
     return {
         **query_status(binding, cases, operation),
         "name": operation,
+        "implementation": "skeleton" if any(p.simulated for p in binding.flow.steps) else "real",
         "providers": [spec.shape() for spec in binding.module.providers],
         "endpoints": [
             e.shape()

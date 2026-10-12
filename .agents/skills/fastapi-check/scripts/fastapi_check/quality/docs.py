@@ -4,6 +4,7 @@
 文风检查保证写给人看的文字符合约定：不用禁用词，不残留未翻译的英文。
 """
 
+import os
 import re
 from pathlib import Path
 
@@ -32,24 +33,8 @@ STYLE_GENERATED = (
 
 # 检查全部模块的业务文档。
 def check_business_docs(catalog: Catalog, project: Path = PROJECT) -> list[Problem]:
-    import os
 
-    from fastapi_project.development.confirmed_cases import case_problems
-    from fastapi_project.development.glossary import target_problems
-    from fastapi_project.development.ledger import read_ledger
-
-    problems = [
-        Problem("doc/rules-ledger.json", 0, "confirmed_case", problem)
-        for problem in case_problems(
-            project,
-            read_ledger(project),
-            delivery=os.environ.get("APP_DEVELOPMENT_DELIVERY") == "1",
-        )
-    ]
-    problems += [
-        Problem("doc/glossary.json", 0, "glossary_target", problem)
-        for problem in target_problems(project, catalog)
-    ]
+    problems = check_development_rules(catalog, project)
     index = project / "doc" / "README.md"
     index_text = index.read_text(encoding="utf-8") if index.exists() else ""
     for name, module in catalog.modules.items():
@@ -72,6 +57,41 @@ def check_business_docs(catalog: Catalog, project: Path = PROJECT) -> list[Probl
                 "运行 uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs",
             )
         )
+    return problems
+
+
+# 规则、词义与模拟身份分别核对，交付条件不能由运行成功推定。
+def check_development_rules(
+    catalog: Catalog, project: Path, *, delivery: bool | None = None
+) -> list[Problem]:
+    from fastapi_project.development.confirmed_cases import case_problems
+    from fastapi_project.development.glossary import target_problems
+    from fastapi_project.development.ledger import read_ledger
+
+    delivery = os.environ.get("APP_DEVELOPMENT_DELIVERY") == "1" if delivery is None else delivery
+    problems = [
+        Problem("doc/rules-ledger.json", 0, "confirmed_case", problem)
+        for problem in case_problems(
+            project,
+            read_ledger(project),
+            delivery=delivery,
+        )
+    ]
+    problems += [
+        Problem("doc/glossary.json", 0, "glossary_target", problem)
+        for problem in target_problems(project, catalog)
+    ]
+    if delivery:
+        problems += [
+            Problem(
+                "service/" + binding.module.name,
+                0,
+                "simulated_implementation",
+                "交付不能包含模拟骨架：" + binding.contract.name,
+            )
+            for binding in catalog.bindings.values()
+            if any(part.simulated for part in binding.flow.steps)
+        ]
     return problems
 
 

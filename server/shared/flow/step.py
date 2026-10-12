@@ -68,6 +68,7 @@ class Step:
     calcs: tuple[Callable[..., Any], ...] = ()
     providers: tuple[ProviderSpec, ...] = ()
     observes: tuple[str, ...] = ()
+    simulated: bool = False
 
     # 按参数判断步骤的种类：大模型、保存、读取、调用或纯计算。
     @property
@@ -112,6 +113,7 @@ def step(
     calcs: Sequence[Callable[..., Any]] = (),
     providers: Sequence[ProviderSpec] = (),
     observes: Sequence[str] = (),
+    simulated: bool = False,
 ) -> Callable[[Callable[..., Any]], Step]:
     # 把步骤函数包装成步骤声明。
     def wrap(func: Callable[..., Any]) -> Step:
@@ -137,6 +139,7 @@ def step(
             calcs=tuple(calcs),
             providers=tuple(providers),
             observes=tuple(observes),
+            simulated=simulated,
         )
 
     return wrap

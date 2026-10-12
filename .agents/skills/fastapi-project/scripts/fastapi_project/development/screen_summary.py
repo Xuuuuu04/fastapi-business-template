@@ -20,6 +20,13 @@ def render(summary: dict[str, Any]) -> str:
     if check:
         verdict = "通过" if check.get("passed") else "没有通过（或结果未知）"
         lines.append(f"最近一次检查：{verdict}，范围是{check.get('scope', '完整记录')}。")
+    tasks = summary.get("tasks", [])
+    if tasks:
+        counts = {
+            state: sum(task["state"] == state for task in tasks)
+            for state in ("active", "needs_update", "incomplete", "complete")
+        }
+        lines.append(f"任务卡：{counts}；状态按当前契约、规则和源码证据计算。")
     for item in summary.get("attention", [])[:3]:
         lines.append(f"需要处理：{item['module']}——{item['message']}")
     modules = list(summary.get("modules", {}).values())

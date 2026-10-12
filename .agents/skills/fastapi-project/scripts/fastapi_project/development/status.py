@@ -20,6 +20,7 @@ from fastapi_project.development.operations import operation_status
 from fastapi_project.development.pipelines import overview
 from fastapi_project.development.plan import read_plan
 from fastapi_project.development.scenarios import scenario_status
+from fastapi_project.development.task_views import task_status
 
 from shared.graphs.static import module_graph
 from shared.modules.catalog import Catalog
@@ -186,6 +187,7 @@ def project_status(
     )
     return {
         "schema_version": 1,
+        "tasks": task_status(project, catalog),
         "name": plan["name"] if plan else project.name,
         "has_plan": plan is not None,
         "lines": lines,

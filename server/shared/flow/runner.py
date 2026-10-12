@@ -29,6 +29,7 @@ from shared.modules.catalog import Binding
 from shared.records.models import RunRecord, StepRecord
 from shared.records.values import describe_value, shape_text
 from shared.scenarios.recording import record_step
+from shared.scenarios.simulation import run_simulated
 from shared.timing.current import monotonic
 from shared.timing.current import now as business_now
 
@@ -40,6 +41,7 @@ async def execute(binding: Binding, input: Data, scope: Scope, run: RunRecord) -
         raise StepRuleBroken(
             f"调用“{item.title}”需要 {item.input.__name__}，实际传入 {type(input).__name__}"
         )
+    run.simulated = any(part.simulated for part in binding.flow.steps)
     values = start_values(binding.flow, input)
     for part in binding.flow.steps:
         await run_part(part, values, scope, run, binding)
@@ -79,6 +81,7 @@ async def run_part(
         query_limits=asdict(binding.contract.query_budget or DEFAULT_BUDGET),
         query_prior=prior_totals(run),
         outputs_recorded=True,
+        simulated=part.simulated,
         started_at=business_now(),
     )
     run.steps.append(record)
@@ -150,13 +153,21 @@ async def run_step(
     view = StepView(values, part.reads, part.writes, binding.types, part.title)
     before = fingerprints(values, part.reads) if scope.runtime.step_checks else None
     try:
-        async with tools_for(part, scope, run, record, binding.module) as tools:
-            if part.is_async:
-                returned = await part.func(view, **tools)
-            elif part.heavy:
-                returned = await scope.runtime.heavy.run(part.func, view, **tools)
-            else:
-                returned = part.func(view, **tools)
+        if part.simulated:
+            returned = await run_simulated(
+                part,
+                view,
+                binding.contract.name,
+                allowed=scope.runtime.allow_simulation,
+            )
+        else:
+            async with tools_for(part, scope, run, record, binding.module) as tools:
+                if part.is_async:
+                    returned = await part.func(view, **tools)
+                elif part.heavy:
+                    returned = await scope.runtime.heavy.run(part.func, view, **tools)
+                else:
+                    returned = part.func(view, **tools)
         check_return(returned, part)
         missing = missing_writes(view)
         if missing:

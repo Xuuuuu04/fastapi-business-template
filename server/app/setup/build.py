@@ -120,6 +120,7 @@ def build(
         settings, specification, database, services.remotes, effect_adapters
     )
     services.runtime.query_policy = query_policy(settings)
+    services.runtime.allow_simulation = settings.env == "test"
     bind_clock(services, specification.clock or services.runtime.clock)
     if modules is None:
         services.runtime.source_version = source_version(ROOT)
@@ -131,7 +132,11 @@ def product_catalog(
     settings: Settings, spec: ApplicationSpec, modules: Sequence[Module]
 ) -> Catalog:
     selected = with_effects(spec, with_operations(settings, modules))
-    return Catalog(selected, strict_endpoints=settings.remote_endpoints_strict)
+    from shared.scenarios.simulation import check_simulations
+
+    catalog = Catalog(selected, strict_endpoints=settings.remote_endpoints_strict)
+    check_simulations(catalog, settings.env)
+    return catalog
 
 
 # 关闭模块只影响接口和执行入口，保留其数据库表与历史数据。

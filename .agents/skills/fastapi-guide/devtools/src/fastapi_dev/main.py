@@ -10,6 +10,11 @@ import sys
 from pathlib import Path
 
 COMMANDS = {
+    "skeleton": "fastapi_module.skeleton",
+    "start": "fastapi_dev.tasks",
+    "finish": "fastapi_dev.tasks",
+    "ask-contract": "fastapi_dev.tasks",
+    "review-pack": "fastapi_dev.tasks",
     "glossary": "fastapi_dev.glossary",
     "rules": "fastapi_dev.rules",
     "plan": "fastapi_dev.plan",
@@ -69,5 +74,7 @@ def main() -> None:
             parser.error("inspect没有额外参数")
         inspect_application()
         return
+    if arguments.command in {"start", "finish", "ask-contract", "review-pack"}:
+        remaining = [arguments.command, *remaining]
     sys.argv = ["dev " + arguments.command, *remaining]
     runpy.run_module(COMMANDS[arguments.command], run_name="__main__")

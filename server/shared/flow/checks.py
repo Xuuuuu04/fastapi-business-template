@@ -90,6 +90,16 @@ def check_step(
     problems += [
         f"{place} 写入的字段 {name} 不在流程数据中" for name in item.writes if name not in notes
     ]
+    if item.simulated and (
+        item.saves
+        or item.uses
+        or item.later
+        or item.providers
+        or item.remotes
+        or item.prompts
+        or item.params != ("data",)
+    ):
+        problems.append(f"{place} 的模拟骨架不能声明真实保存或外部动作")
     if item.when is not None:
         problems += check_condition(item.when, notes)
     problems += check_params(item, place, has_store)

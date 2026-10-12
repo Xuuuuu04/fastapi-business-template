@@ -3,7 +3,8 @@
 """
 
 import asyncio
-from typing import Any
+from contextlib import suppress
+from typing import TYPE_CHECKING, Any
 
 from shared.access.caller import Caller
 from shared.db.database import is_readonly_violation, is_unavailable
@@ -18,6 +19,10 @@ from shared.errors.framework import (
 from shared.errors.kinds import BusinessError, Kind
 from shared.modules.contract import Contract
 from shared.records.models import RemoteCallRecord, RunRecord
+
+if TYPE_CHECKING:
+    from shared.flow.runtime import Runtime
+    from shared.flow.scope import Scope
 
 
 # 没有身份时报未登录，有身份但缺权限时报无权限。
@@ -72,3 +77,20 @@ def fill_error(run: RunRecord, problem: BaseException) -> None:
         run.error_message = (
             failed.error_message if failed else ""
         ) or f"程序异常：{type(problem).__name__}"
+
+
+# 入口失败保持原回滚与外部未知保护，关闭记录后附上可排查的运行编号。
+async def settle_entry(
+    runtime: "Runtime", scope: "Scope", run: RunRecord, error: BaseException
+) -> BaseException:
+    problem = translate(error)
+    if run.writes != "unknown":
+        run.writes = await scope.tx.rollback()
+    problem = after_external_write(problem, scope.remote_writes)
+    fill_error(run, problem)
+    refused = isinstance(problem, NotAllowed | NotSignedIn) and not run.steps
+    status = "refused" if refused else "failed"
+    await runtime.close_run(run, status)
+    with suppress(AttributeError):
+        problem.run_id = run.id  # type: ignore[attr-defined]
+    return problem

@@ -12,6 +12,7 @@ from shared.records.models import RunRecord, StepRecord
 # 使用固定字段清单，运行记录新增业务数据时不会自动进入开发历史。
 def step_evidence(step: StepRecord) -> dict[str, Any]:
     names = (
+        "simulated",
         "name",
         "title",
         "status",
@@ -55,6 +56,7 @@ def step_evidence(step: StepRecord) -> dict[str, Any]:
 # 一次实际运行的名称、状态、时间和步骤；保留版本用于判断历史记录。
 def run_evidence(run: RunRecord) -> dict[str, Any]:
     names = (
+        "simulated",
         "id",
         "root_id",
         "parent_id",
