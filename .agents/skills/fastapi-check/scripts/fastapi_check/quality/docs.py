@@ -69,6 +69,15 @@ def check_development_rules(
     from fastapi_project.development.ledger import read_ledger
 
     delivery = os.environ.get("APP_DEVELOPMENT_DELIVERY") == "1" if delivery is None else delivery
+    if (project / ".agents/records/ledger-write.json").exists():
+        return [
+            Problem(
+                "doc/rules-ledger.json",
+                0,
+                "ledger_recovery",
+                "规则写入尚未恢复，请先运行dev rules recover",
+            )
+        ]
     problems = [
         Problem("doc/rules-ledger.json", 0, "confirmed_case", problem)
         for problem in case_problems(

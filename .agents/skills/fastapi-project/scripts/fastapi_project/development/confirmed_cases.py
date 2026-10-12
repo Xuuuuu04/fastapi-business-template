@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from fastapi_project.development.ledger_models import LedgerRule, RuleLedger
+from fastapi_project.development.ledger_store import decode_ledger
+from fastapi_project.development.ledger_store_models import parse_index
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -117,7 +119,21 @@ def baseline(project: Path) -> RuleLedger | None:
     )
     if result.returncode:
         return None
-    return RuleLedger.model_validate_json(result.stdout)
+    index = parse_index(result.stdout)
+    packages = {}
+    for name in index.get("packages", []):
+        if not isinstance(name, str) or not name.isidentifier():
+            raise ValueError("Git基线规则包名不合法")
+        content = subprocess.run(
+            ["git", "show", f"HEAD:doc/{name}/rules.json"],
+            cwd=project,
+            capture_output=True,
+            check=False,
+        )
+        if content.returncode:
+            raise ValueError("Git基线的分包规则缺失")
+        packages[name] = json.loads(content.stdout)
+    return decode_ledger(index, packages)
 
 
 # 同一确认修订不能改摘要，新修订改变样例必须引用新的原话。

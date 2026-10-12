@@ -17,25 +17,18 @@ from fastapi_project.development.ledger_models import (
     RuleLedger,
     RuleSource,
 )
+from fastapi_project.development.ledger_store import read_store, write_store
 
 
 # 读取不到账本表示未建立，不能从代码自动生成已确认规则。
 def read_ledger(project: Path) -> RuleLedger:
-    path = project / "doc/rules-ledger.json"
-    if not path.exists():
-        return RuleLedger()
-    ledger = RuleLedger.model_validate_json(path.read_bytes())
-    ledger.validate_links()
-    return ledger
+    return read_store(project)
 
 
 # 一次替换整个小账本，索引坏了可以从文件和版本历史恢复。
 @serialized
 def save_ledger(project: Path, ledger: RuleLedger) -> Path:
-    ledger.validate_links()
-    path = project / "doc/rules-ledger.json"
-    atomic_bytes(path, (ledger.model_dump_json(indent=2) + "\n").encode())
-    return path
+    return write_store(project, ledger)
 
 
 # 每次规则动作保存快照和原因，不只保存一个会变的摘要。
@@ -143,3 +136,15 @@ def confirm(project: Path, id: str, confirmation: RuleConfirmation) -> LedgerRul
 def ledger_digest(ledger: RuleLedger) -> str:
     body = json.dumps(ledger.model_dump(mode="json"), ensure_ascii=False, sort_keys=True)
     return hashlib.sha256(body.encode()).hexdigest()
+
+
+# 包级版本只包含实际依赖规则和引用来源，无关资料变化不使所有包过期。
+def scoped_digest(ledger: RuleLedger, names: list[str]) -> str:
+    rules = [rule for rule in ledger.rules if rule.id.split(".")[0] in names]
+    sources = {name for rule in rules for name in rule.sources}
+    selected = RuleLedger(
+        sources=[source for source in ledger.sources if source.id in sources],
+        rules=rules,
+        events=[event for event in ledger.events if event.rule.split(".")[0] in names],
+    )
+    return ledger_digest(selected)

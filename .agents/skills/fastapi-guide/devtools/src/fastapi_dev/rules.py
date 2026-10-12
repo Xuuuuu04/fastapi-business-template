@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi_check.quality.rules import PROJECT
 from fastapi_project.development.ledger import add_source, confirm, propose, read_ledger, transition
 from fastapi_project.development.ledger_models import LedgerRule, RuleConfirmation, RuleSource
+from fastapi_project.development.ledger_store import recover_store
 from fastapi_project.development.rule_documents import adopt_markdown, confirm_sheet, supersede
 
 
@@ -60,6 +61,9 @@ def run(args: argparse.Namespace, project: Path) -> None:
 
 # 资料命令独立于生命周期写入，返回是否已处理当前命令。
 def run_document(args: argparse.Namespace, project: Path) -> bool:
+    if args.action == "recover":
+        print("规则写入已恢复" if recover_store(project) else "没有未完成的规则写入")
+        return True
     if args.action == "confirm_sheet":
         print(confirm_sheet(project))
         return True
@@ -81,6 +85,7 @@ def parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
     commands.add_parser("show")
+    commands.add_parser("recover")
     commands.add_parser("confirm_sheet")
     imported = commands.add_parser("adopt_markdown")
     imported.add_argument("module")
