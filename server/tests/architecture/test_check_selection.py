@@ -143,6 +143,31 @@ def test_full_check_tracks_registration_and_exact_modules(tmp_path: Path) -> Non
     assert not full_check_current(record, {"a": "1"}, tmp_path)
 
 
+# 空模板同样核对完整框架、工具、依赖与测试版本，不能把空模块列表当作当前证据。
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "server/shared/probe.py",
+        "server/uv.lock",
+        "server/tests/framework/test_probe.py",
+        ".agents/skills/fastapi-guide/SKILL.md",
+        "server/migrations/probe.py",
+    ],
+)
+def test_empty_template_expires_after_framework_change(tmp_path: Path, relative: str) -> None:
+    source = tmp_path / relative
+    source.parent.mkdir(parents=True)
+    source.write_text("first\n")
+    record = {
+        "fingerprints": {},
+        "source_changed": False,
+        "system_fingerprint": system_fingerprint(tmp_path),
+    }
+    assert full_check_current(record, {}, tmp_path)
+    source.write_text("second\n")
+    assert not full_check_current(record, {}, tmp_path)
+
+
 # 不存在的模块和缺测试目录都明确失败；局部 Ruff 范围包含模块路由。
 def test_validation_and_local_files(tmp_path: Path) -> None:
     catalog = Catalog(MODULES)

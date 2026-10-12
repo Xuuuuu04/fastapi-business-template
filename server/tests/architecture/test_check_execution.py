@@ -96,6 +96,18 @@ def test_missing_test_result_is_failure(monkeypatch: pytest.MonkeyPatch) -> None
     assert passed is False and evidence["exit_code"] == 1
 
 
+# 双库选择必须先使用SQLite，继承的PostgreSQL地址不能偷偷变成第一轮目标。
+def test_matrix_clears_inherited_database(
+    recording: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("APP_TEST_DATABASE_URL", "postgresql://localhost/inherited")
+    check.execute(Selection(), "postgresql://localhost/explicit")
+    first, second = recording["records"][0]["suites"]
+    assert [first["database"], second["database"]] == ["sqlite", "postgresql"]
+    assert "APP_TEST_DATABASE_URL" not in recording["runs"][-2][2]
+    assert recording["runs"][-1][2]["APP_TEST_DATABASE_URL"].endswith("/explicit")
+
+
 # 前轮测试失败时，第二数据库不能沿用该轮来省略模板验证。
 def test_failed_primary_does_not_skip_template(
     recording: dict[str, Any], monkeypatch: pytest.MonkeyPatch

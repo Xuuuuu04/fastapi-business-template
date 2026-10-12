@@ -109,6 +109,8 @@ def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
     before = fingerprints(PROJECT, modules, links)
     system_before = system_fingerprint(PROJECT)
     env = {**os.environ, "APP_DISABLED_MODULES": "[]", "APP_DEVELOPMENT_REPEAT_DATABASE": "0"}
+    if postgres:
+        env.pop("APP_TEST_DATABASE_URL", None)
     env["APP_MODULE_DEPENDENCIES_STRICT"] = str(Settings().module_dependencies_strict).lower()
     env["APP_DEVELOPMENT_MODULES"] = json.dumps([] if selection.quick else list(selection.modules))
     selected = steps(selection)
