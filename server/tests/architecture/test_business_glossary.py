@@ -55,4 +55,20 @@ def test_rule_ledger_documents_keep_manual_history(tmp_path: Path) -> None:
     assert "明确确认" in content and "sample_rules.R-01-C01" in content
     assert "修订历史" in content and "source-one" in content
     assert original.read_text() == "历史手写规则。"
+    assert documents[original].startswith("历史手写规则。\n\n")
+    original.write_text(documents[original])
+    assert ledger_documents(tmp_path)[original] == documents[original]
+    changes = tmp_path / "doc/sample_rules/changes.md"
+    assert "账本修订" in documents[changes] and "source-one" in content
     assert not ledger_documents(tmp_path / "empty")
+
+
+# 生成边界被截断时不覆盖规则原件，未采纳的历史文字也不能凭生成文档成为确认。
+def test_damaged_ledger_section_preserves_manual_rules(tmp_path: Path) -> None:
+    prepare(tmp_path)
+    original = tmp_path / "doc/sample_rules/rules.md"
+    original.write_text("手写规则\n<!-- fastapi-ledger-rules:begin -->\n未结束的生成段")
+    before = original.read_bytes()
+    with pytest.raises(ValueError, match="边界损坏"):
+        ledger_documents(tmp_path)
+    assert original.read_bytes() == before

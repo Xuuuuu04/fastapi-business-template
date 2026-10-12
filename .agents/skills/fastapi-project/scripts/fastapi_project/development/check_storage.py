@@ -19,6 +19,7 @@ from fastapi_project.development.check_assets import (
     compact_case,
     expand_run,
 )
+from fastapi_project.development.evidence_lock import evidence_lock
 
 
 # 用唯一临时流保存各项结果，最终清单写入前所有引用已经就绪。
@@ -47,6 +48,12 @@ def write_cases(root: Path, identity: str, number: int, cases: Any) -> dict[str,
 # 一轮检查的实际范围与数据库分别保存，源文件变化状态不能被统计数量覆盖。
 def save_record(project: Path, record: dict[str, Any]) -> Path:
     root = project / "server/var/development/checks"
+    with evidence_lock(root):
+        return publish_record(root, record)
+
+
+# 共享轨迹和结果流先写齐，清单作为本轮发布的最后一步。
+def publish_record(root: Path, record: dict[str, Any]) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     identity = uuid.uuid4().hex
     suites = [
@@ -104,6 +111,18 @@ def load_cases(suite: dict[str, Any]) -> list[dict[str, Any]]:
 
 # 导出完整检查包，清单最后写入；只复制JSON会明确缺证据，不猜别的目录。
 def export_record(source: Path, destination: Path) -> Path:
+    from contextlib import ExitStack
+
+    with ExitStack() as stack:
+        roots = {root.resolve(): root for root in (source.parent, destination)}
+        for _, root in sorted(roots.items()):
+            stack.enter_context(evidence_lock(root))
+        return publish_export(source, destination)
+
+
+# 已持有两端发布锁时复制校验过的原件，避免共享对象发布前被清理。
+def publish_export(source: Path, destination: Path) -> Path:
+    source = asset_path(source.parent, source.name)
     record = json.loads(source.read_text())
     destination.mkdir(parents=True, exist_ok=True)
     if record.get("schema_version") == 2:

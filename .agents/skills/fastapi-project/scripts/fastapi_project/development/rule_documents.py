@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi_project.development.ledger import add_source, propose, read_ledger, transition
 from fastapi_project.development.ledger_lock import serialized
 from fastapi_project.development.ledger_models import LedgerRule, RuleSource
+from fastapi_project.development.ledger_sections import manual_text
 
 
 # 按风险排序，仅展示脱敏资料与独立样例，原话不会混入可分享的确认单。
@@ -62,7 +63,7 @@ def adopt_markdown(project: Path, module: str) -> list[str]:
 def markdown_rules(project: Path, module: str) -> list[LedgerRule]:
     if not re.fullmatch(r"[a-z][a-z0-9_]*", module):
         raise ValueError("业务包名称不合法")
-    text = (project / "doc" / module / "rules.md").read_text()
+    text = manual_text((project / "doc" / module / "rules.md").read_text(), "rules")
     sections = list(re.finditer(r"^#{2,4}\s+(R-\d+)\s+(.+)$", text, re.MULTILINE))
     if not sections:
         raise ValueError("规则文档没有可解析的规则标题，请保留原件并先整理")

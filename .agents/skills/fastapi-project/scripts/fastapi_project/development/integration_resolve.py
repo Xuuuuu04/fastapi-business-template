@@ -5,7 +5,11 @@
 import re
 from pathlib import Path
 
-from fastapi_project.development.integration_documents import resolve_agents, resolve_index
+from fastapi_project.development.integration_documents import (
+    resolve_agents,
+    resolve_index,
+    resolve_ledger_section,
+)
 from fastapi_project.development.integration_git import git
 from fastapi_project.development.integration_json import blob, resolve_json
 from fastapi_project.development.integration_registry import regenerate_catalog, regenerate_routers
@@ -47,6 +51,9 @@ def resolve(tree: Path, start: dict) -> None:
     if agents:
         handled.append(agents)
     for name in conflicts:
+        if resolve_ledger_section(tree, commits, name):
+            handled.append(name)
+            continue
         if derived(name):
             # 只在临时树取一份占位，后续docs必须重新生成并通过一致性检查。
             git(tree, "checkout", "--ours", "--", name)

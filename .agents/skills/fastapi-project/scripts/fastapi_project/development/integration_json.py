@@ -123,10 +123,14 @@ def merge_plans(values: list[dict]) -> dict:
         for value in values
     ]
     merged = plan_value(packages[0], packages[1], packages[2], "packages")
-    lines: dict[str, list[dict]] = {}
+    line_values = [[{"id": line["name"]} for line in value["lines"]] for value in values]
+    declared = identity_merge(line_values[0], line_values[1], line_values[2], "id")
+    lines: dict[str, list[dict]] = {line["id"]: [] for line in declared}
     for item in merged.values():
         if item is not None:
-            lines.setdefault(item["line"], []).append(item["package"])
+            if item["line"] not in lines:
+                raise ValueError("业务线删除与另一侧新增或修改包冲突：" + item["line"])
+            lines[item["line"]].append(item["package"])
     plan = {
         "schema_version": max(value["schema_version"] for value in values),
         "name": choose(values[0]["name"], values[1]["name"], values[2]["name"], "项目名称"),

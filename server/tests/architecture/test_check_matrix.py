@@ -33,6 +33,7 @@ def test_parallel_budget_and_distinct_resources() -> None:
     )
     assert [result[0] for result in outcomes] == ["sqlite", "postgresql"]
     assert all(arguments[-2:] == ["-n", "2"] for arguments, _, _ in recorded)
+    assert all("--dist=worksteal" in arguments for arguments, _, _ in recorded)
     assert len({env["APP_TEST_RUN_ID"] for _, env, _ in recorded}) == 2
     assert "APP_TEST_CONTROL_URL" not in next(env for _, env, db in recorded if db == "sqlite")
 
@@ -79,6 +80,7 @@ def test_parallel_results_are_combined(tmp_path: Path) -> None:
             "-m",
             "pytest",
             "-q",
+            "--dist=worksteal",
             "-n",
             "2",
             "--confcutdir",

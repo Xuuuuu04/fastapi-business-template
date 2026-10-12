@@ -24,33 +24,30 @@ def conclusion(text: str) -> dict:
 
 # 隔离PostgreSQL凭据只在子进程内读取，不放在命令参数、断言或检查资料里。
 PRIVATE_FINISH = """
-import json, subprocess, sys
-from urllib.parse import quote
+import json, os, sys
 from fastapi_dev.main import bootstrap, project_root
 root = project_root(); bootstrap(root)
 from fastapi_dev.tasks import finish
 from app.setup.application import application_modules
 from shared.modules.catalog import Catalog
-container = json.loads(subprocess.check_output(['docker', 'inspect', 'gen3-template-postgres']))[0]
-assert container['Config']['Labels'].get('codex.goal') == 'gen3-template-v3'
-values = dict(item.split('=', 1) for item in container['Config']['Env'] if '=' in item)
-url = ('postgresql+psycopg://' + quote(values.get('POSTGRES_USER', 'postgres'), safe='')
-       + ':' + quote(values['POSTGRES_PASSWORD'], safe='')
-       + '@127.0.0.1:15471/template_control')
+url = os.environ['APP_TEST_CONTROL_URL']
 result = finish(root, Catalog(application_modules()), sys.argv[1], url)
 print(json.dumps(result, ensure_ascii=False, indent=2))
 """
 
 
 # 在真实开发命令里走模拟、确认、开工和双库收工，不伪造检查记录。
-@pytest.mark.sqlite_template
+@pytest.mark.postgres_only
 def test_real_task_commands_use_fresh_database_evidence(tmp_path: Path) -> None:
     if os.environ.get(COPY_FLAG):
         pytest.skip("模板副本不递归执行任务验收")
+    control = os.environ.get("APP_TEST_CONTROL_URL")
+    if not control:
+        pytest.skip("需要显式PostgreSQL隔离控制连接")
     copy = tmp_path / "product"
     initialize(PROJECT, copy, "任务命令验收")
     spec = write_inputs(copy)
-    env = subprocess_environment() | {COPY_FLAG: "1"}
+    env = subprocess_environment() | {COPY_FLAG: "1", "APP_TEST_CONTROL_URL": control}
     entry = ["-c", "from fastapi_dev.main import main; main()"]
     run(copy, [*entry, "skeleton", "--spec", str(spec)], env)
     first = json.loads(
@@ -76,7 +73,7 @@ def test_real_task_commands_use_fresh_database_evidence(tmp_path: Path) -> None:
     )
     output = run(copy, ["-c", PRIVATE_FINISH, card["id"]], env)
     result = conclusion(output)
-    assert result["state"] == "complete" and result["checks"]
+    assert result["state"] == "complete" and result["checks"], result["problems"]
     assert (copy / result["panel"]).is_file()
     record = json.loads(
         (copy / "server/var/development/checks" / (result["checks"][-1] + ".json")).read_text()

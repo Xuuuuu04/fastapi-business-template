@@ -52,3 +52,18 @@ def test_plan_merge_keeps_planned_operations_and_detects_purpose_conflict() -> N
     incoming["lines"][0]["packages"][0]["title"] = "右侧目的"
     with pytest.raises(ValueError, match="语义冲突"):
         merge_plans([original, local, incoming])
+
+
+# 空业务线也是明确计划，删除业务线和另一侧新增包不能悄悄缩减目标。
+def test_empty_lines_and_delete_against_new_package() -> None:
+    original, local, incoming = plan(["start"]), plan(["start"]), plan(["start"])
+    local["lines"].append({"name": "未来业务线", "packages": []})
+    assert any(
+        line["name"] == "未来业务线" for line in merge_plans([original, local, incoming])["lines"]
+    )
+    local["lines"] = []
+    incoming["lines"][0]["packages"].append(
+        {"module": "future_package", "title": "未来业务", "operations": ["start"]}
+    )
+    with pytest.raises(ValueError, match="业务线删除"):
+        merge_plans([original, local, incoming])

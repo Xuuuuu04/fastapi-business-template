@@ -4,6 +4,8 @@ AGENTS当前状态由登记生成，每模块一行；具体操作通过模块/�
 
 from pathlib import Path
 
+from fastapi_project.development.ledger_sections import manual_text
+
 from shared.modules.catalog import Catalog
 
 BEGIN = "<!-- fastapi-current-state:begin -->"
@@ -14,12 +16,12 @@ END = "<!-- fastapi-current-state:end -->"
 def recent_change(project: Path, module: str) -> str:
     path = project / "doc" / module / "changes.md"
     try:
-        lines = path.read_text().splitlines()
+        lines = manual_text(path.read_text(), "changes").splitlines()
     except OSError:
-        return "还没有写过变化记录（doc/模块名/changes.md 不存在）"
+        return "还没有手写业务变化记录"
     return next(
         (line.removeprefix("## ").strip()[:100] for line in lines if line.startswith("## ")),
-        "变化记录还是空的",
+        "还没有手写业务变化记录",
     )
 
 

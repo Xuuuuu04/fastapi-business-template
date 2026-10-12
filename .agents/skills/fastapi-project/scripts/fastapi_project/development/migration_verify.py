@@ -9,13 +9,14 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from fastapi_check.matrix import clean_environment
 from fastapi_project.development.check_assets import atomic_bytes
 from fastapi_project.development.database_leases import allocate_database, release_database
-from sqlalchemy import MetaData, Table, insert, inspect, select
+from sqlalchemy import DateTime, MetaData, Table, insert, inspect, select
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -81,6 +82,19 @@ def reflected(connection: Connection, name: str) -> Table:
     return Table(name, MetaData(), autoload_with=connection)
 
 
+# JSON样例的ISO时间按实际列类型还原；SQLite文本时间保持原样，不以VARCHAR比较PG时间列。
+def seed_values(table: Table, row: dict) -> dict:
+    result = dict(row["values"])
+    for name, value in result.items():
+        datatype = table.c[name].type
+        if isinstance(datatype, DateTime) and isinstance(value, str):
+            moment = datetime.fromisoformat(value)
+            if datatype.timezone and moment.tzinfo is None:
+                raise ValueError("合成时间样例必须明确时区")
+            result[name] = moment
+    return result
+
+
 # 旧行由独立测试提供，表和列通过实际反射检查，SQL值使用绑定参数。
 async def seed(url: str, rows: list[dict]) -> list[dict]:
     engine = create_async_engine(url)
@@ -93,7 +107,9 @@ async def seed(url: str, rows: list[dict]) -> list[dict]:
                     tables[name] = await connection.run_sync(reflected, name)
                 if not set(row["values"]) <= set(tables[name].columns.keys()):
                     raise ValueError("合成旧行包含未知列")
-                await connection.execute(insert(tables[name]).values(**row["values"]))
+                await connection.execute(
+                    insert(tables[name]).values(**seed_values(tables[name], row))
+                )
         return rows
     finally:
         await engine.dispose()
@@ -107,7 +123,7 @@ async def preserved(url: str, rows: list[dict]) -> bool:
             for row in rows:
                 table = await connection.run_sync(reflected, row["table"])
                 query = select(table).where(
-                    *(table.c[name] == value for name, value in row["values"].items())
+                    *(table.c[name] == value for name, value in seed_values(table, row).items())
                 )
                 if (await connection.execute(query)).first() is None:
                     return False

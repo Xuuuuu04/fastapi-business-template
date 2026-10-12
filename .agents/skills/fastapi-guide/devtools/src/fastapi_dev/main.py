@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 
 COMMANDS = {
+    "pin": "fastapi_project.retention",
+    "gc": "fastapi_project.retention",
     "merge": "fastapi_project.integration",
     "panel": "fastapi_project.panel",
     "skeleton": "fastapi_module.skeleton",

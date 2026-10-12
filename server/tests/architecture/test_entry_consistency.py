@@ -73,6 +73,23 @@ def test_agents_current_state_generation(tmp_path: Path) -> None:
     assert render(catalog, tmp_path, set()) == current
 
 
+# 派生账本变化不成为手写业务标题，第一次导出后入口不能立即过期。
+def test_generated_ledger_changes_do_not_expire_entry(tmp_path: Path) -> None:
+    from fastapi_project.development.ledger_sections import section
+
+    catalog = Catalog([module])
+    path = tmp_path / "AGENTS.md"
+    path.write_text("# 我的产品\n")
+    current = render(catalog, tmp_path, set())
+    path.write_text(current)
+    changes = tmp_path / "doc/pipeline_sample/changes.md"
+    changes.parent.mkdir(parents=True)
+    changes.write_text(section(changes, "changes", "## 账本修订\n\n- 合成修订事件"))
+    assert not stale(catalog, tmp_path, set())
+    changes.write_text("## 产品实际调整\n\n" + changes.read_text())
+    assert stale(catalog, tmp_path, set())
+
+
 # 大项目全局文本摘要仍在一屏内，细节命令与省略总数可见。
 def test_global_summary_is_one_screen() -> None:
     from fastapi_project.development.screen_summary import render

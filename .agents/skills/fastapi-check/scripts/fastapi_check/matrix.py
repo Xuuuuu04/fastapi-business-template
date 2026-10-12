@@ -102,7 +102,7 @@ def execute_matrix(
     from time import perf_counter
 
     workers = max(0, options.workers // len(selected))
-    arguments = [*command, *(["-n", str(workers)] if workers else [])]
+    arguments = [*command, *(["--dist=worksteal", "-n", str(workers)] if workers else [])]
 
     # 各子进程只写自己的临时结果，控制进程按数据库顺序汇总。
     def execute(database: str) -> tuple[str, bool, dict[str, Any], float]:

@@ -24,6 +24,7 @@ LOCKED = (
     "app/api/identity.py",
     "app/api/identity_resolver.py",
     "app/api/middleware.py",
+    "app/api/clock.py",
     "app/api/replies.py",
     "app/api/runner.py",
     "../.agents/skills",

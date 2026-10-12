@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi_project.development.check_assets import atomic_bytes
 from fastapi_project.development.integration_json import blob, identity_merge
+from fastapi_project.development.ledger_sections import manual_text
 from fastapi_template.template.merge import merge_text
 
 TOKEN = "@@MODULE_INDEX@@\n"
@@ -61,3 +62,19 @@ def resolve_agents(project: Path, commits: tuple[str, str, str]) -> str | None:
         raise ValueError("AGENTS手写要求存在冲突")
     atomic_bytes(project / "AGENTS.md", change.content)
     return "AGENTS.md"
+
+
+# 规则与变化记录只有账本生成段可重建，段外原文仍按三方比较保留。
+def resolve_ledger_section(project: Path, commits: tuple[str, str, str], name: str) -> bool:
+    kind = Path(name).stem
+    if not re.fullmatch(r"doc/[a-z][a-z0-9_]*/(?:rules|changes)\.md", name):
+        return False
+    values = [blob(project, commit, name) for commit in commits]
+    if not all(value is not None for value in values):
+        return False
+    sources = [manual_text(value.decode(), kind).encode() for value in values if value is not None]
+    change = merge_text(name, *sources)
+    if change.state == "conflict" or change.content is None:
+        raise ValueError("规则或变化文档的手写内容存在冲突：" + name)
+    atomic_bytes(project / name, change.content)
+    return True
