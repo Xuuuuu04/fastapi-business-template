@@ -1,4 +1,6 @@
-"""检查清单索引可以重建；只缓存文件身份与派生清单，不替代原始检查证据。"""
+"""
+检查清单索引可以重建；只缓存文件身份与派生清单，不替代原始检查证据。
+"""
 
 import json
 import sqlite3
@@ -101,6 +103,7 @@ def attach_root(record: dict[str, Any], root: Path, include_cases: bool) -> dict
 
 # 比较独立清单事实；位置及加载结果不是检查内容。
 def compare_records(first: dict[str, Any], second: dict[str, Any]) -> None:
+    # 排除读取时才附加的位置和缓存结果。
     def normalized(record: dict[str, Any]) -> dict[str, Any]:
         return {
             **record,

@@ -5,6 +5,7 @@
 
 from shared.access.caller import PUBLIC, SIGNED_IN, Caller
 from shared.access.vault import Vault
+from shared.application.spec import ApplicationSpec, WorkerSpec
 from shared.cache.gate import ModuleCache
 from shared.data.fields import meaning
 from shared.data.models import CursorPage, Data, Nothing, Page, WorkData
@@ -45,6 +46,8 @@ from shared.remote_calls.gate import RemoteGate as RemoteClient
 from shared.remote_calls.remote import remote
 
 __all__ = [
+    "ApplicationSpec",
+    "WorkerSpec",
     "PUBLIC",
     "SIGNED_IN",
     "BusinessError",

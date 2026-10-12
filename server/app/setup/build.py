@@ -10,10 +10,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.setup.application import application as declared_application
 from app.setup.catalog import MODULES
 from app.setup.operations import with_operations
 from app.setup.structure import ROOT, check_structure
 from shared.access.vault import Vault
+from shared.application.spec import ApplicationSpec
 from shared.cache.backends import Cache, MemoryCache, RedisCache
 from shared.config.settings import Settings, check_production
 from shared.db.budget import QueryPolicy
@@ -74,13 +76,17 @@ def build(
     *,
     modules: Sequence[Module] | None = None,
     provider: ModelProvider | None = None,
+    application: ApplicationSpec | None = None,
 ) -> Services:
+    specification = application or declared_application()
+    settings = specification.prepare(settings)
+    registered = list(specification.modules) if specification.modules is not None else MODULES
     if modules is None:
-        check_structure(MODULES, strict=settings.module_dependencies_strict)
-        migration_errors = check_migrations(ROOT, MODULES, settings)
+        check_structure(registered, strict=settings.module_dependencies_strict)
+        migration_errors = check_migrations(ROOT, registered, settings)
         if migration_errors:
             raise ConfigError(migration_errors)
-    selected = enabled_modules(settings) if modules is None else modules
+    selected = enabled_modules(settings, registered) if modules is None else modules
     catalog = Catalog(
         with_operations(settings, selected), strict_endpoints=settings.remote_endpoints_strict
     )
@@ -100,6 +106,8 @@ def build(
         else SqlRunStore(database)
     )
     recorder = Recorder(store, buffer=settings.run_record_buffer)
+    if provider is None and specification.model_provider is not None and settings.env != "test":
+        provider = specification.model_provider(settings)
     models = model_service(settings, catalog, provider)
     services = finish_build(settings, catalog, database, recorder, models)
     services.runtime.query_policy = query_policy(settings)
@@ -109,11 +117,12 @@ def build(
 
 
 # 关闭模块只影响接口和执行入口，保留其数据库表与历史数据。
-def enabled_modules(settings: Settings) -> list[Module]:
-    unknown = set(settings.disabled_modules) - {module.name for module in MODULES}
+def enabled_modules(settings: Settings, registered: Sequence[Module] | None = None) -> list[Module]:
+    registered = MODULES if registered is None else registered
+    unknown = set(settings.disabled_modules) - {module.name for module in registered}
     if unknown:
         raise ConfigError([f"APP_DISABLED_MODULES 中的模块没有登记：{', '.join(sorted(unknown))}"])
-    return [module for module in MODULES if module.name not in settings.disabled_modules]
+    return [module for module in registered if module.name not in settings.disabled_modules]
 
 
 # 生产环境中，模块声明的每个外部系统都必须配置地址。

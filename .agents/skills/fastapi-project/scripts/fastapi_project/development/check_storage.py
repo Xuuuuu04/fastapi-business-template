@@ -1,4 +1,6 @@
-"""CheckRecord v2：检查清单、测试结果流和运行对象分别保存，读取范围由调用方选择。"""
+"""
+CheckRecord v2：检查清单、测试结果流和运行对象分别保存，读取范围由调用方选择。
+"""
 
 import gzip
 import hashlib
@@ -108,15 +110,20 @@ def export_record(source: Path, destination: Path) -> Path:
         for suite in record.get("suites", []):
             suite["_artifact_root"] = str(source.parent)
             for case in iter_cases(suite):
-                for run in case.get("runs", []):
-                    if run.get("detail_ref"):
-                        expand_run(run)
-                        copy_asset(source.parent, destination, run["detail_ref"]["file"])
+                copy_case_assets(source.parent, destination, case)
             copy_asset(source.parent, destination, suite["case_file"])
             suite.pop("_artifact_root", None)
     target = asset_path(destination, source.name)
     atomic_bytes(target, (json.dumps(record, ensure_ascii=False) + "\n").encode())
     return target
+
+
+# 每项测试只复制明确引用且校验通过的轨迹。
+def copy_case_assets(source: Path, destination: Path, case: dict[str, Any]) -> None:
+    for run in case.get("runs", []):
+        if run.get("detail_ref"):
+            expand_run(run)
+            copy_asset(source, destination, run["detail_ref"]["file"])
 
 
 # 复制范围由清单明确给出，文件链接与越界路径统一拒绝。

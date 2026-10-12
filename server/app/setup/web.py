@@ -14,7 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.errors import add_error_handlers
 from app.api.middleware import RequestLimits, RequestMiddleware
 from app.api.routers import routers_for
+from app.setup.application import application as declared_application
 from app.setup.build import Services, build
+from shared.application.spec import ApplicationSpec
 from shared.config.settings import Settings
 from shared.logs.setup import setup_logs
 
@@ -25,13 +27,20 @@ log = logging.getLogger("server.setup")
 
 
 # 组装应用，供运行、测试和离线文档导出共同使用。
-def create_app(settings: Settings | None = None, services: Services | None = None) -> FastAPI:
-    settings = settings or Settings()
+def create_app(
+    settings: Settings | None = None,
+    services: Services | None = None,
+    *,
+    application: ApplicationSpec | None = None,
+) -> FastAPI:
+    specification = application or declared_application()
+    settings = settings or (services.settings if services else specification.settings())
+    settings = specification.prepare(settings)
     setup_logs(json_lines=settings.env == "production")
-    services = services or build(settings)
+    services = services or build(settings, application=specification)
     app = FastAPI(
         title=settings.name,
-        version=settings.code_version,
+        version=specification.version,
         description="按模块组织的单体后端。每个接口背后是一个登记过的操作，可以按运行编号查看执行过程。",
         docs_url="/docs" if settings.docs else None,
         redoc_url="/redoc" if settings.docs else None,
@@ -40,6 +49,19 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     )
     app.state.settings = settings
     app.state.services = services
+    app.state.application = specification
+    configure_http(app, settings)
+    for router in routers_for(services.catalog.modules):
+        app.include_router(router)
+    for router in specification.routers:
+        app.include_router(router)
+    if specification.api_setup is not None:
+        specification.api_setup(app)
+    return app
+
+
+# 请求限制、安全响应和错误格式由同一配置初始化。
+def configure_http(app: FastAPI, settings: Settings) -> None:
     app.state.limits = RequestLimits(
         settings.max_body_bytes,
         settings.max_inflight,
@@ -66,9 +88,6 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             ],
             expose_headers=["X-Request-ID", "X-Run-ID"],
         )
-    for router in routers_for(services.catalog.modules):
-        app.include_router(router)
-    return app
 
 
 # 启动时设置日志和运行记录的后台写入，关闭时写完剩余记录并释放资源。

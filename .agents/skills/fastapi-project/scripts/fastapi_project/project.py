@@ -22,8 +22,7 @@ from fastapi_project.development.summary import (
 )
 from fastapi_project.development.views import module_markdown, project_graph, project_markdown
 
-from app.setup.catalog import MODULES
-from shared.config.settings import Settings
+from app.setup.application import application, application_modules
 from shared.modules.catalog import Catalog
 
 
@@ -68,8 +67,8 @@ def arguments() -> argparse.Namespace:
 # 全局或单模块视图均支持 JSON，供主干 Agent 直接抽取与分配工作。
 def main() -> None:
     args = arguments()
-    settings = Settings()
-    catalog = Catalog(MODULES)
+    settings = application().settings("runtime" if args.runs else "offline")
+    catalog = Catalog(application_modules())
     from fastapi_docs.export_docs import summaries
 
     for path, text in summaries(catalog, PROJECT).items():

@@ -34,10 +34,14 @@ dev = [
     "types-openpyxl>=3.1.5.20260827",
     "ijson>=3.3,<4",
     "pytest-xdist>=3.6,<4",
+    "fastapi-template-dev",
 ]
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+fastapi-template-dev = { path = "../.agents/skills/fastapi-guide/devtools", editable = true }
 
 [tool.pytest.ini_options]
 testpaths = [

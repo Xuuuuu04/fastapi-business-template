@@ -11,8 +11,7 @@ import argparse
 import asyncio
 import time
 
-from app.setup.catalog import MODULES
-from shared.config.settings import Settings
+from app.setup.application import application, application_modules
 from shared.db.database import Database
 from shared.graphs.lineage import explain, field_sources
 from shared.graphs.observed import run_report
@@ -71,14 +70,14 @@ def show_field(catalog: Catalog, name: str, field: str) -> None:
 
 # 解析命令并执行。
 async def run(args: argparse.Namespace) -> None:
-    catalog = Catalog(MODULES)
+    catalog = Catalog(application_modules())
     if args.command == "flow":
         show_flow(catalog, args.name)
         return
     if args.command == "field":
         show_field(catalog, args.name, args.field)
         return
-    settings = Settings()
+    settings = application().settings()
     if settings.run_records != "database":
         print("提示：当前配置 APP_RUN_RECORDS=memory，服务进程的记录不在数据库中。")
     database = Database(settings.database_url)

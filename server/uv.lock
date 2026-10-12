@@ -321,6 +321,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "fastapi-template-dev" },
     { name = "ijson" },
     { name = "mypy" },
     { name = "pytest" },
@@ -354,6 +355,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "fastapi-template-dev", editable = "../.agents/skills/fastapi-guide/devtools" },
     { name = "ijson", specifier = ">=3.3,<4" },
     { name = "mypy", specifier = ">=1.13,<2" },
     { name = "pytest", specifier = ">=8,<10" },
@@ -362,6 +364,17 @@ dev = [
     { name = "types-openpyxl", specifier = ">=3.1.5.20260827" },
     { name = "types-psutil", specifier = ">=6" },
 ]
+
+[[package]]
+name = "fastapi-template-dev"
+version = "3.0.0"
+source = { editable = "../.agents/skills/fastapi-guide/devtools" }
+dependencies = [
+    { name = "ijson" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ijson", specifier = ">=3.3,<4" }]
 
 [[package]]
 name = "googleapis-common-protos"

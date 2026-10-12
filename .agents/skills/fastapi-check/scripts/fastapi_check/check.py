@@ -87,11 +87,11 @@ def run_tests(
 
 # 迁移历史与启动使用同一检查，旧产品默认提醒。
 def migration_check() -> bool:
+    from app.setup.application import application
     from app.setup.catalog import MODULES
-    from shared.config.settings import Settings
     from shared.db.ownership import check_migrations
 
-    errors = check_migrations(ROOT, MODULES, Settings())
+    errors = check_migrations(ROOT, MODULES, application().settings("test"))
     for error in errors:
         print(error, flush=True)
     return not errors
@@ -100,7 +100,6 @@ def migration_check() -> bool:
 # 保存每轮的检查结果；检查期间源码改变时，该轮不能证明当前版本。
 def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
     from app.setup.catalog import MODULES
-    from shared.config.settings import Settings
     from shared.modules.catalog import Catalog
 
     started = perf_counter()
@@ -108,11 +107,7 @@ def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
     links = Catalog(MODULES).links()
     before = fingerprints(PROJECT, modules, links)
     system_before = system_fingerprint(PROJECT)
-    env = {**os.environ, "APP_DISABLED_MODULES": "[]", "APP_DEVELOPMENT_REPEAT_DATABASE": "0"}
-    if postgres:
-        env.pop("APP_TEST_DATABASE_URL", None)
-    env["APP_MODULE_DEPENDENCIES_STRICT"] = str(Settings().module_dependencies_strict).lower()
-    env["APP_DEVELOPMENT_MODULES"] = json.dumps([] if selection.quick else list(selection.modules))
+    env = check_environment(selection, postgres)
     selected = steps(selection)
     timings: dict[str, float] = {}
     results = [("迁移表归属", migration_check())]
@@ -147,6 +142,20 @@ def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
         selection, before, system_before, modules, links, results, suites, timings, started
     )
     return results
+
+
+# 测试环境明确选择数据库，产品策略从隔离配置读取。
+def check_environment(selection: Selection, postgres: str) -> dict[str, str]:
+    from app.setup.application import application
+
+    env = {**os.environ, "APP_DISABLED_MODULES": "[]", "APP_DEVELOPMENT_REPEAT_DATABASE": "0"}
+    if postgres:
+        env.pop("APP_TEST_DATABASE_URL", None)
+    env["APP_MODULE_DEPENDENCIES_STRICT"] = str(
+        application().settings("test").module_dependencies_strict
+    ).lower()
+    env["APP_DEVELOPMENT_MODULES"] = json.dumps([] if selection.quick else list(selection.modules))
+    return env
 
 
 # 版本在执行前后比较，计时包括版本读取；记录不保存连接地址或测试数据。
