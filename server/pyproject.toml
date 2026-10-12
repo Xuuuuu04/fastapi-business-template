@@ -32,6 +32,8 @@ dev = [
     "mypy>=1.13,<2",
     "types-psutil>=6",
     "types-openpyxl>=3.1.5.20260827",
+    "ijson>=3.3,<4",
+    "pytest-xdist>=3.6,<4",
 ]
 
 [tool.uv]

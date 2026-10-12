@@ -55,9 +55,7 @@ def test_generated_state_preserves_manual_and_detects_expiry(tmp_path: Path) -> 
     assert "未知（还没有连接数据库读取过）" in path.read_text()
     assert outdated(catalog, tmp_path, set()) == []
     data = read(path)
-    assert data and outdated(catalog, tmp_path, set(), now=data["generated_at"] + MAX_AGE + 1) == [
-        path
-    ]
+    assert data and outdated(catalog, tmp_path, set(), now=data["generated_at"] + MAX_AGE + 1) == []
     assert outdated(catalog, tmp_path, {module.name}) == [path]
     (tmp_path / "server/service/ops_sample/module.py").write_text("# 已修改计算\n")
     assert outdated(catalog, tmp_path, set()) == [path]

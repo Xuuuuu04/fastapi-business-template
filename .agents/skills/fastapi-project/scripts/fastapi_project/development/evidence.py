@@ -54,9 +54,7 @@ def system_fingerprint(project: Path) -> str:
     return fingerprint(
         [
             *[
-                project / name.removeprefix("../")
-                if name.startswith("../")
-                else server / name
+                project / name.removeprefix("../") if name.startswith("../") else server / name
                 for name in COMMON
             ],
             server / "app/setup/catalog.py",

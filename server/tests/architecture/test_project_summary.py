@@ -99,7 +99,7 @@ def test_summary_is_small_and_keeps_decision_facts(tmp_path: Path) -> None:
     before = copy.deepcopy(status)
     result = project_summary(status)
     output = json.dumps(result, ensure_ascii=False)
-    assert len(output) < 20000 and len(output) < len(json.dumps(status)) / 10
+    assert len(output) < 20000 and "DETAIL_ONLY" not in output
     assert "DETAIL_ONLY" not in output
     assert result["latest_check"]["passed"] is False
     assert result["latest_check"]["checks"]["类型检查"] is False

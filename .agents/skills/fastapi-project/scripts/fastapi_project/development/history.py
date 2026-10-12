@@ -4,12 +4,11 @@
 """
 
 import hashlib
-import json
-import uuid
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from fastapi_project.development.check_index import read_records
+from fastapi_project.development.check_storage import load_cases, save_record
 from fastapi_project.development.versions import (
     EXCLUDED,
     REGISTRATIONS,
@@ -158,40 +157,14 @@ def fingerprints(
 
 # 原子保存一轮检查，独立编号避免并行工作覆盖彼此的结果。
 def save_check(project: Path, record: dict[str, Any]) -> Path:
-    folder = project / "server" / "var" / "development" / "checks"
-    folder.mkdir(parents=True, exist_ok=True)
-    identity = uuid.uuid4().hex
-    record = {
-        **record,
-        "schema_version": 1,
-        "id": identity,
-        "finished_at": datetime.now(UTC).isoformat(),
-    }
-    path = folder / f"{identity}.json"
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(path)
-    return path
+    return save_record(project, record)
 
 
 # 读取已保留的轮次；损坏记录直接报错，不悄悄当成没有测试。
-def read_checks(project: Path, extra: list[Path] | None = None) -> list[dict[str, Any]]:
-    folder = project / "server" / "var" / "development" / "checks"
-    files = {path.resolve() for path in folder.glob("*.json")}
-    for directory in extra or []:
-        if not directory.is_dir():
-            raise ValueError(f"检查记录目录不存在：{directory}")
-        files |= {path.resolve() for path in directory.glob("*.json")}
-    checks: dict[str, dict[str, Any]] = {}
-    for path in files:
-        check = json.loads(path.read_text(encoding="utf-8"))
-        if check.get("schema_version") != 1:
-            raise ValueError(f"检查记录格式不支持：{path}")
-        identity = check.get("id") or hashlib.sha256(path.read_bytes()).hexdigest()
-        if identity in checks and checks[identity] != check:
-            raise ValueError(f"同一轮检查内容不一致：{path}")
-        checks[identity] = check
-    return sorted(checks.values(), key=lambda check: check["finished_at"])
+def read_checks(
+    project: Path, extra: list[Path] | None = None, *, include_cases: bool = True
+) -> list[dict[str, Any]]:
+    return read_records(project, extra, include_cases)
 
 
 # 每种数据库分别取最近一轮，旧版本结果保留但明确显示过期。
@@ -208,4 +181,6 @@ def module_checks(checks: list[dict[str, Any]], module: str, current: str) -> di
                 "source_changed": check["source_changed"],
                 "fingerprints": check["fingerprints"],
             }
+    for suite in latest.values():
+        suite["cases"] = load_cases(suite)
     return {"rounds": len(selected), "latest": latest}

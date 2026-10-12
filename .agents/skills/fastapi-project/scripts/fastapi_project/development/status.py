@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi_docs.progress_doc import pending_of, rules_of, tested_rules
+from fastapi_project.development.check_storage import load_cases
 from fastapi_project.development.evidence import (
     case_current,
     check_scope,
@@ -112,13 +113,15 @@ def latest_check_status(check: dict[str, Any]) -> dict[str, Any]:
 
     suites = {}
     for suite in check["suites"]:
+        cases = load_cases(suite)
         suites[suite["database"]] = {
             **suite,
+            "cases": cases,
             "finished_at": check["finished_at"],
             "current": not check["source_changed"],
             "checks_passed": check["passed"],
             "counts": {
-                status: sum(case["outcome"] == status for case in suite["cases"])
+                status: sum(case["outcome"] == status for case in cases)
                 for status in ("passed", "failed", "skipped")
             },
         }
@@ -154,7 +157,7 @@ def project_status(
     extra_checks: list[Path] | None = None,
 ) -> dict[str, Any]:
     plan = read_plan(project)
-    checks = read_checks(project, extra_checks)
+    checks = read_checks(project, extra_checks, include_cases=False)
     codes = fingerprints(project, list(catalog.modules), catalog.links())
     modules = {
         name: module_status(catalog, project, name, checks, codes[name], disabled or set(), codes)
