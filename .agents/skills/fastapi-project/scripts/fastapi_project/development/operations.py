@@ -65,6 +65,7 @@ def operation_status(
         ],
         "pipelines": memberships(catalog, operation),
         "title": binding.contract.title,
+        "effect": binding.contract.effect or "unknown",
         "steps": steps,
         "graph": flow_graph(binding),
         "test_graph": flow_graph(binding, {step["name"]: step for step in recent["steps"]})

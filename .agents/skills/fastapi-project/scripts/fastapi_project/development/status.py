@@ -22,6 +22,7 @@ from fastapi_project.development.scenarios import scenario_status
 
 from shared.graphs.static import module_graph
 from shared.modules.catalog import Catalog
+from shared.modules.libraries import library_links, library_specs
 
 
 # 筛出属于本模块的测试，也保留其他模块测试中实际调用本模块的记录。
@@ -77,6 +78,7 @@ def module_status(
     return {
         "name": name,
         "title": module.title,
+        "kind": module.kind or "unknown",
         "enabled": name not in disabled,
         "code": f"server/service/{name}",
         "fingerprint": fingerprint,
@@ -187,6 +189,8 @@ def project_status(
         "modules": modules,
         "module_graph": module_graph(catalog),
         "dependencies": catalog.links(),
+        "libraries": [item.shape() for item in library_specs(project / "server")],
+        "library_dependencies": library_links(project / "server"),
         "check_rounds": len(checks),
         "latest_check": latest_check_status(checks[-1]) if checks else None,
         "latest_full_check": full_check_status(checks, codes, project),

@@ -6,9 +6,12 @@ import shlex
 from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
+
+from fastapi_check.quality.rules import ROOT
 
 from shared.modules.catalog import Catalog
+from shared.modules.libraries import library_links
 from shared.modules.validation.framework_lock import LOCKED
 
 MODULE_AREAS = (
@@ -120,13 +123,19 @@ def dependent_reasons(catalog: Catalog, direct: Iterable[str]) -> dict[str, list
 
 # 未登记模块仍列为直接改动；其调用方未知时建议全检查，不生成不可执行的模块命令。
 def impact_scope(
-    files: Iterable[str], catalog: Catalog, disabled_modules: Iterable[str] = ()
+    files: Iterable[str],
+    catalog: Catalog,
+    disabled_modules: Iterable[str] = (),
+    root: Path = ROOT,
 ) -> ImpactScope:
     paths = sorted(set(files))
     registered = sorted(catalog.modules)
     direct_reasons: dict[str, list[str]] = {}
     unmapped = []
+    tools = library_links(root)
     for path in paths:
+        if record_tool_impact(path, tools, catalog, direct_reasons):
+            continue
         owner = module_area(path, registered)
         if owner is None:
             unmapped.append(path)
@@ -163,6 +172,34 @@ def impact_scope(
         unknown,
         unmapped,
     )
+
+
+# 工具文件只投射到实际登记的调用者，找不到调用者时继续标记未知。
+def record_tool_impact(
+    path: str, tools: dict[str, list[str]], catalog: Catalog, reasons: dict[str, list[str]]
+) -> bool:
+    if not path.startswith("server/library/"):
+        return False
+    parts = PurePosixPath(path).parts
+    if len(parts) < 3:
+        return False
+    users = tool_users(parts[2], tools).intersection(catalog.modules)
+    for user in users:
+        reasons.setdefault(user, []).append(f"工具{parts[2]}改动：{path}")
+    return bool(users)
+
+
+# 工具的使用者也包括间接工具与调用模块，不把未声明关系猜成无影响。
+def tool_users(name: str, links: dict[str, list[str]]) -> set[str]:
+    found = set()
+    pending = [name]
+    while pending:
+        target = pending.pop()
+        for user, dependencies in links.items():
+            if target in dependencies and user not in found:
+                found.add(user)
+                pending.append(user)
+    return found
 
 
 # 同一层只给一个多包命令，避免每个包重复执行公共检查。

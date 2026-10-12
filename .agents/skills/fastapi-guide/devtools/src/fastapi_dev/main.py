@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 
 COMMANDS = {
+    "plan": "fastapi_dev.plan",
+    "new-library": "fastapi_module.new_library",
     "check": "fastapi_check.check",
     "status": "fastapi_project.project",
     "locate": "fastapi_project.locate",
@@ -45,10 +47,11 @@ def bootstrap(root: Path) -> None:
 
 # inspect只输出声明，既不创建服务也不读取环境配置。
 def inspect_application() -> None:
-    from app.setup.application import application, application_modules
+    from app.setup.application import application, application_libraries, application_modules
 
     description = application().describe()
     description["modules"] = [item.name for item in application_modules()]
+    description["libraries"] = [item.shape() for item in application_libraries()]
     print(json.dumps(description, ensure_ascii=False, indent=2))
 
 

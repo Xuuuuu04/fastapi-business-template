@@ -5,6 +5,7 @@
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from shared.data.models import Data
 from shared.db.budget import QueryBudget
@@ -27,6 +28,7 @@ class Contract[In: Data, Out: Data]:
 
     aliases: tuple[str, ...] = ()
     query_budget: QueryBudget | None = None
+    effect: Literal["query", "command"] | None = None
 
     # 约定名称的第一段是提供它的模块名。
     @property
@@ -54,6 +56,7 @@ def contract[In: Data, Out: Data](
     stream: bool = False,
     aliases: tuple[str, ...] = (),
     query_budget: QueryBudget | None = None,
+    effect: Literal["query", "command"] | None = None,
 ) -> Contract[In, Out]:
     return Contract(
         name,
@@ -68,4 +71,5 @@ def contract[In: Data, Out: Data](
         stream,
         aliases=aliases,
         query_budget=query_budget,
+        effect=effect,
     )

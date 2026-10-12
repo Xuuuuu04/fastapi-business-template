@@ -92,6 +92,15 @@ def check_marker(folder: Path) -> list[str]:
             f"service/{folder.name}/module.json：缺少有效的结构说明；"
             "新包用 fastapi_module.new_module，旧包用 fastapi_module.adopt_modules"
         ]
-    if content not in (descriptor(folder.name), descriptor(folder.name, strict=True)):
+    kind = content.get("kind") if isinstance(content, dict) else None
+    normalized = (
+        {key: value for key, value in content.items() if key != "kind"}
+        if isinstance(content, dict)
+        else content
+    )
+    if kind not in (None, "capability", "workflow") or normalized not in (
+        descriptor(folder.name),
+        descriptor(folder.name, strict=True),
+    ):
         return [f"service/{folder.name}/module.json：结构说明与标准业务包不一致"]
     return []

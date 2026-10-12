@@ -87,7 +87,12 @@ def check_pure(path: Path, root: Path) -> list[Problem]:
             for alias in node.names:
                 full = alias.name if isinstance(node, ast.Import) else f"{node.module}.{alias.name}"
                 aliases[alias.asname or alias.name.split(".")[0]] = full
-                if not pure_import(full, path.parent.parent.name):
+                own = (
+                    path.relative_to(root).parts[1]
+                    if path.relative_to(root).parts[0] == "library"
+                    else path.parent.parent.name
+                )
+                if not pure_import(full, own):
                     problems.append(issue(path, root, node.lineno, f"纯计算导入了 {full}"))
     for node in nodes:
         if isinstance(node, ast.Call):
@@ -99,10 +104,13 @@ def check_pure(path: Path, root: Path) -> list[Problem]:
 
 # 日期类型可作为参数，但读时钟、随机数和未知第三方能力不允许。
 def pure_import(name: str, own: str) -> bool:
+    parts = name.split(".")
+    if parts[0] == "library" and len(parts) >= 3:
+        return parts[2] == "public" or (parts[1] == own and parts[2] in {"calc", "data"})
     if name.startswith(f"service.{own}.calc."):
         return True
     if name.startswith("shared.public."):
-        return name.removeprefix("shared.public.") in PURE_PUBLIC
+        return name.removeprefix("shared.public.") in PURE_PUBLIC | {"Endpoint", "EndpointReply"}
     return name.split(".")[0] in PURE_LIBRARIES
 
 

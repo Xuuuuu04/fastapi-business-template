@@ -20,6 +20,8 @@ from fastapi_project.development.versions import (
     route_ownership,
 )
 
+from shared.modules.libraries import library_closure, library_links, library_specs
+
 COMMON = (
     "shared",
     "../.agents/skills",
@@ -68,12 +70,15 @@ def dependency_modules(name: str, links: dict[str, dict[str, list[str]]]) -> lis
 # 每个模块的业务代码、确认规则和测试共同决定它的检查版本。
 def module_paths(project: Path, name: str) -> list[Path]:
     server = project / "server"
+    libraries = {spec.name for spec in library_specs(server)}
+    closure = library_closure(name, library_links(server), libraries)
     return [
         server / "service" / name,
         project / "doc" / name / "rules.md",
         project / "doc" / name / "needs.md",
         server / "tests/modules" / name,
         server / "tests/integration" / name,
+        *[server / "library" / library for library in sorted(closure)],
     ]
 
 

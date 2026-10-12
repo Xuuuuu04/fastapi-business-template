@@ -89,6 +89,39 @@ def test_invalid_design_is_visible(operations: list[Any]) -> None:
         )
 
 
+# 依赖必须指向计划内的其他模块，直接或间接回到自己都不允许。
+def test_plan_dependencies_must_resolve_without_cycles() -> None:
+    # 按依赖表拼出一份最小计划，检查只关注依赖关系。
+    def plan(dependencies: dict[str, list[str]]) -> dict[str, Any]:
+        return {
+            "schema_version": 2,
+            "name": "产品",
+            "lines": [
+                {
+                    "name": "主线",
+                    "packages": [
+                        {
+                            "module": name,
+                            "title": name,
+                            "kind": "capability",
+                            "operations": ["run"],
+                            "dependencies": targets,
+                        }
+                        for name, targets in dependencies.items()
+                    ],
+                }
+            ],
+        }
+
+    check_plan(plan({"report_lists": ["source_records"], "source_records": []}))
+    with pytest.raises(ValueError, match="计划外"):
+        check_plan(plan({"report_lists": ["source_recordz"], "source_records": []}))
+    with pytest.raises(ValueError, match="计划外"):
+        check_plan(plan({"report_lists": ["report_lists"], "source_records": []}))
+    with pytest.raises(ValueError, match="循环"):
+        check_plan(plan({"alpha_lists": ["beta_lists"], "beta_lists": ["alpha_lists"]}))
+
+
 # 当前代码仅计入通过测试中的成功运行，拒绝、跳过和失败测试中的运行单独保留。
 def test_test_evidence_and_changed_source(tmp_path: Path) -> None:
     catalog = Catalog(MODULES)

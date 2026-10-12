@@ -14,6 +14,7 @@ from pathlib import Path
 from string import Template
 
 from fastapi_check.quality.rules import PROJECT, ROOT, VAGUE_NAMES
+from fastapi_module.registry import write_registry
 
 TEMPLATES = Path(__file__).resolve().parents[2] / "assets/templates"
 NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)+$")
@@ -56,6 +57,8 @@ def check_name(name: str) -> str:
         return f"模块名中不要使用含义模糊的词：{', '.join(sorted(VAGUE_NAMES))}"
     if (ROOT / "service" / name).exists():
         return f"模块 {name} 已经存在"
+    if (ROOT / "library" / name).exists():
+        return f"工具包 {name} 已经存在，业务包不能与工具包同名"
     return ""
 
 
@@ -74,7 +77,7 @@ def write_files(name: str, title: str) -> list[Path]:
 # 在模块总目录、路由清单和业务文档目录中登记新模块。
 def register(name: str, title: str) -> list[Path]:
     catalog = ROOT / "app" / "setup" / "catalog.py"
-    catalog.write_text(add_module(catalog.read_text(encoding="utf-8"), name), encoding="utf-8")
+    write_registry(ROOT)
     routers = ROOT / "app" / "api" / "routers.py"
     routers.write_text(add_route(routers.read_text(encoding="utf-8"), name), encoding="utf-8")
     add_doc_row(name, title)
@@ -157,11 +160,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="生成新业务模块的骨架")
     parser.add_argument("name", help="模块名，至少两个词，例如 customer_contact")
     parser.add_argument("--title", required=True, help="模块中文名，例如 客户联系人")
+    parser.add_argument("--kind", choices=["capability", "workflow"], default="capability")
     args = parser.parse_args()
     problem = check_name(args.name)
     if problem:
         sys.exit(problem)
     written = write_files(args.name, args.title)
+    marker = ROOT / "service" / args.name / "module.json"
+    import json
+
+    descriptor = json.loads(marker.read_text())
+    descriptor["kind"] = args.kind
+    marker.write_text(json.dumps(descriptor, ensure_ascii=False, indent=2) + "\n")
+    module = ROOT / "service" / args.name / "module.py"
+    module.write_text(module.read_text().replace('kind="capability"', f'kind="{args.kind}"'))
     tidy(written + register(args.name, args.title))
     print(f"已生成模块 {args.name}（{args.title}），共 {len(written)} 个文件，并已登记。接下来：")
     print(

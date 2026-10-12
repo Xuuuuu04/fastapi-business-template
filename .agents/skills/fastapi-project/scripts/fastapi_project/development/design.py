@@ -11,6 +11,7 @@ from fastapi_project.development.plan import read_plan
 from shared.graphs.mermaid import label, node_id
 from shared.graphs.static import module_graph
 from shared.modules.catalog import Catalog
+from shared.modules.libraries import library_links, library_specs
 
 
 # 从根节点生成业务线与模块图，并逐项列出还没有登记的目标操作。
@@ -30,12 +31,13 @@ def design_doc(catalog: Catalog, project: Path) -> str:
             missing = [operation for operation in targets if operation not in catalog.by_name]
             registered = len(targets) - len(missing)
             child = node_id("m", module)
-            text = f"{package['title']}：登记 {registered}/{len(targets)}"
+            count = f"{registered}/{len(targets)}" if targets else "操作尚未定义"
+            text = f"{package['title']}：登记 {count}"
             graph += [f'    {child}["{label(text)}"]', f"    {parent} --> {child}"]
             values = [
                 line["name"],
                 module,
-                f"{registered}/{len(targets)}",
+                count,
                 ", ".join(missing) or "无",
             ]
             rows.append("| " + " | ".join(cell(value) for value in values) + " |")
@@ -47,7 +49,20 @@ def design_doc(catalog: Catalog, project: Path) -> str:
                 f"    root --> {child}",
             ]
     graph += [line for line in module_graph(catalog).splitlines()[1:] if " -->|" in line]
+    graph += library_graph(project / "server")
     return design_text(graph, rows)
+
+
+# 工具与实际调用者从静态导入生成，不把计划依赖当作已经连接的代码。
+def library_graph(root: Path) -> list[str]:
+    specs = library_specs(root)
+    names = {spec.name for spec in specs}
+    graph = [f'    {node_id("m", spec.name)}["工具：{label(spec.title)}"]' for spec in specs]
+    for source, targets in sorted(library_links(root).items()):
+        for target in targets:
+            if target in names:
+                graph.append(f'    {node_id("m", source)} -->|"纯工具"| {node_id("m", target)}')
+    return graph
 
 
 # 自动生成说明只包含静态信息，实际测试状态留在机器上的检查记录中。

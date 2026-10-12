@@ -23,6 +23,7 @@ from shared.modules.aliases import check_aliases
 from shared.modules.contract import Contract
 from shared.modules.identity import check_identity
 from shared.modules.module import STORE_PARAMS, Module
+from shared.modules.policy import check_policy
 from shared.remote_calls.checks import check_endpoints
 
 NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
@@ -46,6 +47,7 @@ def check_catalog(modules: Sequence[Module]) -> list[str]:
     problems += check_cycles(modules, provided)
     problems += check_model_in_save(provided)
     problems += check_error_codes(provided)
+    problems += check_policy(modules)
     return problems
 
 
