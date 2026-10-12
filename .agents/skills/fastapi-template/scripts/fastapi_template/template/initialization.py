@@ -90,6 +90,12 @@ def native_documents(source: Path, target: Path, name: str) -> None:
 # 产品入口明确指向本产品的业务计划和可执行工具。
 def product_entry(target: Path, name: str) -> None:
     write(
+        target / "server/app/product.py",
+        '"""\n产品组装的唯一声明入口。\n"""\n\n'
+        "from shared.application.spec import ApplicationSpec\n\n"
+        f"APPLICATION = ApplicationSpec(name={json.dumps(name, ensure_ascii=False)})\n",
+    )
+    write(
         target / "README.md",
         f"# {name}\n\n业务计划见 [project-plan.json](project-plan.json)，"
         "开发入口见 [AGENTS.md](AGENTS.md)。\n\n```bash\ncd server\nuv sync\n"

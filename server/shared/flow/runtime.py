@@ -4,11 +4,8 @@
 每次运行都留下运行记录，异常会带上运行编号，方便按编号查询排查信息。
 """
 
-import asyncio
 import logging
-import time
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import suppress
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
 
@@ -19,10 +16,10 @@ from shared.access.caller import Caller
 from shared.data.models import Data
 from shared.db.budget import QueryPolicy, merge_child
 from shared.db.database import Database
-from shared.errors.framework import NotAllowed, NotSignedIn, StepRuleBroken
+from shared.errors.framework import StepRuleBroken
 from shared.flow.auditing import audit_failure, audit_hook
 from shared.flow.commit import Hook, commit_writes
-from shared.flow.entry_errors import after_external_write, check_access, fill_error, translate
+from shared.flow.entry_errors import check_access, fill_error, settle_entry, translate
 from shared.flow.heavy import HeavySteps
 from shared.flow.query_budget import check_query_budget
 from shared.flow.runner import execute
@@ -30,16 +27,22 @@ from shared.flow.scope import Scope, Transaction
 from shared.flow.streaming import stream_events
 from shared.jobs.checkpoint import Checkpoint
 from shared.jobs.imports import begin_import, reconcile_import
+from shared.jobs.submission import submit_entry
 from shared.modules.catalog import Binding, Catalog
 from shared.modules.contract import Contract
 from shared.records.models import RunRecord, StepRecord
 from shared.records.opening import open_record
 from shared.records.recorder import Recorder
 from shared.records.segments import warn_slow_batch
+from shared.scenarios.observations import ObservationPosition
+from shared.scenarios.simulation import mark_simulated
+from shared.timing.clock import Clock, RealClock
+from shared.timing.current import clocked
 
 if TYPE_CHECKING:
     from shared.access.vault import Vault
     from shared.cache.backends import Cache
+    from shared.effects.service import EffectService
     from shared.files.storage import FileStorage
     from shared.files.uploads import UploadArea
     from shared.flow.inject import JobSubmitter
@@ -54,6 +57,8 @@ MAX_DEPTH = 8
 
 # 执行已登记的业务操作，管理步骤、事务、模块调用与运行记录。
 class Runtime:
+    allow_simulation: bool = False
+
     # 汇总执行所需的模块目录、数据库、记录器、大模型服务和任务登记入口。
     def __init__(
         self,
@@ -74,6 +79,8 @@ class Runtime:
         step_checks: bool = True,
         heavy: HeavySteps | None = None,
         query_policy: QueryPolicy | None = None,
+        effects: "EffectService | None" = None,
+        clock: Clock | None = None,
     ) -> None:
         self.catalog = catalog
         self.database = database
@@ -92,8 +99,12 @@ class Runtime:
         self.step_checks = step_checks
         self.heavy = heavy or HeavySteps()
         self.query_policy = query_policy or QueryPolicy()
+        self.effects = effects
+        self.clock = clock or RealClock()
+        self._started: dict[str, float] = {}
 
     # 从接口或任务入口执行一个操作：检查权限，结束时提交或回滚写入。
+    @clocked
     async def run[In: Data, Out: Data](
         self,
         item: Contract[In, Out],
@@ -107,13 +118,17 @@ class Runtime:
         emitter: Callable[[str], Awaitable[None]] | None = None,
         checkpoint: Checkpoint | None = None,
         record_success: bool = True,
+        deadline: float | None = None,
+        observation_position: ObservationPosition | None = None,
     ) -> Out:
         binding = self.catalog.binding(item)
         if not item.entry:
             raise StepRuleBroken(f"操作 {item.name} 是内部操作，只能由其他模块调用")
-        deadline = asyncio.get_running_loop().time() + item.timeout
+        own_deadline = self.clock.monotonic() + item.timeout
+        deadline = min(own_deadline, deadline) if deadline is not None else own_deadline
         scope = Scope(self, caller, request_id, job_id, deadline, tx=Transaction(), emitter=emitter)
         scope.checkpoint, scope.record_success = checkpoint, record_success
+        scope.observation_position = observation_position
         run = self.open_run(binding, scope, None, None)
         span = (
             self.telemetry.tracer.start_span(
@@ -154,8 +169,9 @@ class Runtime:
             plan = self.catalog.plan(item.name)
             import_plan = plan.import_plan if plan is not None else None
             begin_import(import_plan, scope.checkpoint, run)
-            async with asyncio.timeout_at(scope.deadline):
-                result = await execute(binding, input, scope, run)
+            result = await self.clock.run(
+                execute(binding, input, scope, run), deadline=scope.deadline
+            )
             check_query_budget(self, run, item)
             if scope.checkpoint is not None:
                 scope.checkpoint.validate()
@@ -195,7 +211,7 @@ class Runtime:
         binding = self.catalog.binding(item)
         if parent.depth + 1 > MAX_DEPTH:
             raise StepRuleBroken(f"模块调用超过 {MAX_DEPTH} 层，请检查调用关系")
-        loop_time = asyncio.get_running_loop().time()
+        loop_time = self.clock.monotonic()
         scope = replace(
             parent, depth=parent.depth + 1, deadline=min(parent.deadline, loop_time + item.timeout)
         )
@@ -210,8 +226,9 @@ class Runtime:
         token = otel_context.attach(trace.set_span_in_context(span)) if span else None
         parent_step.children.append(run.id)
         try:
-            async with asyncio.timeout_at(scope.deadline):
-                result = await execute(binding, input, scope, run)
+            result = await self.clock.run(
+                execute(binding, input, scope, run), deadline=scope.deadline
+            )
             check_query_budget(self, run, item)
         except BaseException as error:
             problem = translate(error)
@@ -227,12 +244,14 @@ class Runtime:
             return cast(Out, result)
         finally:
             merge_child(parent_run, run)
+            mark_simulated(parent_run, parent_step, run)
             if span is not None and token is not None:
                 span.set_attribute("run.status", run.status)
                 otel_context.detach(token)
                 span.end()
 
     # 在独立的短事务中登记一个后台任务，返回任务编号。
+    @clocked
     async def submit(
         self,
         item: Contract[Data, Data],
@@ -242,41 +261,28 @@ class Runtime:
         key: str = "",
         request_id: str = "",
     ) -> str:
-        if self.jobs is None:
-            raise StepRuleBroken("没有启用后台任务功能")
-        check_access(item, caller)
-        async with self.database.write() as connection:
-            return await self.jobs.submit(
-                connection, item, input, caller, key=key, request_id=request_id
-            )
+        return await submit_entry(self, item, input, caller, key, request_id)
 
     # 处理入口调用的失败：回滚写入、整理错误、结束运行记录。
     async def settle(self, scope: Scope, run: RunRecord, error: BaseException) -> BaseException:
-        problem = translate(error)
-        if run.writes != "unknown":
-            run.writes = await scope.tx.rollback()
-        problem = after_external_write(problem, scope.remote_writes)
-        fill_error(run, problem)
-        refused = isinstance(problem, NotAllowed | NotSignedIn) and not run.steps
-        status = "refused" if refused else "failed"
-        await self.close_run(run, status)
-        with suppress(AttributeError):
-            problem.run_id = run.id  # type: ignore[attr-defined]
-        return problem
+        return await settle_entry(self, scope, run, error)
 
     # 创建一条运行记录并交给记录器。
     def open_run(
         self, binding: Binding, scope: Scope, parent: RunRecord | None, step: StepRecord | None
     ) -> RunRecord:
-        return open_record(self, binding, scope, parent, step)
+        run = open_record(self, binding, scope, parent, step)
+        self._started[run.id] = self.clock.monotonic()
+        return run
 
     # 结束运行记录；记录器出错只写日志，不影响业务结果。
     async def close_run(self, run: RunRecord, status: str) -> None:
         if not run.query_budget:
             check_query_budget(self, run, self.catalog.by_name[run.contract].contract, failed=True)
         run.status = status
-        run.ended_at = time.time()
-        run.elapsed_ms = (run.ended_at - run.started_at) * 1000
+        run.ended_at = self.clock.now()
+        started = self._started.pop(run.id, self.clock.monotonic())
+        run.elapsed_ms = max(0, self.clock.monotonic() - started) * 1000
         warn_slow_batch(run)
         try:
             await self.recorder.finish(run)

@@ -87,6 +87,7 @@ class Pipeline:
             input=cast(Any, StartInput)[self.input],
             output=PipelineView,
             access=self.access or f"{module}.run",
+            effect="command",
         )
 
 

@@ -10,7 +10,7 @@ from pathlib import Path
 # 路径相对于 server/，本地目录与部署镜像中的相同源码得到相同结果。
 def source_version(root: Path) -> str:
     paths = {root / "pyproject.toml", root / "uv.lock"}
-    for area in ("app", "service", "shared", "migrations"):
+    for area in ("app", "service", "library", "shared", "migrations"):
         paths |= set((root / area).rglob("*.py"))
         paths |= set((root / area).rglob("module.json"))
     digest = hashlib.sha256()

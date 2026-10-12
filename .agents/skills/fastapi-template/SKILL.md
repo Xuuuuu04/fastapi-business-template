@@ -1,6 +1,6 @@
 ---
 name: fastapi-template
-description: 从本模板创建新产品，或把模板的框架更新合并进已有产品时使用。更新脚本不会处理业务代码和数据库迁移。
+description: 创建新产品、接收模板框架升级或逐项迁移旧业务时使用。框架更新与业务迁移按各自参考执行。
 ---
 
 # 模板管理
@@ -29,6 +29,10 @@ uv run python ../.agents/skills/fastapi-template/scripts/run_template.py update_
 - 预览确认没有问题、并且改动在授权范围内，再加 `--apply` 执行。
 
 更新之后：检查改动的共同影响，生成文档，用 `fastapi-check` 更新框架摘要并运行相应的检查。
+
+## 迁移旧业务
+
+把旧系统的一项完整业务迁入时，读[业务迁移](references/product-migration.md)；需要记录当前实现、旧页面和正式切换状态时，读[迁移记录示例](references/product-migration-report.md)。框架更新脚本保护业务目录和迁移历史，不能用框架文件更新代表业务已迁移。
 
 可以显式传 `--recovery-proof /产品升级任务/recovery-proof.json` 接收本产品已审查的补丁；模板不附带产品证明，格式与限制见[回收说明](references/framework-recovery.md)。
 

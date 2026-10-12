@@ -41,6 +41,7 @@ def operation_status(
     steps = [
         {
             "name": part.name,
+            "simulated": part.simulated,
             "title": part.title,
             "source": part.source,
             "calcs": [f"{func.__name__} · {source_of(func)}" for func in part.calcs],
@@ -51,6 +52,7 @@ def operation_status(
             "calls": [used.name for used in part.uses],
             "jobs": [used.name for used in part.later],
             "endpoints": [e.shape() for e in part.endpoints],
+            "providers": [spec.shape() for spec in part.providers],
             "test_executions": execution_counts(cases, operation, part.name),
             "last_test": last_execution(cases, operation, part.name),
         }
@@ -59,12 +61,15 @@ def operation_status(
     return {
         **query_status(binding, cases, operation),
         "name": operation,
+        "implementation": "skeleton" if any(p.simulated for p in binding.flow.steps) else "real",
+        "providers": [spec.shape() for spec in binding.module.providers],
         "endpoints": [
             e.shape()
             for e in dict.fromkeys(e for part in binding.flow.steps for e in part.endpoints)
         ],
         "pipelines": memberships(catalog, operation),
         "title": binding.contract.title,
+        "effect": binding.contract.effect or "unknown",
         "steps": steps,
         "graph": flow_graph(binding),
         "test_graph": flow_graph(binding, {step["name"]: step for step in recent["steps"]})

@@ -11,6 +11,7 @@ create_record = contract(
     input=${Camel}Input,
     output=${Camel}View,
     access="$name.write",
+    effect="command",
     errors=(${Camel}Invalid,),
 )
 
@@ -20,6 +21,7 @@ get_record = contract(
     input=${Camel}Id,
     output=${Camel}View,
     access="$name.read",
+    effect="query",
     errors=(${Camel}Missing,),
 )
 

@@ -8,7 +8,6 @@ import asyncio
 import hashlib
 import json
 import secrets
-import time
 import traceback
 from dataclasses import asdict
 from typing import Any
@@ -29,6 +28,10 @@ from shared.flow.view import FieldTypes, StepView, missing_writes
 from shared.modules.catalog import Binding
 from shared.records.models import RunRecord, StepRecord
 from shared.records.values import describe_value, shape_text
+from shared.scenarios.recording import record_step
+from shared.scenarios.simulation import run_simulated
+from shared.timing.current import monotonic
+from shared.timing.current import now as business_now
 
 
 # 执行一个操作的流程并返回结果。
@@ -38,6 +41,7 @@ async def execute(binding: Binding, input: Data, scope: Scope, run: RunRecord) -
         raise StepRuleBroken(
             f"调用“{item.title}”需要 {item.input.__name__}，实际传入 {type(input).__name__}"
         )
+    run.simulated = any(part.simulated for part in binding.flow.steps)
     values = start_values(binding.flow, input)
     for part in binding.flow.steps:
         await run_part(part, values, scope, run, binding)
@@ -77,7 +81,8 @@ async def run_part(
         query_limits=asdict(binding.contract.query_budget or DEFAULT_BUDGET),
         query_prior=prior_totals(run),
         outputs_recorded=True,
-        started_at=time.time(),
+        simulated=part.simulated,
+        started_at=business_now(),
     )
     run.steps.append(record)
     tracer = scope.runtime.telemetry
@@ -88,20 +93,21 @@ async def run_part(
     )
     token = otel_context.attach(trace.set_span_in_context(span)) if span else None
     run.updated_at = record.started_at
-    started = time.perf_counter()
+    started = monotonic()
     try:
         if part.when is not None and not run_condition(part.when, values, binding.types, record):
             record.status = "skipped"
             return
         await run_step(part, values, scope, run, record, binding)
+        record_step(part, values, scope, run.contract)
         record.status = "ok"
     except BaseException as error:
         record.status = "failed"
         describe_error(record, error)
         raise
     finally:
-        record.elapsed_ms = (time.perf_counter() - started) * 1000
-        run.updated_at = time.time()
+        record.elapsed_ms = (monotonic() - started) * 1000
+        run.updated_at = business_now()
         if span is not None and token is not None:
             span.set_attribute("step.status", record.status)
             span.set_attribute("step.elapsed_ms", record.elapsed_ms)
@@ -127,12 +133,12 @@ def run_condition(
         when.name,
         when.source,
     )
-    started = time.perf_counter()
+    started = monotonic()
     try:
         record.condition_result = decide(when, values, types)
         return record.condition_result
     finally:
-        record.condition_elapsed_ms = (time.perf_counter() - started) * 1000
+        record.condition_elapsed_ms = (monotonic() - started) * 1000
 
 
 # 执行一个步骤并检查它是否按声明写入。
@@ -147,13 +153,21 @@ async def run_step(
     view = StepView(values, part.reads, part.writes, binding.types, part.title)
     before = fingerprints(values, part.reads) if scope.runtime.step_checks else None
     try:
-        async with tools_for(part, scope, run, record, binding.module) as tools:
-            if part.is_async:
-                returned = await part.func(view, **tools)
-            elif part.heavy:
-                returned = await scope.runtime.heavy.run(part.func, view, **tools)
-            else:
-                returned = part.func(view, **tools)
+        if part.simulated:
+            returned = await run_simulated(
+                part,
+                view,
+                binding.contract.name,
+                allowed=scope.runtime.allow_simulation,
+            )
+        else:
+            async with tools_for(part, scope, run, record, binding.module) as tools:
+                if part.is_async:
+                    returned = await part.func(view, **tools)
+                elif part.heavy:
+                    returned = await scope.runtime.heavy.run(part.func, view, **tools)
+                else:
+                    returned = part.func(view, **tools)
         check_return(returned, part)
         missing = missing_writes(view)
         if missing:

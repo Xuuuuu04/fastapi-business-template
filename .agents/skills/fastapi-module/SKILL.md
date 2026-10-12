@@ -88,5 +88,6 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipelin
 
 ## 相关
 
-- 迁移旧系统的业务：读 `fastapi-migration`。
+- 迁移旧系统的业务：读 `fastapi-template` 的[迁移参考](../fastapi-template/references/product-migration.md)。
+- 前后端接口适配：读[接口参考](references/frontend-interface.md)，以当前OpenAPI及真实接口结果核对字段和权限。
 - 生成器使用的代码模板在 [assets/templates](assets/templates/)。

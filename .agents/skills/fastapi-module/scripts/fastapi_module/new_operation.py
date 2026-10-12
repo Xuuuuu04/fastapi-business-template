@@ -56,7 +56,8 @@ def changes(
     exports = [name, input, output, invalid]
     declaration = (
         f"{name} = contract({module + '.' + name!r}, {title!r}, input={input}, output={output}, "
-        f"access={module + '.run'!r}, errors=({invalid},))\n__all__ += {sorted(set(exports))!r}"
+        f"access={module + '.run'!r}, effect='query', errors=({invalid},))\n"
+        f"__all__ += {sorted(set(exports))!r}"
     )
     public = add_import(public, f"from service.{module}.data import {input}, {output}, {invalid}")
     generated[folder / "public.py"] = append(public, declaration)

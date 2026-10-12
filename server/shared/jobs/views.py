@@ -4,7 +4,6 @@
 """
 
 import json
-import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,8 +16,10 @@ from shared.jobs.tables import checkpoints, jobs
 from shared.modules.catalog import Catalog
 from shared.pipelines.member_store import member_for
 from shared.pipelines.storage import stage_for
+from shared.timing.current import now as business_now
 
 STATE_TEXT = {
+    "expired": "已过期，未执行",
     "queued": "等待执行",
     "running": "执行中",
     "waiting_retry": "等待重试",
@@ -116,8 +117,8 @@ async def requeue(
             return "任务对应的操作当前没有登记"
         values: dict[str, Any] = {
             "state": "queued",
-            "run_after": time.time(),
-            "updated_at": time.time(),
+            "run_after": business_now(),
+            "updated_at": business_now(),
         }
         values |= {"finished_at": None, "error_code": "", "error_message": ""}
         if row["state"] == "blocked":
@@ -149,7 +150,7 @@ async def cancel(database: Database, job_id: str) -> str:
         change = (
             update(jobs)
             .where(jobs.c.id == job_id, jobs.c.state.in_(READY))
-            .values(state="cancelled", finished_at=time.time(), updated_at=time.time())
+            .values(state="cancelled", finished_at=business_now(), updated_at=business_now())
             .returning(jobs.c.contract)
         )
         name = (await connection.execute(change)).scalar()

@@ -24,8 +24,7 @@ from fastapi_project.development.impact import (
     scope_markdown,
 )
 
-from app.setup.catalog import MODULES
-from shared.config.settings import Settings
+from app.setup.application import application, application_modules
 from shared.modules.catalog import Catalog
 
 OPERATION_HEADING = re.compile(r"^## .+（([\w.]+)）$")
@@ -210,7 +209,7 @@ def markdown(data: dict[str, Any]) -> str:
 
 # 保留原调用入口；传入 Catalog 时也可用于独立模块声明测试。
 def report(target: str, modules: Iterable[str] | Catalog, repo: Repo | None = None) -> str:
-    catalog = modules if isinstance(modules, Catalog) else Catalog(MODULES)
+    catalog = modules if isinstance(modules, Catalog) else Catalog(application_modules())
     return markdown(report_data(target, catalog, repo))
 
 
@@ -219,8 +218,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="列出与基准分支相比的改动影响")
     parser.add_argument("--base", default="origin/main", help="基准分支或提交，默认 origin/main")
     parser.add_argument("--json", action="store_true", help="输出 schema_version=1 的稳定 JSON")
+    parser.add_argument("--disabled-module", action="append", default=[], help="仅用于展示关闭状态")
     args = parser.parse_args()
-    data = report_data(args.base, Catalog(MODULES), disabled_modules=Settings().disabled_modules)
+    data = report_data(
+        args.base,
+        Catalog(application_modules()),
+        disabled_modules=[
+            *application().settings("offline").disabled_modules,
+            *args.disabled_module,
+        ],
+    )
     print(json.dumps(data, ensure_ascii=False, indent=2) if args.json else markdown(data))
 
 

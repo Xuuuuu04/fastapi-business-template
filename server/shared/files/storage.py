@@ -8,6 +8,7 @@ S3Files 可用于 MinIO 和各云对象存储。
 import asyncio
 import hashlib
 import re
+import secrets
 import shutil
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -47,6 +48,9 @@ class FileStorage(Protocol):
     # 按块读取文件内容。
     def open(self, key: str) -> AsyncIterator[bytes]: ...
 
+    # 从指定字节位置读取有限窗口，分段批次不用重读完整原件。
+    def open_range(self, key: str, offset: int, length: int) -> AsyncIterator[bytes]: ...
+
     # 删除文件；文件不存在时不报错。
     async def delete(self, key: str) -> None: ...
 
@@ -83,7 +87,7 @@ class LocalFiles:
     # 复制到存储目录：先写临时文件再改名，读取方不会看到写了一半的文件。
     async def save_path(self, key: str, source: Path) -> SavedFile:
         target = self.root / check_key(key)
-        partial = target.with_name(target.name + ".partial")
+        partial = target.with_name(target.name + "." + secrets.token_hex(8) + ".partial")
         await anyio.Path(target.parent).mkdir(parents=True, exist_ok=True)
         await asyncio.to_thread(shutil.copyfile, source, partial)
         await anyio.Path(partial).rename(target)
@@ -94,6 +98,20 @@ class LocalFiles:
     async def open(self, key: str) -> AsyncIterator[bytes]:
         async with await anyio.open_file(self.root / check_key(key), "rb") as source:
             while chunk := await source.read(CHUNK):
+                yield chunk
+
+    # 本地窗口直接seek，读取量由本批长度决定。
+    async def open_range(self, key: str, offset: int, length: int) -> AsyncIterator[bytes]:
+        if offset < 0 or length < 0:
+            raise StepRuleBroken("文件窗口不能为负数")
+        async with await anyio.open_file(self.root / check_key(key), "rb") as source:
+            await source.seek(offset)
+            remaining = length
+            while remaining:
+                chunk = await source.read(min(CHUNK, remaining))
+                if not chunk:
+                    return
+                remaining -= len(chunk)
                 yield chunk
 
     # 删除文件。
@@ -162,6 +180,36 @@ class S3Files:
         body = reply["Body"]
         try:
             while chunk := await asyncio.to_thread(body.read, CHUNK):
+                yield chunk
+        finally:
+            body.close()
+
+    # S3范围响应必须说明原来的范围，拒绝忽略Range的兼容服务。
+    async def open_range(self, key: str, offset: int, length: int) -> AsyncIterator[bytes]:
+        if offset < 0 or length < 0:
+            raise StepRuleBroken("文件窗口不能为负数")
+        if not length:
+            return
+        reply = await asyncio.to_thread(
+            self.client.get_object,
+            Bucket=self.bucket,
+            Key=check_key(key),
+            Range=f"bytes={offset}-{offset + length - 1}",
+        )
+        body = reply["Body"]
+        try:
+            expected = f"bytes {offset}-{offset + length - 1}/"
+            if (
+                not str(reply.get("ContentRange", "")).startswith(expected)
+                or reply.get("ContentLength") != length
+            ):
+                raise StepRuleBroken("S3没有返回已声明的有界范围")
+            remaining = length
+            while remaining:
+                chunk = await asyncio.to_thread(body.read, min(CHUNK, remaining))
+                if not chunk:
+                    return
+                remaining -= len(chunk)
                 yield chunk
         finally:
             body.close()

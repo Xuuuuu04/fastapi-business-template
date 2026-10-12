@@ -31,7 +31,7 @@ from tests.testing_app import (
     prepare_test_database_now,
 )
 
-pytest_plugins = ["tests.failure_reports", "tests.development_history"]
+pytest_plugins = ["tests.failure_reports", "tests.development_history", "tests.resources"]
 
 EXECUTED: set[str] = set()
 
@@ -53,13 +53,21 @@ def track_operations() -> Iterator[None]:
 
 # 完整运行时，模块总目录中没有被任何测试执行过的操作会让测试失败。
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    if hasattr(session.config, "workerinput"):
+        session.config.workeroutput["executed_operations"] = sorted(EXECUTED)
+        return
     config = session.config
-    partial = [arg for arg in config.invocation_params.args if not str(arg).startswith("-")]
+    partial = [
+        arg
+        for arg in config.invocation_params.args
+        if not str(arg).startswith("-") and (Path(str(arg)).exists() or "::" in str(arg))
+    ]
     selected = json.loads(os.environ.get("APP_DEVELOPMENT_MODULES", "[]"))
     if (
         exitstatus != 0
         or config.option.keyword
         or config.option.markexpr
+        or os.environ.get("APP_TEST_GROUP", "all") != "all"
         or (partial and not selected)
     ):
         return
@@ -77,6 +85,12 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
                 f"以下操作在测试中一次也没有执行，请补测试：{', '.join(missing)}", red=True
             )
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
+# 控制进程汇总全部worker的操作覆盖，单个worker不对其他worker的测试结果下结论。
+@pytest.hookimpl(optionalhook=True)
+def pytest_testnodedown(node: Any, error: Any) -> None:
+    EXECUTED.update(node.workeroutput.get("executed_operations", []))
 
 
 # 在 SQLite 上跳过只对 PostgreSQL 有意义的测试。

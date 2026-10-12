@@ -7,8 +7,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from app.setup.application import application
 from app.setup.web import create_app
-from shared.config.settings import Settings
 
 METHODS = ("get", "post", "put", "patch", "delete")
 LIMITS = {
@@ -35,7 +35,7 @@ MODEL_TEXT = {
 
 # 用于生成文档的应用：测试配置、开放接口文档，不连接外部服务。
 def docs_app(name: str | None = None) -> FastAPI:
-    settings = Settings(_env_file=None, env="test", docs=True)
+    settings = application().settings("offline", docs=True)
     if name is not None:
         settings.name = name
     return create_app(settings)

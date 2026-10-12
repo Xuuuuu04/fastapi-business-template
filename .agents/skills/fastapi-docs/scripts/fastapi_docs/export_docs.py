@@ -19,10 +19,11 @@ from fastapi_project.development.business_state import database_identity
 from fastapi_project.development.business_state import outdated as state_outdated
 from fastapi_project.development.business_state import update as update_state
 from fastapi_project.development.design import design_doc
+from fastapi_project.development.ledger_docs import ledger_documents
 from fastapi_project.development.plan import read_plan
 from fastapi_project.development.plan_entries import capture, check_entries
 
-from app.setup.catalog import MODULES
+from app.setup.application import application, application_modules
 from app.setup.operations import with_operations
 from shared.config.settings import Settings
 from shared.graphs.static import module_graph
@@ -58,6 +59,7 @@ def generated(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
     }
     for name, module in catalog.modules.items():
         files[project / module.doc / "flows.md"] = module_doc(catalog, name, routes)
+    files.update(ledger_documents(project))
     return files
 
 
@@ -68,9 +70,9 @@ def outdated(catalog: Catalog, project: Path = PROJECT) -> list[Path]:
         for path, text in generated(catalog, project).items()
         if not path.exists() or path.read_text(encoding="utf-8") != text
     ]
-    if stale(catalog, project, set(Settings().disabled_modules)):
+    if stale(catalog, project, set(application().settings("offline").disabled_modules)):
         result.append(project / "AGENTS.md")
-    settings = Settings()
+    settings = application().settings("offline")
     result += state_outdated(
         state_catalog(catalog, settings),
         project,
@@ -113,7 +115,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="从声明生成接口文档、模块流程文档和进度文档")
     parser.add_argument("--check", action="store_true", help="只检查文档是否过期，不写入")
     args = parser.parse_args()
-    catalog = Catalog(MODULES)
+    catalog = Catalog(application_modules())
     if args.check:
         for path, text in summaries(catalog).items():
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -128,11 +130,13 @@ def main() -> None:
         raise SystemExit("\n".join(problems))
     capture(catalog, PROJECT, plan)
     files = generated(catalog) | summaries(catalog)
-    files[PROJECT / "AGENTS.md"] = render(catalog, PROJECT, set(Settings().disabled_modules))
+    files[PROJECT / "AGENTS.md"] = render(
+        catalog, PROJECT, set(application().settings("offline").disabled_modules)
+    )
     for path, text in files.items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
-    settings = Settings()
+    settings = application().settings("offline")
     effective = state_catalog(catalog, settings)
     names = [
         path.stem

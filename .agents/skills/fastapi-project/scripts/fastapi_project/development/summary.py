@@ -7,6 +7,8 @@ import shlex
 from typing import Any
 
 from fastapi_project.development.attention import attention, plan_summary
+from fastapi_project.development.check_assets import expand_run
+from fastapi_project.development.check_storage import iter_cases
 from fastapi_project.development.evidence import check_scope
 from fastapi_project.development.screen_summary import module_markdown_summary
 
@@ -166,6 +168,13 @@ def project_summary(status: dict[str, Any], module: str = "") -> dict[str, Any]:
             if not module or item["name"].startswith(module + ".")
         ],
         "meaning": "登记、测试成功执行和业务验收分开判断；测试标注不证明业务正确。",
+        "libraries": status.get("libraries", []),
+        "library_dependencies": status.get("library_dependencies", {}),
+        "tasks": [
+            {key: task[key] for key in ("id", "package", "state", "reasons", "file")}
+            for task in status.get("tasks", [])
+            if not module or task["package"] == module
+        ],
     }
 
 
@@ -182,6 +191,9 @@ def selected_operation(status: dict[str, Any], name: str) -> dict[str, Any]:
                     "code": module["code"],
                     "checks": test_summary(module["tests"]),
                     **operation,
+                    "last_test_run": expand_run(operation["last_test_run"])
+                    if operation["last_test_run"]
+                    else None,
                 }
     raise ValueError(f"操作尚未登记：{name}；请先查看项目摘要")
 
@@ -195,7 +207,7 @@ def selected_test(
         if module and module not in check["fingerprints"]:
             continue
         for suite in check["suites"]:
-            case = next((item for item in suite["cases"] if item["nodeid"] == nodeid), None)
+            case = next((item for item in iter_cases(suite) if item["nodeid"] == nodeid), None)
             if case is None:
                 continue
             versions = {
@@ -214,7 +226,7 @@ def selected_test(
                 "exit_code": suite["exit_code"],
                 "source_changed": check["source_changed"],
                 "modules": versions,
-                "case": case,
+                "case": {**case, "runs": [expand_run(run) for run in case.get("runs", [])]},
             }
     if not records:
         raise ValueError(f"留存检查中没有测试记录：{nodeid}")

@@ -9,7 +9,7 @@ from fastapi_check.quality.rules import PROJECT
 from fastapi_project.development.business_runtime import observe
 from fastapi_project.development.business_state import database_identity, outdated, update
 
-from app.setup.catalog import MODULES
+from app.setup.application import application, application_modules
 from app.setup.operations import with_operations
 from shared.config.settings import Settings
 from shared.db.database import Database
@@ -34,8 +34,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.check and args.runs:
         parser.error("--check不读取数据库，不与--runs同时使用")
-    settings = Settings()
-    catalog = Catalog(with_operations(settings, MODULES))
+    settings = application().settings("runtime" if args.runs else "offline")
+    catalog = Catalog(with_operations(settings, application_modules()))
     missing = set(args.module) - catalog.modules.keys()
     if missing:
         raise SystemExit("未登记模块：" + ",".join(sorted(missing)))

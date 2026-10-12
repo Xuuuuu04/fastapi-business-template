@@ -1,6 +1,6 @@
 ---
 name: fastapi-guide
-description: 第一次接触本 FastAPI 模板、要启动项目或规划开发顺序时使用。迁移旧系统另读 fastapi-migration，具体实现读下面列出的对应 Skill。
+description: 第一次接触本 FastAPI 模板、启动项目或规划开发顺序时使用。具体开发与迁移按六类入口展开。
 ---
 
 # 模板入门
@@ -42,13 +42,12 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 要做的事 | 读哪个 |
 |---|---|
 | 创建新产品、更新框架 | `fastapi-template` |
-| 新建业务包、调整包结构 | `fastapi-module` |
-| 查看计划、检查记录、运行记录、改动影响 | `fastapi-project` |
-| 生成接口、字段、流程文档 | `fastapi-docs` |
+| 新建业务包、操作、流程、纯工具与前后端接口 | `fastapi-module` |
+| 计划、规则、任务、文档、面板、整合与证据 | `fastapi-project` |
 | 运行局部检查、联合检查、完整检查 | `fastapi-check` |
 | 查运行报告、处理后台任务、生成服务密钥 | `fastapi-operations` |
-| 把旧系统业务逐项迁进来 | `fastapi-migration` |
-| 给 Vue3 前端提供接口、前后端字段对不上、前端出错查后端 | `fastapi-frontend` |
+
+业务迁移见 `fastapi-template` 的迁移参考，前后端接口适配见 `fastapi-module` 的接口参考。Python工具命名空间与旧长命令保持兼容；日常优先用 `uv run dev`。
 
 写文档和生成文字时，遵循 [文风与术语约定](references/writing-style.md)：完整句子、统一术语、图上只放流程、细节进表格。
 

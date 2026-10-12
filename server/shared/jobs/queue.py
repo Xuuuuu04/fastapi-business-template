@@ -4,32 +4,35 @@
 """
 
 import json
-import secrets
-import time
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import case, insert, select, update
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from shared.access.caller import Caller
 from shared.data.models import Data
 from shared.db.database import Database
-from shared.errors.framework import DuplicateRequest, QueueFull, StepRuleBroken
+from shared.errors.framework import StepRuleBroken
+from shared.jobs import resources
 from shared.jobs.checkpoint_store import (
     create_checkpoint,
     extend_lease,
     protect_failure,
 )
+from shared.jobs.constraints import take
 from shared.jobs.expiry import expire
-from shared.jobs.tables import job_counts, jobs
+from shared.jobs.submission import job_row, release, reserve, same_key, scope_for
+from shared.jobs.tables import jobs
 from shared.modules.catalog import Catalog
 from shared.modules.contract import Contract
-from shared.operations.capacity import capacity_filter
 from shared.pipelines.engine import PipelineEngine
 from shared.pipelines.failure import failed as pipeline_failed
 from shared.pipelines.storage import is_pipeline_job
+from shared.timing.clock import Clock, RealClock
+from shared.timing.current import clocked
+from shared.timing.current import now as business_now
 
 READY = ("queued", "waiting_retry")
 ACTIVE = ("queued", "running", "waiting_retry")
@@ -46,16 +49,20 @@ class Ticket:
     caller_json: str
     request_id: str
     key: str | None = None
+    failed_attempts: int | None = 0
 
 
 # 通过数据库登记、领取和更新任务，保证状态变化有明确条件。
 class JobQueue:
     # 使用模块目录查找任务声明，使用数据库保存任务。
     def __init__(self, catalog: Catalog, database: Database) -> None:
+        self.clock: Clock = RealClock()
+
         self.catalog, self.database = catalog, database
         self.pipelines, self.capacity_enabled = PipelineEngine(self), False
 
     # 在给定的写入事务中登记任务；同一请求编号重复登记时返回原任务。
+    @clocked
     async def submit(
         self,
         connection: AsyncConnection,
@@ -73,26 +80,22 @@ class JobQueue:
             raise StepRuleBroken(f"操作 {item.name} 没有在模块的 jobs 中声明，不能作为任务登记")
         body, digest, key = plan.submission(input, key)
         if key:
-            existing = await same_key(connection, item.name, caller.id, key, digest)
+            existing = await same_key(connection, item.name, scope_for(caller), key, digest, caller)
             if existing:
                 return existing
-        now = time.time()
-        row = {
-            "id": secrets.token_hex(8),
-            "contract": item.name,
-            "module_version": self.catalog.binding(item).module.version,
-            "state": "queued",
-            "input_json": body,
-            "input_hash": digest,
-            "caller_json": caller_text(caller),
-            "key_scope": caller.id if key else "",
-            "key": key or None,
-            "attempt": 0,
-            "run_after": now,
-            "created_at": now,
-            "updated_at": now,
-            "request_id": request_id,
-        }
+        now = business_now()
+        row = await job_row(
+            connection,
+            plan,
+            input,
+            caller,
+            body,
+            digest,
+            key,
+            self.catalog.binding(item).module.version,
+            request_id,
+            now,
+        )
         try:
             async with connection.begin_nested():
                 await reserve(connection, item, plan.max_queued)
@@ -100,47 +103,25 @@ class JobQueue:
                 if plan.segmented:
                     await create_checkpoint(connection, str(row["id"]))
         except IntegrityError:
-            existing = await same_key(connection, item.name, caller.id, key, digest)
+            existing = await same_key(connection, item.name, scope_for(caller), key, digest, caller)
             if existing:
                 return existing
             raise
         return str(row["id"])
 
     # 领取一个到期的任务，写入新的尝试编号和执行期限。
+    @clocked
     async def claim(self, now: float) -> Ticket | None:
         async with self.database.write() as connection:
-            pick = (
-                select(jobs.c.id, jobs.c.contract)
-                .where(jobs.c.state.in_(READY), jobs.c.run_after <= now)
-                .order_by(jobs.c.run_after, jobs.c.created_at)
-                .limit(1)
-                .with_for_update(skip_locked=True)
-            )
-            pick = await capacity_filter(self, connection, pick)
-            found = (await connection.execute(pick)).first()
-            if found is None:
-                return None
-            plan = self.catalog.plan(found.contract)
-            lease = plan.lease_seconds if plan else 60.0
-            change = (
-                update(jobs)
-                .where(jobs.c.id == found.id, jobs.c.state.in_(READY))
-                .values(
-                    state="running",
-                    attempt=jobs.c.attempt + 1,
-                    lease_until=now + lease,
-                    updated_at=now,
-                )
-                .returning(*ticket_columns())
-            )
-            row = (await connection.execute(change)).mappings().first()
+            row = await take(self, connection, now)
         return Ticket(**row) if row else None
 
     # 在给定事务中把任务标为完成；尝试已过期时返回 False，调用方应放弃本次写入。
+    @clocked
     async def finish(
         self, connection: AsyncConnection, ticket: Ticket, result_json: str, run_id: str
     ) -> bool:
-        now = time.time()
+        now = business_now()
         change = (
             update(jobs)
             .where(
@@ -157,12 +138,17 @@ class JobQueue:
                 error_message="",
             )
         )
+        plan = self.catalog.plan(ticket.contract)
+        if plan is not None and (plan.serial or plan.resources):
+            change = change.where(jobs.c.lease_until > now)
         if (await connection.execute(change)).rowcount != 1:
             return False
         await release(connection, ticket.contract)
+        await resources.release(connection, ticket.id, ticket.attempt, now)
         return True
 
     # 记录一次失败：进入等待重试、失败、结果待确认或等待兼容版本。
+    @clocked
     async def fail(
         self,
         ticket: Ticket,
@@ -172,9 +158,14 @@ class JobQueue:
         *,
         run_after: float = 0.0,
         run_id: str = "",
+        deferred: bool = False,
     ) -> bool:
-        now = time.time()
+        now = business_now()
         values: dict[str, Any] = {"state": state, "updated_at": now, "lease_until": None}
+        if not deferred:
+            values["failed_attempts"] = (
+                func.coalesce(jobs.c.failed_attempts, jobs.c.attempt - 1) + 1
+            )
         values |= {"error_code": code, "error_message": message[:1000], "last_run_id": run_id}
         if state in READY:
             values["run_after"] = run_after or now
@@ -194,6 +185,8 @@ class JobQueue:
                 .values(**values)
             )
             changed = (await connection.execute(change)).rowcount == 1
+            if changed:
+                await resources.release(connection, ticket.id, ticket.attempt, now)
             if changed and state not in ACTIVE:
                 await release(connection, ticket.contract)
             if changed and is_pipeline_job(ticket):
@@ -203,10 +196,14 @@ class JobQueue:
         return changed
 
     # 延长执行期限；返回 False 表示任务已不属于这次尝试。
+    @clocked
     async def extend(self, ticket: Ticket, until: float, *, require_current: bool = False) -> bool:
+        plan = self.catalog.plan(ticket.contract)
+        require_current = require_current or bool(plan and (plan.serial or plan.resources))
         return await extend_lease(self.database, ticket, until, require_current=require_current)
 
     # 处理执行期限已过的任务：可安全重复的重新排队，其他的标为结果待确认。
+    @clocked
     async def reclaim(self, now: float) -> int:
         async with self.database.write() as connection:
             expired = (
@@ -232,52 +229,6 @@ class JobQueue:
         return len(rows)
 
 
-# 按请求编号查找已有任务；内容不同则报冲突。
-async def same_key(
-    connection: AsyncConnection, name: str, scope: str, key: str, digest: str
-) -> str:
-    query = select(jobs.c.id, jobs.c.input_hash).where(
-        jobs.c.contract == name, jobs.c.key_scope == scope, jobs.c.key == key
-    )
-    found = (await connection.execute(query)).first()
-    if found is None:
-        return ""
-    if found.input_hash != digest:
-        raise DuplicateRequest(f"请求编号 {key} 已用于内容不同的任务 {found.id}")
-    return str(found.id)
-
-
-# 占用一个排队名额；已满时报错。
-async def reserve(connection: AsyncConnection, item: Contract[Any, Any], limit: int) -> None:
-    counts = job_counts.c
-    change = (
-        update(job_counts)
-        .where(counts.contract == item.name, counts.active < limit)
-        .values(active=counts.active + 1)
-    )
-    if (await connection.execute(change)).rowcount == 1:
-        return
-    exists = await connection.scalar(select(counts.active).where(counts.contract == item.name))
-    if exists is None and limit > 0:
-        try:
-            async with connection.begin_nested():
-                await connection.execute(insert(job_counts).values(contract=item.name, active=1))
-            return
-        except IntegrityError:
-            if (await connection.execute(change)).rowcount == 1:
-                return
-    raise QueueFull(f"“{item.title}”排队已满（上限 {limit}），请稍后再试")
-
-
-# 释放一个排队名额。
-async def release(connection: AsyncConnection, name: str) -> None:
-    counts = job_counts.c
-    lowered = case((counts.active > 0, counts.active - 1), else_=0)
-    await connection.execute(
-        update(job_counts).where(counts.contract == name).values(active=lowered)
-    )
-
-
 # 任务领取后需要的列。
 def ticket_columns() -> list[Any]:
     names = (
@@ -289,6 +240,7 @@ def ticket_columns() -> list[Any]:
         "caller_json",
         "request_id",
         "key",
+        "failed_attempts",
     )
     return [jobs.c[name] for name in names]
 

@@ -12,6 +12,8 @@ from shared.errors.framework import StepRuleBroken
 from shared.records.models import RemoteCallRecord
 from shared.remote_calls.endpoint import Endpoint, EndpointReply
 from shared.remote_calls.remote import Remote
+from shared.remote_calls.request import FilePart
+from shared.remote_calls.serialization import request_for
 from shared.remote_calls.service import RemoteReply, RemoteRequest, RemoteService, is_write
 
 log = logging.getLogger("server.remote_calls")
@@ -106,46 +108,25 @@ class RemoteGate:
 
     # 自动序列化输入与校验回执；拒绝状态仍带HTTP状态，业务自行核对含义。
     async def call[In: Data, Out: Data](
-        self, target: Remote, endpoint: Endpoint[In, Out], input: In, *, key: str = ""
+        self,
+        target: Remote,
+        endpoint: Endpoint[In, Out],
+        input: In,
+        *,
+        key: str = "",
+        files: tuple[FilePart, ...] = (),
     ) -> EndpointReply[Out]:
         if endpoint not in self._endpoints:
             raise StepRuleBroken(f"“{self._place}”调用了未声明的上游接口 {endpoint.name}")
-        payload = endpoint.input.model_validate(input).model_dump(mode="json", by_alias=True)
-        query = endpoint.method in ("GET", "HEAD")
-        request = RemoteRequest(
-            endpoint.method,
-            endpoint.path,
-            params=payload if query else None,
-            json=None if query else payload,
-            key=key,
-            accepted_statuses=endpoint.accepted_statuses,
-            endpoint=endpoint.name,
-            effect=endpoint.effect,
-            unknown_on=endpoint.unknown_on,
-            protocol=endpoint,
-        )
+        request = request_for(endpoint, input, key, files)
         reply = await self.send(target, request)
         return EndpointReply(reply.status, reply.data)
 
     # 低层send也不能伪造协议名来绕过声明范围或效果保护。
     def check_request(self, request: RemoteRequest) -> None:
         matched = next((e for e in self._endpoints if e.name == request.endpoint), None)
-        if (
-            matched is None
-            or request.protocol is not matched
-            or (
-                request.method,
-                request.path,
-                request.effect,
-                request.unknown_on,
-                request.accepted_statuses,
-            )
-            != (
-                matched.method,
-                matched.path,
-                matched.effect,
-                matched.unknown_on,
-                matched.accepted_statuses,
-            )
-        ):
+        if matched is None or request.protocol is not matched or request.input is None:
+            raise StepRuleBroken(f"上游请求 {request.endpoint} 与步骤声明不一致")
+        expected = request_for(matched, request.input, request.key, request.files)
+        if request != expected:
             raise StepRuleBroken(f"上游请求 {request.endpoint} 与步骤声明不一致")

@@ -11,6 +11,7 @@ module = Module(
     name="$name",
     title="$title",
     version="1",
+    kind="capability",
     provides={
         public.create_record: flow.create_flow,
         public.get_record: flow.read_flow,

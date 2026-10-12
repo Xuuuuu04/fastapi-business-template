@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi_project.development.locate import locate
 
-from app.setup.catalog import MODULES
+from app.setup.application import application_modules
 from shared.modules.catalog import Catalog
 
 
@@ -24,7 +24,7 @@ def main() -> None:
     from fastapi_project.development.locate_routes import local_routes
 
     project = Path(__file__).resolve().parents[5]
-    result = locate(Catalog(MODULES), project, args.query, args.limit, local_routes())
+    result = locate(Catalog(application_modules()), project, args.query, args.limit, local_routes())
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

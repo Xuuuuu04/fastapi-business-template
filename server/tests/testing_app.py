@@ -20,6 +20,7 @@ from sqlalchemy.schema import CreateIndex, CreateTable
 import shared.access.audit
 import shared.jobs.tables
 import shared.records.tables
+from app.setup.application import application
 from app.setup.catalog import MODULES
 from shared.access.keys import ApiKeyConfig, hash_key
 from shared.config.settings import Settings
@@ -69,7 +70,7 @@ def make_settings(folder: Path, **changes: Any) -> Settings:
         "step_checks": True,
     }
     values.update(changes)
-    return Settings(_env_file=None, **values)
+    return application().settings("test", **values)
 
 
 # 清空并重建全部表，并记下当前迁移版本，使就绪检查通过。
@@ -119,6 +120,11 @@ def _has_create_hooks() -> bool:
 # 仅为默认 SQLite 的新文件复制空结构；已有文件可能仍被其他连接使用，不能替换。
 # PostgreSQL 与显式指定的数据库仍完整重建，共享地址不支持并行测试。
 async def prepare_test_database(url: str) -> None:
+    from tests.postgres_setup import prepare, reusable
+
+    if reusable(url, _has_create_hooks()):
+        await prepare(url, _schema_key(), reset_database)
+        return
     parsed = make_url(url)
     path = Path(parsed.database) if parsed.database else None
     if (

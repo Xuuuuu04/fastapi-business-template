@@ -16,8 +16,8 @@ def check_calculations(part: Step, module: str) -> list[str]:
     problems = []
     prefix = f"service.{module}.calc."
     for func in part.calcs:
-        if not inspect.isfunction(func) or not func.__module__.startswith(prefix):
-            problems.append(f"{part.source}：calcs 必须引用本模块 calc/ 中的函数")
+        if not inspect.isfunction(func) or not func.__module__.startswith((prefix, "library.")):
+            problems.append(f"{part.source}：calcs 必须引用本模块calc或已声明的纯工具包")
         elif inspect.iscoroutinefunction(func):
             problems.append(f"{source_of(func)}：纯计算必须是同步函数，只接收参数并返回结果")
     called = direct_calculations(part.func)
@@ -43,7 +43,11 @@ def direct_calculations(func: Callable[..., Any]) -> list[Callable[..., Any]]:
         if not isinstance(node, ast.Call):
             continue
         target = resolve(node.func, func.__globals__)
-        if inspect.isfunction(target) and ".calc." in target.__module__ and target not in found:
+        if (
+            inspect.isfunction(target)
+            and (".calc." in target.__module__ or target.__module__.startswith("library."))
+            and target not in found
+        ):
             found.append(target)
     return found
 

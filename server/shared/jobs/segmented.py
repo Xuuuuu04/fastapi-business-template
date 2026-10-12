@@ -3,7 +3,6 @@ worker 的显式分段执行：每批重新调用操作并创建事务，不跨�
 """
 
 import asyncio
-import time
 from time import perf_counter
 from typing import Any
 
@@ -16,6 +15,9 @@ from shared.flow.runtime import Hook, Runtime
 from shared.jobs import checkpoint_store
 from shared.jobs.checkpoint import Checkpoint
 from shared.jobs.queue import JobQueue, Ticket
+from shared.jobs.revalidation import allowed
+from shared.scenarios.observations import ObservationPosition
+from shared.timing.current import now as business_now
 
 
 # 从数据库游标恢复；每批成功后继续下一批，最终结果只在 finish 后写入任务。
@@ -28,27 +30,27 @@ async def run_segments(
     stop: asyncio.Event,
     shutdown_seconds: float,
     before_finish: Hook | None = None,
+    *,
+    deadline: float | None = None,
+    observation_position: ObservationPosition | None = None,
 ) -> None:
     binding = runtime.catalog.by_name[ticket.contract]
     number, cursor, total_rows = await checkpoint_store.load(runtime.database, ticket.id)
     while True:
-        from shared.pipelines.overdue import may_continue
-
-        if not await may_continue(queue, ticket.id):
-            await queue.fail(
-                ticket, "waiting_retry", "pipeline_overdue_paused", "流程逾期，已在批次边界暂停"
-            )
-            return
-        if stop.is_set():
-            await queue.fail(
-                ticket, "waiting_retry", "worker_stopping", "已在提交边界停止，等待继续"
-            )
+        if not await continue_batch(queue, ticket, stop):
             return
         plan = runtime.catalog.plan(ticket.contract)
         if plan is None or not await queue.extend(
-            ticket, time.time() + plan.lease_seconds, require_current=True
+            ticket, business_now() + plan.lease_seconds, require_current=True
         ):
             raise StaleAttempt()
+        batch_deadline = (
+            deadline
+            if deadline is not None
+            else runtime.clock.monotonic() + binding.contract.timeout
+        )
+        if not await allowed(runtime, queue, ticket, input, caller, batch_deadline):
+            return
         checkpoint = make_checkpoint(runtime, ticket, number, cursor, total_rows, shutdown_seconds)
         commit = commit_batch(queue, ticket, checkpoint, before_finish)
         await runtime.run(
@@ -59,6 +61,9 @@ async def run_segments(
             job_id=ticket.id,
             before_commit=commit,
             checkpoint=checkpoint,
+            deadline=batch_deadline,
+            observation_position=observation_position
+            or ObservationPosition(attempt=ticket.attempt),
         )
         if checkpoint.done:
             return
@@ -108,3 +113,18 @@ def commit_batch(
             raise StaleAttempt()
 
     return commit
+
+
+# 批次边界处理逾期与退出，不在尚未保存游标的位置停止。
+async def continue_batch(queue: JobQueue, ticket: Ticket, stop: asyncio.Event) -> bool:
+    from shared.pipelines.overdue import may_continue
+
+    if not await may_continue(queue, ticket.id):
+        await queue.fail(
+            ticket, "waiting_retry", "pipeline_overdue_paused", "流程逾期，已在批次边界暂停"
+        )
+        return False
+    if stop.is_set():
+        await queue.fail(ticket, "waiting_retry", "worker_stopping", "已在提交边界停止，等待继续")
+        return False
+    return True

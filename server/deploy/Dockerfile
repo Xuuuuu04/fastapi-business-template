@@ -5,8 +5,10 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.28 /uv /usr/local/bin/uv
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY pyproject.toml uv.lock ./
+COPY devtools ./devtools
 RUN uv sync --locked --no-dev
 COPY . .
+RUN rm -rf /app/devtools
 
 FROM python:3.12-slim
 # 内置PostgreSQL备份使用客户端工具，主版本必须与数据库一致（compose 中为 postgres:17）。

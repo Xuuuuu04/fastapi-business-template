@@ -3,8 +3,10 @@
 """
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
+import pytest
 from fastapi_docs.entry_state import block, render, stale
 from fastapi_project.development.plan_entries import capture, check_entries
 
@@ -71,6 +73,48 @@ def test_agents_current_state_generation(tmp_path: Path) -> None:
     assert stale(catalog, tmp_path, {"pipeline_sample"})
     assert "已关闭" in block(catalog, tmp_path, {"pipeline_sample"})
     assert render(catalog, tmp_path, set()) == current
+
+
+# 派生账本变化不成为手写业务标题，第一次导出后入口不能立即过期。
+def test_generated_ledger_changes_do_not_expire_entry(tmp_path: Path) -> None:
+    from fastapi_project.development.ledger_sections import section
+
+    catalog = Catalog([module])
+    path = tmp_path / "AGENTS.md"
+    path.write_text("# 我的产品\n")
+    current = render(catalog, tmp_path, set())
+    path.write_text(current)
+    changes = tmp_path / "doc/pipeline_sample/changes.md"
+    changes.parent.mkdir(parents=True)
+    changes.write_text(section(changes, "changes", "## 账本修订\n\n- 合成修订事件"))
+    assert not stale(catalog, tmp_path, set())
+    changes.write_text("## 产品实际调整\n\n" + changes.read_text())
+    assert stale(catalog, tmp_path, set())
+
+
+# 二十包入口仍有界，明确省略量，手写生成边界损坏时不能覆盖。
+def test_agents_large_registry_and_broken_bounds(tmp_path: Path) -> None:
+    catalog = Catalog(
+        [
+            replace(
+                module,
+                name=f"sample_package{number}",
+                provides={},
+                pipelines=(),
+                jobs=(),
+                schedules=(),
+            )
+            for number in range(20)
+        ]
+    )
+    text = block(catalog, tmp_path, set())
+    assert "另有 17 个登记项" in text and len(text.splitlines()) <= 14
+    path = tmp_path / "AGENTS.md"
+    path.write_text("手写判断\n<!-- fastapi-current-state:begin -->\n缺少结束边界")
+    before = path.read_bytes()
+    with pytest.raises(ValueError, match="边界损坏"):
+        render(catalog, tmp_path, set())
+    assert path.read_bytes() == before
 
 
 # 大项目全局文本摘要仍在一屏内，细节命令与省略总数可见。

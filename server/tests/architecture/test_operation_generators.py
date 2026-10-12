@@ -12,6 +12,8 @@ import pytest
 from fastapi_check.quality.rules import PROJECT
 from fastapi_template.template.initialization import initialize
 
+from tests.environment import subprocess_environment
+
 COPY_FLAG = "TEMPLATE_COPY_RUN"
 
 
@@ -49,7 +51,7 @@ def test_new_operation_and_pipeline_check_without_manual_edits(tmp_path: Path) -
         pytest.skip("模板副本不再次复制生成器验收")
     copy = tmp_path / "product"
     initialize(PROJECT, copy, "生成器独立样例")
-    env = {name: value for name, value in os.environ.items() if not name.startswith("APP_")}
+    env = subprocess_environment()
     env |= {COPY_FLAG: "1", "APP_DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path}/baseline.db"}
     runner = "../.agents/skills/fastapi-module/scripts/run_module.py"
     run(copy, [runner, "new_module", "sample_operations", "--title", "独立样例"], env)

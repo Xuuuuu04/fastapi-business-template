@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 from fastapi_check.quality.registry import check_registry
 from fastapi_check.quality.rules import ROOT
 from fastapi_module.new_module import add_module, add_route
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection, inspect, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.setup.build import build
@@ -26,7 +26,6 @@ from shared.db.tables import metadata
 from shared.modules.catalog import Catalog
 from shared.modules.validation.framework_lock import differences
 from shared.modules.validation.imports import check_imports
-from tests.framework.sample_modules import sample_metadata
 from tests.testing_app import KEY, database_url, make_settings
 
 
@@ -51,14 +50,23 @@ def test_migrations_match_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert asyncio.run(differences_from(url)) == []
 
 
-# 删除全部表，包括迁移版本表和框架测试的示例表。
+# 删除库中现存的全部表；同库先前留下的任何样例表都不能影响本次对比。
 async def drop_everything(url: str) -> None:
     engine = create_async_engine(url)
     async with engine.begin() as connection:
-        await connection.run_sync(sample_metadata.drop_all)
-        await connection.run_sync(metadata.drop_all)
+        await connection.run_sync(drop_present_tables)
         await connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
     await engine.dispose()
+
+
+# 按方言清空当前模式，不依赖表来自哪一份声明。
+def drop_present_tables(connection: Connection) -> None:
+    if connection.dialect.name == "postgresql":
+        connection.execute(text("DROP SCHEMA public CASCADE"))
+        connection.execute(text("CREATE SCHEMA public"))
+        return
+    for name in inspect(connection).get_table_names():
+        connection.execute(text(f'DROP TABLE "{name}"'))
 
 
 # 对比数据库结构和代码中的表定义。

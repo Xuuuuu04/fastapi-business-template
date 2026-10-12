@@ -114,6 +114,12 @@ class Catalog:
             if stage.operation.module != module.name
         ]
         edges += [
+            (module.name, plan.revalidate.module, f"执行前查询：{plan.revalidate.title}")
+            for module in self.modules.values()
+            for plan in module.jobs
+            if plan.revalidate is not None and plan.revalidate.module != module.name
+        ]
+        edges += [
             (module.name, endpoint.source.split(".")[1], f"上游协议：{endpoint.name}")
             for module in self.modules.values()
             for endpoint in module.endpoints

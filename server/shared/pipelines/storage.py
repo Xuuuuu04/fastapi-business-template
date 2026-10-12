@@ -3,7 +3,6 @@
 """
 
 import json
-import time
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select, update
@@ -12,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from shared.errors.framework import InvalidInput, StaleAttempt
 from shared.jobs.tables import jobs
 from shared.pipelines.tables import runs, stages
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import Ticket
@@ -66,9 +66,9 @@ async def own(connection: AsyncConnection, ticket: "Ticket") -> None:
             jobs.c.id == ticket.id,
             jobs.c.attempt == ticket.attempt,
             jobs.c.state == "running",
-            jobs.c.lease_until > time.time(),
+            jobs.c.lease_until > business_now(),
         )
-        .values(updated_at=time.time())
+        .values(updated_at=business_now())
     )
     if changed.rowcount != 1:
         raise StaleAttempt()

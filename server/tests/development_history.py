@@ -16,11 +16,13 @@ from shared.records.evidence import run_evidence
 from tests.failure_reports import FINISHED
 
 CASES: dict[str, dict[str, Any]] = {}
+WORKER_RESULTS: list[dict[str, Any]] = []
 
 
 # 每轮 pytest 从空结果开始，兼容进程内多次执行。
 def pytest_sessionstart(session: pytest.Session) -> None:
     CASES.clear()
+    WORKER_RESULTS.clear()
 
 
 # 明确标记对应的样例；只保存编号，不读取参数值或业务数据。
@@ -81,10 +83,33 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[Any]) -> 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     output = os.environ.get("APP_DEVELOPMENT_RESULT")
     if output:
-        Path(output).write_text(
+        path = Path(output)
+        cases = list(CASES.values())
+        worker = getattr(session.config, "workerinput", {}).get("workerid")
+        if worker:
+            path = path.with_name(path.stem + "-" + worker + path.suffix)
+            session.config.workeroutput["development_result"] = str(path)
+        elif WORKER_RESULTS:
+            cases = [case for result in WORKER_RESULTS for case in result["cases"]]
+        path.write_text(
             json.dumps(
-                {"exit_code": int(session.exitstatus), "cases": list(CASES.values())},
+                {
+                    "exit_code": int(session.exitstatus),
+                    "cases": cases,
+                    "database": "postgresql"
+                    if os.environ.get("APP_TEST_CONTROL_URL")
+                    or os.environ.get("APP_TEST_DATABASE_URL", "").startswith("postgresql")
+                    else "sqlite",
+                },
                 ensure_ascii=False,
             ),
             encoding="utf-8",
         )
+
+
+# 每个worker只写自己的结果文件；控制进程合并，缺少结果不能由别的worker补成成功。
+@pytest.hookimpl(optionalhook=True)
+def pytest_testnodedown(node: Any, error: Any) -> None:
+    output = node.workeroutput.get("development_result")
+    if output:
+        WORKER_RESULTS.append(json.loads(Path(output).read_text()))

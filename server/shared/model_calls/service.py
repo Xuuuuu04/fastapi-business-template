@@ -5,7 +5,6 @@
 
 import asyncio
 import json
-import time
 from typing import Any
 
 from pydantic import ValidationError
@@ -17,6 +16,8 @@ from shared.model_calls.prompt import Prompt, PromptText, fill_prompt, load_prom
 from shared.model_calls.providers import ModelProvider, ModelReply, ModelRequest
 from shared.records.models import ModelCallRecord
 from shared.remote_calls.breaker import Breaker
+from shared.timing.clock import Clock, RealClock
+from shared.timing.current import clocked, monotonic, sleep
 
 RETRY_WAITS = (1.0, 3.0)
 KEPT_TEXT = 2000
@@ -33,12 +34,14 @@ class ModelService:
         keep_text: bool,
         retry_waits: tuple[float, ...] = RETRY_WAITS,
     ) -> None:
+        self.clock: Clock = RealClock()
+
         self.provider = provider
         self.limit = asyncio.Semaphore(concurrency)
         self.keep_text = keep_text
         self.retry_waits = retry_waits
         self.texts: dict[Prompt, PromptText] = {}
-        self.breaker = Breaker()
+        self.breaker = Breaker(clock=lambda: self.clock.monotonic())
 
     # 启动时读取并检查全部提示词文件。
     def load(self, prompts: list[Prompt]) -> None:
@@ -46,6 +49,7 @@ class ModelService:
             self.texts[item] = load_prompt(item)
 
     # 调用一次大模型：填充提示词、限流、重试，并把调用情况写进 records。
+    @clocked
     async def complete(
         self, item: Prompt, values: dict[str, object], records: list[ModelCallRecord]
     ) -> ModelReply:
@@ -56,7 +60,7 @@ class ModelService:
         )
         record = ModelCallRecord(item.name, item.version, "", "running", 0.0)
         records.append(record)
-        started = time.perf_counter()
+        started = monotonic()
         try:
             reply = await self.send(request, record)
         except BaseException as error:
@@ -64,7 +68,7 @@ class ModelService:
             record.error = getattr(error, "detail", type(error).__name__)
             raise
         finally:
-            record.elapsed_ms = (time.perf_counter() - started) * 1000
+            record.elapsed_ms = (monotonic() - started) * 1000
         record.status, record.model = "ok", reply.model
         record.input_tokens, record.output_tokens = reply.input_tokens, reply.output_tokens
         if self.keep_text:
@@ -72,6 +76,7 @@ class ModelService:
         return reply
 
     # 在并发上限内发送请求；连续失败时连续失败后暂停调用，暂停期间直接失败。
+    @clocked
     async def send(self, request: ModelRequest, record: ModelCallRecord) -> ModelReply:
         wait = self.breaker.blocked()
         if wait:
@@ -91,6 +96,7 @@ class ModelService:
         return reply
 
     # 暂时故障按 retry_waits 的次数和间隔重试。
+    @clocked
     async def attempts(self, request: ModelRequest, record: ModelCallRecord) -> ModelReply:
         for attempt in range(len(self.retry_waits) + 1):
             try:
@@ -100,10 +106,11 @@ class ModelService:
                 if attempt == len(self.retry_waits):
                     raise
                 record.retries += 1
-                await asyncio.sleep(self.retry_waits[attempt])
+                await sleep(self.retry_waits[attempt])
         raise ModelUnavailable("大模型调用重试次数已用完")
 
     # 关闭服务商连接。
+    @clocked
     async def close(self) -> None:
         await self.provider.close()
 

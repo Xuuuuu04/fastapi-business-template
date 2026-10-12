@@ -3,7 +3,6 @@
 """
 
 import json
-import time
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select, update
@@ -15,6 +14,7 @@ from shared.jobs.tables import jobs
 from shared.pipelines.member_compat import block, group_compatible, member_compatible
 from shared.pipelines.plan import All, FanOut, Pipeline, Ratio, Wait
 from shared.pipelines.tables import members, runs, stages
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
@@ -53,7 +53,7 @@ async def planned(
     await connection.execute(
         update(runs)
         .where(runs.c.id == root["id"])
-        .values(state=desired, updated_at=time.time(), reason="")
+        .values(state=desired, updated_at=business_now(), reason="")
     )
     row.update(state="waiting_members", output_json=body, run_id=run_id)
     root["state"] = desired
@@ -115,7 +115,7 @@ async def seal(connection: AsyncConnection, stage_id: str) -> None:
         .where(
             members.c.stage_id == stage_id, members.c.state == "planned", members.c.job_id.is_(None)
         )
-        .values(state="skipped", updated_at=time.time(), finished_at=time.time())
+        .values(state="skipped", updated_at=business_now(), finished_at=business_now())
     )
     await connection.execute(update(stages).where(stages.c.id == stage_id).values(state="joining"))
 
@@ -180,7 +180,7 @@ async def fill(
             await connection.execute(
                 update(runs)
                 .where(runs.c.id == root["id"])
-                .values(reason="成员任务队列已满，等待空位", updated_at=time.time())
+                .values(reason="成员任务队列已满，等待空位", updated_at=business_now())
             )
             break
 
@@ -212,10 +212,10 @@ async def dispatch(
             .where(jobs.c.id == job_id)
             .values(
                 state="queued",
-                run_after=time.time(),
+                run_after=business_now(),
                 lease_until=None,
                 finished_at=None,
-                updated_at=time.time(),
+                updated_at=business_now(),
                 error_code="",
                 error_message="",
                 module_version=queue.catalog.binding(stage.operation).module.version,
@@ -228,8 +228,8 @@ async def dispatch(
             job_id=job_id,
             state="queued",
             error="",
-            updated_at=time.time(),
-            wait_until=(member["wait_until"] or time.time() + stage.timeout)
+            updated_at=business_now(),
+            wait_until=(member["wait_until"] or business_now() + stage.timeout)
             if isinstance(stage, Wait)
             else None,
         )
@@ -242,7 +242,7 @@ async def completed(
 ) -> None:
     pipeline: Pipeline = queue.catalog.pipelines[root["pipeline"]]
     index = next(i for i, stage in enumerate(pipeline.stages) if stage.name == group.name)
-    now = time.time()
+    now = business_now()
     await connection.execute(
         update(stages)
         .where(stages.c.id == row["id"])
@@ -264,7 +264,7 @@ async def failed_group(
     connection: AsyncConnection, queue: "JobQueue", root: dict, row: dict, counts: dict
 ) -> None:
     message = f"扇出成员未达到汇合要求：{counts}"
-    now = time.time()
+    now = business_now()
     await connection.execute(
         update(stages)
         .where(stages.c.id == row["id"])

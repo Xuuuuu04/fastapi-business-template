@@ -59,8 +59,11 @@ class Database:
     # 在一个短事务中执行写入，成功后提交；用于框架自己的表。
     @asynccontextmanager
     async def write(self) -> AsyncIterator[AsyncConnection]:
-        async with self.engine.connect() as connection, connection.begin():
-            yield connection
+        async with self.engine.connect() as connection:
+            if self.is_sqlite:
+                await connection.execution_options(sqlite_writer=True)
+            async with connection.begin():
+                yield connection
 
     # 检查数据库能否连通。
     async def ping(self) -> None:
@@ -102,7 +105,12 @@ def prepare_sqlite(engine: AsyncEngine, wait_seconds: float) -> None:
     # 每次开始事务时发出 BEGIN，保证事务范围与代码一致。
     @event.listens_for(engine.sync_engine, "begin")
     def on_begin(connection: Any) -> None:
-        connection.exec_driver_sql("BEGIN")
+        statement = (
+            "BEGIN IMMEDIATE"
+            if connection.get_execution_options().get("sqlite_writer")
+            else "BEGIN"
+        )
+        connection.exec_driver_sql(statement)
 
 
 # 判断异常是否属于数据库暂时不可用，例如断连、连接池等待超时。

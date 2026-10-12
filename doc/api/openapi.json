@@ -3,7 +3,7 @@
   "info": {
     "title": "FastAPI 通用后端模板",
     "description": "按模块组织的单体后端。每个接口背后是一个登记过的操作，可以按运行编号查看执行过程。",
-    "version": "dev"
+    "version": "0.1.0"
   },
   "paths": {
     "/health/live": {

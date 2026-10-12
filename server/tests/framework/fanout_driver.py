@@ -2,7 +2,6 @@
 成员链测试驱动：受控队列时间、独立双库夹具和有限推进；不改变正式worker时钟。
 """
 
-from importlib import import_module
 from pathlib import Path
 from time import time as wall_time
 
@@ -15,19 +14,24 @@ from shared.jobs.tables import job_counts, jobs
 from shared.jobs.worker import Worker, WorkerOptions
 from shared.pipelines.plan import StartRequest
 from shared.pipelines.tables import members, runs
+from shared.public import ApplicationSpec
+from shared.timing.clock import RealClock
+from shared.timing.current import current_clock, use_clock
 from tests.framework.fanout_sample import Begin, module, pipeline, sample_metadata, versions
 from tests.framework.test_pipelines import CALLER
 from tests.testing_app import make_settings, prepare_test_database
 
 
 # 时间只按明确到期的队列动作推进，主机停顿不会消耗合成上游的等待期限。
-class PipelineClock:
+class PipelineClock(RealClock):
+    simulated = True
+
     # 以登记时刻初始化，不在后续执行中读取宿主机时间。
     def __init__(self) -> None:
         self.value = wall_time()
 
     # 返回当前测试明确推进到的时间。
-    def time(self) -> float:
+    def now(self) -> float:
         return self.value
 
     # 只向前推进，避免多个组织的到期任务使时间倒退。
@@ -35,49 +39,25 @@ class PipelineClock:
         self.value = max(self.value, value)
 
 
-# 替换模块的time引用，不改标准库全局时间、asyncio单调时钟或操作超时。
-def install_clock(monkeypatch) -> None:
-    clock = PipelineClock()
-    modules = (
-        "shared.jobs.queue",
-        "shared.jobs.worker",
-        "shared.jobs.checkpoint_store",
-        "shared.jobs.segmented",
-        "shared.pipelines.engine",
-        "shared.pipelines.storage",
-        "shared.pipelines.runner",
-        "shared.pipelines.failure",
-        "shared.pipelines.queued",
-        "shared.pipelines.recovery",
-        "shared.pipelines.member_store",
-        "shared.pipelines.member_pool",
-        "shared.pipelines.member_runner",
-        "shared.pipelines.member_finish",
-        "shared.pipelines.member_failure",
-        "shared.pipelines.member_recovery",
-    )
-    for name in modules:
-        monkeypatch.setattr(import_module(name), "time", clock)
-
-
-# 夹具安装后队列使用受控时间，其他测试和正式代码仍使用标准库时间。
+# 当前夹具明确绑定受控业务时间，执行消耗仍按实际单调时间计算。
 def now() -> float:
-    return job_queue.time.time()
+    return current_clock().now()
 
 
 # 所有成员样例共用独立夹具，不增加业务模块；双库运行同一套用例。
 @pytest.fixture
 async def fanout(tmp_path: Path, monkeypatch, request):
-    install_clock(monkeypatch)
+    clock = PipelineClock()
     settings = make_settings(tmp_path)
     await prepare_test_database(settings.database_url)
-    built = build(settings, modules=[module])
+    built = build(settings, modules=[module], application=ApplicationSpec(clock=clock))
     async with built.database.write() as connection:
         await connection.run_sync(sample_metadata.drop_all)
         await connection.run_sync(sample_metadata.create_all)
         await connection.execute(insert(versions).values(version=1))
     try:
-        yield built
+        with use_clock(clock):
+            yield built
     finally:
         from tests.framework.pipeline_reports import save_failed_pipeline
 
@@ -119,7 +99,7 @@ async def drain(services: Services, run_id: str, *, limit: int = 2000) -> dict:
                 select(func.min(jobs.c.run_after)).where(jobs.c.state.in_(job_queue.READY))
             )
         if due is not None:
-            job_queue.time.advance_to(due)
+            services.queue.clock.advance_to(due)
         ticket = await services.queue.claim(now())
         if ticket is None:
             raise AssertionError("活动流程没有可推进成员或明确等待任务")

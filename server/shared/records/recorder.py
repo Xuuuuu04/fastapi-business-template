@@ -5,7 +5,6 @@
 
 import asyncio
 import logging
-import time
 from collections import deque
 from contextlib import suppress
 from dataclasses import dataclass, replace
@@ -15,6 +14,8 @@ from shared.records.models import RunRecord
 from shared.records.segments import warn_slow_batch
 from shared.records.stores import RunFilter, RunStore, matches
 from shared.records.summary import summarize
+from shared.timing.current import current_clock, monotonic
+from shared.timing.current import now as business_now
 
 log = logging.getLogger("server.records")
 
@@ -48,7 +49,7 @@ class Recorder:
 
     # 登记一次开始执行的运行。
     def start(self, run: RunRecord, *, record_success: bool = True) -> None:
-        run.updated_at = time.time()
+        run.updated_at = business_now()
         self.active[run.id] = run
         if not record_success:
             self.failure_only.add(run.id)
@@ -91,20 +92,19 @@ class Recorder:
 
     # 结束的记录及时保存；每三秒保存执行中的进度，让其他进程也能查看。
     async def run_forever(self) -> None:
-        progress_at = time.monotonic() + PROGRESS_SECONDS
+        progress_at = monotonic() + PROGRESS_SECONDS
         while True:
             with suppress(TimeoutError):
-                await asyncio.wait_for(
-                    self.wakeup.wait(), max(0.01, progress_at - time.monotonic())
-                )
+                await current_clock().run(self.wakeup.wait(), deadline=progress_at)
             self.wakeup.clear()
             await self.flush()
             if self.closing:
                 return
-            if time.monotonic() >= progress_at:
+            if monotonic() >= progress_at:
                 await self.save_progress()
-                progress_at = time.monotonic() + PROGRESS_SECONDS
-            await asyncio.sleep(0.2)
+                progress_at = monotonic() + PROGRESS_SECONDS
+            with suppress(TimeoutError):
+                await current_clock().run(self.wakeup.wait(), deadline=monotonic() + 0.2)
 
     # 进度按运行编号覆盖，分批保存，避免一次占用过大的连接和内存。
     async def save_progress(self) -> None:
@@ -116,7 +116,7 @@ class Recorder:
                 if run.status == "running" and run.id not in self.failure_only
             ]
             for run in active:
-                run.updated_at = time.time()
+                run.updated_at = business_now()
             snapshots = [mark_lost(run) for run in active]
             if snapshots:
                 await self.save(snapshots)
@@ -176,7 +176,7 @@ class Recorder:
 def mark_lost(run: RunRecord) -> RunRecord:
     if run.status != "running":
         return run
-    now = time.time()
+    now = business_now()
     status = "lost" if now - run.updated_at > LOST_AFTER_SECONDS else "running"
     steps = [
         replace(part, elapsed_ms=(now - part.started_at) * 1000)

@@ -13,6 +13,7 @@ from shared.data.fields import check_notes
 from shared.data.models import Data
 from shared.errors.framework import RemoteOutputInvalid, RemoteResultUnknown
 from shared.records.models import RemoteCallRecord
+from shared.remote_calls.routing import routing_problems, validation_shape
 
 
 # 接口名称全项目唯一；同一对象可以通过public在多个模块复用。
@@ -27,6 +28,12 @@ class Endpoint[In: Data, Out: Data]:
     unknown_on: tuple[int, ...] = ()
     accepted_statuses: tuple[int, ...] = ()
     source: str = field(init=False, default="")
+    path_fields: tuple[str, ...] = ()
+    query_fields: tuple[str, ...] = ()
+    body_fields: tuple[str, ...] | None = None
+    file_fields: tuple[str, ...] = ()
+    max_upload_bytes: int = 16_000_000
+    receipt_fields: tuple[str, ...] = ()
 
     # 声明时统一方法大小写；其余问题在启动检查一起给出。
     def __post_init__(self) -> None:
@@ -51,6 +58,12 @@ class Endpoint[In: Data, Out: Data]:
             output=self.output.model_json_schema(),
             unknown_on=self.unknown_on,
             accepted_statuses=self.accepted_statuses,
+            path_fields=self.path_fields,
+            query_fields=self.query_fields,
+            body_fields=self.body_fields,
+            file_fields=self.file_fields,
+            max_upload_bytes=self.max_upload_bytes,
+            validation=validation_shape(self),
         )
 
 
@@ -66,7 +79,19 @@ def validate_output[In: Data, Out: Data](
     endpoint: Endpoint[In, Out], raw: Any, record: RemoteCallRecord
 ) -> Out:
     try:
-        return endpoint.output.model_validate(raw)
+        result = endpoint.output.model_validate(raw)
+        missing = {
+            name
+            for name in endpoint.receipt_fields
+            if name not in result.model_fields_set or getattr(result, name) is None
+        }
+        if missing:
+            record.fields = {name: "关键回执字段缺失" for name in missing}
+            if endpoint.effect == "write" and record.outcome == "ok":
+                record.outcome = "unknown"
+                raise RemoteResultUnknown("关键回执未取得，写入结果需要确认") from None
+            raise RemoteOutputInvalid("关键回执未取得") from None
+        return result
     except ValidationError as error:
         fields = {}
         known = field_names(endpoint.output)
@@ -100,9 +125,8 @@ def endpoint_problems(endpoint: Endpoint[Any, Any]) -> list[str]:
         not endpoint.path.startswith("/")
         or endpoint.path.startswith("//")
         or "://" in endpoint.path
-        or "{" in endpoint.path
     ):
-        problems.append(f"{place} 路径必须是固定的站内绝对路径，参数放在input")
+        problems.append(f"{place} 路径必须是声明的站内绝对路径")
     if endpoint.effect not in ("read", "write"):
         problems.append(f"{place} effect只能是read或write")
     for model in (endpoint.input, endpoint.output):
@@ -119,6 +143,7 @@ def endpoint_problems(endpoint: Endpoint[Any, Any]) -> list[str]:
         problems.append(f"{place} accepted_statuses只允许除408/499外的4xx")
     if set(endpoint.unknown_on) & set(endpoint.accepted_statuses):
         problems.append(f"{place} 待确认状态不能同时声明为确定拒绝")
+    problems += routing_problems(endpoint)
     return problems
 
 

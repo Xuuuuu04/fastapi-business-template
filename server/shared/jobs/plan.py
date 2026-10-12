@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from shared.data.models import Data
 from shared.jobs.imports import ImportPlan
+from shared.jobs.limits import ResourceLimit, SerialKey
 from shared.modules.contract import Contract
 
 
@@ -39,6 +40,12 @@ class JobPlan:
     cursor: type[Data] | None = None
     critical: bool = True
     import_plan: ImportPlan | None = None
+    serial: SerialKey | None = None
+    resources: tuple[ResourceLimit, ...] = ()
+    queue_timeout: float | None = None
+    valid_until_field: str = ""
+    revalidate: Contract[Any, Any] | None = None
+    attempt_timeout: float | None = None
 
     # 输入摘要与来源去重键统一生成，普通任务保留调用方给出的键。
     def submission(self, input: Data, key: str) -> tuple[str, str, str]:

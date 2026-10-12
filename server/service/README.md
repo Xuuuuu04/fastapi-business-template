@@ -2,11 +2,17 @@
 
 当前没有预置的业务模块。新增模块用下面的生成命令。
 
-每个子目录是一个业务模块，按"一个人能完整说清的业务能力"划分，例如"客户联系""订单退款"。模块之间只通过操作约定互相调用。
+每个子目录是能力包或流程包，模块之间只通过公开操作调用。能力包拥有领域数据和规则；跨领域写入由流程包编排，仍沿用同一事务。流程包可以保存批次、执行状态和结果引用。
+
+`Module.kind`声明`capability`或`workflow`，公开操作用`effect="query"`或`effect="command"`声明性质。查询不能保存业务数据或登记任务，也不能调用写入或效果未知的操作。能力包跨包读取通过`read_dependencies`声明，依赖必须无环。省略类型的旧声明显示未知，不表示已经验证过。
+
+跨业务纯函数、数据类型与协议解析放在[工具包](../library/README.md)，通过其`public.py`复用；步骤以`calcs`声明使用的计算。工具不能访问数据库、网络、文件、时钟和随机源。公开数据与关键流程字段应有明确类型，兼容原始输入模型通过`boundary_data`标记，不把任意字典显示为完整业务契约。
+
+新建使用`uv run dev new-module customer_contact --title 客户联系 --kind capability`或`--kind workflow`；工具使用`uv run dev new-library text_formats --title 文本格式`。`dev plan`维护计划，实际依赖始终来自声明和源码；包清单由生成器读取各包标记后生成。
 
 从产品业务线到开发包的层次见[项目设计](../../doc/development.md)，分组在根目录 `project-plan.json` 里填写。
 代码保留统一的模块路径，避免改变生成器、模块导入和已有产品。开发时用 `fastapi_project.project --module 模块名` 一次看到本模块的操作、条件分支、计算图、源码和最近的测试情况。
-开发按一项完整业务推进；迁移旧系统见[业务迁移 Skill](../../.agents/skills/fastapi-migration/SKILL.md)。
+开发按一项完整业务推进；迁移旧系统见[业务迁移 Skill](../../.agents/skills/fastapi-template/references/product-migration.md)。
 
 ## 每个模块的固定结构
 

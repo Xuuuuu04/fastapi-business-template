@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi_docs.progress_doc import pending_of, rules_of, tested_rules
+from fastapi_project.development.check_storage import load_cases
 from fastapi_project.development.evidence import (
     case_current,
     check_scope,
@@ -14,13 +15,16 @@ from fastapi_project.development.evidence import (
     latest_full_check,
 )
 from fastapi_project.development.history import fingerprints, module_checks, read_checks
+from fastapi_project.development.ledger import read_ledger
 from fastapi_project.development.operations import operation_status
 from fastapi_project.development.pipelines import overview
 from fastapi_project.development.plan import read_plan
 from fastapi_project.development.scenarios import scenario_status
+from fastapi_project.development.task_views import task_status
 
 from shared.graphs.static import module_graph
 from shared.modules.catalog import Catalog
+from shared.modules.libraries import library_links, library_specs
 
 
 # 筛出属于本模块的测试，也保留其他模块测试中实际调用本模块的记录。
@@ -76,10 +80,16 @@ def module_status(
     return {
         "name": name,
         "title": module.title,
+        "kind": module.kind or "unknown",
         "enabled": name not in disabled,
         "code": f"server/service/{name}",
         "fingerprint": fingerprint,
         "rules": rules,
+        "rule_ledger": [
+            r.model_dump(mode="json")
+            for r in read_ledger(project).rules
+            if r.id.startswith(name + ".")
+        ],
         "test_annotations": tested_rules(project, name),
         "pending": [item.text for item in pending_of(project, name)],
         "tests": tests,
@@ -112,13 +122,15 @@ def latest_check_status(check: dict[str, Any]) -> dict[str, Any]:
 
     suites = {}
     for suite in check["suites"]:
+        cases = load_cases(suite)
         suites[suite["database"]] = {
             **suite,
+            "cases": cases,
             "finished_at": check["finished_at"],
             "current": not check["source_changed"],
             "checks_passed": check["passed"],
             "counts": {
-                status: sum(case["outcome"] == status for case in suite["cases"])
+                status: sum(case["outcome"] == status for case in cases)
                 for status in ("passed", "failed", "skipped")
             },
         }
@@ -154,7 +166,7 @@ def project_status(
     extra_checks: list[Path] | None = None,
 ) -> dict[str, Any]:
     plan = read_plan(project)
-    checks = read_checks(project, extra_checks)
+    checks = read_checks(project, extra_checks, include_cases=False)
     codes = fingerprints(project, list(catalog.modules), catalog.links())
     modules = {
         name: module_status(catalog, project, name, checks, codes[name], disabled or set(), codes)
@@ -175,6 +187,7 @@ def project_status(
     )
     return {
         "schema_version": 1,
+        "tasks": task_status(project, catalog),
         "name": plan["name"] if plan else project.name,
         "has_plan": plan is not None,
         "lines": lines,
@@ -184,6 +197,8 @@ def project_status(
         "modules": modules,
         "module_graph": module_graph(catalog),
         "dependencies": catalog.links(),
+        "libraries": [item.shape() for item in library_specs(project / "server")],
+        "library_dependencies": library_links(project / "server"),
         "check_rounds": len(checks),
         "latest_check": latest_check_status(checks[-1]) if checks else None,
         "latest_full_check": full_check_status(checks, codes, project),

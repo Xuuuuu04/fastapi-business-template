@@ -15,6 +15,7 @@ from typing import Any, get_args
 
 from fastapi import FastAPI
 from fastapi.routing import APIRoute, iter_route_contexts
+from fastapi_docs.protocol_doc import endpoint_section, provider_section
 from pydantic import BaseModel
 from sqlalchemy import Table
 
@@ -71,12 +72,20 @@ def module_doc(catalog: Catalog, name: str, routes: dict[str, list[str]]) -> str
     depends = depend_text(links)
     lines = [f"# {module.title}：操作与流程", "", HEADER, ""]
     lines += [f"模块 `{name}`，版本 {module.version}。{depends}", ""]
+    kinds = {"capability": "能力包", "workflow": "流程包"}
+    lines += [
+        f"包类型：{kinds.get(module.kind or '', '未知')}。只读依赖："
+        + ("、".join(module.read_dependencies) or "无")
+        + "。",
+        "",
+    ]
     lines += reading_guide()
     lines += operation_table(module, routes)
     lines += error_table(module)
     for item in module.provides:
         lines += contract_section(catalog.bindings[item])
     lines += endpoint_section(module)
+    lines += provider_section(module)
     lines += models_section([*module.provides, *module.endpoints])
     lines += tables_section(module.tables)
     return "\n".join(lines).rstrip() + "\n"
@@ -113,8 +122,8 @@ def operation_table(module: Module, routes: dict[str, list[str]]) -> list[str]:
     lines = [
         "## 公开操作",
         "",
-        "| 操作 | 名称 | 权限 | 接口 | 可能的业务错误 |",
-        "| --- | --- | --- | --- | --- |",
+        "| 操作 | 名称 | 性质 | 权限 | 接口 | 可能的业务错误 |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     scheduled = {plan.contract for plan in module.schedules}
     queued = {plan.contract for plan in module.jobs}
@@ -126,7 +135,8 @@ def operation_table(module: Module, routes: dict[str, list[str]]) -> list[str]:
         ways += ["分段提交（按游标恢复）"] if item in segmented else []
         way = "<br/>".join(ways) or "没有接到接口或任务上"
         errors = "、".join(error.code for error in item.errors) or "无"
-        values = [item.action, item.title, item.access, way, errors]
+        effect = {"query": "查询", "command": "写入"}.get(item.effect or "", "未知")
+        values = [item.action, item.title, effect, item.access, way, errors]
         lines.append("| " + " | ".join(cell(value) for value in values) + " |")
     return [*lines, ""]
 
@@ -270,27 +280,3 @@ def yes(value: object) -> str:
 # 整理表格单元格。
 def cell(value: object) -> str:
     return str(value or "").replace("|", "\\|").replace("\n", " ")
-
-
-# 上游接口协议与模型从同一份声明生成，产品文档无需再手写解析格式。
-def endpoint_section(module: Module) -> list[str]:
-    if not module.endpoints:
-        return []
-    lines = [
-        "## 上游接口",
-        "",
-        "| 接口 | 方法与路径 | 效果 | 输入 | 输出 | 待确认 | 确定拒绝 |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
-    ]
-    for endpoint in module.endpoints:
-        values = [
-            endpoint.name,
-            f"{endpoint.method} {endpoint.path}",
-            endpoint.effect,
-            model_name(endpoint.input),
-            model_name(endpoint.output),
-            str(endpoint.unknown_on),
-            str(endpoint.accepted_statuses),
-        ]
-        lines.append("| " + " | ".join(cell(value) for value in values) + " |")
-    return [*lines, ""]

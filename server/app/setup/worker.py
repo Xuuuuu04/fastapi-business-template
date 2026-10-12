@@ -9,7 +9,9 @@ import logging
 import signal
 from contextlib import suppress
 
-from app.setup.build import build
+from app.setup.application import application as declared_application
+from app.setup.build import Services, build
+from shared.application.spec import ApplicationSpec, WorkerSpec
 from shared.config.settings import Settings
 from shared.jobs.worker import Worker, WorkerOptions
 from shared.logs.setup import setup_logs
@@ -18,9 +20,11 @@ log = logging.getLogger("server.jobs")
 
 
 # 组装服务并运行 worker，直到收到停止信号。
-async def serve(settings: Settings) -> None:
+async def serve(settings: Settings, *, application: ApplicationSpec | None = None) -> None:
+    specification = application or declared_application()
+    settings = specification.prepare(settings)
     setup_logs(json_lines=settings.env == "production")
-    services = build(settings)
+    services = build(settings, application=specification)
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for name in (signal.SIGTERM, signal.SIGINT):
@@ -43,16 +47,24 @@ async def serve(settings: Settings) -> None:
     digest, concurrency = services.catalog.digest, options.concurrency
     log.info("worker_started digest=%s concurrency=%s", digest, concurrency)
     try:
-        await worker.run(stop)
+        async with asyncio.TaskGroup() as tasks:
+            tasks.create_task(worker.run(stop), name="jobs")
+            for extension in specification.workers:
+                tasks.create_task(run_extension(extension, services, stop), name=extension.name)
     finally:
         if flushing is not None:
             await services.recorder.stop(flushing)
         await services.close()
 
 
+# 后台扩展可以返回任意Awaitable，TaskGroup仍只接收由框架创建的协程。
+async def run_extension(extension: WorkerSpec, services: Services, stop: asyncio.Event) -> None:
+    await extension.run(services, stop)
+
+
 # 读取配置并启动 worker。
 def main() -> None:
-    asyncio.run(serve(Settings()))
+    asyncio.run(serve(declared_application().settings()))
 
 
 if __name__ == "__main__":

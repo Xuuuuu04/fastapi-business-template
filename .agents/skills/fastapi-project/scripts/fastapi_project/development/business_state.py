@@ -170,7 +170,7 @@ def render(path: Path, data: dict[str, Any]) -> str:
     return text[:first] + block(data) + text[last:]
 
 
-# 源码与依赖变化、声明变化、生成超过一天都过期；check只比较，绝不自动刷新证据。
+# 声明按内容判断时效；运行观察的时间保留为事实，不因一天过去让静态检查失败。
 def outdated(
     catalog: Catalog,
     project: Path,
@@ -189,7 +189,7 @@ def outdated(
                 not saved
                 or saved["fingerprint"] != versions[name]
                 or saved["declaration"] != declaration(catalog, name, disabled)
-                or not 0 <= now - saved["generated_at"] <= MAX_AGE
+                or now < saved["generated_at"]
                 or (
                     database_id is not None
                     and saved["runtime"].get("observed_at") is not None

@@ -13,20 +13,23 @@ import shared.access.audit
 import shared.db.history
 import shared.jobs.tables
 import shared.records.tables
-from app.setup.catalog import MODULES
-from shared.config.settings import Settings
+from app.setup.application import application, application_modules
 from shared.db.database import engine_options
 from shared.db.ownership import ownership
 from shared.db.tables import metadata
 
 config = context.config
-LOADED = (MODULES, shared.jobs.tables, shared.records.tables, shared.access.audit)
-OWNERSHIP = ownership(MODULES, Settings())
+LOADED = (application_modules(), shared.jobs.tables, shared.records.tables, shared.access.audit)
+MODE = "offline" if context.get_x_argument(as_dictionary=True).get("url") else "runtime"
+OWNERSHIP = ownership(application_modules(), application().settings(MODE))
 
 
 # 取得连接地址：命令行 -x url=... 优先，否则读取服务配置。
 def database_url() -> str:
-    return context.get_x_argument(as_dictionary=True).get("url") or Settings().database_url
+    return (
+        context.get_x_argument(as_dictionary=True).get("url")
+        or application().settings().database_url
+    )
 
 
 # 在给定连接上执行迁移；SQLite 使用批量模式以支持修改列。

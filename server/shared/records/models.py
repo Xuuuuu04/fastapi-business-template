@@ -72,6 +72,9 @@ class RemoteCallRecord:
     endpoint: str = ""
     effect: str = ""
     fields: dict[str, str] = field(default_factory=dict)
+    intent_id: str = ""
+    provider_state: str = ""
+    simulated: bool | None = None
 
 
 # 一次业务数据库调用的位置、耗时和行数；不保存 SQL 文本、参数或查询结果。
@@ -105,6 +108,7 @@ class StepRecord:
     source: str
     reads: list[str] = field(default_factory=list)
     writes: list[str] = field(default_factory=list)
+    simulated: bool = False
     status: str = "running"
     condition: str = ""
     condition_source: str = ""
@@ -158,6 +162,7 @@ class RunRecord:
     job_id: str
     caller: str
     started_at: float
+    simulated: bool = False
     status: str = "running"
     updated_at: float = 0.0
     ended_at: float = 0.0
@@ -172,6 +177,7 @@ class RunRecord:
     summary: str = ""
     gaps: list[str] = field(default_factory=list)
     source_version: str = ""
+    clock_kind: str = ""
     import_report: dict[str, Any] = field(default_factory=dict)
 
     query_children: dict[str, Any] = field(default_factory=dict)

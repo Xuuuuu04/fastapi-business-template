@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 from fastapi_check.quality.rules import ROOT
+from fastapi_project.development.check_storage import export_record
 from fastapi_project.development.commands import with_check_directories
 from fastapi_project.development.history import fingerprints, save_check
 from fastapi_project.development.status import project_status
@@ -162,7 +163,8 @@ def test_imported_check_next_command_keeps_its_source_directory(tmp_path: Path) 
     folder = tmp_path / "imported-checks"
     folder.mkdir()
     for path in source.glob("*.json"):
-        path.rename(folder / path.name)
+        export_record(path, folder)
+        path.unlink()
     status = project_summary(project_status(Catalog(MODULES), tmp_path, extra_checks=[folder]))
     status = with_check_directories(status, [folder])
     module = status["modules"]["sample_accounts"]

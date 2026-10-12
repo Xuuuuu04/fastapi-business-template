@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from shared.access.caller import SYSTEM, Caller
+from shared.jobs.submission import scope_for
 from shared.jobs.tables import jobs
 
 
@@ -60,7 +61,7 @@ async def legacy_exists(
         await connection.execute(
             select(jobs.c.caller_json).where(
                 jobs.c.contract == contract,
-                jobs.c.key_scope == SYSTEM.id,
+                jobs.c.key_scope.in_((SYSTEM.id, scope_for(schedule_caller(org_id)))),
                 jobs.c.key == f"schedule:{name}:{slot.isoformat()}",
             )
         )

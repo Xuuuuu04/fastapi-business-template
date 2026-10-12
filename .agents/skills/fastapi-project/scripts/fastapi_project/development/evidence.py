@@ -48,11 +48,15 @@ def full_check_current(
 
 # 全局登记、路由和系统测试单独记录，避免它们使所有业务包的结果无差别过期。
 def system_fingerprint(project: Path) -> str:
-    from fastapi_project.development.history import fingerprint
+    from fastapi_project.development.history import COMMON, fingerprint
 
     server = project / "server"
     return fingerprint(
         [
+            *[
+                project / name.removeprefix("../") if name.startswith("../") else server / name
+                for name in COMMON
+            ],
             server / "app/setup/catalog.py",
             server / "app/api/routers.py",
             server / "tests/integration/system",

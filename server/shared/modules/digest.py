@@ -28,6 +28,11 @@ def module_shape(module: Module) -> dict[str, Any]:
     return {
         "name": module.name,
         "version": module.version,
+        "kind": module.kind,
+        "read_dependencies": module.read_dependencies,
+        "effects": {item.name: item.effect for item in module.provides},
+        "boundary_data": [item.__name__ for item in module.boundary_data],
+        "providers": [item.shape() for item in module.providers],
         **({"aliases": module.aliases} if module.aliases else {}),
         **(
             {"operation_aliases": {c.name: c.aliases for c in module.provides if c.aliases}}
@@ -41,6 +46,8 @@ def module_shape(module: Module) -> dict[str, Any]:
         },
         **endpoint_shapes(module),
         **calculation_shape(module),
+        **observation_shape(module),
+        **simulation_shape(module),
         "query_budgets": query_budgets(module),
         "jobs": [job_shape(j) for j in sorted(module.jobs, key=lambda item: item.contract.name)],
         "schedules": [
@@ -77,6 +84,12 @@ def job_shape(plan: JobPlan) -> dict[str, Any]:
         critical=plan.critical,
         import_plan=plan.import_plan.shape() if plan.import_plan else None,
         segmented=plan.segmented,
+        serial=asdict(plan.serial) if plan.serial else None,
+        resources=[asdict(resource) for resource in plan.resources],
+        queue_timeout=plan.queue_timeout,
+        valid_until_field=plan.valid_until_field,
+        revalidate=plan.revalidate.name if plan.revalidate else None,
+        attempt_timeout=plan.attempt_timeout,
         cursor=plan.cursor.model_json_schema() if plan.cursor else None,
     )
 
@@ -173,3 +186,23 @@ def calculation_shape(module: Module) -> dict[str, Any]:
         if any(part.calcs for part in flow.steps)
     }
     return {"calcs": calcs} if calcs else {}
+
+
+# 观察声明改变时检查证据过期，未声明观察的旧模块摘要保持兼容。
+def observation_shape(module: Module) -> dict[str, Any]:
+    values = {
+        item.name: {part.name: part.observes for part in flow.steps if part.observes}
+        for item, flow in module.provides.items()
+        if any(part.observes for part in flow.steps)
+    }
+    return {"observations": values} if values else {}
+
+
+# 模拟身份影响声明版本；换成真实实现后旧骨架检查不能沿用。
+def simulation_shape(module: Module) -> dict[str, Any]:
+    values = {
+        item.name: [part.name for part in flow.steps if part.simulated]
+        for item, flow in module.provides.items()
+        if any(part.simulated for part in flow.steps)
+    }
+    return {"simulations": values} if values else {}

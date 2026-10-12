@@ -11,6 +11,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from shared.effects.spec import ProviderSpec
 from shared.model_calls.prompt import Prompt
 from shared.modules.contract import Contract
 from shared.remote_calls.endpoint import Endpoint
@@ -29,6 +30,8 @@ PARAMS = (
     "emit",
     "checkpoint",
     "pipeline",
+    "effects",
+    "clock",
 )
 
 
@@ -63,13 +66,16 @@ class Step:
     is_async: bool
     endpoints: tuple[Endpoint[Any, Any], ...] = ()
     calcs: tuple[Callable[..., Any], ...] = ()
+    providers: tuple[ProviderSpec, ...] = ()
+    observes: tuple[str, ...] = ()
+    simulated: bool = False
 
     # 按参数判断步骤的种类：大模型、保存、读取、调用或纯计算。
     @property
     def kind(self) -> str:
         if "model" in self.params:
             return "model"
-        if "remote" in self.params:
+        if "remote" in self.params or "effects" in self.params:
             return "remote"
         if self.saves:
             return "save"
@@ -105,6 +111,9 @@ def step(
     when: Condition | None = None,
     heavy: bool = False,
     calcs: Sequence[Callable[..., Any]] = (),
+    providers: Sequence[ProviderSpec] = (),
+    observes: Sequence[str] = (),
+    simulated: bool = False,
 ) -> Callable[[Callable[..., Any]], Step]:
     # 把步骤函数包装成步骤声明。
     def wrap(func: Callable[..., Any]) -> Step:
@@ -128,6 +137,9 @@ def step(
             source=source_of(func),
             is_async=inspect.iscoroutinefunction(func),
             calcs=tuple(calcs),
+            providers=tuple(providers),
+            observes=tuple(observes),
+            simulated=simulated,
         )
 
     return wrap

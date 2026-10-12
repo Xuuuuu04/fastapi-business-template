@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
 
+from shared.modules.validation.library_rules import check_libraries
 from shared.modules.validation.pure import check_pure, direction_problem
 from shared.modules.validation.report import ROOT, Problem, files_under, relative
 
@@ -48,7 +49,7 @@ def check_imports(root: Path = ROOT, *, strict: bool | None = None) -> list[Prob
         problems += check_api_file(path, root)
     for path in files_under(root, ("service", "shared", "app"), ".py"):
         problems += check_dynamic(path, root)
-    return migration_policy(problems, strict, root)
+    return migration_policy(problems, strict, root) + check_libraries(root)
 
 
 # 新目录立即检查；旧包反向引用先警告，迁移后可升级为错误。
@@ -134,6 +135,8 @@ def service_problem(module: str, own: str, area: str) -> tuple[str, str, str] | 
     if direction:
         return direction
     top = module.split(".")[0]
+    if top == "library" and not module.endswith(".public"):
+        return "import_library", f"工具引用越过公开入口 {module}", "只导入library.工具包.public"
     if module.startswith("shared") and module != "shared.public":
         return "import_shared", f"业务代码导入了 {module}", "框架功能统一从 shared.public 导入"
     if top in (

@@ -4,7 +4,6 @@
 
 import json
 import secrets
-import time
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import insert, select
@@ -15,6 +14,7 @@ from shared.errors.framework import DuplicateRequest, InvalidInput
 from shared.pipelines.plan import FanOut, Member
 from shared.pipelines.schema import data_json, stage_declaration
 from shared.pipelines.tables import members
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.modules.catalog import Catalog
@@ -45,7 +45,7 @@ async def add(
     declared = json.dumps([stage_declaration(child, catalog) for child in group.stages])
     for value in values:
         body = data_json(model, value.input, group.name + "/" + value.key)
-        now = time.time()
+        now = business_now()
         row = dict(
             id=secrets.token_hex(8),
             pipeline_id=root["id"],

@@ -3,7 +3,6 @@
 """
 
 import json
-import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -19,6 +18,8 @@ from shared.pipelines.plan import FanOut, Pipeline, Stage, Wait
 from shared.pipelines.schema import data_json, declarations, format_of
 from shared.pipelines.storage import compatible, is_pipeline_job, own, root_for, stage_for
 from shared.pipelines.tables import runs, stages
+from shared.scenarios.observations import ObservationPosition
+from shared.timing.current import now as business_now
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue, Ticket
@@ -34,6 +35,11 @@ class StageContext:
     pipeline: Pipeline | None
     stage: Stage | None
     allowed: bool = True
+
+    # 真实任务尝试为观察位置，不从产出字段反推。
+    @property
+    def observation_position(self) -> ObservationPosition:
+        return ObservationPosition(attempt=self.ticket.attempt)
 
     # 阶段产出、任务结束、下一阶段登记全部使用业务写入事务。
     async def finish(self, connection: AsyncConnection, result: Data, run_id: str) -> None:
@@ -56,7 +62,7 @@ class StageContext:
                     source_schema_json=json.dumps(format_of(self.stage.operation.output)),
                 )
             )
-        now = time.time()
+        now = business_now()
         if isinstance(self.stage, Wait) and now >= self.row["wait_until"]:
             raise InvalidInput(f"流程阶段{self.stage.name}等待已超时")
         if isinstance(self.stage, Wait) and not getattr(result, self.stage.ready_field):
@@ -164,7 +170,7 @@ async def prepare(queue: "JobQueue", ticket: "Ticket") -> ExecutionContext | Non
         state, code, reason = await decision(connection, context)
     if reason:
         context.allowed = False
-        await queue.fail(ticket, state, code, reason, run_after=time.time() + 1)
+        await queue.fail(ticket, state, code, reason, run_after=business_now() + 1)
     return context
 
 
@@ -184,7 +190,7 @@ async def decision(connection: AsyncConnection, context: StageContext) -> tuple[
             "pipeline_schema_changed",
             f"流程阶段{row['name']}或后续阶段格式/声明已变化",
         )
-    now = time.time()
+    now = business_now()
     wait_until = row["wait_until"]
     if isinstance(stage, Wait):
         wait_until = wait_until or now + stage.timeout
@@ -233,7 +239,7 @@ async def wait_capacity(connection: AsyncConnection, context: StageContext) -> b
             stages.c.name == context.stage.name,
             stages.c.state == "running",
             jobs.c.state == "running",
-            jobs.c.lease_until > time.time(),
+            jobs.c.lease_until > business_now(),
             jobs.c.id != context.ticket.id,
         )
     )

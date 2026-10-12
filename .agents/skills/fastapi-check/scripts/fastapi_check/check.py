@@ -4,15 +4,17 @@
 --affected --base 分支根据新旧依赖选择范围；压力和浏览器测试仍需另行执行。
 """
 
-import argparse
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import perf_counter
 
+from fastapi_check.arguments import arguments
+from fastapi_check.cache import cached_round, execution_profile
+from fastapi_check.development_rules import check_development
+from fastapi_check.matrix import CheckOptions, clean_environment, databases, execute_matrix
 from fastapi_check.quality.rules import PROJECT, ROOT
 from fastapi_project.development.evidence import system_fingerprint
 from fastapi_project.development.history import fingerprints, save_check
@@ -24,7 +26,7 @@ from fastapi_project.development.selection import (
     validate_modules,
 )
 
-TYPED = ("app", "service", "shared", "../.agents/skills", "deploy")
+TYPED = ("app", "service", "library", "shared", "../.agents/skills", "devtools/src", "deploy")
 INTEGRITY = (
     "tests/architecture/test_structure.py::test_import_rules",
     "tests/architecture/test_structure.py::test_registry_is_complete",
@@ -82,69 +84,127 @@ def run_tests(
             if result.exists()
             else {"exit_code": 1, "cases": []}
         )
-    return passed and evidence["exit_code"] == 0, {"database": database, **evidence}
+    actual = evidence.get("database", database)
+    return passed and evidence["exit_code"] == 0 and actual == database, {
+        "database": actual,
+        **evidence,
+    }
 
 
 # 迁移历史与启动使用同一检查，旧产品默认提醒。
 def migration_check() -> bool:
+    from app.setup.application import application
     from app.setup.catalog import MODULES
-    from shared.config.settings import Settings
     from shared.db.ownership import check_migrations
 
-    errors = check_migrations(ROOT, MODULES, Settings())
+    errors = check_migrations(ROOT, MODULES, application().settings("test"))
     for error in errors:
         print(error, flush=True)
     return not errors
 
 
 # 保存每轮的检查结果；检查期间源码改变时，该轮不能证明当前版本。
-def execute(selection: Selection, postgres: str) -> list[tuple[str, bool]]:
-    from app.setup.catalog import MODULES
-    from shared.config.settings import Settings
-    from shared.modules.catalog import Catalog
-
+def execute(
+    selection: Selection, postgres: str, options: CheckOptions | None = None
+) -> list[tuple[str, bool]]:
+    options = options or CheckOptions()
+    matrix = databases(postgres, options.database)
     started = perf_counter()
-    modules = list(selection.modules) or [item.name for item in MODULES]
-    links = Catalog(MODULES).links()
-    before = fingerprints(PROJECT, modules, links)
-    system_before = system_fingerprint(PROJECT)
-    env = {**os.environ, "APP_DISABLED_MODULES": "[]", "APP_DEVELOPMENT_REPEAT_DATABASE": "0"}
-    env["APP_MODULE_DEPENDENCIES_STRICT"] = str(Settings().module_dependencies_strict).lower()
-    env["APP_DEVELOPMENT_MODULES"] = json.dumps([] if selection.quick else list(selection.modules))
+    modules, links, before, system_before = check_versions(selection)
+    profile = execution_profile(options, postgres)
+    scope: dict[str, object] = (
+        selection.scope()
+        if options.group == "all"
+        else {
+            "kind": "group",
+            "group": options.group,
+            "modules": modules,
+        }
+    )
+    if not options.delivery:
+        cached = cached_round(PROJECT, before, system_before, scope, profile)
+        if cached:
+            print(f"沿用检查 {cached['id']}（{cached['finished_at']}），没有重新执行")
+            return list(cached["checks"].items())
+    env = check_environment(selection, postgres, options)
     selected = steps(selection)
+    results, timings = run_static_checks(selected, env)
+    outcomes = execute_matrix(
+        matrix, postgres, selected[-1][1], env, options, run_tests, selected[-1][0]
+    )
+    suites = []
+    for database, passed, evidence, seconds in outcomes:
+        title = "PostgreSQL 测试" if database == "postgresql" else selected[-1][0]
+        results.append((title, passed))
+        suites.append(evidence)
+        timings[title] = seconds
+    finish_check(
+        selection,
+        before,
+        system_before,
+        modules,
+        links,
+        results,
+        suites,
+        timings,
+        started,
+        options,
+        profile,
+        scope,
+    )
+    return results
+
+
+# 风格、类型、文档与迁移归属只执行一遍，数据库矩阵共用结果。
+def run_static_checks(
+    selected: list[tuple[str, list[str]]], env: dict[str, str]
+) -> tuple[list[tuple[str, bool]], dict[str, float]]:
     timings: dict[str, float] = {}
-    results = [("迁移表归属", migration_check())]
+    results = [
+        ("迁移表归属", migration_check()),
+        ("规则与实现状态", check_development(env.get("APP_DEVELOPMENT_DELIVERY") == "1")),
+    ]
     for title, command in selected[:-1]:
         start = perf_counter()
         results.append((title, run(title, command, env)))
         timings[title] = round(perf_counter() - start, 3)
-    database = (
-        "postgresql" if env.get("APP_TEST_DATABASE_URL", "").startswith("postgres") else "sqlite"
-    )
-    start = perf_counter()
-    passed, evidence = run_tests(*selected[-1], env, database)
-    timings[selected[-1][0]] = round(perf_counter() - start, 3)
-    results.append((selected[-1][0], passed))
-    suites = [evidence]
+    return results, timings
+
+
+# 模块、依赖实现和完整框架指纹一起参与检查版本。
+def check_versions(
+    selection: Selection,
+) -> tuple[list[str], dict[str, dict[str, list[str]]], dict[str, str], str]:
+    from app.setup.application import application_modules
+    from shared.modules.catalog import Catalog
+
+    registered = application_modules()
+    modules = list(selection.modules) or [item.name for item in registered]
+    links = Catalog(registered).links()
+    return modules, links, fingerprints(PROJECT, modules, links), system_fingerprint(PROJECT)
+
+
+# 测试环境明确选择数据库，产品策略从隔离配置读取。
+def check_environment(
+    selection: Selection, postgres: str, options: CheckOptions | None = None
+) -> dict[str, str]:
+    from app.setup.application import application
+
+    options = options or CheckOptions()
+    env = {
+        **clean_environment(),
+        "APP_TEST_GROUP": options.group,
+        "APP_DEVELOPMENT_DELIVERY": "1" if options.delivery else "0",
+        "APP_DISABLED_MODULES": "[]",
+        "APP_DEVELOPMENT_REPEAT_DATABASE": "0",
+    }
     if postgres:
-        start = perf_counter()
-        passed, evidence = run_tests(
-            "PostgreSQL 测试",
-            selected[-1][1],
-            {
-                **env,
-                "APP_TEST_DATABASE_URL": postgres,
-                "APP_DEVELOPMENT_REPEAT_DATABASE": "1" if passed else "0",
-            },
-            "postgresql",
-        )
-        results.append(("PostgreSQL 测试", passed))
-        suites.append(evidence)
-        timings["PostgreSQL 测试"] = round(perf_counter() - start, 3)
-    finish_check(
-        selection, before, system_before, modules, links, results, suites, timings, started
-    )
-    return results
+        env.pop("APP_TEST_DATABASE_URL", None)
+    env["APP_MODULE_DEPENDENCIES_STRICT"] = str(
+        application().settings("test").module_dependencies_strict
+    ).lower()
+    env["APP_DEVELOPMENT_MODULES"] = json.dumps([] if selection.quick else list(selection.modules))
+    return env
 
 
 # 版本在执行前后比较，计时包括版本读取；记录不保存连接地址或测试数据。
@@ -158,6 +218,9 @@ def finish_check(
     suites: list[dict[str, object]],
     timings: dict[str, float],
     started: float,
+    options: CheckOptions | None = None,
+    profile: dict[str, object] | None = None,
+    scope: dict[str, object] | None = None,
 ) -> None:
     changed = before != fingerprints(
         PROJECT, modules, links
@@ -167,7 +230,7 @@ def finish_check(
         PROJECT,
         {
             "fingerprints": before,
-            "scope": selection.scope(),
+            "scope": scope or selection.scope(),
             "source_changed": changed,
             "system_fingerprint": system_before,
             "passed": all(passed for _, passed in results),
@@ -176,6 +239,7 @@ def finish_check(
             "timings": timings,
             "elapsed_seconds": elapsed,
             "selection_reasons": list(selection.reasons),
+            "execution_profile": profile or {},
         },
     )
     print(f"\n本轮检查记录：{path.relative_to(PROJECT)}")
@@ -183,35 +247,6 @@ def finish_check(
         f"本轮耗时：{elapsed:.3f} 秒；"
         + "；".join(f"{title} {seconds:.3f}s" for title, seconds in timings.items())
     )
-
-
-# 依次运行全部检查并汇总结果。
-def arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="快速调试、分层验收或完整检查")
-    parser.add_argument(
-        "--module",
-        action="append",
-        default=[],
-        help="指定模块，可重复或用逗号分隔；公共检查只执行一次",
-    )
-    parser.add_argument(
-        "--postgres", default="", help="PostgreSQL 连接地址，用于在真实数据库上再跑测试"
-    )
-    parser.add_argument(
-        "--quick", action="store_true", help="仅局部风格、格式及模块测试，不代替验收"
-    )
-    parser.add_argument("--affected", action="store_true", help="按改动及新旧依赖检查受影响模块")
-    parser.add_argument(
-        "--base", default="origin/main", help="--affected 的比较分支，默认 origin/main"
-    )
-    args = parser.parse_args()
-    if args.affected and (args.module or args.quick):
-        parser.error("--affected 不能与 --module 或 --quick 同时使用")
-    if args.quick and not module_names(args.module):
-        parser.error("--quick 必须指定 --module，避免把局部检查误用为完整检查")
-    if args.module and not module_names(args.module):
-        parser.error("--module 不能为空")
-    return args
 
 
 # 范围选择与实际执行分开；没有改动明确报告未执行，不写一条成功记录。
@@ -237,7 +272,11 @@ def main() -> None:
     print(f"检查范围：{'、'.join(selection.modules) or '全部登记模块'}", flush=True)
     if selection.quick:
         print("快速调试：未执行完整类型、生成文档及整合检查，不能代替包验收。", flush=True)
-    results = execute(selection, args.postgres)
+    results = execute(
+        selection,
+        args.postgres,
+        CheckOptions(args.database, args.workers, args.group, args.delivery),
+    )
     print("\n检查结果：")
     for title, passed in results:
         print(f"  {'通过' if passed else '失败'}  {title}")
