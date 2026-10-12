@@ -50,6 +50,7 @@ class TableOwnership:
 def ownership(modules: Sequence[Module], settings: Settings) -> TableOwnership:
     import shared.access.audit as audit
     import shared.db.history as history
+    import shared.effects.tables as effects
     import shared.jobs.tables as jobs
     import shared.operations.tables as operations
     import shared.pipelines.tables as pipelines
@@ -57,7 +58,7 @@ def ownership(modules: Sequence[Module], settings: Settings) -> TableOwnership:
 
     owned = {
         value.key
-        for source in (audit, history, jobs, operations, pipelines, records)
+        for source in (audit, history, effects, jobs, operations, pipelines, records)
         for value in vars(source).values()
         if isinstance(value, Table)
     }

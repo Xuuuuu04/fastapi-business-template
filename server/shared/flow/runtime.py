@@ -40,6 +40,7 @@ from shared.records.segments import warn_slow_batch
 if TYPE_CHECKING:
     from shared.access.vault import Vault
     from shared.cache.backends import Cache
+    from shared.effects.service import EffectService
     from shared.files.storage import FileStorage
     from shared.files.uploads import UploadArea
     from shared.flow.inject import JobSubmitter
@@ -74,6 +75,7 @@ class Runtime:
         step_checks: bool = True,
         heavy: HeavySteps | None = None,
         query_policy: QueryPolicy | None = None,
+        effects: "EffectService | None" = None,
     ) -> None:
         self.catalog = catalog
         self.database = database
@@ -92,6 +94,7 @@ class Runtime:
         self.step_checks = step_checks
         self.heavy = heavy or HeavySteps()
         self.query_policy = query_policy or QueryPolicy()
+        self.effects = effects
 
     # 从接口或任务入口执行一个操作：检查权限，结束时提交或回滚写入。
     async def run[In: Data, Out: Data](

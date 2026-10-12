@@ -7,6 +7,7 @@ from typing import Any, get_args
 
 from pydantic import BaseModel
 
+from shared.flow.flow import Flow
 from shared.modules.contract import Contract
 from shared.modules.module import Module
 
@@ -17,6 +18,7 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
     names = {module.name for module in modules}
     problems = []
     for module in modules:
+        problems += provider_problems(module)
         if module.kind not in (None, "capability", "workflow"):
             problems.append(f"模块 {module.name} 的kind无效")
         unknown = sorted(
@@ -25,9 +27,17 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
         if unknown:
             problems.append(f"模块 {module.name} 的只读依赖未登记：{'、'.join(unknown)}")
         for operation, flow in module.provides.items():
+            if not isinstance(flow, Flow):
+                continue
             if module.kind and operation.effect is None:
                 problems.append(f"操作 {operation.name} 必须明确声明query或command")
-            if operation.effect == "query" and any(step.saves or step.later for step in flow.steps):
+            if operation.effect == "query" and any(
+                step.saves
+                or step.later
+                or step.providers
+                or any(e.effect == "write" for e in step.endpoints)
+                for step in flow.steps
+            ):
                 problems.append(f"查询操作 {operation.name} 不能保存业务数据或登记任务")
             targets = {target for part in flow.steps for target in (*part.uses, *part.later)}
             problems += [
@@ -39,6 +49,19 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
             if module.kind:
                 problems += data_problems(module, operation, flow.work)
     return problems
+
+
+# 供应商范围与模块声明一致，错误流程由既有流程检查报告，不在这里重复解析。
+def provider_problems(module: Module) -> list[str]:
+    for spec in module.providers:
+        spec.validate()
+    return [
+        f"步骤 {part.source} 的外部效果未在Module.providers登记"
+        for flow in module.provides.values()
+        if isinstance(flow, Flow)
+        for part in flow.steps
+        if any(spec not in module.providers for spec in part.providers)
+    ]
 
 
 # 声明只读依赖不能被后来的写操作悄悄替换。

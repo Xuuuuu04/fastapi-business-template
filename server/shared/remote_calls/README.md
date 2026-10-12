@@ -64,8 +64,10 @@ async def read_price(data: Work, remote: RemoteClient) -> None:
     data.receipt = reply.data  # 已校验的Receipt；reply.status保留HTTP状态
 ```
 
-input 和 output 是 Data；响应的包络和确定拒绝的回执也写进 output 的 Data。额外字段默认拒绝，确实需要兼容的额外字段由产品的 Data 显式配置。输入按 JSON 模式和字段别名序列化；GET/HEAD 放查询参数，其他方法放 JSON 正文。path 是固定的站内绝对路径，动态参数在 input 里传递。本版不提供文件上传、任意正文和动态路径模板；这类旧调用保留，并提示迁移。
+input 和 output 是 Data；响应的包络和确定拒绝的回执也写进 output 的 Data。额外字段默认拒绝，确实需要兼容的额外字段由产品的 Data 显式配置。输入按 JSON 模式和字段别名序列化；GET/HEAD 放查询参数，其他方法放 JSON 正文。path 是声明的站内路径模板，路径参数通过path_fields声明；query_fields与body_fields分别分配查询和正文，未显式分配时沿用GET/HEAD查询、其他方法JSON正文。FilePart通过file_fields声明并检查总大小，文件名不包含本地路径；大批量原件使用产物引用。receipt_fields要求本次回执实际提供关键字段，运行记录保留模板路径，不记录路径参数原文。协议shape显示实际字段与扩展策略，空模型或任意扩展只标部分验证。
 
 安全性以 effect 为准，不从 HTTP 方法猜测：POST 做读取可以重试，GET 做写入仍然要有待确认保护。unknown_on 是上游协议额外的 HTTP 待确认状态（例如 202），它不会弱化原有的 408/499/5xx、超时、响应超限和较早未知写入的保护。accepted_statuses 沿用 2.2 的定义，只支持确定的 4xx，和 unknown_on 不能重叠；“受理/未受理”的具体含义由产品核对回执确认。成功写入的回执校验失败，也报待确认；确定拒绝的回执校验失败，报协议字段错误。记录里只有有限的字段路径和错误类别，不记录正文或取值；运行图显示接口名、状态和耗时。
 
 启动检查会发现同名但不同对象、漏登记、以及源码里能识别出来的漏声明调用；动态路径只能在运行时校验，不声称静态检查能证明所有 Python 路径。声明摘要涵盖协议字段和步骤引用。旧的 get/post/put/delete/send 在启动时提醒迁移，行为不变；迁移完成后设置 `APP_REMOTE_ENDPOINTS_STRICT=true`，能识别的旧调用在启动时报错，剩余的旧调用在运行时报错。独立的读、写和未知样例在 tests/framework/endpoint_sample.py；模板不登记业务模块。
+
+外部写入的持久意图与恢复使用[ProviderSpec和统一效果入口](../effects/README.md)。HttpAdapter复用当前连接池和协议，但只发送一次；SMTP和SDK使用相同的未知保护。新产品不要把旧接口的请求编号自动重试规则当成供应商重复保证。

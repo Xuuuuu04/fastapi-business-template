@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from sqlalchemy import Table
 
 from shared.data.models import Data
+from shared.effects.spec import ProviderSpec
 from shared.flow.flow import Flow
 from shared.jobs.plan import JobPlan, Schedule
 from shared.model_calls.prompt import Prompt
@@ -51,6 +52,7 @@ class Module:
     kind: Literal["capability", "workflow"] | None = None
     read_dependencies: tuple[str, ...] = ()
     boundary_data: tuple[type[Data], ...] = ()
+    providers: tuple[ProviderSpec, ...] = ()
 
     # 模块的业务文档目录，位于项目根目录的 doc/ 下。
     @property

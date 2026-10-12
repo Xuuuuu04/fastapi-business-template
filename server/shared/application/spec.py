@@ -11,9 +11,11 @@ from typing import Any, Literal, cast
 from pydantic_settings import PydanticBaseSettingsSource
 
 from shared.config.settings import Settings
+from shared.effects.spec import EffectAdapter, ProviderSpec
 from shared.errors.framework import ConfigError
 from shared.model_calls.providers import ModelProvider
 from shared.modules.module import Module
+from shared.remote_calls.service import RemoteService
 
 FRAMEWORK_VERSION = "3.0.0"
 
@@ -39,6 +41,8 @@ class ApplicationSpec:
     model_provider: Callable[[Settings], ModelProvider | None] | None = None
     api_setup: Callable[[Any], None] | None = None
     workers: tuple[WorkerSpec, ...] = ()
+    providers: tuple[ProviderSpec, ...] = ()
+    adapters: Callable[[Settings, RemoteService], dict[ProviderSpec, EffectAdapter]] | None = None
 
     # 实际运行可以读取部署环境，离线和测试配置只接受显式输入及声明默认值。
     def settings(
@@ -82,6 +86,10 @@ class ApplicationSpec:
             problems.append("后台扩展名称必须唯一且不能使用保留名称jobs")
         if not isinstance(self.settings_type, type) or not issubclass(self.settings_type, Settings):
             problems.append("产品配置必须继承框架Settings")
+        if len({spec.name for spec in self.providers}) != len(self.providers):
+            problems.append("产品外部效果名称不能重复")
+        for spec in self.providers:
+            spec.validate()
         if problems:
             raise ConfigError(problems)
 
@@ -95,6 +103,8 @@ class ApplicationSpec:
             "configure": location(self.configure),
             "api_setup": location(self.api_setup),
             "model_provider": location(self.model_provider),
+            "providers": [spec.shape() for spec in self.providers],
+            "adapters": location(self.adapters),
             "modules": None if self.modules is None else [item.name for item in self.modules],
             "routers": [getattr(router, "prefix", "") for router in self.routers],
             "workers": [

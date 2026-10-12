@@ -14,6 +14,7 @@ from shared.access.caller import Caller
 from shared.cache.gate import ModuleCache
 from shared.data.models import Data
 from shared.db.access import Db
+from shared.effects.gate import EffectGate
 from shared.errors.framework import StepRuleBroken
 from shared.files.gate import ModuleFiles
 from shared.flow.scope import Scope
@@ -146,6 +147,7 @@ def simple_tools(
         "emit": lambda: Emitter(scope, record),
         "checkpoint": lambda: batch_checkpoint(scope),
         "pipeline": lambda: PipelineGate(scope, run, saves=part.saves),
+        "effects": lambda: EffectGate(scope, record, part.providers, part.saves),
     }
     return {name: make() for name, make in makers.items() if name in params}
 

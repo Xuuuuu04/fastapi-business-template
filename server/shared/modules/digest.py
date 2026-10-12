@@ -32,6 +32,7 @@ def module_shape(module: Module) -> dict[str, Any]:
         "read_dependencies": module.read_dependencies,
         "effects": {item.name: item.effect for item in module.provides},
         "boundary_data": [item.__name__ for item in module.boundary_data],
+        "providers": [item.shape() for item in module.providers],
         **({"aliases": module.aliases} if module.aliases else {}),
         **(
             {"operation_aliases": {c.name: c.aliases for c in module.provides if c.aliases}}

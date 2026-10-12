@@ -16,7 +16,7 @@ from shared.modules.contract import Contract
 from shared.remote_calls.remote import Remote
 
 MAX_STEPS = 12
-ONE_KIND = ("store", "call", "model", "remote")
+ONE_KIND = ("store", "call", "model", "remote", "effects")
 
 
 # 检查一个流程与它实现的操作约定，返回问题清单。
@@ -133,13 +133,14 @@ def check_params(item: Step, place: str, has_store: bool) -> list[str]:
         ("model", item.prompts, "prompts"),
         ("later", item.later, "later"),
         ("remote", item.remotes, "remotes"),
+        ("effects", item.providers, "providers"),
     ]
     for param, declared, option in pairs:
         if bool(declared) != (param in params):
             problems.append(f"{place} 的参数 {param} 与声明 {option}= 必须同时出现")
     if "store" in params and not has_store:
         problems.append(f"{place} 使用了 store，但所在模块没有在 module.py 中声明 store")
-    if item.saves and not params & {"store", "later", "pipeline"}:
+    if item.saves and not params & {"store", "later", "pipeline", "effects"}:
         problems.append(f"{place} 声明了 saves=True，但没有 store 或 later 参数")
     if "later" in params and not item.saves:
         problems.append(f"{place} 登记任务会写数据库，需要声明 saves=True")
@@ -213,7 +214,9 @@ def check_model_order(flow: Flow) -> list[str]:
     for item in flow.steps:
         if item.saves and saving is None:
             saving = item
-        elif saving is not None and ("model" in item.params or "remote" in item.params):
+        elif saving is not None and (
+            {"model", "remote"} & set(item.params) or ("effects" in item.params and not item.saves)
+        ):
             problems.append(
                 f"步骤“{item.title}”在写入事务开始（“{saving.title}”）之后调用外部服务，"
                 "事务会在等待时一直占用数据库连接；请把调用移到第一个保存步骤之前"

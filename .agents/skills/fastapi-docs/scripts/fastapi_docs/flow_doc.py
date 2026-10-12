@@ -15,7 +15,7 @@ from typing import Any, get_args
 
 from fastapi import FastAPI
 from fastapi.routing import APIRoute, iter_route_contexts
-from fastapi_docs.protocol_doc import endpoint_section
+from fastapi_docs.protocol_doc import endpoint_section, provider_section
 from pydantic import BaseModel
 from sqlalchemy import Table
 
@@ -85,6 +85,7 @@ def module_doc(catalog: Catalog, name: str, routes: dict[str, list[str]]) -> str
     for item in module.provides:
         lines += contract_section(catalog.bindings[item])
     lines += endpoint_section(module)
+    lines += provider_section(module)
     lines += models_section([*module.provides, *module.endpoints])
     lines += tables_section(module.tables)
     return "\n".join(lines).rstrip() + "\n"

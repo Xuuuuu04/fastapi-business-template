@@ -3,6 +3,8 @@
 | 文件 | 内容 |
 | --- | --- |
 | [catalog.py](catalog.py) | 模块总目录：登记项目包含的模块；配置 APP_DISABLED_MODULES 关闭不使用的模块及其接口 |
+| [effects.py](effects.py) | 组装供应商声明、适配器与持久分发模块 |
+| [files.py](files.py) | 组装正式文件存储与上传区 |
 | [build.py](build.py) | 按配置组装数据库、运行记录、大模型服务、任务表和执行器 |
 | [structure.py](structure.py) | 创建资源前检查固定业务包、计算节点位置、依赖和框架摘要 |
 | [web.py](web.py) | 创建 FastAPI 应用：`uv run uvicorn app.setup.web:create_app --factory` |

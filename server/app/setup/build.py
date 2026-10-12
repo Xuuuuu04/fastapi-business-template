@@ -8,10 +8,11 @@ import inspect
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
-from pathlib import Path
 
 from app.setup.application import application as declared_application
 from app.setup.catalog import MODULES
+from app.setup.effects import effect_service, with_effects
+from app.setup.files import file_components
 from app.setup.operations import with_operations
 from app.setup.structure import ROOT, check_structure
 from shared.access.vault import Vault
@@ -21,8 +22,8 @@ from shared.config.settings import Settings, check_production
 from shared.db.budget import QueryPolicy
 from shared.db.database import Database
 from shared.db.ownership import check_migrations
+from shared.effects.spec import EffectAdapter, ProviderSpec
 from shared.errors.framework import ConfigError
-from shared.files.storage import FileStorage, LocalFiles, S3Files, S3Options
 from shared.files.uploads import UploadArea
 from shared.flow.heavy import HeavySteps
 from shared.flow.runtime import Runtime
@@ -59,6 +60,8 @@ class Services:
     # 按创建的相反顺序释放资源。
     async def close(self) -> None:
         await self.runtime.heavy.close(self.settings.job_shutdown_seconds)
+        if self.runtime.effects is not None:
+            await self.runtime.effects.close()
         await self.recorder.flush()
         if self.models is not None:
             await self.models.close()
@@ -77,6 +80,7 @@ def build(
     modules: Sequence[Module] | None = None,
     provider: ModelProvider | None = None,
     application: ApplicationSpec | None = None,
+    effect_adapters: dict[ProviderSpec, EffectAdapter] | None = None,
 ) -> Services:
     specification = application or declared_application()
     settings = specification.prepare(settings)
@@ -87,10 +91,11 @@ def build(
         if migration_errors:
             raise ConfigError(migration_errors)
     selected = enabled_modules(settings, registered) if modules is None else modules
-    catalog = Catalog(
-        with_operations(settings, selected), strict_endpoints=settings.remote_endpoints_strict
+    catalog = product_catalog(settings, specification, selected)
+    problems = check_production(
+        settings,
+        needs_vault=bool(specification.providers) or "vault" in store_requirements(catalog),
     )
-    problems = check_production(settings, needs_vault="vault" in store_requirements(catalog))
     problems += unconfigured_remotes(settings, catalog)
     if problems:
         raise ConfigError(problems)
@@ -110,10 +115,21 @@ def build(
         provider = specification.model_provider(settings)
     models = model_service(settings, catalog, provider)
     services = finish_build(settings, catalog, database, recorder, models)
+    services.runtime.effects = effect_service(
+        settings, specification, database, services.remotes, effect_adapters
+    )
     services.runtime.query_policy = query_policy(settings)
     if modules is None:
         services.runtime.source_version = source_version(ROOT)
     return services
+
+
+# 产品扩展与内置模块共同进入同一目录，API和worker采用相同声明。
+def product_catalog(
+    settings: Settings, spec: ApplicationSpec, modules: Sequence[Module]
+) -> Catalog:
+    selected = with_effects(spec, with_operations(settings, modules))
+    return Catalog(selected, strict_endpoints=settings.remote_endpoints_strict)
 
 
 # 关闭模块只影响接口和执行入口，保留其数据库表与历史数据。
@@ -210,38 +226,12 @@ def cache_service(settings: Settings) -> Cache:
     )
 
 
-# 创建文件存储与上传临时区。
-def file_components(settings: Settings) -> tuple[FileStorage, UploadArea]:
-    uploads = UploadArea(
-        Path(settings.upload_root), settings.upload_max_bytes, settings.upload_suffixes
-    )
-    return file_service(settings), uploads
-
-
 # 只保留启用模块声明过的外部系统地址。
 def remote_service(settings: Settings, catalog: Catalog) -> RemoteService:
     used = {item.name for module in catalog.modules.values() for item in module.remotes}
     return RemoteService(
         {key: value for key, value in settings.remotes.items() if key in used},
         strict_endpoints=settings.remote_endpoints_strict,
-    )
-
-
-# 按 APP_FILE_STORAGE 选择文件存储实现。
-def file_service(settings: Settings) -> FileStorage:
-    if settings.file_storage == "local":
-        return LocalFiles(Path(settings.file_root))
-    if not settings.s3_bucket:
-        raise ConfigError(["APP_FILE_STORAGE=s3 时必须配置 APP_S3_BUCKET"])
-    secret = settings.s3_secret_key.get_secret_value() if settings.s3_secret_key else ""
-    return S3Files(
-        S3Options(
-            settings.s3_bucket,
-            settings.s3_endpoint,
-            settings.s3_region,
-            settings.s3_access_key,
-            secret,
-        )
     )
 
 

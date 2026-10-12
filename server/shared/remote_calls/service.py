@@ -58,9 +58,7 @@ class RemoteService:
     ) -> RemoteReply:
         check_path(request.path)
         check_accepted_statuses(request.accepted_statuses)
-        record = RemoteCallRecord(target.name, request.method, request.path.split("?")[0], 0, 0.0)
-        record.endpoint, record.effect = request.endpoint, request.effect
-        record.bytes_out = len(str(request.json or "").encode("utf-8"))
+        record = request.record(target.name)
         records.append(record)
         if effects is not None and is_write(request):
             effects.append(record)
@@ -159,6 +157,12 @@ class RemoteService:
             request.path,
             params=request.params,
             json=request.json,
+            data=request.form,
+            files=[
+                (part.field, (part.filename, part.content, part.content_type))
+                for part in request.files
+            ]
+            or None,
             headers=headers,
             extensions={"endpoint": request.endpoint},
         ) as response:

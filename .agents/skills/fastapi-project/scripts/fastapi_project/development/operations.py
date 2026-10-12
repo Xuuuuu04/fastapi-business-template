@@ -51,6 +51,7 @@ def operation_status(
             "calls": [used.name for used in part.uses],
             "jobs": [used.name for used in part.later],
             "endpoints": [e.shape() for e in part.endpoints],
+            "providers": [spec.shape() for spec in part.providers],
             "test_executions": execution_counts(cases, operation, part.name),
             "last_test": last_execution(cases, operation, part.name),
         }
@@ -59,6 +60,7 @@ def operation_status(
     return {
         **query_status(binding, cases, operation),
         "name": operation,
+        "providers": [spec.shape() for spec in binding.module.providers],
         "endpoints": [
             e.shape()
             for e in dict.fromkeys(e for part in binding.flow.steps for e in part.endpoints)

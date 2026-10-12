@@ -15,6 +15,10 @@ from shared.db.org import org_column
 from shared.db.owner import owner_column
 from shared.db.tables import metadata
 from shared.db.types import ExactNumber, UtcTime
+from shared.effects.adapters import HttpAdapter, SdkAdapter
+from shared.effects.gate import EffectGate
+from shared.effects.smtp import MailInput, MailReceipt, SmtpAdapter, SmtpConfig
+from shared.effects.spec import AdapterReply, EffectResult, ProviderSpec
 from shared.errors.framework import NotAllowed
 from shared.errors.kinds import BusinessError, Kind
 from shared.files.gate import ModuleFiles
@@ -44,8 +48,19 @@ from shared.pipelines.plan import (
 from shared.remote_calls.endpoint import Endpoint, EndpointReply
 from shared.remote_calls.gate import RemoteGate as RemoteClient
 from shared.remote_calls.remote import remote
+from shared.remote_calls.request import FilePart
 
 __all__ = [
+    "ProviderSpec",
+    "EffectGate",
+    "AdapterReply",
+    "EffectResult",
+    "HttpAdapter",
+    "SdkAdapter",
+    "MailInput",
+    "MailReceipt",
+    "SmtpAdapter",
+    "SmtpConfig",
     "ApplicationSpec",
     "WorkerSpec",
     "PUBLIC",
@@ -64,6 +79,7 @@ __all__ = [
     "RemoteClient",
     "Endpoint",
     "EndpointReply",
+    "FilePart",
     "ExactNumber",
     "Flow",
     "JobPlan",
