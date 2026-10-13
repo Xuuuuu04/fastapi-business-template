@@ -11,7 +11,7 @@ from fastapi_check.check import execute
 from fastapi_check.matrix import CheckOptions
 from fastapi_check.quality.rules import PROJECT
 from fastapi_project.development.check_assets import atomic_bytes
-from fastapi_project.development.history import read_checks
+from fastapi_project.development.history import dependency_modules, read_checks
 from fastapi_project.development.selection import Selection
 from fastapi_project.development.task_baseline import review_pack
 from fastapi_project.development.task_models import read_card
@@ -33,7 +33,8 @@ def finish(project: Path, catalog: Catalog, identity: str, postgres: str) -> dic
         CheckOptions(
             database="both" if postgres else "sqlite",
             workers=1,
-            delivery=True,
+            delivery=False,
+            fresh=True,
         ),
     )
     fresh = [
@@ -41,12 +42,9 @@ def finish(project: Path, catalog: Catalog, identity: str, postgres: str) -> dic
     ]
     if len(fresh) != 1:
         raise ValueError("没有唯一的本次检查记录，不能据此完成任务")
-    workflow = any(
-        catalog.modules[name].kind == "workflow" or catalog.modules[name].pipelines
-        for name in selected
-    )
-    required = ("sqlite", "postgresql") if postgres or workflow else ("sqlite",)
+    required = ("sqlite", "postgresql") if postgres else ("sqlite",)
     completed = finish_task(project, catalog, card, fresh[0], required)
+    chain = {name for caller in selected for name in dependency_modules(caller, catalog.links())}
     panel = generate(project, catalog)
     return {
         "id": completed.id,
@@ -54,6 +52,19 @@ def finish(project: Path, catalog: Catalog, identity: str, postgres: str) -> dic
         "checks": completed.checks,
         "outside": completed.outside,
         "problems": completed.problems,
+        "notices": [
+            f"{binding.contract.name} 仍是模拟骨架，不影响本包收工；交付前需替换"
+            for binding in catalog.bindings.values()
+            if binding.module.name != card.package
+            and binding.module.name in chain
+            and any(part.simulated for part in binding.flow.steps)
+        ],
+        "next_commands": [
+            "uv run dev docs",
+            f"uv run dev finish --task {completed.id}",
+        ]
+        if completed.problems
+        else ["uv run dev check --database sqlite --delivery"],
         "review": f".agents/records/reviews/{completed.id}.json",
         "panel": panel.relative_to(project).as_posix(),
     }

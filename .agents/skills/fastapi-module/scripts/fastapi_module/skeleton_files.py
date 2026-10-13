@@ -11,6 +11,9 @@ from fastapi_module.skeleton_spec import SkeletonBundle, SkeletonOperation, Skel
 from fastapi_project.development.confirmed_cases import CaseFixture
 from fastapi_project.development.plan import check_plan, read_plan
 from fastapi_template.template.files import safe_path
+from pydantic import TypeAdapter
+
+from shared.scenarios.observations import ObservationPoint
 
 
 # 测试引用独立JSON，没有取值会写入服务代码；替换真实实现后继续跑相同样例。
@@ -37,7 +40,7 @@ def package_files(project: Path, package: SkeletonPackage, operations: dict) -> 
     root = project / "server"
     folder = root / "service" / package.name
     if folder.exists() or (root / "library" / package.name).exists():
-        raise ValueError("业务包或同名工具已存在，骨架不能覆盖已有实现")
+        raise ValueError(f"{package.name}：业务包或同名工具已存在，不能覆盖 {folder}")
     files = {
         folder / "public.py": code.public_code(package),
         folder / "flow.py": code.flow_code(package),
@@ -106,9 +109,15 @@ def support_files(project: Path, package: SkeletonPackage) -> dict[Path, str]:
 def bundle_files(project: Path, bundle: SkeletonBundle) -> dict[Path, str]:
     bundle.validate_links()
     operations = {pkg.name + "." + op.name: op for pkg in bundle.packages for op in pkg.operations}
-    files = {}
+    files, problems = {}, []
     for package in bundle.packages:
-        validate_cases(project, package)
+        try:
+            validate_cases(project, package)
+        except ValueError as error:
+            problems.append(str(error))
+    if problems:
+        raise ValueError("\n".join(problems))
+    for package in bundle.packages:
         files.update(package_files(project, package, operations))
     root = project / "server"
     names = sorted(
@@ -143,24 +152,88 @@ def bundle_files(project: Path, bundle: SkeletonBundle) -> dict[Path, str]:
     return files
 
 
-# 确认样例必须已有，并准确引用即将生成的测试；不默默修改用户的预期或测试引用。
-def validate_cases(project: Path, package: SkeletonPackage) -> None:
-    cases = [
-        CaseFixture.model_validate_json(
-            safe_path(project, path.relative_to(project).as_posix()).read_bytes()
+# 读取全部独立样例，保留每个文件的解析错误。
+def read_cases(project: Path, folder: Path) -> tuple[list[CaseFixture], list[str]]:
+    cases: list[CaseFixture] = []
+    problems: list[str] = []
+    for path in sorted(folder.glob("*.json")):
+        try:
+            source = safe_path(project, path.relative_to(project).as_posix())
+            cases.append(CaseFixture.model_validate_json(source.read_bytes()))
+        except ValueError as error:
+            problems.append(f"{path.relative_to(project)}：{error}")
+    return cases, problems
+
+
+# 检查观察位置、状态初始化和测试引用，不修改用户资料。
+def metadata_problems(case: CaseFixture, test: str) -> list[str]:
+    problems = []
+    if case.initial or case.database or case.effects:
+        problems.append(
+            f"{case.id}：短骨架不支持 initial、database 或 effects，请编写独立真实状态测试"
         )
-        for path in (project / "doc" / package.name / "cases").glob("*.json")
-    ]
+    seen: set[ObservationPoint] = set()
+    for observation in case.observations:
+        try:
+            if set(observation) != {"point", "value"}:
+                raise ValueError("需要 point 和 value")
+            point = ObservationPoint(**observation["point"])
+            if point in seen:
+                raise ValueError("观察位置重复")
+            seen.add(point)
+        except (ValueError, TypeError) as error:
+            problems.append(f"{case.id}：observations 无效：{error}")
+    if test not in case.tests:
+        problems.append(f"{case.id}：期望 tests 包含 {test}")
+    return problems
+
+
+# 逐字段核对样例输入和预期类型，保留全部错误。
+def field_problems(case: CaseFixture, operation: SkeletonOperation) -> list[str]:
+    problems = []
+    types = {
+        "str": str,
+        "int": int,
+        "float": float,
+        "bool": bool,
+        "list[str]": list[str],
+        "list[int]": list[int],
+        "dict[str, str]": dict[str, str],
+        "dict[str, int]": dict[str, int],
+    }
+    for label, values, fields in (
+        ("input", case.input, operation.input),
+        ("expected", case.expected, operation.output),
+    ):
+        if set(values) != set(fields):
+            problems.append(f"{case.id}：{label} 字段应为 {sorted(fields)}")
+            continue
+        for name, field in fields.items():
+            try:
+                TypeAdapter(types[field.type]).validate_python(values[name], strict=True)
+            except ValueError:
+                problems.append(f"{case.id}：{label}.{name} 必须是 {field.type}")
+    return problems
+
+
+# 确认样例必须已有，并准确引用即将生成的测试；不修改用户预期或引用。
+def validate_cases(project: Path, package: SkeletonPackage) -> None:
+    folder = project / "doc" / package.name / "cases"
+    cases, problems = read_cases(project, folder)
     for operation in package.operations:
         for identity in operation.cases:
             matching = [case for case in cases if case.id == identity]
             test = f"tests/modules/{package.name}/test_{operation.name}.py::test_case"
-            if (
-                not identity.startswith(package.name + ".")
-                or len(matching) != 1
-                or test not in matching[0].tests
-            ):
-                raise ValueError("骨架需要独立定义的完整样例及准确的生成测试引用")
+            if len(matching) != 1:
+                problems.append(
+                    f"{identity}：找不到唯一样例；目录 {folder.relative_to(project)}/*.json；"
+                    f"期望 tests 包含 {test}"
+                )
+                continue
+            problems += metadata_problems(matching[0], test)
+            problems += field_problems(matching[0], operation)
+    if problems:
+        raise ValueError("\n".join(problems))
 
 
 # 固定README小节维持可读的结构，不用登记数量表达业务完成。
@@ -202,7 +275,9 @@ def bundle_plan(project: Path, bundle: SkeletonBundle) -> str:
             if previous.get("kind", "capability") != package.kind or not {
                 op.name for op in package.operations
             } <= set(previous["operations"]):
-                raise ValueError("骨架与已有计划的包类型或操作范围不一致，请先更新计划")
+                raise ValueError(
+                    f"{package.name}：骨架与已有计划的包类型或操作范围不一致，请先更新计划"
+                )
         else:
             line["packages"].append(
                 {

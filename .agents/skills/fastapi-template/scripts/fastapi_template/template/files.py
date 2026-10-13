@@ -80,10 +80,13 @@ def provenance(source: Path) -> dict[str, Any]:
             ["git", "rev-parse", "HEAD"], cwd=source, capture_output=True, text=True, check=True
         )
         revision = result.stdout.strip()
+    # 没有锁文件的来源记为空，产品检查会保守地运行全部模板工具测试。
+    lock = source / "server/framework.lock"
     return {
         "schema_version": 1,
         "version": metadata["project"]["version"],
         "revision": revision,
+        "framework_lock": hashlib.sha256(lock.read_bytes()).hexdigest() if lock.is_file() else "",
         "files": {
             name: hashlib.sha256(content).hexdigest()
             for name, content in managed_files(source).items()

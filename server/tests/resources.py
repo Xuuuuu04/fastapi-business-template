@@ -86,6 +86,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
     selected = os.environ.get("APP_TEST_GROUP", "all")
     root = Path(__file__).resolve().parents[2]
+    # 模板工具测试断言的是空模板本身，只在模板仓库运行；产品框架未改动时交付也省略。
     product = selected != "framework" and product_framework_unchanged(root)
     kept, deselected = [], []
     for item in items:

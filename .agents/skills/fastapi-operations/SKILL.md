@@ -8,10 +8,10 @@ description: 查看运行报告、手动处理后台任务、生成服务密钥�
 在 `server/` 目录执行。这些命令会读取当前 `APP_` 配置指向的数据库，运行前先确认连接的是哪个环境。
 
 ```bash
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py diagnose --help
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py diagnose run 运行编号
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py jobs list
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py jobs show 任务编号
+uv run dev diagnose --help
+uv run dev diagnose run 运行编号
+uv run dev jobs list
+uv run dev jobs show 任务编号
 uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py make_key --name 服务名 --org-id 组织 --permissions 权限
 ```
 
@@ -38,15 +38,17 @@ uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py mak
 
 ```bash
 # 独立框架样例，不向产品登记业务（十万行原件）
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py drill --sample --scale 100000 --output var/development/drill
+uv run dev drill --sample --scale 100000 --output var/development/drill
 # 产品已登记的 Pipeline，清单目录保存上游原始响应和 seed JSONL
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py drill ../doc/模块/drill_流程.json --output var/development/drill
+uv run dev drill ../doc/模块/drill_流程.json --output var/development/drill
 # 同上，增加 --postgres 'postgresql+psycopg://用户:密码@隔离主机/隔离库'
 ```
 
 配置写法与指标见[演练说明](../../../server/shared/drills/README.md)。命令按 module.py 里实际的 Schedule 首入口跑完整链路；回放没有覆盖到的请求会明确失败，失败或超时返回非零。report.json 列出各阶段耗时、实际提交的行数（或未知）、最慢的 SQL、采样的内存峰值和需要人工处理的地方，artifacts 保留发布的文件。报告会分别列出：使用了原件的阶段、不需要回放的阶段、没有完成的阶段。模型使用模拟提供者，建表使用登记的结构；不能据此说真实模型、生产迁移或外部发布已经验证。输出里包含业务产物，应只存放在授权的本机目录，不提交 Git。
 
 ## 生成服务密钥
+
+`make_key` 尚无 `dev` 等价子命令，上面的兼容长命令继续使用，不要改成不存在的 `dev make-key`。
 
 - 明文密钥只显示给请求的人本人。配置里保存摘要和明确的权限范围。
 - 不要把明文密钥写进 Git、运行记录或文档。

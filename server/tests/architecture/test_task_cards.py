@@ -96,6 +96,36 @@ def test_finish_refuses_invalid_case_evidence(
     assert result.state == "incomplete" and result.problems
 
 
+# 兄弟包的模拟轨迹不影响本包收工，同一轨迹属于本包时仍拒绝。
+def test_finish_allows_sibling_simulation(tmp_path: Path) -> None:
+    catalog = sample(tmp_path)
+    card = start_task(tmp_path, catalog, "sample_counts", ["R-01-C01"])
+    evidence = record(tmp_path, catalog)
+    evidence["suites"][0]["cases"][0]["runs"] = [
+        {"operation": "sample_sources.load", "simulated": True},
+        {"operation": "sample_counts.run", "simulated": False},
+    ]
+    assert finish_task(tmp_path, catalog, card, evidence, ("sqlite",)).state == "complete"
+    evidence["suites"][0]["cases"][0]["runs"][1]["simulated"] = True
+    result = finish_task(tmp_path, catalog, card, evidence, ("sqlite",))
+    assert result.state == "incomplete" and any("模拟" in p for p in result.problems)
+
+
+# 收工失败摘要带检查名和详细原因，不让模型回翻长输出寻找原因。
+def test_finish_failure_lists_check_names_and_reasons(tmp_path: Path) -> None:
+    catalog = sample(tmp_path)
+    card = start_task(tmp_path, catalog, "sample_counts", ["R-01-C01"])
+    evidence = record(tmp_path, catalog)
+    evidence.update(
+        passed=False,
+        checks={"生成文档": False, "规则与实现状态": False},
+        problems=["service/sample_counts：规则 R-01 未确认"],
+    )
+    result = finish_task(tmp_path, catalog, card, evidence, ("sqlite",))
+    assert any("生成文档" in p for p in result.problems)
+    assert any("service/sample_counts" in p for p in result.problems)
+
+
 # 缺库与检查结束后源码变化分别给出原因，不能拼接过去的PG结果。
 def test_finish_requires_database_and_exact_source(tmp_path: Path) -> None:
     catalog = sample(tmp_path)

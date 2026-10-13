@@ -110,7 +110,7 @@ def test_new_project_path(tmp_path: Path) -> None:
             "--module",
             "customer_contact",
         ],
-        ["pytest", "-q", "-p", "no:cacheprovider"],
+        ["pytest", "-q", "-p", "no:cacheprovider", "--dist=worksteal", "-n", "2"],
     ]
     for step in steps:
         done = subprocess.run(

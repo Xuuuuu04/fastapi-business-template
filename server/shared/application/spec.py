@@ -18,7 +18,7 @@ from shared.modules.module import Module
 from shared.remote_calls.service import RemoteService
 from shared.timing.clock import Clock
 
-FRAMEWORK_VERSION = "3.0.0"
+FRAMEWORK_VERSION = "3.1.0"
 
 
 # 后台扩展与框架队列共用服务和停止信号，不再单独创建连接池和记录器。

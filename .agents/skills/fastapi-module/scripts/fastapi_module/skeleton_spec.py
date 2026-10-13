@@ -68,23 +68,58 @@ class SkeletonBundle(BaseModel):
     # 生成文件之前核对全部名称、字段和跨包连接。
     def validate_links(self) -> None:
         if len({package.name for package in self.packages}) != len(self.packages):
-            raise ValueError("骨架业务包名称重复")
-        operations = {}
+            raise ValueError("骨架业务包名称重复：" + ", ".join(p.name for p in self.packages))
+        operations: dict[str, SkeletonOperation] = {}
         for package in self.packages:
-            for operation in package.operations:
-                identity = package.name + "." + operation.name
-                if identity in operations or keyword.iskeyword(operation.name):
-                    raise ValueError("骨架操作名称重复或使用保留字")
-                operations[identity] = operation
-                validate_fields(operation)
+            collect_operations(package, operations)
         graph = {}
         for package in self.packages:
             for operation in package.operations:
+                identity = package.name + "." + operation.name
                 if operation.calls and package.kind != "workflow":
-                    raise ValueError("连接多包的骨架必须明确声明为流程包")
-                validate_calls(operation, operations)
+                    raise ValueError(f"{identity}：连接多包的骨架必须明确声明为流程包")
+                try:
+                    validate_calls(operation, operations)
+                except ValueError as error:
+                    raise ValueError(f"{identity}：{error}") from error
                 graph[package.name + "." + operation.name] = [c.operation for c in operation.calls]
         check_cycles(graph)
+
+
+# 逐个包登记操作，名称、样例编号、权限和字段的问题都在写文件前报出。
+def collect_operations(package: SkeletonPackage, operations: dict[str, SkeletonOperation]) -> None:
+    cases: set[str] = set()
+    for operation in package.operations:
+        identity = package.name + "." + operation.name
+        repeated = cases.intersection(operation.cases)
+        if repeated:
+            raise ValueError(f"{identity}：不同操作需要独立样例编号，重复 {sorted(repeated)}")
+        cases.update(operation.cases)
+        if identity in operations or keyword.iskeyword(operation.name):
+            raise ValueError(f"{identity}：骨架操作名称重复或使用保留字")
+        operations[identity] = operation
+        validate_identity(package.name, operation)
+        try:
+            validate_fields(operation)
+        except ValueError as error:
+            raise ValueError(f"{identity}：{error}") from error
+
+
+# 核对单操作的权限命名与独立样例编号，并报告完整操作名。
+def validate_identity(package: str, operation: SkeletonOperation) -> None:
+    identity = package + "." + operation.name
+    if operation.access not in {"public", "signed_in"} and not (
+        operation.access.startswith(package + ".")
+        and re.fullmatch(NAME, operation.access[len(package) + 1 :])
+    ):
+        raise ValueError(
+            f"{identity}：权限 {operation.access!r} 必须是 public、signed_in "
+            f"或以 {package}. 开头的权限名"
+        )
+    if len(set(operation.cases)) != len(operation.cases) or any(
+        not re.fullmatch(re.escape(package) + r"\.R-\d+-C\d+", case) for case in operation.cases
+    ):
+        raise ValueError(f"{identity}：样例编号无效或重复：{operation.cases}")
 
 
 # 调用图独立核对循环，不能靠生成文件顺序规避循环依赖。
@@ -94,7 +129,7 @@ def check_cycles(graph: dict[str, list[str]]) -> None:
         while pending:
             target = pending.pop()
             if target == identity:
-                raise ValueError("骨架公开调用形成循环")
+                raise ValueError(f"{identity}：骨架公开调用形成循环")
             if target not in seen:
                 seen.add(target)
                 pending.extend(graph[target])
@@ -113,7 +148,7 @@ def validate_fields(operation: SkeletonOperation) -> None:
                 or name == "result"
                 or field.type not in TYPES
             ):
-                raise ValueError("骨架字段名称或类型不支持，请用公开数据模型明确声明")
+                raise ValueError(f"字段 {name} 的名称或类型 {field.type!r} 不支持")
 
 
 # 字段引用只能来自原始输入或已经运行的步骤产出。
@@ -132,7 +167,7 @@ def validate_calls(operation: SkeletonOperation, operations: dict[str, SkeletonO
     for number, call in enumerate(operation.calls, 1):
         target = operations.get(call.operation)
         if target is None or call.case not in target.cases:
-            raise ValueError("骨架调用或独立样例未定义")
+            raise ValueError(f"调用 {call.operation} 或独立样例 {call.case} 未定义")
         if operation.effect == "query" and target.effect == "command":
             raise ValueError("查询骨架不能连接对外写入操作")
         validate_mapping(call.input, target.input, available)
@@ -150,7 +185,10 @@ def validate_mapping(
     available: dict[str, dict[str, SkeletonField]],
 ) -> None:
     if set(values) != set(target):
-        raise ValueError("骨架映射必须覆盖完整字段且没有额外项")
+        raise ValueError(
+            f"骨架映射缺少字段 {sorted(set(target) - set(values))}，"
+            f"多余字段 {sorted(set(values) - set(target))}"
+        )
     for name, reference in values.items():
         if reference_type(reference, available) != target[name].type:
-            raise ValueError("骨架字段类型不一致")
+            raise ValueError(f"字段 {name} 来源 {reference} 的类型与 {target[name].type} 不一致")

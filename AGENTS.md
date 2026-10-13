@@ -1,4 +1,4 @@
-# FastAPI 单体后端模板 3.0.0
+# FastAPI 单体后端模板 3.1.0
 
 这是空业务模板，`MODULES=[]`；产品通过自己的 `app/product.py` 组装。业务实现放 `server/service/`，纯工具放 `server/library/`，共享框架放 `server/shared/`，HTTP 与启动放 `server/app/`。
 
@@ -24,6 +24,8 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 | 分层、双库、当前源码与完整检查 | [check](.agents/skills/fastapi-check/SKILL.md) |
 | 运行报告、任务恢复、回放和部署 | [operations](.agents/skills/fastapi-operations/SKILL.md) |
 | 新项目、框架升级、旧业务迁移 | [template](.agents/skills/fastapi-template/SKILL.md) |
+
+以上是六个日常 Skill 入口。`fastapi-docs`、`fastapi-migration` 目录保留兼容脚本命名空间，说明已并入 project、module 和 template 的参考，不再提供独立 SKILL.md；复制和升级仍保留这些脚本。
 
 日常执行 `uv run dev start --package 包 --cases 样例`、`uv run dev check --module 包`、`uv run dev finish --task 编号`。整合与交付按 check Skill 做当前源码完整双库检查；沿用记录不能代替本次验收。
 

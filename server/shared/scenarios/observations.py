@@ -37,6 +37,7 @@ class Observation:
     sequence: int
     value: Any = field(repr=False)
     observed: bool = True
+    source: str = ""
 
 
 # 独立的期望来自确认样例，不从运行记录生成或反推。
@@ -52,6 +53,22 @@ class ObservationDifference:
     point: ObservationPoint
     sequence: int | None
     status: str
+    actual: Any = field(default=None, repr=False)
+    expected: Any = field(default=None, repr=False)
+    source: str = ""
+
+    # 仅测试账本的显式失败消息展示有界取值，公共摘要仍然不含值。
+    def __str__(self) -> str:
+        # 截短测试取值展示，避免失败消息展开完整业务内容。
+        def bounded(value: Any) -> str:
+            text = repr(value)
+            return text if len(text) <= 160 else text[:157] + "..."
+
+        return (
+            f"第 {self.sequence or '?'} 步 {self.point.operation}.{self.point.step}"
+            f"（{self.source or '位置未知'}）字段 {self.point.field}："
+            f"实际 {bounded(self.actual)}，期望 {bounded(self.expected)}（{self.status}）"
+        )
 
 
 # 只在明确的样例范围启用，正式请求没有账本时不会记录取值。
@@ -61,9 +78,11 @@ class ObservationJournal:
         self.items: list[Observation] = []
 
     # 序列化成快照，后续步骤修改对象不会改写过去观察。
-    def record(self, point: ObservationPoint, value: Any, *, observed: bool = True) -> None:
+    def record(
+        self, point: ObservationPoint, value: Any, *, observed: bool = True, source: str = ""
+    ) -> None:
         self.items.append(
-            Observation(point, len(self.items) + 1, to_jsonable_python(value), observed)
+            Observation(point, len(self.items) + 1, to_jsonable_python(value), observed, source)
         )
 
     # 先按实际执行顺序寻找差异，未记录的位置最后作为未知报告。
@@ -77,14 +96,41 @@ class ObservationJournal:
             if item.point not in values:
                 continue
             if item.point in seen:
-                differences.append(ObservationDifference(item.point, item.sequence, "ambiguous"))
+                differences.append(
+                    ObservationDifference(
+                        item.point,
+                        item.sequence,
+                        "ambiguous",
+                        item.value,
+                        values[item.point],
+                        item.source,
+                    )
+                )
             elif not item.observed:
-                differences.append(ObservationDifference(item.point, item.sequence, "unknown"))
+                differences.append(
+                    ObservationDifference(
+                        item.point,
+                        item.sequence,
+                        "unknown",
+                        None,
+                        values[item.point],
+                        item.source,
+                    )
+                )
             elif item.value != to_jsonable_python(values[item.point]):
-                differences.append(ObservationDifference(item.point, item.sequence, "mismatch"))
+                differences.append(
+                    ObservationDifference(
+                        item.point,
+                        item.sequence,
+                        "mismatch",
+                        item.value,
+                        values[item.point],
+                        item.source,
+                    )
+                )
             seen.add(item.point)
         differences += [
-            ObservationDifference(item.point, None, "unknown")
+            ObservationDifference(item.point, None, "unknown", expected=item.value)
             for item in expected
             if item.point not in seen
         ]

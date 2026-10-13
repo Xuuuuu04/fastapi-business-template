@@ -296,7 +296,7 @@ wheels = [
 
 [[package]]
 name = "fastapi-server-template"
-version = "3.0.0"
+version = "3.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "aiosqlite" },
@@ -367,7 +367,7 @@ dev = [
 
 [[package]]
 name = "fastapi-template-dev"
-version = "3.0.0"
+version = "3.1.0"
 source = { editable = "devtools" }
 dependencies = [
     { name = "ijson" },

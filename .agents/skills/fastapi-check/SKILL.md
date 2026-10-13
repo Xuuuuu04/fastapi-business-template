@@ -11,15 +11,21 @@ description: 验证本项目的业务改动时使用：运行代码风格、类�
 
 ```bash
 # 只调试一个包：最快，只检查这个包
-uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check --quick --module 模块名
+uv run dev check --quick --module 模块名
 # 几个包一起改：一次检查，公共部分只检查一遍
-uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check --module A --module B
+uv run dev check --module A --module B
 # 按和 origin/main 的差异，自动找出受影响的包
-uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check --affected --base origin/main
-# 完整检查
-uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check
+uv run dev check --affected --base origin/main
+# 日常完整范围检查（相同源码与环境可沿用结果）
+uv run dev check
+# 交付检查：强制执行，不沿用结果或模板工具验证
+uv run dev check --database sqlite --delivery
+# 按类别检查，或限定进程总预算
+uv run dev check --group flow --workers 4
+# 完整双库交付检查，只能使用已授权的隔离数据库
+uv run dev check --database both --postgres 测试数据库地址 --delivery
 # 审查完框架改动后，更新框架摘要
-uv run python ../.agents/skills/fastapi-check/scripts/run_check.py framework_lock --update
+uv run dev framework-lock --update
 ```
 
 怎么选：
@@ -27,20 +33,30 @@ uv run python ../.agents/skills/fastapi-check/scripts/run_check.py framework_loc
 - `--quick` 只用于一个包内的调试，它不能证明几个包放在一起也是对的。
 - 改动涉及多个包时，用 `--module` 一次列全。
 - 改了公共代码，或不确定影响哪里，跑完整检查。
-- 整批交付和发布前，跑完整检查。
+- 整批交付和发布前，跑完整范围的 `--delivery` 检查；局部或分组通过不能代替交付。
 - 生产使用 PostgreSQL 时加上 `--postgres 测试数据库地址`，只能用已授权的隔离数据库。
 - 浏览器、容量、部署是另外的检查，按各自任务单独做，这个命令不包含。
 
+## 业务检查、交付检查与沿用
+
+业务检查用于开发中的反馈。`--group` 可选 `pure`（纯计算）、`module`（包）、`flow`（组合流程）、`framework`（公共框架）；省略时检查全部组。风格、类型、文档等公共检查仍执行，分组仅选择测试。
+
+`--database sqlite|postgresql|both` 选择测试库；默认 `auto` 在提供 `--postgres` 时选择双库，否则 SQLite。PostgreSQL 必须显式提供隔离测试控制地址，不读取生产地址。`--workers` 是总测试进程预算，双库并行时共用该预算，`0` 表示串行。
+
+默认检查可沿用相同源码、范围、框架指纹、实际依赖和测试环境下的最近成功记录，并输出“沿用检查”，不会生成新的执行证据。目前按整个范围沿用；改动后范围内重新执行。由 new-project 创建的产品，如果框架与模板来源及 framework.lock 一致，默认省略模板工具自身回归，并明确显示“框架未改动，沿用模板验证”；业务测试、公共运行安全测试不省略。模板仓库本身、框架变化、显式 framework 分组均运行这些测试。
+
+`--delivery` 禁止沿用，重新执行所选范围，包含模板工具验证，并检查交付规则与实现状态。交付证据必须注明实际范围和数据库；SQLite 通过不代表 PostgreSQL 已验收。
+
 ## 业务现状过期
 
-文档检查也会核对 `.agents/records/business-state/模块名.md` 的生成部分：源码或依赖版本、声明发生了变化，生成超过 24 小时，或者摘要与同名 JSON 不一致，都会报错。check 只做比较，不会自动刷新。处理顺序是：先读手写判断并更新下一步，然后显式运行 project business_state；需要真实运行状态时，在确认当前数据库和授权后加 `--runs`，否则保持未知。export_docs 可以初始化或更新过期的声明状态，但不读取数据库，不能代替业务验收。迁移含定时或长流程时，完成条件是先用 operations drill 按真实规模跑通整条链、核对产物和回放覆盖情况，再补局部细节。
+文档检查也会核对 `.agents/records/business-state/模块名.md` 的生成部分：源码或依赖版本、声明发生了变化，生成超过 24 小时，或者摘要与同名 JSON 不一致，都会报错。check 只做比较，不会自动刷新。处理顺序是：先读手写判断并更新下一步，然后显式运行兼容命令 `project business_state`；需要真实运行状态时，在确认当前数据库和授权后加 `--runs`，否则保持未知。export_docs 可以初始化或更新过期的声明状态，但不读取数据库，不能代替业务验收。迁移含定时或长流程时，完成条件是先用 operations drill 按真实规模跑通整条链、核对产物和回放覆盖情况，再补局部细节。
 
 ## 框架摘要
 
 `server/framework.lock` 记录公共代码、检查配置和项目 Skill 的内容摘要，防止它们被顺手改掉。
 
 - 做业务时不要改这些文件。
-- 确实要改，先看实际差异，写明用途和影响，再用 `framework_lock --update` 更新摘要。
+- 确实要改，先看实际差异，写明用途和影响，再用 `uv run dev framework-lock --update` 更新摘要。
 - 服务启动只检查运行必需的公共文件，部署时不需要带 Skill。
 
 ## 写测试的要求

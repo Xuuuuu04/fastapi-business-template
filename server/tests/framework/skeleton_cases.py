@@ -77,5 +77,5 @@ async def run_case(
             binding.contract, binding.contract.input(**data["input"]), caller=SYSTEM
         )
     differences = journal.compare(expected)
-    assert not differences, f"最早不一致或未知位置：{differences[0].point if differences else None}"
+    assert not differences, f"最早不一致或未知位置：{differences[0] if differences else None}"
     return result.model_dump(mode="json"), data["expected"]
