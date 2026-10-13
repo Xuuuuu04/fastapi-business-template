@@ -22,8 +22,13 @@ WORKER = (
 
 
 # 子进程日志留在本机资料目录，报告不复制连接地址或实际业务轨迹。
-def validation(project: Path, tree: Path, postgres: str) -> dict:
-    env = clean_environment() | {"FASTAPI_MERGE_POSTGRES": postgres}
+def validation(project: Path, tree: Path, postgres: str, *, workers: int = 4) -> dict:
+    if not 0 <= workers <= 32:
+        raise ValueError("整合检查进程预算应为0至32")
+    env = clean_environment() | {
+        "FASTAPI_MERGE_POSTGRES": postgres,
+        "FASTAPI_MERGE_WORKERS": str(workers),
+    }
     log = tree.parent / "worker.log"
     with log.open("w") as output:
         result = subprocess.run(

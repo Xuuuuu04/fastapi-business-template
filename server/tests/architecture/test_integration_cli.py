@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 from fastapi_check.quality.rules import PROJECT
-from fastapi_template.template.initialization import initialize
 
 from tests.architecture.test_integration_git import run as git
 from tests.architecture.test_operation_generators import COPY_FLAG, run
 from tests.environment import subprocess_environment
+from tests.template_project import initialize
 
 ENTRY = ["-c", "from fastapi_dev.main import main; main()"]
 MERGE = """
@@ -25,7 +25,7 @@ from fastapi_project.development.integration_git import integrate
 from fastapi_project.development.integration_resolve import resolve
 from fastapi_project.integration import validation, refresh
 root = Path.cwd().parent
-validator = lambda tree: validation(root, tree, os.environ['APP_TEST_CONTROL_URL'])
+validator = lambda tree: validation(root, tree, os.environ['APP_TEST_CONTROL_URL'], workers=4)
 report = integrate(root, sys.argv[1], validator, resolve)
 refresh(root, report)
 print(json.dumps(report, ensure_ascii=False))

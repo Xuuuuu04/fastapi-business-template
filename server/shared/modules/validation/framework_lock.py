@@ -39,6 +39,8 @@ LOCKED = (
     "tests/resources.py",
     "tests/postgres_setup.py",
     "tests/environment.py",
+    "tests/scheduling.py",
+    "tests/template_project.py",
     "tests/check_profile.py",
     "migrations/env.py",
     "migrations/script.py.mako",

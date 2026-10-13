@@ -103,13 +103,21 @@ def execute_matrix(
 ) -> list[tuple[str, bool, dict[str, Any], float]]:
     from time import perf_counter
 
-    workers = max(0, options.workers // len(selected))
-    arguments = [*command, *(["--dist=worksteal", "-n", str(workers)] if workers else [])]
+    # PostgreSQL 的事务与并发样例更多，双库预算至少为六时给它更多进程。
+    budgets = {database: max(0, options.workers // len(selected)) for database in selected}
+    if len(selected) == 2 and options.workers >= 6:
+        budgets["sqlite"] = max(1, options.workers // 3)
+        budgets["postgresql"] = options.workers - budgets["sqlite"]
 
     # 各子进程只写自己的临时结果，控制进程按数据库顺序汇总。
     def execute(database: str) -> tuple[str, bool, dict[str, Any], float]:
         started = perf_counter()
         title = "PostgreSQL 测试" if database == "postgresql" else primary_title
+        workers = budgets[database]
+        arguments = [
+            *command,
+            *(["--dist=load", "--maxschedchunk=2", "-n", str(workers)] if workers else []),
+        ]
         passed, evidence = run_tests(
             title,
             arguments,
@@ -121,6 +129,7 @@ def execute_matrix(
             ),
             database,
         )
+        evidence = {**evidence, "workers": workers, "total_worker_budget": options.workers}
         return database, passed, evidence, round(perf_counter() - started, 3)
 
     if len(selected) > 1 and options.workers > 1:

@@ -3,8 +3,14 @@
 """
 
 import argparse
+import os
 
 from fastapi_project.development.selection import module_names
+
+
+# 保留两个CPU给主机和嵌套命令，小机器至少两个、大机器最多四个测试进程。
+def default_workers() -> int:
+    return max(2, min(4, (os.cpu_count() or 2) - 2))
 
 
 # 依次运行全部检查并汇总结果。
@@ -29,7 +35,12 @@ def arguments() -> argparse.Namespace:
     parser.add_argument(
         "--database", choices=["auto", "sqlite", "postgresql", "both"], default="auto"
     )
-    parser.add_argument("--workers", type=int, default=4, help="所有数据库共用的总进程预算")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=default_workers(),
+        help="所有数据库共用的总进程预算，默认按CPU自动设置",
+    )
     parser.add_argument(
         "--group", choices=["all", "pure", "module", "flow", "framework"], default="all"
     )

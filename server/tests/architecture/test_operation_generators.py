@@ -10,9 +10,9 @@ from pathlib import Path
 
 import pytest
 from fastapi_check.quality.rules import PROJECT
-from fastapi_template.template.initialization import initialize
 
 from tests.environment import subprocess_environment
+from tests.template_project import initialize
 
 COPY_FLAG = "TEMPLATE_COPY_RUN"
 
@@ -94,5 +94,5 @@ def test_new_operation_and_pipeline_check_without_manual_edits(tmp_path: Path) -
     assert reported == changed
     run(copy, [runner, "new_pipeline", "sample_operations", "daily", "--title", "阶段样例"], env)
     checker = "../.agents/skills/fastapi-check/scripts/run_check.py"
-    result = run(copy, [checker, "check", "--module", "sample_operations"], env)
+    result = run(copy, [checker, "check", "--module", "sample_operations", "--workers", "0"], env)
     assert "通过  模块测试" in result and "失败  " not in result

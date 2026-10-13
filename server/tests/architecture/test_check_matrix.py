@@ -14,7 +14,7 @@ from fastapi_check.matrix import CheckOptions, databases, execute_matrix
 from fastapi_project.development.history import save_check
 
 
-# 两个数据库平分预算，各自资源编号不同，控制连接不泄漏到SQLite轮。
+# 两库共用总预算并优先分配较重的PostgreSQL，各自资源和控制连接保持隔离。
 def test_parallel_budget_and_distinct_resources() -> None:
     recorded = []
 
@@ -32,8 +32,12 @@ def test_parallel_budget_and_distinct_resources() -> None:
         run,
     )
     assert [result[0] for result in outcomes] == ["sqlite", "postgresql"]
-    assert all(arguments[-2:] == ["-n", "2"] for arguments, _, _ in recorded)
-    assert all("--dist=worksteal" in arguments for arguments, _, _ in recorded)
+    budgets = {database: int(arguments[-1]) for arguments, _, database in recorded}
+    assert budgets == {"sqlite": 2, "postgresql": 2} and sum(budgets.values()) == 4
+    assert all("--dist=load" in arguments for arguments, _, _ in recorded)
+    assert all("--maxschedchunk=2" in arguments for arguments, _, _ in recorded)
+    assert {value[0]: value[2]["workers"] for value in outcomes} == budgets
+    assert all(value[2]["total_worker_budget"] == 4 for value in outcomes)
     assert len({env["APP_TEST_RUN_ID"] for _, env, _ in recorded}) == 2
     assert "APP_TEST_CONTROL_URL" not in next(env for _, env, db in recorded if db == "sqlite")
 

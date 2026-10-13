@@ -10,11 +10,11 @@ from pathlib import Path
 
 import pytest
 from fastapi_check.quality.rules import PROJECT
-from fastapi_template.template.initialization import initialize
 
 from tests.architecture.test_operation_generators import COPY_FLAG, run
 from tests.environment import subprocess_environment
 from tests.framework.skeleton_sample import implement, write_inputs
+from tests.template_project import initialize
 
 
 # finish有检查过程输出，最后一份JSON才是收工结论。
@@ -90,7 +90,16 @@ def reject_modified_expectation(copy: Path, entry: list[str], env: dict[str, str
     data["expected"]["value"] += 1
     fixture.write_text(json.dumps(data))
     rejected = subprocess.run(
-        [sys.executable, *entry, "check", "--module", "sample_counts", "--delivery"],
+        [
+            sys.executable,
+            *entry,
+            "check",
+            "--module",
+            "sample_counts",
+            "--delivery",
+            "--workers",
+            "0",
+        ],
         cwd=copy / "server",
         env=env,
         capture_output=True,

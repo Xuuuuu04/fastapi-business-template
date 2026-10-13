@@ -11,11 +11,11 @@ from pathlib import Path
 import pytest
 from fastapi_check.quality.rules import PROJECT
 from fastapi_module.skeleton_spec import SkeletonBundle
-from fastapi_template.template.initialization import initialize
 
 from tests.architecture.test_operation_generators import COPY_FLAG, run, snapshot
 from tests.environment import subprocess_environment
 from tests.framework.skeleton_sample import implement, specification, write_inputs
+from tests.template_project import initialize
 
 
 # 错误连接在写文件之前拒绝，未来字段、类型差异和查询写入都不能猜着接。
@@ -119,7 +119,16 @@ def verify_parallel_finish(copy: Path, entry: list[str], env: dict[str, str]) ->
     assert result["state"] == "complete"
     assert any("sample_sources.load" in notice for notice in result["notices"])
     delivery = subprocess.run(
-        [sys.executable, *entry, "check", "--module", "sample_counts", "--delivery"],
+        [
+            sys.executable,
+            *entry,
+            "check",
+            "--module",
+            "sample_counts",
+            "--delivery",
+            "--workers",
+            "0",
+        ],
         cwd=copy / "server",
         env=env,
         capture_output=True,

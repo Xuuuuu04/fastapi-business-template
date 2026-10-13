@@ -137,7 +137,7 @@ def protected(target: Path) -> dict[Path, bytes]:
 
 # 双库的当前业务样例明确运行，不能用迁移成功代替业务检查。
 def check_product(target: Path, control: str, env: dict[str, str]) -> None:
-    arguments = [*ENTRY, "check", "--database", "both", "--postgres", control]
+    arguments = [*ENTRY, "check", "--database", "both", "--postgres", control, "--workers", "0"]
     for name in PACKAGES:
         arguments += ["--module", name]
     output = run(target, arguments, env)

@@ -63,7 +63,8 @@ def format_generated(migration: dict | None) -> None:
 def checked_record(postgres: str) -> dict:
     before = {record["id"] for record in read_checks(PROJECT, include_cases=False)}
     stage("dual-database-check")
-    execute(Selection(), postgres, CheckOptions(database="both", workers=4, delivery=True))
+    workers = int(os.environ.get("FASTAPI_MERGE_WORKERS", "4"))
+    execute(Selection(), postgres, CheckOptions(database="both", workers=workers, delivery=True))
     records = [
         record for record in read_checks(PROJECT, include_cases=False) if record["id"] not in before
     ]

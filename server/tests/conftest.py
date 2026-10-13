@@ -24,6 +24,7 @@ from shared.model_calls.providers import FakeModel, ModelRequest
 from shared.records.version import source_version
 from tests.framework.sample_modules import calc_module, outer_module, sample_metadata
 from tests.framework.sample_routes import sample_router
+from tests.scheduling import schedule
 from tests.testing_app import (
     make_settings,
     on_postgres,
@@ -95,6 +96,7 @@ def pytest_testnodedown(node: Any, error: Any) -> None:
 
 # 在 SQLite 上跳过只对 PostgreSQL 有意义的测试。
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    schedule(items)
     if os.environ.get("APP_DEVELOPMENT_REPEAT_DATABASE") == "1":
         once = pytest.mark.skip(
             reason="此模板测试固定使用 SQLite，已在本轮默认检查成功执行，不在第二数据库重复"
