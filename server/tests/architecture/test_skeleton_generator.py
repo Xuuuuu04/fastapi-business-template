@@ -105,25 +105,30 @@ def verify_atomic_preview(copy: Path, spec: Path, entry: list[str], env: dict[st
 
 # 只实现一个包后收工成功，交付规则仍拒绝模拟兄弟包。
 def verify_parallel_finish(copy: Path, entry: list[str], env: dict[str, str]) -> None:
-    card = json.loads(run(
-        copy, [*entry, "start", "--package", "sample_counts", "--cases", "R-01-C01"], env
-    ))
+    card = json.loads(
+        run(copy, [*entry, "start", "--package", "sample_counts", "--cases", "R-01-C01"], env)
+    )
     implement(copy, only="sample_counts")
     run(copy, ["-m", "ruff", "check", "service", "--fix"], env)
     run(copy, ["-m", "ruff", "format", "service"], env)
     run(copy, [*entry, "docs"], env)
     finished = run(copy, [*entry, "finish", "--task", card["id"]], env)
-    result = json.loads(finished[finished.rfind("\n{") + 1:])
+    result = json.loads(finished[finished.rfind("\n{") + 1 :])
     assert result["state"] == "complete"
     assert any("sample_sources.load" in notice for notice in result["notices"])
-    delivery = run(copy, [
-        "-c", "from app.setup.catalog import MODULES; "
-        "from shared.modules.catalog import Catalog; "
-        "from pathlib import Path; "
-        "from fastapi_check.quality.docs import check_development_rules; "
-        "print(check_development_rules("
-        "Catalog(MODULES), Path.cwd().parent, delivery=True))",
-    ], env)
+    delivery = run(
+        copy,
+        [
+            "-c",
+            "from app.setup.catalog import MODULES; "
+            "from shared.modules.catalog import Catalog; "
+            "from pathlib import Path; "
+            "from fastapi_check.quality.docs import check_development_rules; "
+            "print(check_development_rules("
+            "Catalog(MODULES), Path.cwd().parent, delivery=True))",
+        ],
+        env,
+    )
     assert "simulated_implementation" in delivery and "sample_sources.load" in delivery
 
 

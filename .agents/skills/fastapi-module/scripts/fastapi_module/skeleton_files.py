@@ -5,14 +5,13 @@
 import json
 from pathlib import Path
 
-from pydantic import TypeAdapter
-
 from fastapi_module import skeleton_code as code
 from fastapi_module.new_module import add_route
 from fastapi_module.skeleton_spec import SkeletonBundle, SkeletonOperation, SkeletonPackage
 from fastapi_project.development.confirmed_cases import CaseFixture
 from fastapi_project.development.plan import check_plan, read_plan
 from fastapi_template.template.files import safe_path
+from pydantic import TypeAdapter
 
 from shared.scenarios.observations import ObservationPoint
 
@@ -159,9 +158,8 @@ def read_cases(project: Path, folder: Path) -> tuple[list[CaseFixture], list[str
     problems: list[str] = []
     for path in sorted(folder.glob("*.json")):
         try:
-            cases.append(CaseFixture.model_validate_json(
-                safe_path(project, path.relative_to(project).as_posix()).read_bytes()
-            ))
+            source = safe_path(project, path.relative_to(project).as_posix())
+            cases.append(CaseFixture.model_validate_json(source.read_bytes()))
         except ValueError as error:
             problems.append(f"{path.relative_to(project)}：{error}")
     return cases, problems
@@ -172,8 +170,7 @@ def metadata_problems(case: CaseFixture, test: str) -> list[str]:
     problems = []
     if case.initial or case.database or case.effects:
         problems.append(
-            f"{case.id}：短骨架不支持 initial、database 或 effects，"
-            "请编写独立真实状态测试"
+            f"{case.id}：短骨架不支持 initial、database 或 effects，请编写独立真实状态测试"
         )
     seen: set[ObservationPoint] = set()
     for observation in case.observations:
@@ -194,9 +191,15 @@ def metadata_problems(case: CaseFixture, test: str) -> list[str]:
 # 逐字段核对样例输入和预期类型，保留全部错误。
 def field_problems(case: CaseFixture, operation: SkeletonOperation) -> list[str]:
     problems = []
-    types = {        "str": str, "int": int, "float": float, "bool": bool,
-        "list[str]": list[str], "list[int]": list[int],
-        "dict[str, str]": dict[str, str], "dict[str, int]": dict[str, int],
+    types = {
+        "str": str,
+        "int": int,
+        "float": float,
+        "bool": bool,
+        "list[str]": list[str],
+        "list[int]": list[int],
+        "dict[str, str]": dict[str, str],
+        "dict[str, int]": dict[str, int],
     }
     for label, values, fields in (
         ("input", case.input, operation.input),
@@ -272,7 +275,9 @@ def bundle_plan(project: Path, bundle: SkeletonBundle) -> str:
             if previous.get("kind", "capability") != package.kind or not {
                 op.name for op in package.operations
             } <= set(previous["operations"]):
-                raise ValueError(f"{package.name}：骨架与已有计划的包类型或操作范围不一致，请先更新计划")
+                raise ValueError(
+                    f"{package.name}：骨架与已有计划的包类型或操作范围不一致，请先更新计划"
+                )
         else:
             line["packages"].append(
                 {

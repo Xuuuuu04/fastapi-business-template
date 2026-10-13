@@ -77,8 +77,9 @@ def existing_cases(project: Path, folder: Path) -> set[str]:
 
 # 按独立样例的规则编号生成待填写标题。
 def rules_template(package: SkeletonPackage) -> str:
-    ids = sorted({case.split(".")[1].split("-C")[0]
-                  for op in package.operations for case in op.cases})
+    ids = sorted(
+        {case.split(".")[1].split("-C")[0] for op in package.operations for case in op.cases}
+    )
     return f"# {package.title}\n\n" + "\n".join(
         f"### {identity} 待填写规则\n\n待确认：请填写业务条件与异常。\n" for identity in ids
     )
@@ -87,8 +88,14 @@ def rules_template(package: SkeletonPackage) -> str:
 # 计算单包的类型占位与规则模板，不覆盖已有业务资料。
 def case_templates(project: Path, package: SkeletonPackage) -> dict[Path, str]:
     defaults = {
-        "str": "待填写", "int": 0, "float": 0.0, "bool": False,
-        "list[str]": [], "list[int]": [], "dict[str, str]": {}, "dict[str, int]": {},
+        "str": "待填写",
+        "int": 0,
+        "float": 0.0,
+        "bool": False,
+        "list[str]": [],
+        "list[int]": [],
+        "dict[str, str]": {},
+        "dict[str, int]": {},
     }
     files = {}
     folder = project / "doc" / package.name / "cases"
@@ -101,16 +108,27 @@ def case_templates(project: Path, package: SkeletonPackage) -> dict[Path, str]:
             path = folder / (identity + ".json")
             if path.exists() or identity in existing:
                 continue
-            files[path] = json.dumps({
-                "id": identity,
-                "input": {name: defaults[field.type] for name, field in operation.input.items()},
-                "initial": {},
-                "expected": {
-                    name: defaults[field.type] for name, field in operation.output.items()
-                },
-                "assertions": ["待填写：请独立确认输入与预期的业务含义"],
-                "tests": [f"tests/modules/{package.name}/test_{operation.name}.py::test_case"],
-            }, ensure_ascii=False, indent=2) + "\n"
+            files[path] = (
+                json.dumps(
+                    {
+                        "id": identity,
+                        "input": {
+                            name: defaults[field.type] for name, field in operation.input.items()
+                        },
+                        "initial": {},
+                        "expected": {
+                            name: defaults[field.type] for name, field in operation.output.items()
+                        },
+                        "assertions": ["待填写：请独立确认输入与预期的业务含义"],
+                        "tests": [
+                            f"tests/modules/{package.name}/test_{operation.name}.py::test_case"
+                        ],
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n"
+            )
     return files
 
 
@@ -136,7 +154,8 @@ def main() -> None:
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--preview", action="store_true")
     parser.add_argument(
-        "--init", action="store_true",
+        "--init",
+        action="store_true",
         help="生成不覆盖的独立样例与规则模板，填好业务值后再生成骨架",
     )
     args = parser.parse_args()
@@ -144,10 +163,15 @@ def main() -> None:
     files = action(PROJECT, args.spec.resolve(), preview=args.preview)
     print(
         json.dumps(
-            {"preview": args.preview, "files": files,
-             "implementation": "case_templates" if args.init else "skeleton",
-             "next": "填写 doc/包名/cases/*.json 的业务值和 rules.md 后运行 uv run dev skeleton --spec "
-             + str(args.spec) if args.init else "uv run dev start --package 包名 --cases R-01-C01"},
+            {
+                "preview": args.preview,
+                "files": files,
+                "implementation": "case_templates" if args.init else "skeleton",
+                "next": "填写 doc/包名/cases/*.json 的业务值和 rules.md 后运行 "
+                + f"uv run dev skeleton --spec {args.spec}"
+                if args.init
+                else "uv run dev start --package 包名 --cases R-01-C01",
+            },
             ensure_ascii=False,
             indent=2,
         )
