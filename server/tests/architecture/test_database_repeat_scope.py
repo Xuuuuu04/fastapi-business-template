@@ -22,8 +22,12 @@ def test_only_fixed_sqlite_template_is_skipped(
     template_marks: list[Any] = []
     database_marks: list[Any] = []
     items = [
-        SimpleNamespace(keywords={"sqlite_template"}, add_marker=template_marks.append),
-        SimpleNamespace(keywords={"postgres_only"}, add_marker=database_marks.append),
+        SimpleNamespace(
+            name="template", keywords={"sqlite_template"}, add_marker=template_marks.append
+        ),
+        SimpleNamespace(
+            name="database", keywords={"postgres_only"}, add_marker=database_marks.append
+        ),
     ]
     select_database_cases(pytestconfig, items)  # type: ignore[arg-type]
     assert len(template_marks) == expected

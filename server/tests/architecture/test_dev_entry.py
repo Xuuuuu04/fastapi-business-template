@@ -26,7 +26,7 @@ def test_dev_inspect_ignores_real_environment() -> None:
     )
     assert result.returncode == 0, result.stderr
     description = json.loads(result.stdout)
-    assert description["modules"] == [] and description["framework_version"] == "3.1.0"
+    assert description["modules"] == [] and description["framework_version"] == "3.1.1"
     assert "invalid-live" not in result.stdout
 
 

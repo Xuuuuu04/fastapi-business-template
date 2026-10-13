@@ -13,10 +13,10 @@ import pytest
 from fastapi_check.quality.rules import PROJECT
 from fastapi_docs.api_doc import api_markdown, docs_app
 from fastapi_migration.compare_api import compare
-from fastapi_template.template.initialization import initialize
 
 from shared.modules.validation.framework_lock import differences, digests
 from tests.environment import subprocess_environment
+from tests.template_project import initialize
 
 COPY_FLAG = "TEMPLATE_COPY_RUN"
 
@@ -91,7 +91,11 @@ def test_new_project_path(tmp_path: Path) -> None:
     copy = tmp_path / "project"
     initialize(PROJECT, copy, "客户联系样例")
     env = subprocess_environment()
-    env |= {COPY_FLAG: "1", "APP_DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path}/copy.db"}
+    env |= {
+        COPY_FLAG: "1",
+        "APP_DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path}/copy.db",
+        "APP_TEST_WORKERS": "2",
+    }
     steps = [
         [
             "../.agents/skills/fastapi-module/scripts/run_module.py",
@@ -109,8 +113,10 @@ def test_new_project_path(tmp_path: Path) -> None:
             "check",
             "--module",
             "customer_contact",
+            "--workers",
+            "0",
         ],
-        ["pytest", "-q", "-p", "no:cacheprovider", "--dist=worksteal", "-n", "2"],
+        ["pytest", "-q", "-p", "no:cacheprovider", "--dist=load", "--maxschedchunk=2", "-n", "2"],
     ]
     for step in steps:
         done = subprocess.run(
