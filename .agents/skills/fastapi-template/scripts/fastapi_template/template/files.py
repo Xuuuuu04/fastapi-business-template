@@ -84,6 +84,9 @@ def provenance(source: Path) -> dict[str, Any]:
         "schema_version": 1,
         "version": metadata["project"]["version"],
         "revision": revision,
+        "framework_lock": hashlib.sha256(
+            (source / "server/framework.lock").read_bytes()
+        ).hexdigest(),
         "files": {
             name: hashlib.sha256(content).hexdigest()
             for name, content in managed_files(source).items()

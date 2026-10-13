@@ -9,9 +9,9 @@ description: 创建新产品、接收模板框架升级或逐项迁移旧业务�
 
 ```bash
 # 创建新产品
-uv run python ../.agents/skills/fastapi-template/scripts/run_template.py start_project /新项目目录 --name 产品名称
+uv run dev new-project /新项目目录 --name 产品名称
 # 更新已有产品的框架（默认只预览）
-uv run python ../.agents/skills/fastapi-template/scripts/run_template.py update_framework --base /旧模板 --source /新模板 --target /产品目录
+uv run dev upgrade --base /旧模板 --source /新模板 --target /产品目录
 ```
 
 ## 创建新产品

@@ -9,15 +9,28 @@ from pathlib import Path
 
 # 只依据复制时的明确来源比较框架，不把本机检查历史或产品版本当成证明。
 def product_framework_unchanged(root: Path) -> bool:
+    from shared.modules.validation.framework_lock import differences
+
     path = root / "template-source.json"
     if not path.is_file():
         return False
-    recorded = json.loads(path.read_text()).get("files", {})
-    for relative, digest in recorded.items():
-        source = root / relative
-        if not source.is_file() or hashlib.sha256(source.read_bytes()).hexdigest() != digest:
+    try:
+        recorded = json.loads(path.read_text(encoding="utf-8"))
+        lock = root / "server/framework.lock"
+        # 旧来源没有锁文件摘要时保守执行；升级后才可沿用模板验证。
+        if recorded.get("framework_lock") != hashlib.sha256(lock.read_bytes()).hexdigest():
             return False
-    return bool(recorded)
+        if differences(root / "server"):
+            return False
+        # 来源只记录模板管理文件，不包含产品源码、依赖与迁移历史。
+        files = recorded.get("files", {})
+        return bool(files) and all(
+            (root / relative).is_file()
+            and hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
+            for relative, digest in files.items()
+        )
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False
 
 
 # 这些位置只验证模板开发工具，业务包自己的测试与运行安全检查不在其中。

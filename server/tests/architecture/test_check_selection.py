@@ -2,8 +2,11 @@
 分层检查：多包去重、快速范围、旧调用方与未知变化，均用独立输入验证。
 """
 
+import hashlib
+import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi_check.check import INTEGRITY, steps
@@ -181,3 +184,71 @@ def test_validation_and_local_files(tmp_path: Path) -> None:
     files = module_files(("sample_records",), tmp_path / "server")
     assert "app/api/v1/sample_records.py" in files
     assert not any("sample_accounts" in path for path in files)
+
+
+# 产品身份来自来源文件；只改业务、依赖、迁移不使模板验证失效。
+def test_product_template_validation_tracks_framework_only(tmp_path: Path) -> None:
+    from shared.modules.validation.framework_lock import digests
+    from tests.check_profile import product_framework_unchanged
+
+    root = tmp_path / "product"
+    server = root / "server"
+    source = server / "shared/probe.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    lock = server / "framework.lock"
+    lock.write_text(json.dumps(digests(server)), encoding="utf-8")
+    assert not product_framework_unchanged(root)
+    origin = root / "template-source.json"
+    origin.write_text(
+        json.dumps(
+            {
+                "framework_lock": hashlib.sha256(lock.read_bytes()).hexdigest(),
+                "files": {
+                    "server/shared/probe.py": hashlib.sha256(source.read_bytes()).hexdigest()
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert product_framework_unchanged(root)
+    for relative in ("service/sample/steps.py", "uv.lock", "migrations/versions/product.py"):
+        business = server / relative
+        business.parent.mkdir(parents=True, exist_ok=True)
+        business.write_text("product change\n", encoding="utf-8")
+    assert product_framework_unchanged(root)
+    source.write_text("VALUE = 2\n", encoding="utf-8")
+    assert not product_framework_unchanged(root)
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    lock.write_text(lock.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    assert not product_framework_unchanged(root)
+    origin.write_text("{", encoding="utf-8")
+    assert not product_framework_unchanged(root)
+
+
+# 交付和显式 framework 组保留模板工具，默认产品省略但不省略结构安全检查。
+@pytest.mark.parametrize(
+    ("group", "delivery", "count"), [("all", "0", 1), ("all", "1", 2), ("framework", "0", 2)]
+)
+def test_product_template_selection_respects_delivery(
+    group: str, delivery: str, count: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from fastapi_check.quality.rules import ROOT
+    from tests import resources
+
+    monkeypatch.setenv("APP_TEST_GROUP", group)
+    monkeypatch.setenv("APP_DEVELOPMENT_DELIVERY", delivery)
+    monkeypatch.setattr("tests.check_profile.product_framework_unchanged", lambda root: True)
+    items = [
+        SimpleNamespace(
+            path=ROOT / "tests/architecture" / name, get_closest_marker=lambda name: None
+        )
+        for name in ("test_tools.py", "test_structure.py")
+    ]
+    removed = []
+    config = SimpleNamespace(
+        hook=SimpleNamespace(pytest_deselected=lambda items: removed.extend(items))
+    )
+    resources.pytest_collection_modifyitems(config, items)
+    assert len(items) == count and len(removed) == 2 - count
+    assert any(item.path.name == "test_structure.py" for item in items)

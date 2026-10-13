@@ -107,8 +107,19 @@ def migration_check() -> bool:
 def execute(
     selection: Selection, postgres: str, options: CheckOptions | None = None
 ) -> list[tuple[str, bool]]:
+    from tests.check_profile import product_framework_unchanged
+
     options = options or CheckOptions()
     matrix = databases(postgres, options.database)
+    if (
+        not options.delivery
+        and options.group != "framework"
+        and product_framework_unchanged(PROJECT)
+    ):
+        print(
+            "框架未改动，沿用模板验证（省略模板工具测试，保留业务与框架运行安全测试）",
+            flush=True,
+        )
     started = perf_counter()
     modules, links, before, system_before = check_versions(selection)
     profile = execution_profile(options, postgres)

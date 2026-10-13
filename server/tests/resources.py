@@ -86,7 +86,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
     selected = os.environ.get("APP_TEST_GROUP", "all")
     root = Path(__file__).resolve().parents[2]
-    product = selected != "framework" and product_framework_unchanged(root)
+    product = (
+        selected != "framework"
+        and os.environ.get("APP_DEVELOPMENT_DELIVERY") != "1"
+        and product_framework_unchanged(root)
+    )
     kept, deselected = [], []
     for item in items:
         marker = item.get_closest_marker("test_group")
