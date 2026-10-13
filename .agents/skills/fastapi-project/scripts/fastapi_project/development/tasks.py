@@ -142,9 +142,15 @@ def freshness_problems(
     if not set(related_modules(catalog, card.package)) <= record["fingerprints"].keys():
         return ["本次检查没有覆盖实际调用链"]
     codes = fingerprints(project, list(record["fingerprints"]), catalog.links())
+    failures = [
+        f"{name}：检查未通过" + ("，请运行 uv run dev docs" if name == "生成文档" else "")
+        for name, passed in record.get("checks", {}).items() if not passed
+    ]
+    failures += record.get("problems", [])
+    if not record["passed"]:
+        return failures or ["本次检查未通过，请查看本轮检查记录"]
     if (
-        not record["passed"]
-        or record["source_changed"]
+        record["source_changed"]
         or codes != record["fingerprints"]
         or record.get("system_fingerprint") != system_fingerprint(project)
     ):
@@ -176,7 +182,13 @@ def evidence_problems(
             actual = [case for case in cases if identity in case.get("scenario_ids", [])]
             if not actual or any(case["outcome"] != "passed" for case in actual):
                 problems.append(f"{database}样例{identity}未完整通过")
-            if any(run.get("simulated") for case in actual for run in case.get("runs", [])):
+            if any(
+                run.get("simulated") and (
+                    not run.get("operation")
+                    or run["operation"].startswith(card.package + ".")
+                )
+                for case in actual for run in case.get("runs", [])
+            ):
                 problems.append(f"{database}样例{identity}仍包含模拟执行")
     return problems
 
@@ -202,15 +214,15 @@ def finish_task(
         catalog, card.contract_modules or None
     ) or card.rules != rules_digest(project, card.contract_modules or None)
     problems = ["任务契约或规则已经变化，请更新任务卡"] if stale else []
-    problems += case_problems(project, read_ledger(project), delivery=True)
+    problems += case_problems(project, read_ledger(project), delivery=False)
     problems += evidence_problems(card, project, catalog, record, databases)
-    if any(
-        part.simulated
+    problems += [
+        f"规则与实现状态：{binding.contract.name} 仍是模拟实现（{part.source}），"
+        "请替换步骤并设置 simulated=False"
         for binding in catalog.bindings.values()
-        if binding.module.name in related_modules(catalog, card.package)
-        for part in binding.flow.steps
-    ):
-        problems.append("任务关联链仍含模拟骨架")
+        if binding.module.name == card.package
+        for part in binding.flow.steps if part.simulated
+    ]
     card.state = "needs_update" if stale else "incomplete" if problems else "complete"
     card.problems = problems
     card.checks = list(dict.fromkeys([*card.checks, record["id"]]))

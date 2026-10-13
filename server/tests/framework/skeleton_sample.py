@@ -60,8 +60,9 @@ def write_inputs(project: Path) -> Path:
         ("sample_chain", "run", 496116, 992233),
     ):
         folder = project / "doc" / package
-        (folder / "cases").mkdir(parents=True)
-        (folder / "cases/one.json").write_text(
+        (folder / "cases").mkdir(parents=True, exist_ok=True)
+        case_path = next((folder / "cases").glob("*.json"), folder / "cases/one.json")
+        case_path.write_text(
             json.dumps(
                 {
                     "id": f"{package}.R-01-C01",
@@ -84,11 +85,13 @@ def write_inputs(project: Path) -> Path:
 
 
 # 实际计算来自算法，不从expected常量生成；wrong供中间步骤定位反例使用。
-def implement(project: Path, *, wrong: bool = False) -> None:
+def implement(project: Path, *, wrong: bool = False, only: str = "") -> None:
     for package, action, kind, expression in (
         ("sample_sources", "load", "Load", "data.value * 2" + (" - 1" if wrong else "")),
         ("sample_counts", "advance", "Advance", "data.value + 1"),
     ):
+        if only and package != only:
+            continue
         path = project / "server/service" / package / "steps" / ("build_" + action + ".py")
         path.write_text(
             '"""\n合成实际计算，不读取样例预期。\n"""\n\n'

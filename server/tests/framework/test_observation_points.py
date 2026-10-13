@@ -81,6 +81,10 @@ async def test_observed_order_and_positions(tmp_path: Path) -> None:
             ]
         )
         assert differences[0].point == first and differences[0].sequence == 1
+        message = str(differences[0])
+        assert "第 1 步 sample_counts.run.calculate" in message
+        assert "字段 partial：实际 8，期望 7" in message
+        assert "test_observation_points.py:" in message
         assert differences[-1].point == missing and differences[-1].status == "unknown"
         assert not journal.compare(
             [ExpectedObservation(first, 8), ExpectedObservation(second, {"total": 9})]
@@ -100,6 +104,18 @@ def test_snapshot_and_safe_summary() -> None:
     assert journal.items[0].value == {"private": ["synthetic-private-value"]}
     assert "synthetic-private-value" not in repr(journal.items)
     assert "synthetic-private-value" not in str(journal.summary())
+
+
+# 只有显式测试消息展开取值，长值有界，持久摘要及repr仍不含值。
+def test_difference_values_are_bounded_and_not_in_summary() -> None:
+    journal = ObservationJournal()
+    point = ObservationPoint("sample_counts.run", "calculate", "partial")
+    journal.record(point, "x" * 2000, source="service/sample_counts/steps/build.py:12")
+    difference = journal.compare([ExpectedObservation(point, "y" * 2000)])[0]
+    assert len(str(difference)) < 500
+    assert "build.py:12" in str(difference)
+    assert "x" * 100 not in repr(difference)
+    assert "x" * 100 not in str(journal.summary())
 
 
 # 同一位置重复而没有成员或尝试区分时，不能悄悄取最后一次作为成功。
