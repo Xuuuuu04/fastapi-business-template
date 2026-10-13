@@ -153,10 +153,10 @@ def bundle_files(project: Path, bundle: SkeletonBundle) -> dict[Path, str]:
     return files
 
 
-# 确认样例必须已有，并准确引用即将生成的测试；不默默修改用户的预期或测试引用。
-def validate_cases(project: Path, package: SkeletonPackage) -> None:
-    folder = project / "doc" / package.name / "cases"
-    cases, problems = [], []
+# 读取全部独立样例，保留每个文件的解析错误。
+def read_cases(project: Path, folder: Path) -> tuple[list[CaseFixture], list[str]]:
+    cases: list[CaseFixture] = []
+    problems: list[str] = []
     for path in sorted(folder.glob("*.json")):
         try:
             cases.append(CaseFixture.model_validate_json(
@@ -164,11 +164,59 @@ def validate_cases(project: Path, package: SkeletonPackage) -> None:
             ))
         except ValueError as error:
             problems.append(f"{path.relative_to(project)}：{error}")
-    types = {
-        "str": str, "int": int, "float": float, "bool": bool,
+    return cases, problems
+
+
+# 检查观察位置、状态初始化和测试引用，不修改用户资料。
+def metadata_problems(case: CaseFixture, test: str) -> list[str]:
+    problems = []
+    if case.initial or case.database or case.effects:
+        problems.append(
+            f"{case.id}：短骨架不支持 initial、database 或 effects，"
+            "请编写独立真实状态测试"
+        )
+    seen: set[ObservationPoint] = set()
+    for observation in case.observations:
+        try:
+            if set(observation) != {"point", "value"}:
+                raise ValueError("需要 point 和 value")
+            point = ObservationPoint(**observation["point"])
+            if point in seen:
+                raise ValueError("观察位置重复")
+            seen.add(point)
+        except (ValueError, TypeError) as error:
+            problems.append(f"{case.id}：observations 无效：{error}")
+    if test not in case.tests:
+        problems.append(f"{case.id}：期望 tests 包含 {test}")
+    return problems
+
+
+# 逐字段核对样例输入和预期类型，保留全部错误。
+def field_problems(case: CaseFixture, operation: SkeletonOperation) -> list[str]:
+    problems = []
+    types = {        "str": str, "int": int, "float": float, "bool": bool,
         "list[str]": list[str], "list[int]": list[int],
         "dict[str, str]": dict[str, str], "dict[str, int]": dict[str, int],
     }
+    for label, values, fields in (
+        ("input", case.input, operation.input),
+        ("expected", case.expected, operation.output),
+    ):
+        if set(values) != set(fields):
+            problems.append(f"{case.id}：{label} 字段应为 {sorted(fields)}")
+            continue
+        for name, field in fields.items():
+            try:
+                TypeAdapter(types[field.type]).validate_python(values[name], strict=True)
+            except ValueError:
+                problems.append(f"{case.id}：{label}.{name} 必须是 {field.type}")
+    return problems
+
+
+# 确认样例必须已有，并准确引用即将生成的测试；不修改用户预期或引用。
+def validate_cases(project: Path, package: SkeletonPackage) -> None:
+    folder = project / "doc" / package.name / "cases"
+    cases, problems = read_cases(project, folder)
     for operation in package.operations:
         for identity in operation.cases:
             matching = [case for case in cases if case.id == identity]
@@ -179,37 +227,8 @@ def validate_cases(project: Path, package: SkeletonPackage) -> None:
                     f"期望 tests 包含 {test}"
                 )
                 continue
-            case = matching[0]
-            if case.initial or case.database or case.effects:
-                problems.append(
-                    f"{identity}：短骨架不支持 initial、database 或 effects，"
-                    "请编写独立真实状态测试"
-                )
-            seen = set()
-            for observation in case.observations:
-                try:
-                    if set(observation) != {"point", "value"}:
-                        raise ValueError("需要 point 和 value")
-                    point = ObservationPoint(**observation["point"])
-                    if point in seen:
-                        raise ValueError("观察位置重复")
-                    seen.add(point)
-                except (ValueError, TypeError) as error:
-                    problems.append(f"{identity}：observations 无效：{error}")
-            if test not in case.tests:
-                problems.append(f"{identity}：期望 tests 包含 {test}")
-            for label, values, fields in (
-                ("input", case.input, operation.input),
-                ("expected", case.expected, operation.output),
-            ):
-                if set(values) != set(fields):
-                    problems.append(f"{identity}：{label} 字段应为 {sorted(fields)}")
-                    continue
-                for name, field in fields.items():
-                    try:
-                        TypeAdapter(types[field.type]).validate_python(values[name], strict=True)
-                    except ValueError:
-                        problems.append(f"{identity}：{label}.{name} 必须是 {field.type}")
+            problems += metadata_problems(matching[0], test)
+            problems += field_problems(matching[0], operation)
     if problems:
         raise ValueError("\n".join(problems))
 

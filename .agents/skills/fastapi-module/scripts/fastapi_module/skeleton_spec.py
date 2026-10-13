@@ -71,7 +71,7 @@ class SkeletonBundle(BaseModel):
             raise ValueError("骨架业务包名称重复：" + ", ".join(p.name for p in self.packages))
         operations = {}
         for package in self.packages:
-            cases = set()
+            cases: set[str] = set()
             for operation in package.operations:
                 identity = package.name + "." + operation.name
                 repeated = cases.intersection(operation.cases)
@@ -81,19 +81,7 @@ class SkeletonBundle(BaseModel):
                 if identity in operations or keyword.iskeyword(operation.name):
                     raise ValueError(f"{identity}：骨架操作名称重复或使用保留字")
                 operations[identity] = operation
-                if operation.access not in {"public", "signed_in"} and not (
-                    operation.access.startswith(package.name + ".")
-                    and re.fullmatch(NAME, operation.access[len(package.name) + 1:])
-                ):
-                    raise ValueError(
-                        f"{identity}：权限 {operation.access!r} 必须是 public、signed_in "
-                        f"或以 {package.name}. 开头的权限名"
-                    )
-                if len(set(operation.cases)) != len(operation.cases) or any(
-                    not re.fullmatch(re.escape(package.name) + r"\.R-\d+-C\d+", case)
-                    for case in operation.cases
-                ):
-                    raise ValueError(f"{identity}：样例编号无效或重复：{operation.cases}")
+                validate_identity(package.name, operation)
                 try:
                     validate_fields(operation)
                 except ValueError as error:
@@ -110,6 +98,24 @@ class SkeletonBundle(BaseModel):
                     raise ValueError(f"{identity}：{error}") from error
                 graph[package.name + "." + operation.name] = [c.operation for c in operation.calls]
         check_cycles(graph)
+
+
+# 核对单操作的权限命名与独立样例编号，并报告完整操作名。
+def validate_identity(package: str, operation: SkeletonOperation) -> None:
+    identity = package + "." + operation.name
+    if operation.access not in {"public", "signed_in"} and not (
+        operation.access.startswith(package + ".")
+        and re.fullmatch(NAME, operation.access[len(package) + 1:])
+    ):
+        raise ValueError(
+            f"{identity}：权限 {operation.access!r} 必须是 public、signed_in "
+            f"或以 {package}. 开头的权限名"
+        )
+    if len(set(operation.cases)) != len(operation.cases) or any(
+        not re.fullmatch(re.escape(package) + r"\.R-\d+-C\d+", case)
+        for case in operation.cases
+    ):
+        raise ValueError(f"{identity}：样例编号无效或重复：{operation.cases}")
 
 
 # 调用图独立核对循环，不能靠生成文件顺序规避循环依赖。
