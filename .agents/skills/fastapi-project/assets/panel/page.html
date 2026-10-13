@@ -2,13 +2,41 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <title>开发面板</title><style>@@STYLE@@</style></head>
-<body><header><div><strong id="project-name">开发面板</strong><span id="generated"></span></div><nav><a href="#map">项目图</a><a href="#progress">业务进度</a><a href="#work">任务与分支</a><a href="#attention">待处理</a><a href="#metrics">检查指标</a></nav></header>
-<main><section id="map"><div class="section-heading"><h1>项目图</h1><div class="tools"><label>业务线 <select id="line-filter"><option value="">全部</option></select></label><label>查找 <input id="search" placeholder="包名或用途" type="search"></label><button id="fit">适应画布</button></div></div>
-<p id="meaning"></p><div id="legend"></div><div class="map-layout"><div id="canvas"><svg id="graph" aria-label="项目包与依赖关系图" role="img"></svg><p id="empty" hidden>还没有设计业务包。先填写项目计划，再生成骨架。</p></div><aside id="detail"><h2>包详情</h2><p>点击图中的包，查看实现、规则和证据来源。</p></aside></div></section>
-<section id="progress"><h2>业务进度</h2><div id="line-progress"></div></section>
-<section id="work"><h2>任务与分支</h2><h3>当前任务</h3><div id="tasks"></div><h3>分支与工作树</h3><div id="branches"></div><div id="worktrees"></div><div id="overlaps"></div></section>
-<section id="attention"><h2>待处理</h2><div id="pending"></div><h3>依赖问题</h3><div id="dependency-issues"></div><h3>重复实现提示</h3><div id="duplicates"></div></section>
-<section id="metrics"><h2>检查指标</h2><div id="metric-summary"></div><svg id="history" role="img" aria-label="完整检查耗时变化"></svg><h3>最近完整检查的十项最慢测试</h3><div id="slow-tests"></div><h3>源码规模</h3><div id="sizes"></div></section></main>
-<footer>本页由本地文件生成，可离线打开。修改源码后请重新执行 dev panel。<!-- @@LICENSE@@ --></footer>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true"></span><div><strong id="project-name">开发面板</strong><span id="generated"></span></div></div>
+  <div class="overall" id="overall" aria-label="全部包的状态分布"></div>
+  <nav><a href="#map">项目图</a><a href="#progress">进度</a><a href="#desk">待办</a><a href="#metrics">指标</a></nav>
+</header>
+<main>
+  <section id="map" class="map-section">
+    <div class="workspace">
+      <div class="canvas" id="canvas">
+        <div class="canvas-tools">
+          <div class="lines" id="line-filter" role="tablist" aria-label="业务线"></div>
+          <input id="search" type="search" placeholder="查找包名或用途" aria-label="查找包">
+          <div class="zoom"><button id="zoom-out" aria-label="缩小">−</button><button id="fit">适应</button><button id="zoom-in" aria-label="放大">+</button></div>
+        </div>
+        <svg id="graph" aria-label="项目包与依赖关系图" role="img"><g id="viewport"></g></svg>
+        <p id="empty" class="empty" hidden>还没有设计业务包。先用 dev plan 填写项目图，再生成骨架。</p>
+        <div class="legend" id="legend"></div>
+      </div>
+      <aside class="inspector" id="detail" aria-live="polite"></aside>
+    </div>
+    <p class="meaning" id="meaning"></p>
+  </section>
+  <section id="progress"><h2>业务进度</h2><div id="line-progress" class="line-progress"></div></section>
+  <section id="desk" class="desk">
+    <div class="column"><h2>等你处理</h2><div id="pending"></div></div>
+    <div class="column"><h2>任务与分支</h2><div id="work"></div></div>
+    <div class="column"><h2>结构体检</h2><div id="health"></div></div>
+  </section>
+  <section id="metrics" class="metrics">
+    <div class="chart-block"><h2>完整检查耗时</h2><p id="metric-summary" class="summary"></p><svg id="history" role="img" aria-label="完整检查耗时变化"></svg></div>
+    <div class="side-block"><h2>最慢的测试</h2><div id="slow-tests"></div><h2>包的规模</h2><div id="sizes"></div></div>
+  </section>
+</main>
+<footer>本页由本地文件生成，可以离线打开；颜色由检查记录计算，模型的备注不改变颜色。修改源码后重新执行 <code>uv run dev panel</code>。<!-- @@LICENSE@@ --></footer>
+<div class="tooltip" id="tooltip" hidden></div>
 <script type="application/json" id="panel-data">@@DATA@@</script><script>@@LAYOUT@@</script><script>@@SCRIPT@@</script>
 </body></html>
