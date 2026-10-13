@@ -22,6 +22,31 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_
 
 在 `doc/模块名/needs.md` 写这个业务的用途，在 `rules.md` 写规则、异常和确认样例。业务含义还没定的地方标"待确认"，不要自己补。
 
+## 先搭整条链的模拟骨架
+
+在新项目根目录保存 `skeleton.json`，最小完整规格如下：
+
+```json
+{
+  "line": "订单",
+  "packages": [{
+    "name": "order_shipping", "title": "订单运费", "kind": "capability",
+    "operations": [{
+      "name": "fee", "title": "计算运费", "access": "public", "effect": "query",
+      "input": {"quantity": {"type": "int", "meaning": "件数"}},
+      "output": {"amount": {"type": "int", "meaning": "运费分"}},
+      "cases": ["order_shipping.R-01-C01"]
+    }]
+  }]
+}
+```
+
+在 `server/` 执行 `uv run dev skeleton --init --spec ../skeleton.json`，自动生成独立样例和 rules.md，已有文件不覆盖。填写 `doc/order_shipping/cases/order_shipping.R-01-C01.json` 的业务值（如 quantity=2、amount=200）与规则；编号和测试引用已经填好。再运行 `uv run dev skeleton --spec ../skeleton.json --preview`，确认后去掉 `--preview` 生成。
+
+随后 `dev start --package order_shipping --cases R-01-C01` 开任务卡，替换本包模拟步骤并设置 simulated=False，`dev docs` 后 `dev finish --task 编号` 收工。本包必须真实实现，兄弟包仍模拟只提示；整条相关链测试仍必须通过，最终 `dev check --delivery` 才要求全部为真实实现。样例占位不能当作确认业务值。字段、权限、调用和样例出错时，生成之前逐项报告，不留下半个业务包。
+
+三包连接示例见 `server/tests/framework/skeleton_sample.py`，命令与开发说明见 [填空开发](../../../doc/task-development.md)。
+
 ## 生成新包
 
 在 `server/` 目录执行：

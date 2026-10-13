@@ -20,4 +20,4 @@ def record_step(part: Step, values: dict[str, Any], scope: Scope, operation: str
         point = ObservationPoint(
             operation, part.name, name, batch, position.member, position.attempt
         )
-        journal.record(point, values.get(name), observed=name in values)
+        journal.record(point, values.get(name), observed=name in values, source=part.source)
