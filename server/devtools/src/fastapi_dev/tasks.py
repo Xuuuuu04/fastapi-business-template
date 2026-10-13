@@ -62,7 +62,9 @@ def finish(project: Path, catalog: Catalog, identity: str, postgres: str) -> dic
         "next_commands": [
             "uv run dev docs",
             f"uv run dev finish --task {completed.id}",
-        ] if completed.problems else ["uv run dev check --database sqlite --delivery"],
+        ]
+        if completed.problems
+        else ["uv run dev check --database sqlite --delivery"],
         "review": f".agents/records/reviews/{completed.id}.json",
         "panel": panel.relative_to(project).as_posix(),
     }

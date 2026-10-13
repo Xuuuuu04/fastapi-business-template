@@ -144,7 +144,8 @@ def freshness_problems(
     codes = fingerprints(project, list(record["fingerprints"]), catalog.links())
     failures = [
         f"{name}：检查未通过" + ("，请运行 uv run dev docs" if name == "生成文档" else "")
-        for name, passed in record.get("checks", {}).items() if not passed
+        for name, passed in record.get("checks", {}).items()
+        if not passed
     ]
     failures += record.get("problems", [])
     if not record["passed"]:
@@ -154,7 +155,7 @@ def freshness_problems(
         or codes != record["fingerprints"]
         or record.get("system_fingerprint") != system_fingerprint(project)
     ):
-        return ["本次检查失败或不属于当前源码"]
+        return ["检查之后代码又改过了，结果不属于当前源码，请重新运行 uv run dev finish"]
     return []
 
 
@@ -183,11 +184,10 @@ def evidence_problems(
             if not actual or any(case["outcome"] != "passed" for case in actual):
                 problems.append(f"{database}样例{identity}未完整通过")
             if any(
-                run.get("simulated") and (
-                    not run.get("operation")
-                    or run["operation"].startswith(card.package + ".")
-                )
-                for case in actual for run in case.get("runs", [])
+                run.get("simulated")
+                and (not run.get("operation") or run["operation"].startswith(card.package + "."))
+                for case in actual
+                for run in case.get("runs", [])
             ):
                 problems.append(f"{database}样例{identity}仍包含模拟执行")
     return problems
@@ -221,7 +221,8 @@ def finish_task(
         "请替换步骤并设置 simulated=False"
         for binding in catalog.bindings.values()
         if binding.module.name == card.package
-        for part in binding.flow.steps if part.simulated
+        for part in binding.flow.steps
+        if part.simulated
     ]
     card.state = "needs_update" if stale else "incomplete" if problems else "complete"
     card.problems = problems

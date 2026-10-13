@@ -116,8 +116,11 @@ def test_finish_failure_lists_check_names_and_reasons(tmp_path: Path) -> None:
     catalog = sample(tmp_path)
     card = start_task(tmp_path, catalog, "sample_counts", ["R-01-C01"])
     evidence = record(tmp_path, catalog)
-    evidence.update(passed=False, checks={"生成文档": False, "规则与实现状态": False},
-                    problems=["service/sample_counts：规则 R-01 未确认"])
+    evidence.update(
+        passed=False,
+        checks={"生成文档": False, "规则与实现状态": False},
+        problems=["service/sample_counts：规则 R-01 未确认"],
+    )
     result = finish_task(tmp_path, catalog, card, evidence, ("sqlite",))
     assert any("生成文档" in p for p in result.problems)
     assert any("service/sample_counts" in p for p in result.problems)

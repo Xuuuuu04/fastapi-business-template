@@ -15,6 +15,12 @@ from fastapi_check.arguments import arguments
 from fastapi_check.cache import cached_round, execution_profile
 from fastapi_check.development_rules import check_development
 from fastapi_check.matrix import CheckOptions, clean_environment, databases, execute_matrix
+from fastapi_check.outcomes import (
+    NEXT_STEPS,
+    announce_template_reuse,
+    check_scope,
+    test_problems,
+)
 from fastapi_check.quality.rules import PROJECT, ROOT
 from fastapi_project.development.evidence import system_fingerprint
 from fastapi_project.development.history import fingerprints, save_check
@@ -107,39 +113,21 @@ def migration_check() -> bool:
 def execute(
     selection: Selection, postgres: str, options: CheckOptions | None = None
 ) -> list[tuple[str, bool]]:
-    from tests.check_profile import product_framework_unchanged
-
     options = options or CheckOptions()
     matrix = databases(postgres, options.database)
-    if (
-        not options.delivery
-        and options.group != "framework"
-        and product_framework_unchanged(PROJECT)
-    ):
-        print(
-            "框架未改动，沿用模板验证（省略模板工具测试，保留业务与框架运行安全测试）",
-            flush=True,
-        )
+    announce_template_reuse(options)
     started = perf_counter()
     modules, links, before, system_before = check_versions(selection)
     profile = execution_profile(options, postgres)
-    scope: dict[str, object] = (
-        selection.scope()
-        if options.group == "all"
-        else {
-            "kind": "group",
-            "group": options.group,
-            "modules": modules,
-        }
-    )
-    if not options.delivery:
+    scope = check_scope(selection, options, modules)
+    if not options.delivery and not options.fresh:
         cached = cached_round(PROJECT, before, system_before, scope, profile)
         if cached:
             print(f"沿用检查 {cached['id']}（{cached['finished_at']}），没有重新执行")
             return list(cached["checks"].items())
     env = check_environment(selection, postgres, options)
     selected = steps(selection)
-    results, timings = run_static_checks(selected, env)
+    results, timings, problems = run_static_checks(selected, env)
     outcomes = execute_matrix(
         matrix, postgres, selected[-1][1], env, options, run_tests, selected[-1][0]
     )
@@ -147,6 +135,8 @@ def execute(
     for database, passed, evidence, seconds in outcomes:
         title = "PostgreSQL 测试" if database == "postgresql" else selected[-1][0]
         results.append((title, passed))
+        if not passed:
+            problems += test_problems(title, evidence)
         suites.append(evidence)
         timings[title] = seconds
     finish_check(
@@ -162,24 +152,29 @@ def execute(
         options,
         profile,
         scope,
+        problems,
     )
     return results
 
 
-# 风格、类型、文档与迁移归属只执行一遍，数据库矩阵共用结果。
+# 风格、类型、文档与迁移归属只执行一遍，数据库矩阵共用结果；失败原因逐项留在记录里。
 def run_static_checks(
     selected: list[tuple[str, list[str]]], env: dict[str, str]
-) -> tuple[list[tuple[str, bool]], dict[str, float]]:
+) -> tuple[list[tuple[str, bool]], dict[str, float], list[str]]:
     timings: dict[str, float] = {}
-    results = [
-        ("迁移表归属", migration_check()),
-        ("规则与实现状态", check_development(env.get("APP_DEVELOPMENT_DELIVERY") == "1")),
-    ]
+    rules = check_development(env.get("APP_DEVELOPMENT_DELIVERY") == "1")
+    results = [("迁移表归属", migration_check()), ("规则与实现状态", not rules)]
+    problems = [f"规则与实现状态：{text}" for text in rules]
     for title, command in selected[:-1]:
         start = perf_counter()
         results.append((title, run(title, command, env)))
         timings[title] = round(perf_counter() - start, 3)
-    return results, timings
+    problems += [
+        f"{title}：{NEXT_STEPS[title]}"
+        for title, passed in results
+        if not passed and title in NEXT_STEPS
+    ]
+    return results, timings, problems
 
 
 # 模块、依赖实现和完整框架指纹一起参与检查版本。
@@ -232,6 +227,7 @@ def finish_check(
     options: CheckOptions | None = None,
     profile: dict[str, object] | None = None,
     scope: dict[str, object] | None = None,
+    problems: list[str] | None = None,
 ) -> None:
     changed = before != fingerprints(
         PROJECT, modules, links
@@ -246,6 +242,7 @@ def finish_check(
             "system_fingerprint": system_before,
             "passed": all(passed for _, passed in results),
             "checks": dict(results),
+            "problems": problems or [],
             "suites": suites,
             "timings": timings,
             "elapsed_seconds": elapsed,

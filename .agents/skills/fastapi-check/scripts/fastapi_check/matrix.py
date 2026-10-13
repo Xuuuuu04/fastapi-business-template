@@ -17,6 +17,8 @@ class CheckOptions:
     workers: int = 0
     group: str = "all"
     delivery: bool = False
+    # 收工时必须重新执行，不能沿用旧的检查结果。
+    fresh: bool = False
 
     # 总预算有上限，非法组名在执行子进程前拒绝。
     def __post_init__(self) -> None:

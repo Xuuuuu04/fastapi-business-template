@@ -234,6 +234,7 @@ def test_product_template_selection_respects_delivery(
     group: str, delivery: str, count: int, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from fastapi_check.quality.rules import ROOT
+
     from tests import resources
 
     monkeypatch.setenv("APP_TEST_GROUP", group)

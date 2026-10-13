@@ -95,20 +95,36 @@ class ObservationJournal:
             if item.point not in values:
                 continue
             if item.point in seen:
-                differences.append(ObservationDifference(
-                    item.point, item.sequence, "ambiguous", item.value,
-                    values[item.point], item.source,
-                ))
+                differences.append(
+                    ObservationDifference(
+                        item.point,
+                        item.sequence,
+                        "ambiguous",
+                        item.value,
+                        values[item.point],
+                        item.source,
+                    )
+                )
             elif not item.observed:
-                differences.append(ObservationDifference(
-                    item.point, item.sequence, "unknown", None,
-                    values[item.point], item.source,
-                ))
+                differences.append(
+                    ObservationDifference(
+                        item.point,
+                        item.sequence,
+                        "unknown",
+                        None,
+                        values[item.point],
+                        item.source,
+                    )
+                )
             elif item.value != to_jsonable_python(values[item.point]):
                 differences.append(
                     ObservationDifference(
-                        item.point, item.sequence, "mismatch", item.value,
-                        values[item.point], item.source,
+                        item.point,
+                        item.sequence,
+                        "mismatch",
+                        item.value,
+                        values[item.point],
+                        item.source,
                     )
                 )
             seen.add(item.point)

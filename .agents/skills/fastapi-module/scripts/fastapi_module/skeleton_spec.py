@@ -76,14 +76,16 @@ class SkeletonBundle(BaseModel):
                 identity = package.name + "." + operation.name
                 repeated = cases.intersection(operation.cases)
                 if repeated:
-                    raise ValueError(f"{identity}：不同操作需要独立样例编号，重复 {sorted(repeated)}")
+                    raise ValueError(
+                        f"{identity}：不同操作需要独立样例编号，重复 {sorted(repeated)}"
+                    )
                 cases.update(operation.cases)
                 if identity in operations or keyword.iskeyword(operation.name):
                     raise ValueError(f"{identity}：骨架操作名称重复或使用保留字")
                 operations[identity] = operation
                 if operation.access not in {"public", "signed_in"} and not (
                     operation.access.startswith(package.name + ".")
-                    and re.fullmatch(NAME, operation.access[len(package.name) + 1:])
+                    and re.fullmatch(NAME, operation.access[len(package.name) + 1 :])
                 ):
                     raise ValueError(
                         f"{identity}：权限 {operation.access!r} 必须是 public、signed_in "

@@ -10,8 +10,9 @@ from shared.modules.catalog import Catalog
 
 
 # 离线读取声明和原件，不创建服务或读取运行数据库。
-def check_development(delivery: bool) -> bool:
+def check_development(delivery: bool) -> list[str]:
     problems = check_development_rules(Catalog(application_modules()), PROJECT, delivery=delivery)
-    for problem in problems:
-        print(problem.text(), flush=True)
-    return not problems
+    texts = [problem.text() for problem in problems]
+    for text in texts:
+        print(text, flush=True)
+    return texts

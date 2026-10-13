@@ -117,21 +117,30 @@ def test_three_package_skeleton_to_real_with_error_position(tmp_path: Path) -> N
     assert "992233" not in service and "496116" not in service
     tests = ["-m", "pytest", "-q", "tests/modules", "tests/integration/sample_chain"]
     run(copy, tests, env)
-    card = json.loads(run(copy, [*entry, "start", "--package", "sample_counts", "--cases", "R-01-C01"], env))
+    card = json.loads(
+        run(copy, [*entry, "start", "--package", "sample_counts", "--cases", "R-01-C01"], env)
+    )
     implement(copy, only="sample_counts")
     run(copy, ["-m", "ruff", "check", "service", "--fix"], env)
     run(copy, ["-m", "ruff", "format", "service"], env)
     run(copy, [*entry, "docs"], env)
     finished = run(copy, [*entry, "finish", "--task", card["id"]], env)
-    result = json.loads(finished[finished.rfind("\n{") + 1:])
+    result = json.loads(finished[finished.rfind("\n{") + 1 :])
     assert result["state"] == "complete"
     assert any("sample_sources.load" in notice for notice in result["notices"])
     # 在副本进程读取真实登记，交付规则拒绝仍模拟的兄弟包。
-    delivery = run(copy, ["-c", "from app.setup.catalog import MODULES; "
-                         "from shared.modules.catalog import Catalog; "
-                         "from pathlib import Path; "
-                         "from fastapi_check.quality.docs import check_development_rules; "
-                         "print(check_development_rules(Catalog(MODULES), Path.cwd().parent, delivery=True))"], env)
+    delivery = run(
+        copy,
+        [
+            "-c",
+            "from app.setup.catalog import MODULES; "
+            "from shared.modules.catalog import Catalog; "
+            "from pathlib import Path; "
+            "from fastapi_check.quality.docs import check_development_rules; "
+            "print(check_development_rules(Catalog(MODULES), Path.cwd().parent, delivery=True))",
+        ],
+        env,
+    )
     assert "simulated_implementation" in delivery and "sample_sources.load" in delivery
     implement(copy, wrong=True)
     import subprocess
