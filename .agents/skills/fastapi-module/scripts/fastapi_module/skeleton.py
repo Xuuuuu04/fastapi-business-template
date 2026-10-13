@@ -13,7 +13,7 @@ from fastapi_module.new_module import tidy
 from fastapi_module.new_operation import update_docs
 from fastapi_module.registry import registry_text
 from fastapi_module.skeleton_files import bundle_files
-from fastapi_module.skeleton_spec import SkeletonBundle
+from fastapi_module.skeleton_spec import SkeletonBundle, SkeletonPackage
 from fastapi_project.development.task_models import source_snapshot
 from fastapi_template.template.files import safe_path
 
@@ -63,70 +63,64 @@ def generate(project: Path, spec: Path, *, preview: bool = False) -> list[str]:
     )
 
 
-# 模板只填类型占位和准确引用；业务值由人独立填写，已有资料不覆盖。
+# 读取已有独立编号，避免不同文件名的同一样例被重复初始化。
+def existing_cases(project: Path, folder: Path) -> set[str]:
+    existing: set[str] = set()
+    for path in folder.glob("*.json"):
+        safe_path(project, path.relative_to(project).as_posix())
+        try:
+            existing.add(json.loads(path.read_text())["id"])
+        except (ValueError, KeyError) as error:
+            raise ValueError(f"{path.relative_to(project)}：无法读取已有样例编号") from error
+    return existing
+
+
+# 按独立样例的规则编号生成待填写标题。
+def rules_template(package: SkeletonPackage) -> str:
+    ids = sorted({case.split(".")[1].split("-C")[0]
+                  for op in package.operations for case in op.cases})
+    return f"# {package.title}\n\n" + "\n".join(
+        f"### {identity} 待填写规则\n\n待确认：请填写业务条件与异常。\n" for identity in ids
+    )
+
+
+# 计算单包的类型占位与规则模板，不覆盖已有业务资料。
+def case_templates(project: Path, package: SkeletonPackage) -> dict[Path, str]:
+    defaults = {
+        "str": "待填写", "int": 0, "float": 0.0, "bool": False,
+        "list[str]": [], "list[int]": [], "dict[str, str]": {}, "dict[str, int]": {},
+    }
+    files = {}
+    folder = project / "doc" / package.name / "cases"
+    existing = existing_cases(project, folder)
+    rules = project / "doc" / package.name / "rules.md"
+    if not rules.exists():
+        files[rules] = rules_template(package)
+    for operation in package.operations:
+        for identity in operation.cases:
+            path = folder / (identity + ".json")
+            if path.exists() or identity in existing:
+                continue
+            files[path] = json.dumps({
+                "id": identity,
+                "input": {name: defaults[field.type] for name, field in operation.input.items()},
+                "initial": {},
+                "expected": {
+                    name: defaults[field.type] for name, field in operation.output.items()
+                },
+                "assertions": ["待填写：请独立确认输入与预期的业务含义"],
+                "tests": [f"tests/modules/{package.name}/test_{operation.name}.py::test_case"],
+            }, ensure_ascii=False, indent=2) + "\n"
+    return files
+
+
+# 全批模板检查完成后才写入，预览保持所有文件不变。
 def initialize_cases(project: Path, spec: Path, *, preview: bool = False) -> list[str]:
     bundle = SkeletonBundle.model_validate_json(spec.read_bytes())
     bundle.validate_links()
-    defaults = {
-        "str": "待填写",
-        "int": 0,
-        "float": 0.0,
-        "bool": False,
-        "list[str]": [],
-        "list[int]": [],
-        "dict[str, str]": {},
-        "dict[str, int]": {},
-    }
     files = {}
     for package in bundle.packages:
-        folder = project / "doc" / package.name / "cases"
-        existing = set()
-        for path in folder.glob("*.json"):
-            safe_path(project, path.relative_to(project).as_posix())
-            try:
-                existing.add(json.loads(path.read_text())["id"])
-            except (ValueError, KeyError) as error:
-                raise ValueError(f"{path.relative_to(project)}：无法读取已有样例编号") from error
-        rules = project / "doc" / package.name / "rules.md"
-        if not rules.exists():
-            ids = sorted(
-                {
-                    case.split(".")[1].split("-C")[0]
-                    for op in package.operations
-                    for case in op.cases
-                }
-            )
-            files[rules] = f"# {package.title}\n\n" + "\n".join(
-                f"### {identity} 待填写规则\n\n待确认：请填写业务条件与异常。\n" for identity in ids
-            )
-        for operation in package.operations:
-            for identity in operation.cases:
-                path = project / "doc" / package.name / "cases" / (identity + ".json")
-                if path.exists() or identity in existing:
-                    continue
-                files[path] = (
-                    json.dumps(
-                        {
-                            "id": identity,
-                            "input": {
-                                name: defaults[field.type]
-                                for name, field in operation.input.items()
-                            },
-                            "initial": {},
-                            "expected": {
-                                name: defaults[field.type]
-                                for name, field in operation.output.items()
-                            },
-                            "assertions": ["待填写：请独立确认输入与预期的业务含义"],
-                            "tests": [
-                                f"tests/modules/{package.name}/test_{operation.name}.py::test_case"
-                            ],
-                        },
-                        ensure_ascii=False,
-                        indent=2,
-                    )
-                    + "\n"
-                )
+        files.update(case_templates(project, package))
     for path in files:
         safe_path(project, path.relative_to(project).as_posix())
     if not preview:
@@ -142,22 +136,18 @@ def main() -> None:
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--preview", action="store_true")
     parser.add_argument(
-        "--init", action="store_true", help="生成不覆盖的独立样例与规则模板，填好业务值后再生成骨架"
+        "--init", action="store_true",
+        help="生成不覆盖的独立样例与规则模板，填好业务值后再生成骨架",
     )
     args = parser.parse_args()
     action = initialize_cases if args.init else generate
     files = action(PROJECT, args.spec.resolve(), preview=args.preview)
     print(
         json.dumps(
-            {
-                "preview": args.preview,
-                "files": files,
-                "implementation": "case_templates" if args.init else "skeleton",
-                "next": "填写 doc/包名/cases/*.json 的业务值和 rules.md 后运行 uv run dev skeleton --spec "
-                + str(args.spec)
-                if args.init
-                else "uv run dev start --package 包名 --cases R-01-C01",
-            },
+            {"preview": args.preview, "files": files,
+             "implementation": "case_templates" if args.init else "skeleton",
+             "next": "填写 doc/包名/cases/*.json 的业务值和 rules.md 后运行 uv run dev skeleton --spec "
+             + str(args.spec) if args.init else "uv run dev start --package 包名 --cases R-01-C01"},
             ensure_ascii=False,
             indent=2,
         )

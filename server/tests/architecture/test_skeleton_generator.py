@@ -86,19 +86,8 @@ def test_case_errors_show_identity_path_and_test(tmp_path: Path) -> None:
     assert "tests/modules/sample_sources/test_load.py::test_case" in str(caught.value)
 
 
-# 相同独立资料先验证模拟连接，再替换实际计算，故意错误会指出最早观察到的字段。
-@pytest.mark.sqlite_template
-def test_three_package_skeleton_to_real_with_error_position(tmp_path: Path) -> None:
-    if os.environ.get(COPY_FLAG):
-        pytest.skip("模板副本不递归创建生成器验收")
-    copy = tmp_path / "product"
-    initialize(PROJECT, copy, "三包骨架验收")
-    spec = copy / "skeleton-spec.json"
-    spec.write_text(json.dumps(specification()))
-    env = subprocess_environment() | {COPY_FLAG: "1"}
-    entry = ["-c", "from fastapi_dev.main import main; main()"]
-    run(copy, [*entry, "skeleton", "--init", "--spec", str(spec)], env)
-    write_inputs(copy)
+# 非法权限和预览均不写入任何业务文件，保留全部原子性断言。
+def verify_atomic_preview(copy: Path, spec: Path, entry: list[str], env: dict[str, str]) -> None:
     from fastapi_module.skeleton import generate
 
     bad = specification()
@@ -112,36 +101,52 @@ def test_three_package_skeleton_to_real_with_error_position(tmp_path: Path) -> N
     before = snapshot(copy)
     preview = json.loads(run(copy, [*entry, "skeleton", "--spec", str(spec), "--preview"], env))
     assert preview["preview"] and before == snapshot(copy)
-    run(copy, [*entry, "skeleton", "--spec", str(spec)], env)
-    service = "\n".join(path.read_text() for path in (copy / "server/service").rglob("*.py"))
-    assert "992233" not in service and "496116" not in service
-    tests = ["-m", "pytest", "-q", "tests/modules", "tests/integration/sample_chain"]
-    run(copy, tests, env)
-    card = json.loads(
-        run(copy, [*entry, "start", "--package", "sample_counts", "--cases", "R-01-C01"], env)
-    )
+
+
+# 只实现一个包后收工成功，交付规则仍拒绝模拟兄弟包。
+def verify_parallel_finish(copy: Path, entry: list[str], env: dict[str, str]) -> None:
+    card = json.loads(run(
+        copy, [*entry, "start", "--package", "sample_counts", "--cases", "R-01-C01"], env
+    ))
     implement(copy, only="sample_counts")
     run(copy, ["-m", "ruff", "check", "service", "--fix"], env)
     run(copy, ["-m", "ruff", "format", "service"], env)
     run(copy, [*entry, "docs"], env)
     finished = run(copy, [*entry, "finish", "--task", card["id"]], env)
-    result = json.loads(finished[finished.rfind("\n{") + 1 :])
+    result = json.loads(finished[finished.rfind("\n{") + 1:])
     assert result["state"] == "complete"
     assert any("sample_sources.load" in notice for notice in result["notices"])
-    # 在副本进程读取真实登记，交付规则拒绝仍模拟的兄弟包。
-    delivery = run(
-        copy,
-        [
-            "-c",
-            "from app.setup.catalog import MODULES; "
-            "from shared.modules.catalog import Catalog; "
-            "from pathlib import Path; "
-            "from fastapi_check.quality.docs import check_development_rules; "
-            "print(check_development_rules(Catalog(MODULES), Path.cwd().parent, delivery=True))",
-        ],
-        env,
-    )
+    delivery = run(copy, [
+        "-c", "from app.setup.catalog import MODULES; "
+        "from shared.modules.catalog import Catalog; "
+        "from pathlib import Path; "
+        "from fastapi_check.quality.docs import check_development_rules; "
+        "print(check_development_rules("
+        "Catalog(MODULES), Path.cwd().parent, delivery=True))",
+    ], env)
     assert "simulated_implementation" in delivery and "sample_sources.load" in delivery
+
+
+# 相同独立资料先验证模拟连接，再替换实际计算，故意错误会指出最早观察到的字段。
+@pytest.mark.sqlite_template
+def test_three_package_skeleton_to_real_with_error_position(tmp_path: Path) -> None:
+    if os.environ.get(COPY_FLAG):
+        pytest.skip("模板副本不递归创建生成器验收")
+    copy = tmp_path / "product"
+    initialize(PROJECT, copy, "三包骨架验收")
+    spec = copy / "skeleton-spec.json"
+    spec.write_text(json.dumps(specification()))
+    env = subprocess_environment() | {COPY_FLAG: "1"}
+    entry = ["-c", "from fastapi_dev.main import main; main()"]
+    run(copy, [*entry, "skeleton", "--init", "--spec", str(spec)], env)
+    write_inputs(copy)
+    verify_atomic_preview(copy, spec, entry, env)
+    run(copy, [*entry, "skeleton", "--spec", str(spec)], env)
+    service = "\n".join(path.read_text() for path in (copy / "server/service").rglob("*.py"))
+    assert "992233" not in service and "496116" not in service
+    tests = ["-m", "pytest", "-q", "tests/modules", "tests/integration/sample_chain"]
+    run(copy, tests, env)
+    verify_parallel_finish(copy, entry, env)
     implement(copy, wrong=True)
     import subprocess
     import sys

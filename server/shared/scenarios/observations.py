@@ -59,6 +59,7 @@ class ObservationDifference:
 
     # 仅测试账本的显式失败消息展示有界取值，公共摘要仍然不含值。
     def __str__(self) -> str:
+        # 截短测试取值展示，避免失败消息展开完整业务内容。
         def bounded(value: Any) -> str:
             text = repr(value)
             return text if len(text) <= 160 else text[:157] + "..."
