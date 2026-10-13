@@ -17,11 +17,11 @@ NEXT_STEPS = {
 }
 
 
-# 产品框架没有改动时，说明哪些模板工具测试被省略，交付检查不省略。
+# 产品框架没有改动时，说明哪些模板工具测试被省略；它们只在模板仓库里运行。
 def announce_template_reuse(options: CheckOptions) -> None:
     from tests.check_profile import product_framework_unchanged
 
-    if options.delivery or options.group == "framework":
+    if options.group == "framework":
         return
     if product_framework_unchanged(PROJECT):
         print(

@@ -4,6 +4,8 @@
 
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -116,20 +118,16 @@ def verify_parallel_finish(copy: Path, entry: list[str], env: dict[str, str]) ->
     result = json.loads(finished[finished.rfind("\n{") + 1 :])
     assert result["state"] == "complete"
     assert any("sample_sources.load" in notice for notice in result["notices"])
-    delivery = run(
-        copy,
-        [
-            "-c",
-            "from app.setup.catalog import MODULES; "
-            "from shared.modules.catalog import Catalog; "
-            "from pathlib import Path; "
-            "from fastapi_check.quality.docs import check_development_rules; "
-            "print(check_development_rules("
-            "Catalog(MODULES), Path.cwd().parent, delivery=True))",
-        ],
-        env,
+    delivery = subprocess.run(
+        [sys.executable, *entry, "check", "--module", "sample_counts", "--delivery"],
+        cwd=copy / "server",
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    assert "simulated_implementation" in delivery and "sample_sources.load" in delivery
+    assert delivery.returncode != 0
+    assert "交付不能包含模拟骨架" in delivery.stdout and "sample_sources.load" in delivery.stdout
 
 
 # 相同独立资料先验证模拟连接，再替换实际计算，故意错误会指出最早观察到的字段。

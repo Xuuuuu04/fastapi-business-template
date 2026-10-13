@@ -226,9 +226,9 @@ def test_product_template_validation_tracks_framework_only(tmp_path: Path) -> No
     assert not product_framework_unchanged(root)
 
 
-# 交付和显式 framework 组保留模板工具，默认产品省略但不省略结构安全检查。
+# 模板工具测试只在模板仓库运行：产品交付也省略，显式 framework 组保留，结构安全检查始终保留。
 @pytest.mark.parametrize(
-    ("group", "delivery", "count"), [("all", "0", 1), ("all", "1", 2), ("framework", "0", 2)]
+    ("group", "delivery", "count"), [("all", "0", 1), ("all", "1", 1), ("framework", "0", 2)]
 )
 def test_product_template_selection_respects_delivery(
     group: str, delivery: str, count: int, monkeypatch: pytest.MonkeyPatch

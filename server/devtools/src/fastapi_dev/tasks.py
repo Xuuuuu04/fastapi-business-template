@@ -53,7 +53,7 @@ def finish(project: Path, catalog: Catalog, identity: str, postgres: str) -> dic
         "outside": completed.outside,
         "problems": completed.problems,
         "notices": [
-            f"{binding.contract.name} 仍是模拟实现，不影响本包收工；交付前需替换"
+            f"{binding.contract.name} 仍是模拟骨架，不影响本包收工；交付前需替换"
             for binding in catalog.bindings.values()
             if binding.module.name != card.package
             and binding.module.name in chain

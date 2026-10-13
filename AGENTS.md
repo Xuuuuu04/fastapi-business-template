@@ -1,4 +1,4 @@
-# FastAPI 单体后端模板 3.0.0
+# FastAPI 单体后端模板 3.1.0
 
 这是空业务模板，`MODULES=[]`；产品通过自己的 `app/product.py` 组装。业务实现放 `server/service/`，纯工具放 `server/library/`，共享框架放 `server/shared/`，HTTP 与启动放 `server/app/`。
 

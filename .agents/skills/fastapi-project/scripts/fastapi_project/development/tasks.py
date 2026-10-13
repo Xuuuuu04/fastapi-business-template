@@ -217,7 +217,7 @@ def finish_task(
     problems += case_problems(project, read_ledger(project), delivery=False)
     problems += evidence_problems(card, project, catalog, record, databases)
     problems += [
-        f"规则与实现状态：{binding.contract.name} 仍是模拟实现（{part.source}），"
+        f"规则与实现状态：{binding.contract.name} 仍是模拟骨架（{part.source}），"
         "请替换步骤并设置 simulated=False"
         for binding in catalog.bindings.values()
         if binding.module.name == card.package
