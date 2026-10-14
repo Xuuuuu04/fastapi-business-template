@@ -17,10 +17,7 @@ RULE_HEADING = re.compile(r"^#{2,4}\s+(R-\d+)\s*(.*)$")
 RULE_ID = re.compile(r"\bR-\d+\b")
 PENDING = "待确认"
 MAX_EXCERPT = 80
-HEADER = (
-    "> 本文件由 `uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py "
-    "export_docs` 根据业务文档、测试和任务清单生成，不要手工修改。"
-)
+HEADER = "> 本文件由 `uv run dev docs` 根据业务文档、测试和任务清单生成，不要手工修改。"
 
 
 # 业务文档中尚未确认的一项规则或问题，供开发进度汇总。

@@ -9,7 +9,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from fastapi_check.check import INTEGRITY, steps
+from fastapi_check.check import INTEGRITY, QUALITY, steps
+from fastapi_check.quality.report import Problem, in_modules
 from fastapi_project.development.evidence import (
     full_check_current,
     latest_full_check,
@@ -48,6 +49,31 @@ def test_multi_package_plan_runs_common_checks_once(
     assert command.count("tests/modules/sample_records") == 1
     assert "tests/integration/sample_accounts" in command
     assert all(test in command for test in INTEGRITY)
+    assert QUALITY in command
+    assert plan[0][1] == ["ruff", "check", "sample.py"]
+    assert plan[1][1] == ["ruff", "format", "--check", "sample.py"]
+
+
+# 包级质量规则只报本包源码、测试、接口和业务文档的问题，别的包和公共文件不卡住本包。
+def test_module_quality_keeps_only_own_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "fastapi_project.development.selection.module_files",
+        lambda names: ["app/api/v1/sample_records.py"],
+    )
+    own = [
+        Problem("service/sample_records/steps/build_fee.py", 3, "step_name", "本包"),
+        Problem("tests/modules/sample_records/test_fee.py", 9, "function_comment", "本包"),
+        Problem("app/api/v1/sample_records.py", 1, "file_header", "本包接口"),
+        Problem("doc/sample_records/rules.md", 0, "rule_missing", "本包文档"),
+        Problem("server/service/sample_records/README.md", 4, "writing_style", "本包说明"),
+    ]
+    others = [
+        Problem("service/sample_records_extra/steps/build_fee.py", 3, "step_name", "名字相近"),
+        Problem("tests/conftest.py", 1, "function_comment", "框架文件"),
+        Problem("doc/README.md", 0, "doc_index", "公共文档"),
+    ]
+    assert in_modules(own + others, ["sample_records"]) == own
+    assert in_modules(own + others, []) == own + others
 
 
 # 快速检查不包含类型、生成文档或整合测试，记录范围也不能是完整检查。
@@ -58,9 +84,7 @@ def test_quick_plan_is_local_and_not_acceptance(
     monkeypatch.setattr("fastapi_check.check.module_files", lambda names: ["sample.py"])
     plan = steps(selection)
     assert len(plan) == 3
-    assert all(
-        "mypy" not in command and "fastapi_docs.export_docs" not in command for _, command in plan
-    )
+    assert all("mypy" not in command and "docs" not in command for _, command in plan)
     assert not any(test in plan[-1][1] for test in INTEGRITY)
     assert selection.scope() == {"kind": "quick", "modules": ["sample_records"]}
     assert latest_full_check([{"scope": selection.scope()}]) is None
@@ -186,44 +210,49 @@ def test_validation_and_local_files(tmp_path: Path) -> None:
     assert not any("sample_accounts" in path for path in files)
 
 
-# 产品身份来自来源文件；只改业务、依赖、迁移不使模板验证失效。
-def test_product_template_validation_tracks_framework_only(tmp_path: Path) -> None:
-    from shared.modules.validation.framework_lock import digests
-    from tests.check_profile import product_framework_unchanged
+# 产品身份来自来源文件；只有模板工具自己的文件（Skill 脚本、devtools）改动才让工具测试回来。
+def test_product_template_validation_tracks_tool_files_only(tmp_path: Path) -> None:
+    from tests.check_profile import template_tools_unchanged
 
     root = tmp_path / "product"
-    server = root / "server"
-    source = server / "shared/probe.py"
-    source.parent.mkdir(parents=True)
-    source.write_text("VALUE = 1\n", encoding="utf-8")
-    lock = server / "framework.lock"
-    lock.write_text(json.dumps(digests(server)), encoding="utf-8")
-    assert not product_framework_unchanged(root)
+    tool = root / ".agents/skills/fastapi-check/scripts/fastapi_check/probe.py"
+    devtool = root / "server/devtools/src/fastapi_dev/probe.py"
+    for path in (tool, devtool):
+        path.parent.mkdir(parents=True)
+        path.write_text("VALUE = 1\n", encoding="utf-8")
+    assert not template_tools_unchanged(root)
     origin = root / "template-source.json"
     origin.write_text(
         json.dumps(
             {
-                "framework_lock": hashlib.sha256(lock.read_bytes()).hexdigest(),
                 "files": {
-                    "server/shared/probe.py": hashlib.sha256(source.read_bytes()).hexdigest()
+                    path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+                    for path in (tool, devtool)
                 },
             }
         ),
         encoding="utf-8",
     )
-    assert product_framework_unchanged(root)
-    for relative in ("service/sample/steps.py", "uv.lock", "migrations/versions/product.py"):
-        business = server / relative
-        business.parent.mkdir(parents=True, exist_ok=True)
-        business.write_text("product change\n", encoding="utf-8")
-    assert product_framework_unchanged(root)
-    source.write_text("VALUE = 2\n", encoding="utf-8")
-    assert not product_framework_unchanged(root)
-    source.write_text("VALUE = 1\n", encoding="utf-8")
-    lock.write_text(lock.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    assert not product_framework_unchanged(root)
+    assert template_tools_unchanged(root)
+    for relative in (
+        "server/service/sample/steps.py",
+        "server/uv.lock",
+        "server/migrations/versions/product.py",
+        "server/shared/flow/view.py",
+        "server/framework.lock",
+        "server/pyproject.toml",
+        ".agents/skills/fastapi-check/SKILL.md",
+    ):
+        changed = root / relative
+        changed.parent.mkdir(parents=True, exist_ok=True)
+        changed.write_text("product change\n", encoding="utf-8")
+    assert template_tools_unchanged(root)
+    for path in (tool, devtool):
+        path.write_text("VALUE = 2\n", encoding="utf-8")
+        assert not template_tools_unchanged(root)
+        path.write_text("VALUE = 1\n", encoding="utf-8")
     origin.write_text("{", encoding="utf-8")
-    assert not product_framework_unchanged(root)
+    assert not template_tools_unchanged(root)
 
 
 # 模板工具测试只在模板仓库运行：产品交付也省略，显式 framework 组保留，结构安全检查始终保留。
@@ -239,7 +268,7 @@ def test_product_template_selection_respects_delivery(
 
     monkeypatch.setenv("APP_TEST_GROUP", group)
     monkeypatch.setenv("APP_DEVELOPMENT_DELIVERY", delivery)
-    monkeypatch.setattr("tests.check_profile.product_framework_unchanged", lambda root: True)
+    monkeypatch.setattr("tests.check_profile.template_tools_unchanged", lambda root: True)
     items = [
         SimpleNamespace(
             path=ROOT / "tests/architecture" / name, get_closest_marker=lambda name: None

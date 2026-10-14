@@ -3,15 +3,21 @@
 """
 
 from fastapi_module.new_module import camel
-from fastapi_module.skeleton_spec import SkeletonOperation, SkeletonPackage
+from fastapi_module.skeleton_spec import SkeletonOperation, SkeletonPackage, call_field
 
 HEADER = '"""\n显式声明生成的业务骨架；字段与连接属于契约，业务计算需独立实现。\n"""\n\n'
 
 
 # 引用由规格检查过，只展开成字段访问，不执行任意表达式。
 def expression(reference: str) -> str:
-    source, name = reference.split(".")
-    return "data." + name if source == "input" else f"data.{source}.{name}"
+    source, name = reference.rsplit(".", 1)
+    return "data." + name if source == "input" else f"data.{call_field(source)}.{name}"
+
+
+# 步骤声明读的工作字段：原始输入读字段本身，调用产出读整段产出。
+def work_field(reference: str) -> str:
+    source, name = reference.rsplit(".", 1)
+    return name if source == "input" else call_field(source)
 
 
 # 每个操作独立的数据文件，避免多操作的data.py不断变长。
@@ -34,10 +40,12 @@ def data_code(operation: SkeletonOperation, operations: dict[str, SkeletonOperat
         f"    {name}: {field.type} = meaning({field.meaning!r})\n"
         for name, field in operation.input.items()
     )
-    for number, call in enumerate(operation.calls, 1):
+    for call in operation.calls:
         package, action = call.operation.split(".")
+        text = operations[call.operation].title + "的结果"
         code += (
-            f"    phase_{number}: {package}.{camel(action)}Output = meaning('第{number}阶段产出')\n"
+            f"    {call_field(call.operation)}: {package}.{camel(action)}Output "
+            f"= meaning({text!r})\n"
         )
     code += f"    result: {kind}Output = meaning('最终结果')\n"
     return code
@@ -63,8 +71,12 @@ def public_code(package: SkeletonPackage) -> str:
     return code + f"\n__all__ = {exports!r}\n"
 
 
-# 用明确映射连接每一阶段，最终整理结果是实际连接逻辑，不编造业务计算。
-def step_code(package: SkeletonPackage, operation: SkeletonOperation) -> str:
+# 每个调用步骤按被调用的操作命名，最终整理结果是实际连接逻辑，不编造业务计算。
+def step_code(
+    package: SkeletonPackage,
+    operation: SkeletonOperation,
+    operations: dict[str, SkeletonOperation],
+) -> str:
     kind = camel(operation.name)
     code = (
         HEADER
@@ -75,23 +87,19 @@ def step_code(package: SkeletonPackage, operation: SkeletonOperation) -> str:
         f"from service.{name} import public as {name}\n"
         for name in sorted({c.operation.split(".")[0] for c in operation.calls})
     )
-    for number, call in enumerate(operation.calls, 1):
+    for call in operation.calls:
         package_name, action = call.operation.split(".")
-        reads = sorted(
-            {
-                ref.split(".")[1] if ref.startswith("input.") else ref.split(".")[0]
-                for ref in call.input.values()
-            }
-        )
+        field, title = call_field(call.operation), operations[call.operation].title
+        reads = sorted({work_field(reference) for reference in call.input.values()})
         values = ", ".join(
             f"{name}={expression(reference)}" for name, reference in call.input.items()
         )
         code += (
-            f"\n\n# 调用声明过的第{number}阶段，入参来源明确。\n"
-            f"@step('调用第{number}阶段', reads={reads!r}, writes=['phase_{number}'], "
-            f"uses=[{package_name}.{action}], observes=['phase_{number}'], simulated=False)\n"
-            f"async def call_phase_{number}(data: {kind}Work, call: Call) -> None:\n"
-            f"    data.phase_{number} = await call({package_name}.{action}, "
+            f"\n\n# 调用{call.operation}（{title}），入参来源明确。\n"
+            f"@step({title!r}, reads={reads!r}, writes=[{field!r}], "
+            f"uses=[{package_name}.{action}], observes=[{field!r}], simulated=False)\n"
+            f"async def fetch_{field}(data: {kind}Work, call: Call) -> None:\n"
+            f"    data.{field} = await call({package_name}.{action}, "
             f"{package_name}.{camel(action)}Input({values}))\n"
         )
     return code + result_step(operation)
@@ -109,12 +117,7 @@ def result_step(operation: SkeletonOperation) -> str:
             f"def build_result(data: {kind}Work) -> None:\n"
             "    raise NotImplementedError('此处尚未实现业务计算')\n"
         )
-    reads = sorted(
-        {
-            ref.split(".")[1] if ref.startswith("input.") else ref.split(".")[0]
-            for ref in operation.returns.values()
-        }
-    )
+    reads = sorted({work_field(reference) for reference in operation.returns.values()})
     values = ", ".join(f"{name}={expression(ref)}" for name, ref in operation.returns.items())
     return (
         "\n\n# 按显式字段映射整理最终结果。\n"
@@ -135,9 +138,7 @@ def flow_code(package: SkeletonPackage) -> str:
         )
         code += f"from service.{package.name}.steps import build_{operation.name}\n"
     for operation in package.operations:
-        steps = [
-            f"build_{operation.name}.call_phase_{i}" for i in range(1, len(operation.calls) + 1)
-        ]
+        steps = [f"build_{operation.name}.fetch_{call_field(c.operation)}" for c in operation.calls]
         steps += [f"build_{operation.name}.build_result"]
         code += (
             f"\n{operation.name}_flow = Flow({operation.title!r}, "

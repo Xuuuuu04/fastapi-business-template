@@ -21,7 +21,7 @@
 证明中的人工接入项仍列入manual_review；预览零冲突不代表业务已经升级。
 
 ```bash
-uv run python ../.agents/skills/fastapi-template/scripts/run_template.py update_framework \
+uv run dev upgrade \
   --base /旧模板 --source /新模板 --target /产品 \
   --recovery-proof /产品升级任务/recovery-proof.json
 ```

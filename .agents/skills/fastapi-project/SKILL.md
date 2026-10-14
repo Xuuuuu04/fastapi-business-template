@@ -18,6 +18,8 @@ description: 管理项目图、规则、任务、文档、离线面板和本机�
 | --- | --- |
 | 项目摘要、业务现状、任务、影响、整合、证据固定与清理 | [项目状态](references/project-state.md) |
 | 声明文档生成与检查、手写段保留 | [文档生成](references/documents.md) |
+| 从独立样例到真实实现：骨架、开工、收工、复核材料、契约修改请求 | [填空开发](references/task-development.md) |
+| 离线面板的状态颜色、证据来源和各区块含义 | [开发面板](references/panel.md) |
 
 生成文档执行 `uv run dev docs`；只比较用 `uv run dev docs --check`。规则和变化记录只更新账本生成段，原文及确认语义仍由业务资料维护。
 

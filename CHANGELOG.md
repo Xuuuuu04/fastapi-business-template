@@ -2,12 +2,41 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 3.2.0（2026-10-14）
+
+- 新增按需生成的最小账号包：`uv run dev new-module user_access --title 账号登录 --preset access`。模板仍然 `MODULES=[]`，不登记任何业务包；生成后和普通业务包一样登记。包里有 `包名.login`（public）和 `包名.create_account`（`包名.manage`）两个操作、账号表迁移（接在当前唯一迁移头后面）、规则与需求文档、步骤和接口测试。
+- 登录契约与前端模板 `src/app/login.config.ts` 的默认值一致：`POST /api/v1/access/login`，请求 `org_code`、`username`、`password`、`otp_code`（最小账号包不使用两步验证），回包 `access_token`、`token_type=Bearer`、`expires_in`、`org_id`。令牌用 `shared/access/tokens.py` 的 `issue_token` 签发，权限沿用 `Caller` 的写法，前端只读令牌里的 `permissions`。口令用随机盐加 scrypt 摘要、固定时间比较，账号不存在时也算一次；计算放在 `heavy=True` 步骤，受 `APP_HEAVY_CONCURRENCY` 限制同时计算的数量。新建账号只能在自己的组织里，授予的权限不能超出调用者自己的权限。
+- 接上原来没人读的登录失败限流：15 分钟内同一来源地址对同一账号失败 `APP_LOGIN_FAILURE_LIMIT` 次、同一账号来自所有地址失败 `APP_LOGIN_ACCOUNT_FAILURE_LIMIT` 次后返回 429，登录成功清零，缓存键只存摘要。没有生成账号包时这两项不起作用，`.env.example` 和 deploy/README 的说法已对上。
+- 修正正式时钟的截止换算：`RealClock.run` 原来把按 `time.monotonic()` 算出的截止时间直接交给 `asyncio.timeout_at()`；macOS 上 uvicorn 默认的 uvloop 循环时钟比它快约 1000 秒，按 AGENTS 写的 `uv run uvicorn` 在本机启动时，凡是中途要等待的操作都会立刻返回 504 `run_timeout`。现在按剩余秒数交给事件循环。Linux 上两个时钟一致，生产大概率没有受影响。
+- 前后端对接参考写清登录约定，删掉过期的“目前的缺口”和已经不存在的 `npm run test:backend`；system、logs README 里遗漏的旧命令换成 `uv run dev`。
+- 同机实测：临时 PostgreSQL 17 上的模板双库交付检查 SQLite 833、PostgreSQL 843 个测试通过，整轮 373.6 秒；同一时间机器上另有其他项目的完整检查在跑（负载约 27），所以比 3.1.2 记录的 239.3 秒慢，不代表这版本身变慢。草稿产品生成账号包后，双库交付检查 SQLite 487、PostgreSQL 493 个测试通过；用 uvicorn 实际启动，按文档用 make-key 建第一个账号再登录，回包通过前端仓库 `login.config.ts` 的校验。
+- 已有产品接入：按 3.1.2 的做法在新模板的 `server/` 下运行 `uv run dev upgrade`，接收框架与 Skill 后更新 framework.lock，运行 `uv run dev docs` 和产品自己的双库交付检查。时钟修正不改接口和数据，没有数据库迁移。已经有自己登录的产品不需要生成账号包；需要时生成后按 `doc/包名/rules.md` 核对规则，用 `uv run dev make-key --name 账号管理 --org-id 组织代码 --permissions 包名.manage` 建第一个管理账号。
+- framework.lock 更新理由：时钟截止换算、账号包生成器与模板、new-module 的 `--preset` 参数、对接与部署说明、版本常量及相关测试一起更新；不改已有业务事务和接口。
+
+## 3.1.2（2026-10-14）
+
+- 骨架产物直接过交付检查：生成的测试把说明注释放在第一个装饰器上面；流程包的调用步骤按被调用的操作命名（调用 `order_pricing.quote` 的步骤叫 `fetch_order_pricing_quote`，产出字段叫 `order_pricing_quote`），步骤标题用被调用操作的标题，不再生成 `call_phase_N` 和 `phase_N`。规格里 `calls[].input` 和 `returns` 的来源写成 `input.字段` 或 `包.操作.字段`；旧写法 `phase_N.字段` 会报错并列出可用来源，输入字段和调用产出重名在生成前拒绝。
+- 包级检查只查本包：非 quick 的 `dev check --module` 和 `dev finish` 的代码风格、格式只检查所选包的文件，并加跑 `tests/quality/test_project_quality.py`，问题只保留本包源码、测试、接口和业务文档的路径；类型检查和生成文档仍查全部，完整检查和交付检查不过滤。收工当场就能发现生成文件和本包的不合规，别的包已有的格式问题不再卡住本包；代码风格和格式的失败提示改为只处理列出的文件。加跑以后当场发现 `dev new-pipeline` 没把流程的启动操作写进包 README 的“公开操作”小节，一并修正。
+- 升级工具按新模板自己的清单：文件范围从新模板目录的 `framework_lock.py` 读取（只解析常量，不执行代码）；来源记录里没有的文件列在预览的 `newly_managed` 里，按新增文件处理；`check_base` 只核对记录里登记过的文件，失败时列出不同的文件和记录的版本、提交；接收后按新格式写 `template-source.json`（含 `framework_lock`）。升级说明改为一律在新模板的 `server/` 下运行 `uv run dev upgrade --target 产品目录`。
+- 产品里省略模板工具测试的条件收窄为：来源记录里模板工具自己的文件（各 Skill 的 scripts 和 `server/devtools`）没有改动。改业务、框架运行代码、`framework.lock` 或 pyproject 的 `[tool]` 段，不再让约 350 项工具测试回来；提示改为“模板工具未改动，沿用模板验证”。
+- 命令写法统一：`dev` 补上 `business-state`、`adopt-modules`、`make-key`、`compare-api`，每个兼容长命令都有 dev 写法。Skill、参考文档、各层 README、CI、`.env.example`、生成器打印、status 和 locate 的 `next`、生成文档的文件头、AGENTS 生成段、新产品 README 和报错提示统一用 `uv run dev`。旧的 `scripts/run_*.py` 照常能用，只在 guide Skill 留一句兼容说明。
+- 入口与说明：填空开发和开发面板的说明挪到 `.agents/skills/fastapi-project/references/`，升级时会一起带过去；删除带本机路径的 `doc/check-performance-3.1.1.md`，结论见 3.1.1。根目录新增只有一行 `@AGENTS.md` 的 `CLAUDE.md`，新产品一起复制。检查来历表允许把模型能力提升作为删除理由，但要附固定评测的前后对比。
+- 已有产品接入：
+  1. 在 3.1.2 模板的 `server/` 下运行 `uv run dev upgrade --target 产品目录 --base 上次采用的模板 --source 3.1.2 模板`，不要用产品自己的旧工具。3.1.1 及以前升级过的产品，来源记录缺 `framework_lock`，也没登记 `tests/scheduling.py`、`tests/template_project.py`；新工具会把它们列进 `newly_managed` 并补进产品，接收后来源记录按新格式重写。只想先修正来源记录时，把记录里的那个版本同时作 `--base` 和 `--source` 运行一次，确认预览后加 `--apply`。
+  2. 审查框架差异后运行 `uv run dev framework-lock --update`、`uv run dev docs` 和产品自己的双库交付检查。`flows.md`、汇总文档的文件头和 AGENTS 生成段会改成 dev 写法，建议整批提交。
+  3. 预览的 `manual_review` 会列出 `CLAUDE.md`，需要时在产品根目录加上同样一行。产品 AGENTS、README 里手写的长命令按需换成 dev 写法。
+  4. 已经生成的业务包不受影响；还没生成的 `skeleton.json` 把 `phase_N.字段` 改写成 `包.操作.字段`。
+  5. 产品改过 Skill 脚本或 `server/devtools` 时，模板工具测试仍会运行；把这类修改回收进模板或撤回之后才会省略。
+  没有数据库迁移，业务代码和公开声明写法不变。
+- 同机实测：模板 SQLite 交付检查 831 个测试通过，整轮 82.8 秒；临时 PostgreSQL 17 上的双库交付检查 SQLite 831、PostgreSQL 841 个测试通过，整轮 239.3 秒，包括二代产品真实升级验收。骨架验收新增的交付检查让它成为最慢的一项（并行负载下约 78 秒），SQLite 整轮比 3.1.1 记录的 58.7 秒慢；这次没有在改动前做同机对照。草稿目录按 new-project、skeleton --init、skeleton、start、替换实现、docs、finish 走完后，交付检查直接通过。
+- framework.lock 更新理由：骨架生成器、包级检查范围与质量规则过滤、升级清单与来源记录、模板工具测试的省略条件、dev 子命令与输出文字、Skill 说明与参考位置、版本常量及相关测试一起更新；不改正式业务事务和运行行为，运行代码里只改了接口文档的密钥说明和结构问题的提示文字。
+
 ## 3.1.1（2026-10-13）
 
 - 模板检查提速：真实生成项目继续使用独立源码与数据库、当前已安装依赖，只复制可自行失效的 mypy 类型缓存；副本小范围检查串行，完整副本 pytest 与整合双库检查照常运行。长短测试交替提前分配，使用小批次 load 调度，不删除断言、减少 200 成员规模、放宽超时或新增跳过条件。
 - 进程预算按机器选择：CPU 数量减二、至少二个、最多四个；四预算双库仍各二个，手动至少六预算时 PostgreSQL 约占三分之二。每库实际进程数和总预算写入检查记录；程序化调用默认零不变，整合验证可以显式设置预算。
 - 同机实测：SQLite 完整交付由 89.092 秒降至 58.714 秒，824 个测试通过；双库同轮由 266.552 秒降至 253.705 秒，SQLite 824、PostgreSQL 834 个测试通过。SQLite 达到约 60 秒目标，双库尚未达到约 3 分钟；之前的 115 秒、约 7 分钟是历史环境记录，不冒充本次基线。八和六预算反而更慢；200 成员样例排队锁使等待串联并触发原有整合超时，已全部撤回，没有放宽阈值。
-- 最慢十项与子命令实测见 [3.1.1 检查实测](doc/check-performance-3.1.1.md)：新项目主要耗在副本完整 pytest、骨架与操作生成器主要耗在公共类型检查；整合主要耗在完整双库子进程。套娃测试原本没有重复 uv sync，未靠省略安装或工具断言提速。双库仍受多份完整副本与真实事务竞争影响，约 209 秒的中间结果不作为最终源码证据。
+- 最慢十项与子命令实测：新项目主要耗在副本完整 pytest、骨架与操作生成器主要耗在公共类型检查；整合主要耗在完整双库子进程。套娃测试原本没有重复 uv sync，未靠省略安装或工具断言提速。双库仍受多份完整副本与真实事务竞争影响，约 209 秒的中间结果不作为最终源码证据。
 - 按包沿用暂缓：现有覆盖汇总仅属单轮，缺少同一目录版本下的跨轮操作覆盖、传递依赖与共享框架失效证据。先定义逐测试操作映射、依赖指纹和跨轮来源，再考虑安全沿用；交付仍完整重新执行。
 - 已有产品接入：更新框架、检查 Skill 与受保护测试辅助文件，重新生成 framework.lock，再运行 `uv run dev docs`、`uv run dev panel` 和产品自己的双库交付检查。没有数据库迁移，业务代码和公开操作声明不变；类型缓存只用于模板生成器验收，不作为成功证据。
 - framework.lock 更新理由：检查调度、自动预算与证据字段、整合预算参数、独立副本类型缓存辅助文件、缓存失效和调度完整性样例、版本常量及 Skill 说明一起更新；新增辅助文件纳入框架保护与三方升级范围，不改正式业务事务和运行行为。

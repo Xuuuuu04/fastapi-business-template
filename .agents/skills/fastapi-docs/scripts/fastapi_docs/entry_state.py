@@ -33,7 +33,7 @@ def block(catalog: Catalog, project: Path, disabled: set[str]) -> str:
         "## 当前状态（登记生成）",
         "",
         "下面是系统里登记了哪些模块。登记只说明代码里有了它，不代表业务已经完成；",
-        "实际运行情况看业务现状档案，或用 project --summary 查询。",
+        "实际运行情况看业务现状档案，或用 uv run dev status --summary 查询。",
         "",
     ]
     modules = list(catalog.modules.values())
@@ -56,7 +56,8 @@ def block(catalog: Catalog, project: Path, disabled: set[str]) -> str:
         lines.append(f"- 另有 {omitted} 个登记项；完整清单用 `uv run dev status --summary` 查看。")
     lines += [
         "",
-        "想看细节：project --module 模块名 --summary；project --operation 完整操作名。",
+        "想看细节：uv run dev status --module 模块名 --summary；"
+        "uv run dev status --operation 完整操作名。",
         END,
     ]
     return "\n".join(lines)

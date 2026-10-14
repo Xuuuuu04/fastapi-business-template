@@ -10,22 +10,22 @@ from fastapi_check.quality.rules import PROJECT
 # 失败时给出的下一步，读的人不用回头翻长输出也知道该做什么。
 NEXT_STEPS = {
     "迁移表归属": "请按上方列出的表补充归属登记",
-    "代码风格": "请运行 uv run ruff check . --fix 后处理剩余问题",
-    "代码格式": "请运行 uv run ruff format .",
+    "代码风格": "请对上方列出的文件运行 uv run ruff check --fix，再处理剩余问题",
+    "代码格式": "请对上方列出的文件运行 uv run ruff format",
     "类型检查": "请按上方 mypy 输出修正类型",
     "生成文档": "文档已过期，请运行 uv run dev docs",
 }
 
 
-# 产品框架没有改动时，说明哪些模板工具测试被省略；它们只在模板仓库里运行。
+# 产品里模板工具没有改动时，说明哪些模板工具测试被省略；它们只在模板仓库里运行。
 def announce_template_reuse(options: CheckOptions) -> None:
-    from tests.check_profile import product_framework_unchanged
+    from tests.check_profile import template_tools_unchanged
 
     if options.group == "framework":
         return
-    if product_framework_unchanged(PROJECT):
+    if template_tools_unchanged(PROJECT):
         print(
-            "框架未改动，沿用模板验证（省略模板工具测试，保留业务与框架运行安全测试）",
+            "模板工具未改动，沿用模板验证（省略模板工具测试，保留业务与框架运行安全测试）",
             flush=True,
         )
 

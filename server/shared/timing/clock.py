@@ -39,9 +39,10 @@ class RealClock:
     async def sleep(self, seconds: float) -> None:
         await asyncio.sleep(max(0, seconds))
 
-    # 使用同一单调时钟执行截止，保持嵌套调用的取消传播。
+    # 截止时间按 time.monotonic() 计算，换成剩余秒数再交给事件循环，保持嵌套调用的取消传播；
+    # uvloop 等事件循环的 loop.time() 不一定和 time.monotonic() 同一起点（macOS 上相差可达上千秒）。
     async def run[Result](self, awaitable: Awaitable[Result], *, deadline: float) -> Result:
-        async with asyncio.timeout_at(deadline):
+        async with asyncio.timeout(deadline - self.monotonic()):
             return await awaitable
 
 

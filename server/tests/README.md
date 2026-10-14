@@ -14,10 +14,10 @@
 | browser | 浏览器检查接口文档页面，需要 Playwright | 手动 |
 | temp | 临时复现问题的脚本，不进入版本管理的正式测试 | 手动 |
 
-- 包内调试：`uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check --quick --module 包名`，只检查本包风格、格式和业务测试，不代表正式验收。
-- 整层验收：`uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check --module A --module B`，公共检查只跑一次，测试选择本层和受影响调用方，另做一次导入、登记与迁移一致性检查。无需每包重跑框架自身的全部测试。
-- 自动选择：`uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check --affected --base origin/main`，按修改前后依赖的并集选包；公共或未知变化完整检查。main 与手动 CI 完整，业务 PR 按影响范围，部署镜像仍检查。
-- 完整检查：整批交付和发布前运行 `uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check`，以上“默认全量”指这一级，不指每次包内修改。
+- 包内调试：`uv run dev check --quick --module 包名`，只检查本包风格、格式和业务测试，不代表正式验收。
+- 整层验收：`uv run dev check --module A --module B`，公共检查只跑一次，测试选择本层和受影响调用方，另做一次导入、登记与迁移一致性检查。无需每包重跑框架自身的全部测试。
+- 自动选择：`uv run dev check --affected --base origin/main`，按修改前后依赖的并集选包；公共或未知变化完整检查。main 与手动 CI 完整，业务 PR 按影响范围，部署镜像仍检查。
+- 完整检查：整批交付和发布前运行 `uv run dev check`，以上“默认全量”指这一级，不指每次包内修改。
 - 默认新 SQLite 文件从空结构快照复制，结构或迁移版本变化时更新；自定义建表事件、已有文件、显式数据库和 PostgreSQL 仍完整重建。并行代理必须各用独立测试库，不能共享同一地址删表。
 - 检查记录包含各项总耗时及测试 setup/call/teardown 耗时，方便区分准备与业务执行；旧记录缺失时不估算。快速结果不计为正式模块验收，也不覆盖完整检查状态。
 - 新项目生成用例固定在自己的 SQLite 上检查（不验证 PostgreSQL）。默认测试成功后，追加 PostgreSQL 的第二轮不重复这条用例，并明确记录跳过原因；直接运行 PostgreSQL 测试或前轮失败时仍执行。其余真实数据库测试保持两库运行。

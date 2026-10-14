@@ -30,8 +30,8 @@ from shared.records.models import STEP_KIND_TEXT
 from shared.remote_calls.endpoint import Endpoint
 
 HEADER = (
-    "> 这份文件由命令 `uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py "
-    "export_docs` 根据代码里的声明自动生成，请不要手工修改（改了也会在下次生成时被覆盖）。"
+    "> 这份文件由命令 `uv run dev docs` 根据代码里的声明自动生成，"
+    "请不要手工修改（改了也会在下次生成时被覆盖）。"
     "业务含义写在同目录的 needs.md（需求）和 rules.md（规则）里。"
 )
 

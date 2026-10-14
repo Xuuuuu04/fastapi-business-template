@@ -1,6 +1,6 @@
 """
 旧项目显式采用标准业务包结构。全部包检查通过后才写入 module.json，不改业务代码或登记表。
-新开发包仍应通过 fastapi_module.new_module 创建。
+新开发包仍应通过 uv run dev new-module 创建。
 """
 
 import json
@@ -24,9 +24,7 @@ def main() -> None:
     for module in MODULES:
         path = ROOT / "service" / module.name / "module.json"
         path.write_text(json.dumps(descriptor(module.name), indent=2) + "\n", encoding="utf-8")
-    print(
-        "全部业务包已采用标准结构；业务规则、步骤与测试没有改动。请继续运行 fastapi_check.check。"
-    )
+    print("全部业务包已采用标准结构；业务规则、步骤与测试没有改动。请继续运行 uv run dev check。")
 
 
 if __name__ == "__main__":

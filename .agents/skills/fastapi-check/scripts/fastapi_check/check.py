@@ -38,33 +38,35 @@ INTEGRITY = (
     "tests/architecture/test_structure.py::test_registry_is_complete",
     "tests/architecture/test_structure.py::test_migrations_match_tables",
 )
+# 包级检查加跑的质量规则；APP_DEVELOPMENT_MODULES 让它们只报本包路径的问题。
+QUALITY = "tests/quality/test_project_quality.py"
 
 
-# 列出全部检查；类型检查只包含有 Python 文件的目录（未添加业务时 service 可能暂时为空）。
+# 列出全部检查；类型检查只含有 Python 文件的目录，指定包时风格和格式只看本包文件。
 def steps(selection: Selection | None = None) -> list[tuple[str, list[str]]]:
     selection = selection or Selection()
     typed = [name for name in TYPED if any((ROOT / name).rglob("*.py"))]
     tests = ["-m", "pytest", "-q", "--durations=10"]
     for module in selection.modules:
         tests += [f"tests/modules/{module}", f"tests/integration/{module}"]
+    files = module_files(selection.modules) if selection.modules else [".", "../.agents/skills"]
+    if not files:
+        raise ValueError("包级检查没有可检查的 Python 文件")
     if selection.quick:
-        files = module_files(selection.modules)
-        if not files:
-            raise ValueError("快速检查没有可检查的 Python 文件")
         return [
             ("局部代码风格", ["ruff", "check", *files]),
             ("局部代码格式", ["ruff", "format", "--check", *files]),
             ("快速模块测试", tests),
         ]
     if selection.modules:
-        tests += list(INTEGRITY)
+        tests += [*INTEGRITY, QUALITY]
     return [
-        ("代码风格", ["ruff", "check", ".", "../.agents/skills"]),
-        ("代码格式", ["ruff", "format", "--check", ".", "../.agents/skills"]),
+        ("代码风格", ["ruff", "check", *files]),
+        ("代码格式", ["ruff", "format", "--check", *files]),
         ("类型检查", ["mypy", *typed]),
         (
             "生成文档",
-            ["../.agents/skills/fastapi-docs/scripts/run_docs.py", "export_docs", "--check"],
+            ["-m", "fastapi_dev.main", "docs", "--check"],
         ),
         ("模块测试" if selection.modules else "默认测试", tests),
     ]

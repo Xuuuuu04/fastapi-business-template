@@ -19,7 +19,7 @@ from shared.errors.kinds import BusinessError, Kind
 key_header = APIKeyHeader(
     name="X-API-Key",
     scheme_name="服务密钥",
-    description="服务密钥，由 fastapi_operations.make_key 生成并配置到 APP_API_KEYS",
+    description="服务密钥，由 uv run dev make-key 生成并配置到 APP_API_KEYS",
     auto_error=False,
 )
 bearer_header = HTTPBearer(

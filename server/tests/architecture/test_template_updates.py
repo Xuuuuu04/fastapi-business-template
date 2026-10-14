@@ -3,10 +3,18 @@
 业务目录、迁移历史、配置与依赖文件不会被框架文件覆盖。
 """
 
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
-from fastapi_template.template.files import check_base, managed_files, save_provenance
+from fastapi_template.template.files import (
+    LOCK_MODULE,
+    check_base,
+    managed_files,
+    manifest,
+    save_provenance,
+)
 from fastapi_template.template.merge import apply_plan, update_plan
 
 
@@ -107,12 +115,49 @@ def test_wrong_base_and_changed_preview(tmp_path: Path) -> None:
     for root, value in ((base, 1), (source, 2), (target, 1)):
         write(root, "server/shared/a.py", f"VALUE = {value}\n")
     save_provenance(target, base)
-    with pytest.raises(ValueError, match="不一致"):
+    with pytest.raises(ValueError, match="不一致：server/shared/a.py 等 1 个文件.*2.0.0"):
         check_base(target, source)
     changes, _ = update_plan(target, base, source)
     write(target, "server/shared/a.py", "VALUE = 3\n")
     with pytest.raises(ValueError, match="预览后"):
         apply_plan(target, base, source, changes)
+
+
+# 升级用新模板自己的清单：旧工具写的来源记录没登记的文件单独列出、按新增处理，
+# 来源记录换成新格式（含 framework_lock），下次升级不再被拒绝。
+@pytest.mark.parametrize(
+    "local,state",
+    [(None, "update"), ("HELPER = 1\n", None), ("MINE = 1\n", "conflict")],
+)
+def test_source_manifest_adds_newly_managed_files(
+    tmp_path: Path, local: str | None, state: str | None
+) -> None:
+    base, source, target = projects(tmp_path)
+    old_lock = 'LOCKED = ("shared",)\nREGISTRATION = ()\nSUFFIXES = (".py",)\n'
+    new_lock = old_lock.replace('("shared",)', '("shared", "tests/helper.py")')
+    for root, text in ((base, old_lock), (target, old_lock), (source, new_lock)):
+        write(root, LOCK_MODULE, text)
+    for root in (base, source):
+        write(root, "server/tests/helper.py", "HELPER = 1\n")
+    if local is not None:
+        write(target, "server/tests/helper.py", local)
+    write(source, "server/framework.lock", "{}\n")
+    digest = hashlib.sha256(old_lock.encode()).hexdigest()
+    origin = {"version": "2.0.0", "files": {LOCK_MODULE: digest}}
+    write(target, "template-source.json", json.dumps(origin))
+    assert check_base(target, base, manifest(source)) == ["server/tests/helper.py"]
+    changes, _ = update_plan(target, base, source)
+    states = {change.name: change.state for change in changes}
+    assert states.pop(LOCK_MODULE) == "update"
+    assert states.get("server/tests/helper.py") == state
+    if state == "conflict":
+        return
+    apply_plan(target, base, source, changes)
+    assert (target / "server/tests/helper.py").read_text() == "HELPER = 1\n"
+    recorded = json.loads((target / "template-source.json").read_text())
+    assert "server/tests/helper.py" in recorded["files"]
+    assert recorded["framework_lock"] == hashlib.sha256(b"{}\n").hexdigest()
+    assert check_base(target, source) == []
 
 
 # 模板和产品链接均不能把写入引向项目之外。

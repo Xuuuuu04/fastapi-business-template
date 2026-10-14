@@ -1,5 +1,5 @@
 """
-新产品保留框架集成检查；框架未改变时，模板工具自身的回归由模板仓库负责。
+新产品保留框架集成检查；模板工具没有改动时，模板工具自身的回归由模板仓库负责。
 """
 
 import hashlib
@@ -7,27 +7,25 @@ import json
 from pathlib import Path
 
 
-# 只依据复制时的明确来源比较框架，不把本机检查历史或产品版本当成证明。
-def product_framework_unchanged(root: Path) -> bool:
-    from shared.modules.validation.framework_lock import differences
+# 模板工具自己的文件：各 Skill 的脚本和 server/devtools；Skill 说明不算。
+def template_tool_file(name: str) -> bool:
+    return (name.startswith(".agents/skills/") and "/scripts/" in name) or name.startswith(
+        "server/devtools/"
+    )
 
+
+# 只依据来源记录里模板工具文件的摘要比较；业务、依赖、迁移、框架运行代码和测试配置的改动不影响。
+def template_tools_unchanged(root: Path) -> bool:
     path = root / "template-source.json"
     if not path.is_file():
         return False
     try:
-        recorded = json.loads(path.read_text(encoding="utf-8"))
-        lock = root / "server/framework.lock"
-        # 旧来源没有锁文件摘要时保守执行；升级后才可沿用模板验证。
-        if recorded.get("framework_lock") != hashlib.sha256(lock.read_bytes()).hexdigest():
-            return False
-        if differences(root / "server"):
-            return False
-        # 来源只记录模板管理文件，不包含产品源码、依赖与迁移历史。
-        files = recorded.get("files", {})
-        return bool(files) and all(
+        recorded = json.loads(path.read_text(encoding="utf-8")).get("files", {})
+        tools = {name: digest for name, digest in recorded.items() if template_tool_file(name)}
+        return bool(tools) and all(
             (root / relative).is_file()
             and hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest
-            for relative, digest in files.items()
+            for relative, digest in tools.items()
         )
     except (OSError, ValueError, TypeError, AttributeError):
         return False

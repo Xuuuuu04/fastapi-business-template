@@ -105,7 +105,7 @@ def check_marker(folder: Path) -> list[str]:
     except (OSError, ValueError):
         return [
             f"service/{folder.name}/module.json：缺少有效的结构说明；"
-            "新包用 fastapi_module.new_module，旧包用 fastapi_module.adopt_modules"
+            "新包用 uv run dev new-module，旧包用 uv run dev adopt-modules"
         ]
     kind = content.get("kind") if isinstance(content, dict) else None
     normalized = (

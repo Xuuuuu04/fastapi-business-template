@@ -9,7 +9,7 @@
 
 ## 开始一项业务
 
-1. 先读 `.agents/records/business-state/模块名.md` 的生成摘要和手写部分（业务判断、外部依赖、下一步）；没有记录时用 project business_state 生成，运行状态未知就保持未知，不要补成成功。再读旧系统里这项业务的入口、调用关系、规则和样例，以及新系统里已有的成果，并记下旧版本号。
+1. 先读 `.agents/records/business-state/模块名.md` 的生成摘要和手写部分（业务判断、外部依赖、下一步）；没有记录时用 `uv run dev business-state` 生成，运行状态未知就保持未知，不要补成成功。再读旧系统里这项业务的入口、调用关系、规则和样例，以及新系统里已有的成果，并记下旧版本号。
 2. 列出用户的操作和对应的旧接口，选出最小的一项完整业务。例：经营日报 = 读取订单 → 计算 → 保存并发布 → 旧页面查看和下载。
 3. 在现有的任务记录里写清楚：
    - 数据从哪里来；
@@ -30,7 +30,7 @@
 迁移含定时或长流程的业务时，先用 `new_pipeline` 登记完整链路、Wait、定时首入口和演练占位，再按阶段补来源、计算、保存和发布。不要先把多个底层包做完才连流程，也不要把整段旧函数放进一个 Stage。
 
 ```bash
-uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipeline report daily --title 经营日报 --stages collect,wait,calculate,publish --wait wait
+uv run dev new-pipeline report daily --title 经营日报 --stages collect,wait,calculate,publish --wait wait
 ```
 
 选择方法：短保存用普通 `Flow(...steps=[validate, save])`，必须一起回滚；固定范围的大量数据用 `JobPlan(parse, segmented=True, repeat_safe=True, cursor=Cursor)` 每批 5000 行推进 Checkpoint；采集、等待、汇算、发布用 `Pipeline(...Stage/Wait...)`，每个阶段独立事务，汇算 Stage 内部可以再分段。完整声明片段和独立样例见[模块开发](../../fastapi-module/SKILL.md)、[步骤与事务](../../../../server/shared/flow/README.md)、[后台任务](../../../../server/shared/jobs/README.md)。生成的正常样例只证明骨架是通的，必须换成确认过的实际结果。
@@ -92,7 +92,7 @@ import_plan = ImportPlan(
 - 比较两份 OpenAPI，在 `server/` 执行：
 
 ```bash
-uv run python ../.agents/skills/fastapi-migration/scripts/run_migration.py compare_api --before /旧/openapi.json --after ../doc/api/openapi.json
+uv run dev compare-api --before /旧/openapi.json --after ../doc/api/openapi.json
 ```
 
 接口比较只比较声明，不能证明页面能用。要把旧页面真正接上，完成生成、查看、下载。返回"未就绪"的占位接口不算已迁移。
@@ -111,7 +111,7 @@ uv run python ../.agents/skills/fastapi-migration/scripts/run_migration.py compa
 
 还没拿到真实数据来源、身份或环境的，保持"未验证"。不要写精确的或估算的迁移百分比。汇报时先说：用户现在能做哪个操作、结果是什么、卡在哪里。
 
-收工时更新业务现状的手写部分（业务判断、外部依赖、下一步）；授权并确认当前数据库后，用 `project business_state --module 模块名 --runs` 刷新生成部分，没有数据库证据就不加 `--runs`、保持未知。生成和手写不混写；生成超过 24 小时或源码、依赖、声明变化，检查会报错，检查本身不会自动刷新。记录只在本机，不能代替真实的产品交付。
+收工时更新业务现状的手写部分（业务判断、外部依赖、下一步）；授权并确认当前数据库后，用 `uv run dev business-state --module 模块名 --runs` 刷新生成部分，没有数据库证据就不加 `--runs`、保持未知。生成和手写不混写；生成超过 24 小时或源码、依赖、声明变化，检查会报错，检查本身不会自动刷新。记录只在本机，不能代替真实的产品交付。
 
 ## 正式切换
 

@@ -26,8 +26,8 @@ APP_OPERATIONS={"backup":true,"retention":true,"capacity":true,"notifications":t
 uv run alembic upgrade head
 uv run python -m app.setup.worker
 # 另一终端只读查看实际执行与提醒状态
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py jobs list
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py diagnose runs
+uv run dev jobs list
+uv run dev diagnose runs
 # 独立框架样例自动检查备份恢复/行数/迁移/ready/分段/暂停/提醒失败
 uv run python -m pytest tests/framework/test_builtin_operations.py -q
 ```

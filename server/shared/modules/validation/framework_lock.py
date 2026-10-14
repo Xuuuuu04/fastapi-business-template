@@ -89,12 +89,7 @@ def digests(root: Path = ROOT) -> dict[str, str]:
 def differences(root: Path = ROOT, *, include_skills: bool = True) -> list[str]:
     lock = root / LOCK_FILE.name
     if not lock.exists():
-        return [
-            (
-                "还没有 framework.lock，请运行 uv run python ../.agents/skills/fastapi-check/"
-                "scripts/run_check.py framework_lock --update"
-            )
-        ]
+        return ["还没有 framework.lock，请运行 uv run dev framework-lock --update"]
     saved: dict[str, str] = json.loads(lock.read_text(encoding="utf-8"))
     current = digests(root)
     if not include_skills:

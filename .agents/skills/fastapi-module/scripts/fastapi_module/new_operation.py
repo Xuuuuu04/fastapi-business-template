@@ -211,11 +211,7 @@ def update_docs() -> None:
     import sys
 
     result = subprocess.run(
-        [
-            sys.executable,
-            "../.agents/skills/fastapi-docs/scripts/run_docs.py",
-            "export_docs",
-        ],
+        [sys.executable, "-m", "fastapi_dev.main", "docs"],
         cwd=ROOT,
         capture_output=True,
         text=True,

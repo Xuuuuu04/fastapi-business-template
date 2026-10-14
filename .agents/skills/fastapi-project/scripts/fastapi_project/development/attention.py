@@ -24,11 +24,7 @@ def plan_summary(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     },
                     "missing": package["missing"][:PREVIEW_LIMIT],
                     "omitted_missing": max(0, len(package["missing"]) - PREVIEW_LIMIT),
-                    "next": (
-                        "uv run python ../.agents/skills/fastapi-project/scripts/"
-                        "run_project.py project "
-                        f"--module {package['module']} --summary --json"
-                    ),
+                    "next": f"uv run dev status --module {package['module']} --summary --json",
                 }
             )
         result.append({"name": line["name"], "packages": packages})

@@ -21,10 +21,7 @@ MODULE_AREAS = (
     ("server/tests/modules/", "测试"),
     ("server/tests/integration/", "测试"),
 )
-CHECK = (
-    "APP_DISABLED_MODULES='[]' uv run python ../.agents/skills/fastapi-check/"
-    "scripts/run_check.py check"
-)
+CHECK = "APP_DISABLED_MODULES='[]' uv run dev check"
 
 
 # 检查范围独立于运行配置；列表与原因均保持排序，便于机器稳定读取。

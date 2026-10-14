@@ -1,0 +1,46 @@
+"""
+$title 对外提供的操作约定和公开数据。其他模块和接口层只能导入本文件。
+"""
+
+from service.$name.data import (
+    Account,
+    AccountExists,
+    AccountView,
+    GrantDenied,
+    LoginFailed,
+    LoginInput,
+    NewAccount,
+)
+from shared.public import contract
+
+login = contract(
+    "$name.login",
+    "登录",
+    input=LoginInput,
+    output=Account,
+    access="public",
+    effect="query",
+    errors=(LoginFailed,),
+)
+
+create_account = contract(
+    "$name.create_account",
+    "新建账号",
+    input=NewAccount,
+    output=AccountView,
+    access="$name.manage",
+    effect="command",
+    errors=(GrantDenied, AccountExists),
+)
+
+__all__ = [
+    "Account",
+    "AccountExists",
+    "AccountView",
+    "GrantDenied",
+    "LoginFailed",
+    "LoginInput",
+    "NewAccount",
+    "create_account",
+    "login",
+]

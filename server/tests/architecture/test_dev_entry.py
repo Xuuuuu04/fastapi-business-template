@@ -2,6 +2,7 @@
 已安装的短命令必须使用本产品目录，检查与生成仍走同一套工具。
 """
 
+import ast
 import json
 import os
 import shutil
@@ -26,8 +27,28 @@ def test_dev_inspect_ignores_real_environment() -> None:
     )
     assert result.returncode == 0, result.stderr
     description = json.loads(result.stdout)
-    assert description["modules"] == [] and description["framework_version"] == "3.1.1"
+    assert description["modules"] == [] and description["framework_version"] == "3.2.0"
     assert "invalid-live" not in result.stdout
+
+
+# 每个兼容长命令都有 dev 写法，说明和输出只需要用 dev；分步文档命令由 dev docs 一起执行。
+def test_every_compat_command_has_dev_entry() -> None:
+    from fastapi_dev.main import COMMANDS
+
+    parts = {"fastapi_docs.api_doc", "fastapi_docs.flow_doc", "fastapi_docs.progress_doc"}
+    missing = []
+    for runner in sorted((ROOT.parent / ".agents/skills").glob("*/scripts/run_*.py")):
+        package = "fastapi_" + runner.stem.removeprefix("run_")
+        listed = next(
+            node.value
+            for node in ast.parse(runner.read_text(encoding="utf-8")).body
+            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "COMMANDS"
+        )
+        for command in ast.literal_eval(listed):
+            target = f"{package}.{command}"
+            if target not in COMMANDS.values() and target not in parts:
+                missing.append(f"{runner.name} {command}")
+    assert missing == []
 
 
 # 未知命令不得开始生成，也不建立任何数据库连接。

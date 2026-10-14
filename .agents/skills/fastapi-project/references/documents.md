@@ -22,11 +22,11 @@ uv run dev docs --check
 
 随源码提交的生成结果有：`doc/api/`、每个业务包的 `flows.md`，以及 AGENTS.md 的当前状态生成段。
 
-`modules.md`、`development.md`、`progress.md` 三份汇总在导出、检查或查看摘要时生成，已加入 .gitignore，不再提交。已有产品升级时先 `git rm --cached` 这三份（本机文件保留），再执行 export_docs。needs/rules/changes 继续随源码提交。
+`modules.md`、`development.md`、`progress.md` 三份汇总在导出、检查或查看摘要时生成，已加入 .gitignore，不再提交。已有产品升级时先 `git rm --cached` 这三份（本机文件保留），再执行 `uv run dev docs`。needs/rules/changes 继续随源码提交。
 
 计划中的实际对应操作在导出时记入 implemented_operations；已实现操作被删除或改名后，检查会指出 project-plan.json 里的具体项，先同步计划再导出。旧的 flows 文档也作为首次迁移的已实现证据。
 
-导出命令会同时初始化或更新过期的 `.agents/records/business-state/模块名.md` 生成部分（同名 JSON 是完整明细），不访问数据库，未知的信息明确标未知；已有的有效运行观察会保留，手写的业务判断、外部依赖和下一步不会被覆盖。最近的运行状态需要在确认数据库和授权后用 project business_state --runs 刷新。生成超过 24 小时，或源码、依赖、声明发生了变化，`--check` 和 fastapi-check 会报错，不会自动刷新。这些记录不提交、也不进入模板副本；开工先读、收工更新。
+导出命令会同时初始化或更新过期的 `.agents/records/business-state/模块名.md` 生成部分（同名 JSON 是完整明细），不访问数据库，未知的信息明确标未知；已有的有效运行观察会保留，手写的业务判断、外部依赖和下一步不会被覆盖。最近的运行状态需要在确认数据库和授权后用 `uv run dev business-state --runs` 刷新。生成超过 24 小时，或源码、依赖、声明发生了变化，`--check` 和 fastapi-check 会报错，不会自动刷新。这些记录不提交、也不进入模板副本；开工先读、收工更新。
 
 ## 注意
 

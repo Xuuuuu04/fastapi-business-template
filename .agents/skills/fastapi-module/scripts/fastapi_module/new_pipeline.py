@@ -40,6 +40,8 @@ def changes(module: str, name: str, title: str, stages: list[str], wait: str) ->
             values[step] = values[step].replace(
                 f"{state}(text=value)", f"{state}(text=value, ready=True)"
             )
+    readme = folder / "README.md"
+    values[readme] = readme_text(values[readme], module, name, title)
     registration = folder / "module.py"
     values[registration] = registration_text(
         values[registration], module, name, title, state, stages, wait
@@ -62,6 +64,12 @@ def changes(module: str, name: str, title: str, stages: list[str], wait: str) ->
         + "\n"
     )
     return values
+
+
+# 流程的启动操作也是公开操作，和各阶段一样写进包 README。
+def readme_text(original: str, module: str, name: str, title: str) -> str:
+    entry = f"- `{module}.start_{name}`：启动{title}。"
+    return original.replace("## 公开操作", "## 公开操作\n\n" + entry, 1)
 
 
 # 流程、后台计划和首阶段Schedule一起进入Module登记。

@@ -5,7 +5,7 @@
 1. 先用 `uv run dev skeleton --init --spec ../skeleton.json` 生成每个操作的样例和规则模板，已有文件不覆盖。编号、字段占位和 tests 引用自动填好；独立填写业务值和规则后，用 `uv run dev skeleton --spec ../skeleton.json --preview` 查看文件，再去掉 `--preview` 生成骨架。短生成器不代写数据库初始化或外部效果断言，这些样例需要单独编写真实测试。
 2. `uv run dev start --package 包名 --cases R-01-C01,R-01-C02` 创建任务卡，保存规则、契约、基线和允许修改的范围。记录返回的任务编号。
 3. 替换步骤中的模拟实现。模拟提供者仅放测试中，通过 `simulate` 注入；生产组装与交付检查拒绝仍然声明 `simulated=True` 的步骤。真实步骤不能复制样例中的预期值。
-4. `uv run dev finish --task 任务编号` 实际检查本包和调用方，并保存本次证据及审查单。本包必须已替换所有模拟步骤，相关链测试必须通过；兄弟包仍模拟只提示，不影响按包收工。默认本轮跑 SQLite，提供 `--postgres 控制数据库连接` 时两库同轮通过。失败、跳过和旧源码不能完成任务；只有 `check --delivery` 要求全部包真实实现。连接信息只在本机使用，不写进任务卡、文档或提交。
+4. `uv run dev finish --task 任务编号` 实际检查本包和调用方，并保存本次证据及审查单；代码风格、格式和质量规则只看本包路径。本包必须已替换所有模拟步骤，相关链测试必须通过；兄弟包仍模拟只提示，不影响按包收工。默认本轮跑 SQLite，提供 `--postgres 控制数据库连接` 时两库同轮通过。失败、跳过和旧源码不能完成任务；只有 `check --delivery` 要求全部包真实实现。连接信息只在本机使用，不写进任务卡、文档或提交。
 5. `uv run dev review-pack --task 任务编号` 导出规则、独立样例和准确基线差异，供复核；材料不附实现者的检查结论。范围之外的改动仍在收工审查单中明确列出。
 
 ## 可直接使用的最小规格
@@ -39,7 +39,7 @@ uv run dev finish --task 返回的编号
 uv run dev check --database sqlite --delivery
 ```
 
-字段支持 str、int、float、bool、list[str]、list[int]、dict[str, str]、dict[str, int]。权限只用 public、signed_in 或 order_shipping.权限名。流程包声明 `kind=workflow`，用 calls 的 operation、input 和 case 连接操作，returns 指定最终字段来源；完整三包连接见 `server/tests/framework/skeleton_sample.py`。权限、字段、调用和样例在任何业务文件写入之前检查。
+字段支持 str、int、float、bool、list[str]、list[int]、dict[str, str]、dict[str, int]。权限只用 public、signed_in 或 order_shipping.权限名。流程包声明 `kind=workflow`，用 calls 的 operation、input 和 case 连接操作，returns 指定最终字段来源；来源写成 `input.字段` 或 `包.操作.字段`，生成的调用步骤叫 `fetch_包_操作`、产出字段叫 `包_操作`。完整三包连接见 `server/tests/framework/skeleton_sample.py`。权限、字段、调用和样例在任何业务文件写入之前检查。
 
 契约不合适时，用 `uv run dev ask-contract --package 包名 --reason 原因 --suggestion 建议` 保存请求，再统一修改公开契约。相关规则、契约或实际调用关系变化后，旧任务会显示需要更新。`uv run dev status --summary --json` 查看当前任务状态和检查来源；这些状态不证明业务已经验收，也不验证操作者身份。
 

@@ -14,6 +14,7 @@ ENTRIES = (
     ".github",
     ".gitignore",
     "AGENTS.md",
+    "CLAUDE.md",
     "README.md",
     "CHANGELOG.md",
     "server",
@@ -101,9 +102,7 @@ def product_entry(target: Path, name: str) -> None:
         "开发入口见 [AGENTS.md](AGENTS.md)。\n\n```bash\ncd server\nuv sync\n"
         "cp .env.example .env\nuv run alembic upgrade head\n"
         "uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log\n```\n\n"
-        "开发摘要：`uv run python ../.agents/skills/fastapi-project/scripts/"
-        "run_project.py project --summary --json`；"
-        "完整检查：`uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check`。\n"
+        "开发摘要：`uv run dev status --summary --json`；完整检查：`uv run dev check`。\n"
         "框架来源见 [template-source.json](template-source.json)，"
         "更新方法见 [UPGRADING](.agents/skills/fastapi-template/references/upgrading.md)。\n",
     )

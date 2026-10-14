@@ -1,0 +1,19 @@
+"""
+$title 的流程：每个公开操作对应一个流程，按顺序列出步骤。
+"""
+
+from service.$name.data import CreateWork, LoginWork
+from service.$name.steps.accounts import build_password_hash, check_grant, save_account
+from service.$name.steps.sign_in import build_result, check_password, find_account
+from shared.public import Flow
+
+login_flow = Flow(
+    "登录", work=LoginWork, result="result", steps=[find_account, check_password, build_result]
+)
+
+create_flow = Flow(
+    "新建账号",
+    work=CreateWork,
+    result="result",
+    steps=[check_grant, build_password_hash, save_account],
+)
