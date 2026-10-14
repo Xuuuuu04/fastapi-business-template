@@ -2,6 +2,17 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 3.2.0（2026-10-14）
+
+- 新增按需生成的最小账号包：`uv run dev new-module user_access --title 账号登录 --preset access`。模板仍然 `MODULES=[]`，不登记任何业务包；生成后和普通业务包一样登记。包里有 `包名.login`（public）和 `包名.create_account`（`包名.manage`）两个操作、账号表迁移（接在当前唯一迁移头后面）、规则与需求文档、步骤和接口测试。
+- 登录契约与前端模板 `src/app/login.config.ts` 的默认值一致：`POST /api/v1/access/login`，请求 `org_code`、`username`、`password`、`otp_code`（最小账号包不使用两步验证），回包 `access_token`、`token_type=Bearer`、`expires_in`、`org_id`。令牌用 `shared/access/tokens.py` 的 `issue_token` 签发，权限沿用 `Caller` 的写法，前端只读令牌里的 `permissions`。口令用随机盐加 scrypt 摘要、固定时间比较，账号不存在时也算一次；计算放在 `heavy=True` 步骤，受 `APP_HEAVY_CONCURRENCY` 限制同时计算的数量。新建账号只能在自己的组织里，授予的权限不能超出调用者自己的权限。
+- 接上原来没人读的登录失败限流：15 分钟内同一来源地址对同一账号失败 `APP_LOGIN_FAILURE_LIMIT` 次、同一账号来自所有地址失败 `APP_LOGIN_ACCOUNT_FAILURE_LIMIT` 次后返回 429，登录成功清零，缓存键只存摘要。没有生成账号包时这两项不起作用，`.env.example` 和 deploy/README 的说法已对上。
+- 修正正式时钟的截止换算：`RealClock.run` 原来把按 `time.monotonic()` 算出的截止时间直接交给 `asyncio.timeout_at()`；macOS 上 uvicorn 默认的 uvloop 循环时钟比它快约 1000 秒，按 AGENTS 写的 `uv run uvicorn` 在本机启动时，凡是中途要等待的操作都会立刻返回 504 `run_timeout`。现在按剩余秒数交给事件循环。Linux 上两个时钟一致，生产大概率没有受影响。
+- 前后端对接参考写清登录约定，删掉过期的“目前的缺口”和已经不存在的 `npm run test:backend`；system、logs README 里遗漏的旧命令换成 `uv run dev`。
+- 同机实测：临时 PostgreSQL 17 上的模板双库交付检查 SQLite 833、PostgreSQL 843 个测试通过，整轮 373.6 秒；同一时间机器上另有其他项目的完整检查在跑（负载约 27），所以比 3.1.2 记录的 239.3 秒慢，不代表这版本身变慢。草稿产品生成账号包后，双库交付检查 SQLite 487、PostgreSQL 493 个测试通过；用 uvicorn 实际启动，按文档用 make-key 建第一个账号再登录，回包通过前端仓库 `login.config.ts` 的校验。
+- 已有产品接入：按 3.1.2 的做法在新模板的 `server/` 下运行 `uv run dev upgrade`，接收框架与 Skill 后更新 framework.lock，运行 `uv run dev docs` 和产品自己的双库交付检查。时钟修正不改接口和数据，没有数据库迁移。已经有自己登录的产品不需要生成账号包；需要时生成后按 `doc/包名/rules.md` 核对规则，用 `uv run dev make-key --name 账号管理 --org-id 组织代码 --permissions 包名.manage` 建第一个管理账号。
+- framework.lock 更新理由：时钟截止换算、账号包生成器与模板、new-module 的 `--preset` 参数、对接与部署说明、版本常量及相关测试一起更新；不改已有业务事务和接口。
+
 ## 3.1.2（2026-10-14）
 
 - 骨架产物直接过交付检查：生成的测试把说明注释放在第一个装饰器上面；流程包的调用步骤按被调用的操作命名（调用 `order_pricing.quote` 的步骤叫 `fetch_order_pricing_quote`，产出字段叫 `order_pricing_quote`），步骤标题用被调用操作的标题，不再生成 `call_phase_N` 和 `phase_N`。规格里 `calls[].input` 和 `returns` 的来源写成 `input.字段` 或 `包.操作.字段`；旧写法 `phase_N.字段` 会报错并列出可用来源，输入字段和调用产出重名在生成前拒绝。
