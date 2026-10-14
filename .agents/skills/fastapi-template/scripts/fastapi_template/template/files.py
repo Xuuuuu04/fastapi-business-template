@@ -26,6 +26,7 @@ MANUAL_FILES = (
     "server/app/api/v1",
     "server/migrations/versions",
     "AGENTS.md",
+    "CLAUDE.md",
     "doc/README.md",
     "server/README.md",
     "server/service/README.md",

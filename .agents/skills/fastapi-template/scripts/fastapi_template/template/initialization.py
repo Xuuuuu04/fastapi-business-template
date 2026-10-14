@@ -14,6 +14,7 @@ ENTRIES = (
     ".github",
     ".gitignore",
     "AGENTS.md",
+    "CLAUDE.md",
     "README.md",
     "CHANGELOG.md",
     "server",
