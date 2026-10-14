@@ -1,0 +1,58 @@
+"""
+$title 的步骤测试：口令摘要、登录核对和授权范围，不连数据库。
+"""
+
+import pytest
+
+from service.$name.data import CreateWork, GrantDenied, LoginFailed, LoginWork
+from service.$name.steps.accounts import check_grant
+from service.$name.steps.passwords import UNKNOWN_ACCOUNT, hash_password, verify_password
+from service.$name.steps.sign_in import build_result, check_password
+from service.$name.store.contract import StoredAccount
+from shared.access.caller import Caller
+from shared.flow.testing import try_step, try_step_async
+
+SAVED = hash_password("correct-horse", bytes(16))
+
+
+# R-02：只保存盐和摘要，原文不出现；换一个盐，同一口令的摘要也不同。
+def test_password_hash_keeps_no_plain_text() -> None:
+    assert "correct-horse" not in SAVED
+    assert verify_password("correct-horse", SAVED)
+    assert not verify_password("wrong-horse", SAVED)
+    assert hash_password("correct-horse", bytes(range(16))) != SAVED
+    assert not verify_password("correct-horse", UNKNOWN_ACCOUNT)
+
+
+# R-01：账号不存在和口令不对返回同一个错误。
+@pytest.mark.parametrize(("password", "exists"), [("wrong-horse", True), ("correct-horse", False)])
+def test_login_failure_is_the_same(password: str, exists: bool) -> None:
+    account = (
+        StoredAccount(id=1, org_id="team", username="amy", password_hash=SAVED, permissions=[])
+        if exists
+        else None
+    )
+    checked = try_step(check_password, LoginWork, account=account, password=password)
+    with pytest.raises(LoginFailed):
+        try_step(build_result, LoginWork, account=account, verified=checked.values["verified"])
+
+
+# R-03：授予的权限不能超出调用者自己的权限，也不能跨组织。
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("org_id", "permissions", "allowed"),
+    [
+        ("team", ["$name.manage"], True),
+        ("team", ["$name.*"], False),
+        ("team", ["*"], False),
+        ("other", [], False),
+    ],
+)
+async def test_grant_stays_within_caller(org_id: str, permissions: list[str], allowed: bool) -> None:
+    caller = Caller("manager", "user", "管理者", frozenset({"$name.manage"}), "team")
+    values = {"org_id": org_id, "permissions": permissions}
+    if allowed:
+        await try_step_async(check_grant, CreateWork, values, caller=caller)
+        return
+    with pytest.raises(GrantDenied):
+        await try_step_async(check_grant, CreateWork, values, caller=caller)

@@ -7,6 +7,7 @@
 """
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -155,35 +156,57 @@ def tidy(paths: list[Path]) -> None:
     subprocess.run([*ruff, "format", "--quiet", *files], cwd=ROOT, check=False)
 
 
-# 解析参数并生成模块。
+# 写入包类型；结构说明和模块声明保持一致。
+def set_kind(name: str, kind: str) -> None:
+    marker = ROOT / "service" / name / "module.json"
+    descriptor = json.loads(marker.read_text())
+    descriptor["kind"] = kind
+    marker.write_text(json.dumps(descriptor, ensure_ascii=False, indent=2) + "\n")
+    module = ROOT / "service" / name / "module.py"
+    module.write_text(module.read_text().replace('kind="capability"', f'kind="{kind}"'))
+
+
+# 普通业务包生成后要做的事。
+def next_steps(name: str) -> list[str]:
+    return [
+        f"1. 在 doc/{name}/needs.md 和 rules.md 写清真实业务，再按业务修改 service/{name}",
+        "2. uv run alembic upgrade head（本地数据库需要先到最新版本才能比较出新表）",
+        f'   uv run alembic revision --autogenerate -m "add {name} tables"，检查生成的迁移',
+        "3. uv run dev docs",
+        f"4. uv run dev check --module {name}（先检查本模块）",
+        "5. uv run dev check（交付前检查全部模块）",
+    ]
+
+
+# 解析参数并生成模块；--preset access 生成最小账号包。
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成新业务模块的骨架")
     parser.add_argument("name", help="模块名，至少两个词，例如 customer_contact")
     parser.add_argument("--title", required=True, help="模块中文名，例如 客户联系人")
     parser.add_argument("--kind", choices=["capability", "workflow"], default="capability")
+    parser.add_argument(
+        "--preset",
+        choices=["access"],
+        help="access：最小账号包（登录、新建账号、账号表迁移），接口路径固定为 /api/v1/access",
+    )
     args = parser.parse_args()
     problem = check_name(args.name)
     if problem:
         sys.exit(problem)
-    written = write_files(args.name, args.title)
-    marker = ROOT / "service" / args.name / "module.json"
-    import json
+    if args.preset:
+        from fastapi_module import access_preset
 
-    descriptor = json.loads(marker.read_text())
-    descriptor["kind"] = args.kind
-    marker.write_text(json.dumps(descriptor, ensure_ascii=False, indent=2) + "\n")
-    module = ROOT / "service" / args.name / "module.py"
-    module.write_text(module.read_text().replace('kind="capability"', f'kind="{args.kind}"'))
+        if args.kind != "capability":
+            parser.error("账号包只能是能力包")
+        written = access_preset.write_preset(args.name, args.title)
+        steps = access_preset.next_steps(args.name)
+    else:
+        written = write_files(args.name, args.title)
+        set_kind(args.name, args.kind)
+        steps = next_steps(args.name)
     tidy(written + register(args.name, args.title))
     print(f"已生成模块 {args.name}（{args.title}），共 {len(written)} 个文件，并已登记。接下来：")
-    print(
-        f"1. 在 doc/{args.name}/needs.md 和 rules.md 写清真实业务，再按业务修改 service/{args.name}"
-    )
-    print("2. uv run alembic upgrade head（本地数据库需要先到最新版本才能比较出新表）")
-    print(f'   uv run alembic revision --autogenerate -m "add {args.name} tables"，检查生成的迁移')
-    print("3. uv run dev docs")
-    print(f"4. uv run dev check --module {args.name}（先检查本模块）")
-    print("5. uv run dev check（交付前检查全部模块）")
+    print("\n".join(steps))
 
 
 if __name__ == "__main__":

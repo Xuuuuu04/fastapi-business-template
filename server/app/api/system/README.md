@@ -18,7 +18,7 @@
 | GET /api/system/pipelines/{编号} | 阶段状态、耗时、版本、运行记录与整条运行图 | system.diagnostics |
 | POST /api/system/pipelines/{编号}/resume | 恢复当前失败阶段；格式变化和未知结果需分别确认 | system.diagnostics + system.pipelines |
 
-查询接口只读。流程恢复也可用 `operations pipelines resume 编号 --yes`；不会重做成功阶段。未知外部结果默认不能重试。重新排队、取消任务等修改操作只能通过命令行 `fastapi_operations.jobs` 进行，并要求 `--yes` 确认。
+查询接口只读。流程恢复也可用 `uv run dev pipelines resume 编号 --yes`；不会重做成功阶段。未知外部结果默认不能重试。重新排队、取消任务等修改操作只能通过命令行 `uv run dev jobs` 进行，并要求 `--yes` 确认。
 
 开启 `APP_CONSOLE=true` 后，访问 `/system/console` 查看模块关系、步骤、最近运行、运行统计、进程状态和操作记录。页面由本目录的 `console.html` 与 `console.js` 提供，不加载外部脚本。输入有相应权限的服务密钥或用户令牌；凭据只留在当前页面。
 

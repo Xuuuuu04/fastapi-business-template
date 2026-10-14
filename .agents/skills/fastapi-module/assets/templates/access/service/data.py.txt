@@ -1,0 +1,87 @@
+"""
+$title 的公开数据、流程数据和业务错误。字段含义和规则见 doc/$name/rules.md。
+"""
+
+from service.$name.store.contract import StoredAccount
+from shared.public import BusinessError, Data, Kind, WorkData, meaning
+
+
+# 登录时提交的内容，字段与前端模板的登录表单一致。
+class LoginInput(Data):
+    org_code: str = meaning("组织代码", rule="R-01", min_length=1, max_length=64)
+    username: str = meaning("账号", rule="R-01", min_length=1, max_length=64)
+    password: str = meaning("口令", rule="R-02", secret=True, min_length=1, max_length=256)
+    otp_code: str = meaning(
+        "两步验证码；最小账号包没有两步验证，不使用这个值",
+        empty="不使用两步验证",
+        default="",
+        max_length=10,
+    )
+
+
+# 登录成功的账号，接口层用它签发访问令牌。
+class Account(Data):
+    user_id: int = meaning("账号编号")
+    org_id: str = meaning("所属组织代码", rule="R-01")
+    username: str = meaning("账号", rule="R-01")
+    permissions: list[str] = meaning("令牌里写入的权限名", rule="R-03")
+
+
+# 新建账号时提交的内容。
+class NewAccount(Data):
+    org_id: str = meaning("所属组织代码", rule="R-03", min_length=1, max_length=64)
+    username: str = meaning("账号", rule="R-01", min_length=1, max_length=64)
+    password: str = meaning("初始口令", rule="R-02", secret=True, min_length=8, max_length=256)
+    permissions: list[str] = meaning("授予的权限名", rule="R-03", default_factory=list)
+
+
+# 新建后的账号信息，不含口令。
+class AccountView(Data):
+    user_id: int = meaning("账号编号")
+    org_id: str = meaning("所属组织代码", rule="R-01")
+    username: str = meaning("账号", rule="R-01")
+    permissions: list[str] = meaning("账号拥有的权限名", rule="R-03")
+
+
+# 组织代码、账号或口令不对；不说明是哪一项，不暴露账号是否存在。
+class LoginFailed(BusinessError):
+    code = "${name}_login_failed"
+    kind = Kind.NOT_SIGNED_IN
+    message = "组织代码、账号或口令不正确"
+
+
+# 同一组织里已经有这个账号。
+class AccountExists(BusinessError):
+    code = "${name}_account_exists"
+    kind = Kind.CONFLICT
+    message = "同一组织里已经有这个账号"
+
+
+# 超出调用者自己的组织或权限。
+class GrantDenied(BusinessError):
+    code = "${name}_grant_denied"
+    kind = Kind.FORBIDDEN
+    message = "只能在自己的组织里建账号，授予的权限不能超出自己的权限"
+
+
+# 登录各步骤共享的输入、找到的账号和核对结果。
+class LoginWork(WorkData):
+    org_code: str = meaning("组织代码")
+    username: str = meaning("账号")
+    password: str = meaning("口令", secret=True)
+    otp_code: str = meaning("两步验证码，不使用")
+    account: StoredAccount | None = meaning(
+        "按组织代码和账号找到的账号", empty="没有这个账号", default=None
+    )
+    verified: bool = meaning("口令是否正确", rule="R-02", default=False)
+    result: Account = meaning("登录成功的账号")
+
+
+# 新建账号各步骤共享的输入、口令摘要和保存结果。
+class CreateWork(WorkData):
+    org_id: str = meaning("所属组织代码")
+    username: str = meaning("账号")
+    password: str = meaning("初始口令", secret=True)
+    permissions: list[str] = meaning("授予的权限名")
+    password_hash: str = meaning("口令摘要", rule="R-02", secret=True)
+    result: AccountView = meaning("保存后的账号")

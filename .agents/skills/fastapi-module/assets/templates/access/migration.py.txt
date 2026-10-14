@@ -1,0 +1,34 @@
+"""
+$title 的账号表：组织代码、账号、口令摘要和权限。由 uv run dev new-module --preset access 生成。
+
+版本：$revision，上一版本：$previous。
+"""
+
+from collections.abc import Sequence
+
+import sqlalchemy as sa
+from alembic import op
+
+revision: str = "$revision"
+down_revision: str | None = $down_revision
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
+
+# 新建账号表；同一组织里账号唯一。
+def upgrade() -> None:
+    op.create_table(
+        "${name}_accounts",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("org_id", sa.String(length=64), nullable=False),
+        sa.Column("username", sa.String(length=64), nullable=False),
+        sa.Column("password_hash", sa.String(length=192), nullable=False),
+        sa.Column("permissions", sa.Text(), nullable=False),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_${name}_accounts")),
+        sa.UniqueConstraint("org_id", "username", name=op.f("uq_${name}_accounts_org_id")),
+    )
+
+
+# 删除账号表。
+def downgrade() -> None:
+    op.drop_table("${name}_accounts")

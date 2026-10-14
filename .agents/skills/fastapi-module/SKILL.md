@@ -60,6 +60,7 @@ uv run dev adopt-modules
 
 - `new-module` 会建立业务包、测试、业务文档和 HTTP 入口，并更新公共登记。不要复制已有的业务包来当新包。
 - `adopt-modules` 要求旧包先通过全部结构检查，才会写入结构说明。它不改业务代码。
+- 需要账号登录时加 `--preset access`，例如 `uv run dev new-module user_access --title 账号登录 --preset access`：生成登录、新建账号、账号表迁移、文档和测试，接口路径固定为 `/api/v1/access`，与前端模板的登录约定一致，见[接口参考](references/frontend-interface.md)。
 
 ## 新增操作与流程
 

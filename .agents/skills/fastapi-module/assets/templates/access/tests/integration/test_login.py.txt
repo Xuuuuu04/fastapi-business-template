@@ -1,0 +1,84 @@
+"""
+$title 的接口测试：新建账号、登录取得令牌、失败限流和权限检查；回包与前端模板的登录约定一致。
+"""
+
+import base64
+import json
+
+from fastapi.testclient import TestClient
+
+from tests.testing_app import KEY
+
+ACCOUNTS = "/api/v1/access/accounts"
+LOGIN_PATH = "/api/v1/access/login"
+ACCOUNT = {
+    "org_id": "team",
+    "username": "amy",
+    "password": "correct-horse",
+    "permissions": ["$name.manage"],
+}
+LOGIN = {"org_code": "team", "username": "amy", "password": "correct-horse", "otp_code": ""}
+
+
+# 用测试服务密钥新建账号。
+def create(client: TestClient) -> dict:
+    reply = client.post(ACCOUNTS, json=ACCOUNT, headers=KEY)
+    assert reply.status_code == 201, reply.text
+    return reply.json()
+
+
+# 登录后返回带访问令牌的请求头。
+def bearer(client: TestClient) -> dict[str, str]:
+    reply = client.post(LOGIN_PATH, json=LOGIN)
+    assert reply.status_code == 200, reply.text
+    return {"Authorization": f"Bearer {reply.json()['access_token']}"}
+
+
+# 读取令牌里的声明，只在测试里查看，不代替签名校验。
+def claims(token: str) -> dict:
+    payload = token.split(".")[1]
+    return json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+
+
+# R-01、R-03：回包字段和前端约定一致，令牌带账号权限，能用它在同组织新建账号。
+def test_login_returns_frontend_contract(client: TestClient) -> None:
+    created = create(client)
+    assert "password" not in created and created["permissions"] == ["$name.manage"]
+    reply = client.post(LOGIN_PATH, json=LOGIN)
+    assert reply.status_code == 200, reply.text
+    body = reply.json()
+    assert body["token_type"] == "Bearer" and body["org_id"] == "team"
+    assert body["expires_in"] == client.app.state.settings.token_minutes * 60
+    assert claims(body["access_token"])["permissions"] == ["$name.manage"]
+    headers = {"Authorization": f"Bearer {body['access_token']}"}
+    second = ACCOUNT | {"username": "bob", "permissions": []}
+    assert client.post(ACCOUNTS, json=second, headers=headers).status_code == 201
+
+
+# R-01：口令不对和账号不存在返回同一个错误码。
+def test_wrong_password_and_unknown_account_look_the_same(client: TestClient) -> None:
+    create(client)
+    wrong = client.post(LOGIN_PATH, json=LOGIN | {"password": "wrong-horse"})
+    unknown = client.post(LOGIN_PATH, json=LOGIN | {"username": "nobody"})
+    assert wrong.status_code == unknown.status_code == 401
+    assert wrong.json()["code"] == unknown.json()["code"] == "${name}_login_failed"
+
+
+# R-04：同一来源对同一账号连续失败达到上限后返回 429，口令对了也要等窗口过去。
+def test_login_failures_are_limited(client: TestClient) -> None:
+    create(client)
+    for _ in range(client.app.state.settings.login_failure_limit):
+        assert client.post(LOGIN_PATH, json=LOGIN | {"password": "wrong-horse"}).status_code == 401
+    assert client.post(LOGIN_PATH, json=LOGIN).status_code == 429
+
+
+# R-01、R-03：同名冲突，超出权限和跨组织被拒绝，没有凭据不能新建账号。
+def test_create_account_conflicts_and_limits(client: TestClient) -> None:
+    create(client)
+    assert client.post(ACCOUNTS, json=ACCOUNT, headers=KEY).status_code == 409
+    headers = bearer(client)
+    wider = ACCOUNT | {"username": "carl", "permissions": ["*"]}
+    assert client.post(ACCOUNTS, json=wider, headers=headers).status_code == 403
+    other = ACCOUNT | {"org_id": "other", "username": "dan", "permissions": []}
+    assert client.post(ACCOUNTS, json=other, headers=headers).status_code == 403
+    assert client.post(ACCOUNTS, json=ACCOUNT | {"username": "eve"}).status_code == 401

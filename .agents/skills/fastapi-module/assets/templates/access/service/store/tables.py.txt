@@ -1,0 +1,18 @@
+"""
+$title 的数据库表。登录发生在识别身份之前，所以账号表用普通的 org_id 列，查询时自己写组织条件。
+"""
+
+from sqlalchemy import Column, Integer, String, Table, Text, UniqueConstraint
+
+from shared.public import metadata
+
+accounts = Table(
+    "${name}_accounts",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("org_id", String(64), nullable=False),
+    Column("username", String(64), nullable=False),
+    Column("password_hash", String(192), nullable=False, info={"secret": True}),
+    Column("permissions", Text, nullable=False),
+    UniqueConstraint("org_id", "username"),
+)

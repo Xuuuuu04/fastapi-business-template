@@ -1,0 +1,22 @@
+"""
+$title 的模块声明：操作与流程的对应、数据访问实现和表。
+由 uv run dev new-module --preset access 生成并登记。
+"""
+
+from service.$name import flow, public
+from service.$name.store.sql import Sql${Camel}Store
+from service.$name.store.tables import accounts
+from shared.public import Module
+
+module = Module(
+    name="$name",
+    title="$title",
+    version="1",
+    kind="capability",
+    provides={
+        public.login: flow.login_flow,
+        public.create_account: flow.create_flow,
+    },
+    store=Sql${Camel}Store,
+    tables=(accounts,),
+)

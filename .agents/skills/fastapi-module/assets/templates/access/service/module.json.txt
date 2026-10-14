@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "layout": "standard",
+  "module": "$name",
+  "dependencies": "strict",
+  "kind": "capability"
+}

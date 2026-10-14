@@ -1,0 +1,40 @@
+"""
+$title 的登录步骤：查找账号、核对口令、整理登录结果。访问令牌由接口层签发。
+"""
+
+from service.$name.data import Account, LoginFailed, LoginWork
+from service.$name.steps.passwords import UNKNOWN_ACCOUNT, verify_password
+from service.$name.store.contract import ${Camel}Store
+from shared.public import step
+
+
+# 按组织代码和账号读取；找不到时留空，后面照样算一次口令。
+@step("查找账号", reads=["org_code", "username"], writes=["account"], rule="R-01")
+async def find_account(data: LoginWork, store: ${Camel}Store) -> None:
+    data.account = await store.find(data.org_code, data.username)
+
+
+# R-02：口令计算在耗时计算线程里做，账号不存在时也算一次。
+@step(
+    "核对口令",
+    reads=["account", "password"],
+    writes=["verified"],
+    rule="R-02",
+    heavy=True,
+)
+def check_password(data: LoginWork) -> None:
+    saved = data.account.password_hash if data.account else UNKNOWN_ACCOUNT
+    data.verified = verify_password(data.password, saved) and data.account is not None
+
+
+# R-01：账号不存在和口令不对返回同一个错误。
+@step("整理登录结果", reads=["account", "verified"], writes=["result"], rule="R-01")
+def build_result(data: LoginWork) -> None:
+    if data.account is None or not data.verified:
+        raise LoginFailed()
+    data.result = Account(
+        user_id=data.account.id,
+        org_id=data.account.org_id,
+        username=data.account.username,
+        permissions=data.account.permissions,
+    )
