@@ -2,6 +2,24 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 3.1.2（2026-10-14）
+
+- 骨架产物直接过交付检查：生成的测试把说明注释放在第一个装饰器上面；流程包的调用步骤按被调用的操作命名（调用 `order_pricing.quote` 的步骤叫 `fetch_order_pricing_quote`，产出字段叫 `order_pricing_quote`），步骤标题用被调用操作的标题，不再生成 `call_phase_N` 和 `phase_N`。规格里 `calls[].input` 和 `returns` 的来源写成 `input.字段` 或 `包.操作.字段`；旧写法 `phase_N.字段` 会报错并列出可用来源，输入字段和调用产出重名在生成前拒绝。
+- 包级检查只查本包：非 quick 的 `dev check --module` 和 `dev finish` 的代码风格、格式只检查所选包的文件，并加跑 `tests/quality/test_project_quality.py`，问题只保留本包源码、测试、接口和业务文档的路径；类型检查和生成文档仍查全部，完整检查和交付检查不过滤。收工当场就能发现生成文件和本包的不合规，别的包已有的格式问题不再卡住本包；代码风格和格式的失败提示改为只处理列出的文件。加跑以后当场发现 `dev new-pipeline` 没把流程的启动操作写进包 README 的“公开操作”小节，一并修正。
+- 升级工具按新模板自己的清单：文件范围从新模板目录的 `framework_lock.py` 读取（只解析常量，不执行代码）；来源记录里没有的文件列在预览的 `newly_managed` 里，按新增文件处理；`check_base` 只核对记录里登记过的文件，失败时列出不同的文件和记录的版本、提交；接收后按新格式写 `template-source.json`（含 `framework_lock`）。升级说明改为一律在新模板的 `server/` 下运行 `uv run dev upgrade --target 产品目录`。
+- 产品里省略模板工具测试的条件收窄为：来源记录里模板工具自己的文件（各 Skill 的 scripts 和 `server/devtools`）没有改动。改业务、框架运行代码、`framework.lock` 或 pyproject 的 `[tool]` 段，不再让约 350 项工具测试回来；提示改为“模板工具未改动，沿用模板验证”。
+- 命令写法统一：`dev` 补上 `business-state`、`adopt-modules`、`make-key`、`compare-api`，每个兼容长命令都有 dev 写法。Skill、参考文档、各层 README、CI、`.env.example`、生成器打印、status 和 locate 的 `next`、生成文档的文件头、AGENTS 生成段、新产品 README 和报错提示统一用 `uv run dev`。旧的 `scripts/run_*.py` 照常能用，只在 guide Skill 留一句兼容说明。
+- 入口与说明：填空开发和开发面板的说明挪到 `.agents/skills/fastapi-project/references/`，升级时会一起带过去；删除带本机路径的 `doc/check-performance-3.1.1.md`，结论见 3.1.1。根目录新增只有一行 `@AGENTS.md` 的 `CLAUDE.md`，新产品一起复制。检查来历表允许把模型能力提升作为删除理由，但要附固定评测的前后对比。
+- 已有产品接入：
+  1. 在 3.1.2 模板的 `server/` 下运行 `uv run dev upgrade --target 产品目录 --base 上次采用的模板 --source 3.1.2 模板`，不要用产品自己的旧工具。3.1.1 及以前升级过的产品，来源记录缺 `framework_lock`，也没登记 `tests/scheduling.py`、`tests/template_project.py`；新工具会把它们列进 `newly_managed` 并补进产品，接收后来源记录按新格式重写。只想先修正来源记录时，把记录里的那个版本同时作 `--base` 和 `--source` 运行一次，确认预览后加 `--apply`。
+  2. 审查框架差异后运行 `uv run dev framework-lock --update`、`uv run dev docs` 和产品自己的双库交付检查。`flows.md`、汇总文档的文件头和 AGENTS 生成段会改成 dev 写法，建议整批提交。
+  3. 预览的 `manual_review` 会列出 `CLAUDE.md`，需要时在产品根目录加上同样一行。产品 AGENTS、README 里手写的长命令按需换成 dev 写法。
+  4. 已经生成的业务包不受影响；还没生成的 `skeleton.json` 把 `phase_N.字段` 改写成 `包.操作.字段`。
+  5. 产品改过 Skill 脚本或 `server/devtools` 时，模板工具测试仍会运行；把这类修改回收进模板或撤回之后才会省略。
+  没有数据库迁移，业务代码和公开声明写法不变。
+- 同机实测：模板 SQLite 交付检查 831 个测试通过，整轮 82.8 秒；临时 PostgreSQL 17 上的双库交付检查 SQLite 831、PostgreSQL 841 个测试通过，整轮 239.3 秒，包括二代产品真实升级验收。骨架验收新增的交付检查让它成为最慢的一项（并行负载下约 78 秒），SQLite 整轮比 3.1.1 记录的 58.7 秒慢；这次没有在改动前做同机对照。草稿目录按 new-project、skeleton --init、skeleton、start、替换实现、docs、finish 走完后，交付检查直接通过。
+- framework.lock 更新理由：骨架生成器、包级检查范围与质量规则过滤、升级清单与来源记录、模板工具测试的省略条件、dev 子命令与输出文字、Skill 说明与参考位置、版本常量及相关测试一起更新；不改正式业务事务和运行行为，运行代码里只改了接口文档的密钥说明和结构问题的提示文字。
+
 ## 3.1.1（2026-10-13）
 
 - 模板检查提速：真实生成项目继续使用独立源码与数据库、当前已安装依赖，只复制可自行失效的 mypy 类型缓存；副本小范围检查串行，完整副本 pytest 与整合双库检查照常运行。长短测试交替提前分配，使用小批次 load 调度，不删除断言、减少 200 成员规模、放宽超时或新增跳过条件。
