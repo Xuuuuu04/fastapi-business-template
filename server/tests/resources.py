@@ -82,12 +82,12 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
 
 # 当前选中的分组和产品角色均写进记录；模板始终运行全部框架验证。
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    from tests.check_profile import product_framework_unchanged, template_tool
+    from tests.check_profile import template_tool, template_tools_unchanged
 
     selected = os.environ.get("APP_TEST_GROUP", "all")
     root = Path(__file__).resolve().parents[2]
-    # 模板工具测试断言的是空模板本身，只在模板仓库运行；产品框架未改动时交付也省略。
-    product = selected != "framework" and product_framework_unchanged(root)
+    # 模板工具测试断言的是空模板本身，只在模板仓库运行；产品里模板工具未改动时交付也省略。
+    product = selected != "framework" and template_tools_unchanged(root)
     kept, deselected = [], []
     for item in items:
         marker = item.get_closest_marker("test_group")

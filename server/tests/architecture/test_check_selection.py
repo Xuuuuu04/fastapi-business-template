@@ -212,44 +212,49 @@ def test_validation_and_local_files(tmp_path: Path) -> None:
     assert not any("sample_accounts" in path for path in files)
 
 
-# 产品身份来自来源文件；只改业务、依赖、迁移不使模板验证失效。
-def test_product_template_validation_tracks_framework_only(tmp_path: Path) -> None:
-    from shared.modules.validation.framework_lock import digests
-    from tests.check_profile import product_framework_unchanged
+# 产品身份来自来源文件；只有模板工具自己的文件（Skill 脚本、devtools）改动才让工具测试回来。
+def test_product_template_validation_tracks_tool_files_only(tmp_path: Path) -> None:
+    from tests.check_profile import template_tools_unchanged
 
     root = tmp_path / "product"
-    server = root / "server"
-    source = server / "shared/probe.py"
-    source.parent.mkdir(parents=True)
-    source.write_text("VALUE = 1\n", encoding="utf-8")
-    lock = server / "framework.lock"
-    lock.write_text(json.dumps(digests(server)), encoding="utf-8")
-    assert not product_framework_unchanged(root)
+    tool = root / ".agents/skills/fastapi-check/scripts/fastapi_check/probe.py"
+    devtool = root / "server/devtools/src/fastapi_dev/probe.py"
+    for path in (tool, devtool):
+        path.parent.mkdir(parents=True)
+        path.write_text("VALUE = 1\n", encoding="utf-8")
+    assert not template_tools_unchanged(root)
     origin = root / "template-source.json"
     origin.write_text(
         json.dumps(
             {
-                "framework_lock": hashlib.sha256(lock.read_bytes()).hexdigest(),
                 "files": {
-                    "server/shared/probe.py": hashlib.sha256(source.read_bytes()).hexdigest()
+                    path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+                    for path in (tool, devtool)
                 },
             }
         ),
         encoding="utf-8",
     )
-    assert product_framework_unchanged(root)
-    for relative in ("service/sample/steps.py", "uv.lock", "migrations/versions/product.py"):
-        business = server / relative
-        business.parent.mkdir(parents=True, exist_ok=True)
-        business.write_text("product change\n", encoding="utf-8")
-    assert product_framework_unchanged(root)
-    source.write_text("VALUE = 2\n", encoding="utf-8")
-    assert not product_framework_unchanged(root)
-    source.write_text("VALUE = 1\n", encoding="utf-8")
-    lock.write_text(lock.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    assert not product_framework_unchanged(root)
+    assert template_tools_unchanged(root)
+    for relative in (
+        "server/service/sample/steps.py",
+        "server/uv.lock",
+        "server/migrations/versions/product.py",
+        "server/shared/flow/view.py",
+        "server/framework.lock",
+        "server/pyproject.toml",
+        ".agents/skills/fastapi-check/SKILL.md",
+    ):
+        changed = root / relative
+        changed.parent.mkdir(parents=True, exist_ok=True)
+        changed.write_text("product change\n", encoding="utf-8")
+    assert template_tools_unchanged(root)
+    for path in (tool, devtool):
+        path.write_text("VALUE = 2\n", encoding="utf-8")
+        assert not template_tools_unchanged(root)
+        path.write_text("VALUE = 1\n", encoding="utf-8")
     origin.write_text("{", encoding="utf-8")
-    assert not product_framework_unchanged(root)
+    assert not template_tools_unchanged(root)
 
 
 # 模板工具测试只在模板仓库运行：产品交付也省略，显式 framework 组保留，结构安全检查始终保留。
@@ -265,7 +270,7 @@ def test_product_template_selection_respects_delivery(
 
     monkeypatch.setenv("APP_TEST_GROUP", group)
     monkeypatch.setenv("APP_DEVELOPMENT_DELIVERY", delivery)
-    monkeypatch.setattr("tests.check_profile.product_framework_unchanged", lambda root: True)
+    monkeypatch.setattr("tests.check_profile.template_tools_unchanged", lambda root: True)
     items = [
         SimpleNamespace(
             path=ROOT / "tests/architecture" / name, get_closest_marker=lambda name: None

@@ -7,6 +7,7 @@ import argparse
 import json
 
 from fastapi_check.quality.rules import PROJECT
+from fastapi_template.template.files import check_base, manifest
 from fastapi_template.template.merge import apply_plan, update_plan
 
 
@@ -35,6 +36,7 @@ def main() -> None:
         json.dumps(
             {
                 "changes": [{"file": change.name, "state": change.state} for change in changes],
+                "newly_managed": check_base(target, base, manifest(source)),
                 "manual_review": manual,
                 "conflicts": sum(change.state == "conflict" for change in changes),
             },

@@ -11,6 +11,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from fastapi_template.template.files import (
     check_base,
     managed_files,
+    manifest,
     manual_changes,
     safe_path,
     save_provenance,
@@ -60,11 +61,16 @@ def compare_file(
 
 
 # 先检查所有目标和来源，再计算完整方案；依赖与登记变化单独列出人工处理。
+# 文件范围用新模板自己的清单；来源记录里没有的文件产品从未收到过，按新增处理。
 def update_plan(
     target: Path, base: Path, source: Path, *, recovery_proof: Path | None = None
 ) -> tuple[list[Change], list[str]]:
-    check_base(target, base)
-    old, new = managed_files(base), managed_files(source)
+    listing = manifest(source)
+    fresh = set(check_base(target, base, listing))
+    old = {
+        name: content for name, content in managed_files(base, listing).items() if name not in fresh
+    }
+    new = managed_files(source, listing)
     proofs = load_proof(recovery_proof)
     if set(proofs) - (old.keys() | new.keys()):
         raise ValueError("回收证明包含非框架管理文件")

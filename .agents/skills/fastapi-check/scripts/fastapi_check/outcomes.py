@@ -17,15 +17,15 @@ NEXT_STEPS = {
 }
 
 
-# 产品框架没有改动时，说明哪些模板工具测试被省略；它们只在模板仓库里运行。
+# 产品里模板工具没有改动时，说明哪些模板工具测试被省略；它们只在模板仓库里运行。
 def announce_template_reuse(options: CheckOptions) -> None:
-    from tests.check_profile import product_framework_unchanged
+    from tests.check_profile import template_tools_unchanged
 
     if options.group == "framework":
         return
-    if product_framework_unchanged(PROJECT):
+    if template_tools_unchanged(PROJECT):
         print(
-            "框架未改动，沿用模板验证（省略模板工具测试，保留业务与框架运行安全测试）",
+            "模板工具未改动，沿用模板验证（省略模板工具测试，保留业务与框架运行安全测试）",
             flush=True,
         )
 

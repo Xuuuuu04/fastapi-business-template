@@ -16,26 +16,20 @@ git -C /tmp/template-upgrade worktree add --detach /tmp/template-old 旧模板�
 git -C /tmp/template-upgrade worktree add --detach /tmp/template-new 新模板提交或标签
 ```
 
-旧产品里还没有更新工具时，在新模板的 `server/` 下运行，并指定产品目录：
-
-```bash
-uv sync
-uv run python ../.agents/skills/fastapi-template/scripts/run_template.py update_framework --target /产品目录 \
-  --base /tmp/template-old --source /tmp/template-new
-```
-
-确认预览没问题后，在同一条命令末尾加 `--apply`。不加就不会写入产品。
-
 ## 二、预览和接收
 
-产品里已经有更新工具时，在产品自己的 `server/` 下运行：
+一律在**新模板**的 `server/` 下运行升级工具，用 `--target` 指定产品目录。这样用的是新版本的工具和框架清单；产品里的旧工具可能漏掉新版本新增的框架文件，写出的来源记录也是旧格式。
 
 ```bash
+cd /tmp/template-new/server
+uv sync
 # 预览
-uv run python ../.agents/skills/fastapi-template/scripts/run_template.py update_framework --base /tmp/template-old --source /tmp/template-new
+uv run dev upgrade --target /产品目录 --base /tmp/template-old --source /tmp/template-new
 # 确认后写入
-uv run python ../.agents/skills/fastapi-template/scripts/run_template.py update_framework --base /tmp/template-old --source /tmp/template-new --apply
+uv run dev upgrade --target /产品目录 --base /tmp/template-old --source /tmp/template-new --apply
 ```
+
+预览结果里，`changes` 是要改的框架文件；`newly_managed` 是新模板清单里有、产品来源记录里没有的文件，产品从没收到过它们，按新增文件处理；`manual_review` 是要人工处理的依赖、配置和登记。不加 `--apply` 就不会写入产品。
 
 工具对每个文件这样处理：
 
@@ -53,17 +47,21 @@ uv run python ../.agents/skills/fastapi-template/scripts/run_template.py update_
 - 文件链接、或路径指到项目之外的文件会被拒绝。
 - 工具从不访问或修改数据库。
 
-冲突要人工解决，以业务规则和接口含义为准，改完重新预览。更新完成后，`template-source.json` 会记下新模板的文件摘要。产品自己的修改仍保留在产品文件里，下次更新继续做三份比较。
+冲突要人工解决，以业务规则和接口含义为准，改完重新预览。更新完成后，`template-source.json` 按新模板的清单和格式记下文件摘要和 `framework_lock`。产品自己的修改仍保留在产品文件里，下次更新继续做三份比较。
+
+### 用旧工具升级过的产品
+
+3.1.1 及以前在产品自己的 `server/` 下升级过的产品，`template-source.json` 没有 `framework_lock` 字段，也没登记新版本新增的框架文件（3.1.1 是 `tests/scheduling.py` 和 `tests/template_project.py`）。产品里的旧工具下次升级会报“旧模板与 template-source.json 不一致”。照上面的做法在新模板的 `server/` 下运行就行：新工具只核对记录里登记过的文件，漏掉的文件列进 `newly_managed` 并补进产品，接收后来源记录按新格式重写。暂时不升级、只想修正来源记录时，把记录里的那个版本同时作 `--base` 和 `--source` 运行一次，确认预览后加 `--apply`。
 
 ## 三、接收之后检查
 
 1. 看 `git diff`。预览结果里 `manual_review` 列出的依赖、配置、登记和迁移变化，需要人工处理。
 2. 读新模板的版本说明。已有的数据库必须保留自己的迁移历史，按业务差异新增迁移，不能覆盖初始迁移再升级。模板从 1.x 升到 2.x 时，事件和后端选择有变化，需要单独适配。
-3. 第一次采用标准包结构时，运行 `uv run python ../.agents/skills/fastapi-module/scripts/run_module.py adopt_modules`。目录、固定文件、步骤位置不合格的，先处理。新版增加了系统功能和新表时，还要按新表的声明生成产品自己的迁移。
-4. 审查完框架差异，依次运行：
-   - `uv run python ../.agents/skills/fastapi-check/scripts/run_check.py framework_lock --update`
-   - `uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs`
-   - `uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check`
+3. 第一次采用标准包结构时，在产品的 `server/` 下运行 `uv run dev adopt-modules`。目录、固定文件、步骤位置不合格的，先处理。新版增加了系统功能和新表时，还要按新表的声明生成产品自己的迁移。
+4. 审查完框架差异，在产品的 `server/` 下依次运行：
+   - `uv run dev framework-lock --update`
+   - `uv run dev docs`
+   - `uv run dev check`
 5. 使用 PostgreSQL 的产品，检查命令再加 `--postgres 测试数据库地址`，用真实业务包验证接口和业务样例。
 6. 接收项目 Skill 和 `AGENTS.md` 的变化，之后按业务迁移 Skill 逐项推进。第一次更新后跑完整检查；日常的局部调试和当前业务的联合检查另外分开运行。
 
