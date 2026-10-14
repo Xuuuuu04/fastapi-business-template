@@ -81,7 +81,7 @@ def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str
 
 
 # 同一测试运行的状态可以叠在计算图上：节点补一行上次测试的结果。
-# 产出字段等明细不进图，需要时看 project --operation 的表格输出。
+# 产出字段等明细不进图，需要时看 dev status --operation 的表格输出。
 def execution_text(record: dict[str, Any] | None) -> str:
     if record is None:
         return "<br/>上次测试没有执行这一步"

@@ -33,7 +33,7 @@ worker 停止领取任务后，先按退出等待时间等待在途任务；超�
 
 服务密钥的任务在执行前按当前配置重新读取权限；用户任务沿用登记时的身份和权限。如果业务要求"停用用户或撤销角色后立即阻止已排队的任务"，执行步骤必须重新读取用户状态，不能只依赖任务里保存的旧身份。
 
-使用 SQLite 时只能运行一个 worker；多个 worker 需要 PostgreSQL。人工处理任务用 `uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py jobs`。
+使用 SQLite 时只能运行一个 worker；多个 worker 需要 PostgreSQL。人工处理任务用 `uv run dev jobs`。
 
 ## 怎么选普通、分段、多阶段
 
@@ -56,7 +56,7 @@ Schedule(
 
 daily 是[flow 说明](../flow/README.md)里已声明的 Pipeline。Wait 操作输出 ready 布尔值；每次只检查一次，等待由框架推进。某个汇算 Stage 很大时可以用分段的 JobPlan，段游标的 Data 会进入声明兼容检查。不要在普通任务里等待外部数据，也不要在一个事务里串起全部阶段；外部结果未知时先人工核实，不盲目重排。
 
-完整独立样例和原件演练见 tests/framework/drill_sample.py、[演练说明](../drills/README.md)。声明和测试样例通过不代表真实业务完成；要按真实规模演练整条链并核对结果，再补局部细节。业务现状用 project business_state 生成，保留手写的业务判断和下一步。
+完整独立样例和原件演练见 tests/framework/drill_sample.py、[演练说明](../drills/README.md)。声明和测试样例通过不代表真实业务完成；要按真实规模演练整条链并核对结果，再补局部细节。业务现状用 `uv run dev business-state` 生成，保留手写的业务判断和下一步。
 
 ## 显式分段提交（2.1）
 
@@ -86,7 +86,7 @@ checkpoint.advance({"after": next_id}, rows=batch_count)
 任务详情、运行图和段证据会显示批号、恢复游标、本批行数和耗时、累计已提交行数：
 
 ```bash
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py jobs segments 任务编号
+uv run dev jobs segments 任务编号
 ```
 
 也可以查询 `GET /api/jobs/{任务编号}/segments?after=0&limit=50`，权限与任务详情一致，`next_after` 用于下一页。段证据持久保存；完整步骤和 SQL 记录跨进程保留需要配置 `APP_RUN_RECORDS=database`。普通短操作不需要 checkpoint，也不访问新增的状态表。

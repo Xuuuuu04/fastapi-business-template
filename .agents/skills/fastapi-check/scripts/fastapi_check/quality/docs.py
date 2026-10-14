@@ -54,7 +54,7 @@ def check_business_docs(catalog: Catalog, project: Path = PROJECT) -> list[Probl
                 0,
                 "doc_generated",
                 "自动生成的文档与当前声明不一致",
-                "运行 uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs",
+                "运行 uv run dev docs",
             )
         )
     return problems
@@ -117,7 +117,7 @@ def check_files(folder: Path, project: Path) -> list[Problem]:
                     0,
                     "doc_missing",
                     "缺少业务文档",
-                    "新模块用 fastapi_module.new_module 生成文档骨架",
+                    "新模块用 uv run dev new-module 生成文档骨架",
                 )
             )
             continue

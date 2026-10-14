@@ -59,7 +59,7 @@ def test_business_queries(tmp_path: Path, query: str) -> None:
     hit = result["results"][0]
     assert hit["operation"] == price.name
     assert hit["steps"]["items"][0]["source"].startswith("server/tests/")
-    assert "project --operation sample_price.adjust" in hit["next"]
+    assert "uv run dev status --operation sample_price.adjust" in hit["next"]
     assert result["database_read"] is False
 
 

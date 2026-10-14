@@ -17,16 +17,7 @@ PROBLEM_LIMIT = 5
 
 # 生成可直接在 server 目录执行的下一步命令。
 def command(*arguments: str) -> str:
-    return shlex.join(
-        [
-            "uv",
-            "run",
-            "python",
-            "../.agents/skills/fastapi-project/scripts/run_project.py",
-            "project",
-            *arguments,
-        ]
-    )
+    return shlex.join(["uv", "run", "dev", "status", *arguments])
 
 
 # 各数据库分别保留新旧状态；问题过多时说明总数和省略数量。

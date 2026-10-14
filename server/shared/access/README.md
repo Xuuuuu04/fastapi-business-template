@@ -1,7 +1,7 @@
 # access：调用者身份与权限
 
 - [caller.py](caller.py)：`Caller`（编号、种类、名称、组织、权限）。权限写作“模块名.动作”，`模块名.*` 表示该模块全部权限，`*` 表示全部权限。
-- [keys.py](keys.py)：服务密钥。配置里只保存 SHA-256 摘要和权限，用固定时间比较；新密钥用 `fastapi_operations.make_key` 生成。
+- [keys.py](keys.py)：服务密钥。配置里只保存 SHA-256 摘要和权限，用固定时间比较；新密钥用 `uv run dev make-key` 生成。
 - [tokens.py](tokens.py)：签发并校验 HS256 用户令牌，校验签发方、接收方和到期时间。
 - [audit.py](audit.py)：操作成功、失败和权限拒绝的操作记录的身份、状态和时间，不保存业务正文。
 

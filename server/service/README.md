@@ -11,7 +11,7 @@
 新建使用`uv run dev new-module customer_contact --title 客户联系 --kind capability`或`--kind workflow`；工具使用`uv run dev new-library text_formats --title 文本格式`。`dev plan`维护计划，实际依赖始终来自声明和源码；包清单由生成器读取各包标记后生成。
 
 从产品业务线到开发包的层次见[项目设计](../../doc/development.md)，分组在根目录 `project-plan.json` 里填写。
-代码保留统一的模块路径，避免改变生成器、模块导入和已有产品。开发时用 `fastapi_project.project --module 模块名` 一次看到本模块的操作、条件分支、计算图、源码和最近的测试情况。
+代码保留统一的模块路径，避免改变生成器、模块导入和已有产品。开发时用 `uv run dev status --module 模块名` 一次看到本模块的操作、条件分支、计算图、源码和最近的测试情况。
 开发按一项完整业务推进；迁移旧系统见[业务迁移 Skill](../../.agents/skills/fastapi-template/references/product-migration.md)。
 
 ## 每个模块的固定结构
@@ -36,14 +36,14 @@
 ## 新建模块
 
 ```bash
-uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_module customer_contact --title 客户联系人
+uv run dev new-module customer_contact --title 客户联系人
 ```
 
-它会生成完整骨架、业务文档、接口和测试，并登记到 `app/setup/catalog.py`。不要手工复制其他模块，也不要自己发明目录结构。生成器会准备步骤测试、接口测试、权限与非法输入检查；真实业务的预期值仍然必须来自确认过的规则。开发时运行 `uv run python ../.agents/skills/fastapi-check/scripts/run_check.py check --module customer_contact`，交付前运行完整检查。
+它会生成完整骨架、业务文档、接口和测试，并登记到 `app/setup/catalog.py`。不要手工复制其他模块，也不要自己发明目录结构。生成器会准备步骤测试、接口测试、权限与非法输入检查；真实业务的预期值仍然必须来自确认过的规则。开发时运行 `uv run dev check --module customer_contact`，交付前运行完整检查。
 
 默认情况下，服务和 worker 在创建任何资源之前会检查目录、登记、生成说明、文件位置、步骤函数位置、依赖方向和框架摘要。
 不合格时拒绝启动；关闭模块也不会跳过结构检查。包根不接受任意的辅助文件；步骤和存储可以增加一层 `.py` 文件，
-`prompts/` 只接受 Markdown 或文本。旧项目先运行 `fastapi_module.adopt_modules`；全部包通过检查后才写入结构说明。
+`prompts/` 只接受 Markdown 或文本。旧项目先运行 `uv run dev adopt-modules`；全部包通过检查后才写入结构说明。
 这套检查用来发现意外的偏离；同一账号的文件修改权限由开发环境控制，说明文件不能证明创建者是谁。
 
 每个步骤是运行图上的一个计算节点，直接显示函数、文件与行号、用时、实际产出的字段和它们的形状；

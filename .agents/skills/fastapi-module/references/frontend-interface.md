@@ -20,7 +20,7 @@
 1. 改完代码后运行 `uv run dev docs`，看 `doc/api/openapi.json` 的差异。
 2. 删除字段、改名、把必填改成可选、改枚举值，都会让前端运行时报"返回的数据格式不符合约定"。这类改动要先在前端的 `api.ts`、`data.ts` 里同步，或者保留旧字段一段时间。
 3. 新增字段不影响前端（前端只检查它声明的字段），但前端要用的话得先登记。
-4. 用兼容工具 `fastapi_migration.compare_api` 比较改前改后的两份 openapi，把差异告诉做前端的人。
+4. 用 `uv run dev compare-api --before 改前 --after 改后` 比较改前改后的两份 openapi，把差异告诉做前端的人。
 
 ## 前端出错时怎么查
 

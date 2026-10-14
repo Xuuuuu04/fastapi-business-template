@@ -16,7 +16,7 @@ from shared.modules.catalog import Binding, Catalog
 from shared.pipelines.plan import stages_of
 
 DETAIL_LIMIT = 12
-COMMAND = "uv run python ../.agents/skills/fastapi-project/scripts/run_project.py "
+COMMAND = "uv run dev "
 
 
 # 模块声明只有一个固定文件，按AST定位Module调用；缺文件不捏造位置。
@@ -137,7 +137,7 @@ def result_of(binding: Binding, project: Path, rules: dict, routes: list[dict]) 
         "rules": bounded(
             [rules.get(r, {"id": r, "title": "未知", "source": "未知"}) for r in used]
         ),
-        "next": COMMAND + f"project --operation {item.name} --json",
+        "next": COMMAND + f"status --operation {item.name} --json",
     }
 
 

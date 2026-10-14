@@ -27,16 +27,20 @@ COMMANDS = {
     "status": "fastapi_project.project",
     "locate": "fastapi_project.locate",
     "impact": "fastapi_project.impact",
+    "business-state": "fastapi_project.business_state",
     "docs": "fastapi_docs.export_docs",
     "diagnose": "fastapi_operations.diagnose",
     "jobs": "fastapi_operations.jobs",
     "pipelines": "fastapi_operations.pipelines",
     "drill": "fastapi_operations.drill",
+    "make-key": "fastapi_operations.make_key",
     "new-module": "fastapi_module.new_module",
+    "adopt-modules": "fastapi_module.adopt_modules",
     "new-operation": "fastapi_module.new_operation",
     "new-pipeline": "fastapi_module.new_pipeline",
     "new-project": "fastapi_template.start_project",
     "upgrade": "fastapi_template.update_framework",
+    "compare-api": "fastapi_migration.compare_api",
     "framework-lock": "fastapi_check.framework_lock",
 }
 
@@ -82,3 +86,8 @@ def main() -> None:
         remaining = [arguments.command, *remaining]
     sys.argv = ["dev " + arguments.command, *remaining]
     runpy.run_module(COMMANDS[arguments.command], run_name="__main__")
+
+
+# 检查等工具在子进程里用 python -m fastapi_dev.main 调用同一入口。
+if __name__ == "__main__":
+    main()

@@ -4,18 +4,18 @@
 
 ```bash
 # 全项目摘要
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py project --summary --json
+uv run dev status --summary --json
 # 一个业务包的摘要
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py project --module 模块名 --summary --json
+uv run dev status --module 模块名 --summary --json
 # 一个操作的详情
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py project --operation 模块.操作 --json
+uv run dev status --operation 模块.操作 --json
 # 一个测试的详情，要用准确的 pytest 编号
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py project --test 准确pytest编号 --json
+uv run dev status --test 准确pytest编号 --json
 # 当前改动影响哪些地方
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py impact --base origin/main --json
+uv run dev impact --base origin/main --json
 ```
 
-找不到该改哪里时，先在 `server/` 执行 `uv run python ../.agents/skills/fastapi-project/scripts/run_project.py locate --query "业务词或旧接口路径" --limit 10 --json`，再按结果执行 `project --operation 模块.操作 --json`。定位只读本地声明和规则文档，不访问数据库；旧路径如果没有保留下来，它们的关系就是未知的。
+找不到该改哪里时，先在 `server/` 执行 `uv run dev locate --query "业务词或旧接口路径" --limit 10 --json`，再按结果执行 `uv run dev status --operation 模块.操作 --json`。定位只读本地声明和规则文档，不访问数据库；旧路径如果没有保留下来，它们的关系就是未知的。
 
 ## 信息来自哪里
 
@@ -30,11 +30,11 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py impact --
 - 源代码变了，旧的检查结果就过期。失败和跳过的测试不算通过。
 - `--checks 目录` 可以把别处保存的检查记录（比如 CI 产出）合并进来。
 
-`project --operation` 会同时列出步骤用到的上游接口协议；计算图展示声明，运行图里的接口名、耗时和状态来自实际调用，旧记录里的接口名保持未知。
+`dev status --operation` 会同时列出步骤用到的上游接口协议；计算图展示声明，运行图里的接口名、耗时和状态来自实际调用，旧记录里的接口名保持未知。
 
 ## 查看运行记录
 
-只有加上 `project --module 模块名 --runs --limit 数量`，才会查询当前配置的数据库。`--limit` 只限制运行记录的条数，不限制测试内容。输出包括运行图、每个步骤产出数据的形状和 SQL 所在位置；不保存 SQL 参数和业务数据原文。
+只有加上 `uv run dev status --module 模块名 --runs --limit 数量`，才会查询当前配置的数据库。`--limit` 只限制运行记录的条数，不限制测试内容。输出包括运行图、每个步骤产出数据的形状和 SQL 所在位置；不保存 SQL 参数和业务数据原文。
 
 ## 两部分业务现状
 
@@ -45,14 +45,14 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py impact --
 
 ```bash
 # 默认不连接数据库，运行状态明确为未知；可以指定单个模块或全项目
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_state --module 模块名
+uv run dev business-state --module 模块名
 # 明确只读当前配置的数据库，生成最近的运行状态；先确认目标环境和授权
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_state --module 模块名 --runs
+uv run dev business-state --module 模块名 --runs
 # 只检查是否过期，不读取数据库也不刷新；fastapi-check 的文档检查同样会报过期
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_state --check
+uv run dev business-state --check
 ```
 
-`--runs` 只读取编号、状态、数量和时间，不保存业务正文、SQL 参数或连接凭据。最近的历史成功不代表当前源码也成功；没有持久记录也不能证明没有运行过。检查只对观察时刻之前的事实负责，当前数据库之后有没有变化，离线检查是不知道的。生成超过一天、源码/依赖/声明变化、实际观察的库目标/角色/搜索路径变化、或摘要被手改，都会报错；库绑定只保存不含密码的单向摘要，不会泄露连接目标。export_docs 只会初始化或更新过期的声明状态，实际观察仍然要靠 `--runs`。读取数据库失败时不写新状态。这些文件只在本机、不提交；模板副本和新机器需要重新生成；手写判断重要的话，另外记进产品文档或任务，不要只依赖单机记录。
+`--runs` 只读取编号、状态、数量和时间，不保存业务正文、SQL 参数或连接凭据。最近的历史成功不代表当前源码也成功；没有持久记录也不能证明没有运行过。检查只对观察时刻之前的事实负责，当前数据库之后有没有变化，离线检查是不知道的。生成超过一天、源码/依赖/声明变化、实际观察的库目标/角色/搜索路径变化、或摘要被手改，都会报错；库绑定只保存不含密码的单向摘要，不会泄露连接目标。`dev docs` 只会初始化或更新过期的声明状态，实际观察仍然要靠 `--runs`。读取数据库失败时不写新状态。这些文件只在本机、不提交；模板副本和新机器需要重新生成；手写判断重要的话，另外记进产品文档或任务，不要只依赖单机记录。
 
 ## 影响报告
 

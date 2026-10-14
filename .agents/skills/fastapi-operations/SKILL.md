@@ -12,7 +12,7 @@ uv run dev diagnose --help
 uv run dev diagnose run 运行编号
 uv run dev jobs list
 uv run dev jobs show 任务编号
-uv run python ../.agents/skills/fastapi-operations/scripts/run_operations.py make_key --name 服务名 --org-id 组织 --permissions 权限
+uv run dev make-key --name 服务名 --org-id 组织 --permissions 权限
 ```
 
 ## 查运行情况
@@ -48,7 +48,7 @@ uv run dev drill ../doc/模块/drill_流程.json --output var/development/drill
 
 ## 生成服务密钥
 
-`make_key` 尚无 `dev` 等价子命令，上面的兼容长命令继续使用，不要改成不存在的 `dev make-key`。
+用上面的 `uv run dev make-key` 生成。
 
 - 明文密钥只显示给请求的人本人。配置里保存摘要和明确的权限范围。
 - 不要把明文密钥写进 Git、运行记录或文档。

@@ -1,5 +1,5 @@
 """
-系统接口和业务接口的清单。业务接口随对应模块启用；新模块由 fastapi_module.new_module 登记。
+系统接口和业务接口的清单。业务接口随对应模块启用；新模块由 uv run dev new-module 登记。
 """
 
 from collections.abc import Collection

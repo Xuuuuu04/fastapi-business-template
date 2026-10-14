@@ -24,9 +24,8 @@ def test_native_product_copy(tmp_path: Path) -> None:
     assert (target / ".agents/skills/fastapi-template/SKILL.md").is_file()
     agents = (target / "AGENTS.md").read_text(encoding="utf-8")
     assert agents.startswith("# 客户联系产品\n")
-    assert "run_project.py project --summary --json" in (target / "README.md").read_text(
-        encoding="utf-8"
-    )
+    readme = (target / "README.md").read_text(encoding="utf-8")
+    assert "uv run dev status --summary --json" in readme and "scripts/run_" not in readme
     assert "已完成" not in (target / "doc/tasks.md").read_text(encoding="utf-8")
     assert "验收记录" not in (target / "server/deploy/README.md").read_text(encoding="utf-8")
     plan = json.loads((target / "project-plan.json").read_text(encoding="utf-8"))

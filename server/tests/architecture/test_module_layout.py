@@ -81,7 +81,7 @@ def test_unexpected_files_block_startup(product: Path, name: str) -> None:
 def test_missing_marker_requires_explicit_adoption(product: Path) -> None:
     marker = product / "service/sample_records/module.json"
     marker.unlink()
-    with pytest.raises(ConfigError, match="fastapi_module.adopt_modules"):
+    with pytest.raises(ConfigError, match="uv run dev adopt-modules"):
         check_structure(MODULES, product)
     result = subprocess.run(
         [sys.executable, "../.agents/skills/fastapi-module/scripts/run_module.py", "adopt_modules"],

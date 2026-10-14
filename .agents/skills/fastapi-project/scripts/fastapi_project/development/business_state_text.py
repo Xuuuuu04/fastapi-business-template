@@ -76,7 +76,7 @@ def jobs_text(declared: dict[str, Any]) -> str:
 
 # 继续查看的入口命令。
 def footer_text(name: str) -> str:
-    base = "`project --module " + name
+    base = "`uv run dev status --module " + name
     return f"- **继续查看**：登记和测试情况用 {base} --summary`；真实运行记录用 {base} --runs`。"
 
 
@@ -86,7 +86,7 @@ def preview(items: list[str], maximum: int = 8) -> str:
         return "无"
     result = "、".join(items[:maximum])
     return result + (
-        f"（其余 {len(items) - maximum} 个用 project --module 查看）"
+        f"（其余 {len(items) - maximum} 个用 uv run dev status --module 查看）"
         if len(items) > maximum
         else ""
     )

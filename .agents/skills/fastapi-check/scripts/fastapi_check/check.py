@@ -66,7 +66,7 @@ def steps(selection: Selection | None = None) -> list[tuple[str, list[str]]]:
         ("类型检查", ["mypy", *typed]),
         (
             "生成文档",
-            ["../.agents/skills/fastapi-docs/scripts/run_docs.py", "export_docs", "--check"],
+            ["-m", "fastapi_dev.main", "docs", "--check"],
         ),
         ("模块测试" if selection.modules else "默认测试", tests),
     ]

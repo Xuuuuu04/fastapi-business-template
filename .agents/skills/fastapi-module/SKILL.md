@@ -11,12 +11,12 @@ description: 在本项目新增业务包，或把已有业务包调整成固定�
 
 ```bash
 # 首次生成，或源码/声明变化后重新生成（不读数据库，运行状态未知）
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_state --module 模块名
+uv run dev business-state --module 模块名
 # 有授权且确认当前数据库后，收工时刷新真实观察
-uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_state --module 模块名 --runs
+uv run dev business-state --module 模块名 --runs
 ```
 
-收工时先更新手写部分再刷新生成部分，最后跑检查。生成的源码、依赖摘要或声明变了，生成超过 24 小时，或摘要被手改，都会报过期；check 只比较、不刷新。export_docs 会初始化或更新过期的声明状态，但不访问数据库；要实际运行证据另用 `--runs`。记录只在本机，不提交、也不带入模板副本；新代理或新机器首次生成，不能把本机旧观察当成部署状态。
+收工时先更新手写部分再刷新生成部分，最后跑检查。生成的源码、依赖摘要或声明变了，生成超过 24 小时，或摘要被手改，都会报过期；check 只比较、不刷新。`dev docs` 会初始化或更新过期的声明状态，但不访问数据库；要实际运行证据另用 `--runs`。记录只在本机，不提交、也不带入模板副本；新代理或新机器首次生成，不能把本机旧观察当成部署状态。
 
 ## 第一步：先写业务文档
 
@@ -53,20 +53,20 @@ uv run python ../.agents/skills/fastapi-project/scripts/run_project.py business_
 
 ```bash
 # 新建一个业务包
-uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_module customer_contact --title 客户联系人
+uv run dev new-module customer_contact --title 客户联系人
 # 给已有的旧包补上结构说明
-uv run python ../.agents/skills/fastapi-module/scripts/run_module.py adopt_modules
+uv run dev adopt-modules
 ```
 
-- `new_module` 会建立业务包、测试、业务文档和 HTTP 入口，并更新公共登记。不要复制已有的业务包来当新包。
-- `adopt_modules` 要求旧包先通过全部结构检查，才会写入结构说明。它不改业务代码。
+- `new-module` 会建立业务包、测试、业务文档和 HTTP 入口，并更新公共登记。不要复制已有的业务包来当新包。
+- `adopt-modules` 要求旧包先通过全部结构检查，才会写入结构说明。它不改业务代码。
 
 ## 新增操作与流程
 
 ```bash
-uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_operation customer_contact normalize_text --title 整理文本 --http --preview
-uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_operation customer_contact normalize_text --title 整理文本 --http
-uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipeline customer_contact daily --title 每日流程 --stages select,collect,wait,publish --wait wait
+uv run dev new-operation customer_contact normalize_text --title 整理文本 --http --preview
+uv run dev new-operation customer_contact normalize_text --title 整理文本 --http
+uv run dev new-pipeline customer_contact daily --title 每日流程 --stages select,collect,wait,publish --wait wait
 ```
 
 在已符合标准结构的模块里生成时，会一次登记 public/data/flow/步骤、可选的 HTTP、规则占位和短测试；每个操作默认生成一个正常样例和一个规则异常样例，共用目录夹具。`--preview` 只预览不写入，报告会列出实际会改的源码和文档。普通操作默认保持普通事务；新流程会生成公开阶段、Wait、后台计划、首阶段定时和演练配置。
@@ -79,7 +79,7 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipelin
 - 分段提交：固定来源的大批数据，每批可以独立生效。例：`JobPlan(parse_rows, segmented=True, repeat_safe=True, cursor=Cursor)`；保存步骤每 5000 条推进一次 `checkpoint.advance({"after": next_id}, rows=count)`，最后 finish。游标 Data 与范围要明确，不能把正文塞进游标。
 - 多阶段：采集、等待、汇算、发布各自需要独立事务和失败恢复。例：`Pipeline("report.daily", "日报", Begin, (Stage("collect", collect), Wait("wait", ready), Stage("sum", aggregate), Stage("publish", publish)))`；在 module.py 登记 pipelines 和各阶段的 provides/jobs、Schedule 首入口。汇算阶段很大时再使用分段，不要在步骤里循环 sleep。
 
-以上是已定义 Data/操作的登记片段，完整独立样例见 server/tests/framework/drill_sample.py。用 new_pipeline 先搭整条链，再逐阶段替换占位实现；真实规模原件回放跑通全链之后，再补局部细节——生成的样例不算业务完成。细节见[步骤与事务](../../../server/shared/flow/README.md)、[后台任务](../../../server/shared/jobs/README.md)。
+以上是已定义 Data/操作的登记片段，完整独立样例见 server/tests/framework/drill_sample.py。用 `dev new-pipeline` 先搭整条链，再逐阶段替换占位实现；真实规模原件回放跑通全链之后，再补局部细节——生成的样例不算业务完成。细节见[步骤与事务](../../../server/shared/flow/README.md)、[后台任务](../../../server/shared/jobs/README.md)。
 
 ## 包内的文件分工
 
@@ -109,7 +109,7 @@ uv run python ../.agents/skills/fastapi-module/scripts/run_module.py new_pipelin
 - 一项业务需要的几个包，尽早放在同一份代码里一起运行，不要各写各的最后再合。
 - 新增数据表：先把隔离数据库升级到当前最新迁移，再生成增量迁移并人工检查。已有数据库的迁移历史不要替换。
 - 检查范围：调试用 `--quick --module`，几个包一起改就列多个 `--module`，整批交付用完整检查（见 `fastapi-check`）。
-- 源码格式整理、迁移审查之后统一导出文档；收工时更新业务现状的手写部分，按授权用 business_state --runs 刷新生成部分（没有数据库证据就保持未知），最后检查过期。不要手改生成区域。
+- 源码格式整理、迁移审查之后统一导出文档；收工时更新业务现状的手写部分，按授权用 `dev business-state --runs` 刷新生成部分（没有数据库证据就保持未知），最后检查过期。不要手改生成区域。
 
 ## 相关
 

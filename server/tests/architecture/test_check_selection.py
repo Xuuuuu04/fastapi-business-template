@@ -84,9 +84,7 @@ def test_quick_plan_is_local_and_not_acceptance(
     monkeypatch.setattr("fastapi_check.check.module_files", lambda names: ["sample.py"])
     plan = steps(selection)
     assert len(plan) == 3
-    assert all(
-        "mypy" not in command and "fastapi_docs.export_docs" not in command for _, command in plan
-    )
+    assert all("mypy" not in command and "docs" not in command for _, command in plan)
     assert not any(test in plan[-1][1] for test in INTEGRITY)
     assert selection.scope() == {"kind": "quick", "modules": ["sample_records"]}
     assert latest_full_check([{"scope": selection.scope()}]) is None

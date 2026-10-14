@@ -1,6 +1,6 @@
 # 新业务包模板
 
-`fastapi_module.new_module` 用这里的文件生成新业务包。文件里的占位符：
+`uv run dev new-module` 用这里的文件生成新业务包。文件里的占位符：
 
 | 占位符 | 含义 |
 |---|---|

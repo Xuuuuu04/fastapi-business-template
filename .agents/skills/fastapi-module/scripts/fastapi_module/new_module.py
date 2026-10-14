@@ -1,6 +1,6 @@
 """
 生成一个新业务模块的完整骨架，并登记到模块总目录和路由清单：
-  uv run python -m tools.new_module customer_contact --title 客户联系人
+  uv run dev new-module customer_contact --title 客户联系人
 生成内容：service/模块名、doc/模块名、app/api/v1/模块名.py，
 以及 tests/modules 与 tests/integration 下的测试。
 生成后按提示补写业务文档、生成迁移、导出文档，再运行全量检查。
@@ -181,15 +181,9 @@ def main() -> None:
     )
     print("2. uv run alembic upgrade head（本地数据库需要先到最新版本才能比较出新表）")
     print(f'   uv run alembic revision --autogenerate -m "add {args.name} tables"，检查生成的迁移')
-    print("3. uv run python ../.agents/skills/fastapi-docs/scripts/run_docs.py export_docs")
-    print(
-        "4. uv run python ../.agents/skills/fastapi-check/scripts/run_check.py "
-        f"check --module {args.name}（先检查本模块）"
-    )
-    print(
-        "5. uv run python ../.agents/skills/fastapi-check/scripts/run_check.py "
-        "check（交付前检查全部模块）"
-    )
+    print("3. uv run dev docs")
+    print(f"4. uv run dev check --module {args.name}（先检查本模块）")
+    print("5. uv run dev check（交付前检查全部模块）")
 
 
 if __name__ == "__main__":

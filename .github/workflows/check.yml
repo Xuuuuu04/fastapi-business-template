@@ -1,5 +1,5 @@
 # main 和手动触发完整检查；合并请求按新旧依赖检查受影响范围，公共变化仍完整检查。
-# 1. 代码与测试：在真实的 PostgreSQL、Redis、S3 服务上运行与本地相同的 fastapi_check.check。
+# 1. 代码与测试：在真实的 PostgreSQL、Redis、S3 服务上运行与本地相同的 uv run dev check。
 # 2. 部署镜像与配置：构建 deploy/Dockerfile，确认镜像里的应用能导入，校验单机部署配置。
 # 第三方 Action 按提交号锁定（注释中是对应版本），由 .github/dependabot.yml 每周检查更新。
 name: 分层检查
@@ -102,9 +102,9 @@ jobs:
       - name: 检查（公共变化与主干完整，业务 PR 按受影响范围）
         run: |
           if [ -n "$CHECK_BASE" ]; then
-            uv run --no-sync python ../.agents/skills/fastapi-check/scripts/run_check.py check --affected --base "$CHECK_BASE" --postgres "$POSTGRES_URL"
+            uv run --no-sync dev check --affected --base "$CHECK_BASE" --postgres "$POSTGRES_URL"
           else
-            uv run --no-sync python ../.agents/skills/fastapi-check/scripts/run_check.py check --postgres "$POSTGRES_URL"
+            uv run --no-sync dev check --postgres "$POSTGRES_URL"
           fi
 
       - name: 保存实际检查轮次（不含数据库地址和业务数据）
