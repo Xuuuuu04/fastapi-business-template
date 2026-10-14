@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from shared.timing.clock import FakeClock
+from shared.timing.clock import FakeClock, RealClock
 
 pytestmark = pytest.mark.anyio
 
@@ -58,3 +58,23 @@ async def test_completed_work_does_not_wait_for_deadline() -> None:
     assert await clock.run(work(), deadline=100) == 7
     assert clock.monotonic() == 0
     assert not clock.waiters
+
+
+# 模拟 loop.time() 比 time.monotonic() 快一千秒的事件循环（macOS 上的 uvloop 就是这样）。
+class ShiftedLoop(asyncio.SelectorEventLoop):
+    # 事件循环自己的时钟整体偏移，调度仍然自洽。
+    def time(self) -> float:
+        return super().time() + 1000
+
+
+# 正式时钟的截止按剩余秒数交给事件循环，不受事件循环时钟起点影响。
+def test_real_deadline_ignores_loop_clock_offset() -> None:
+    clock, loop = RealClock(), ShiftedLoop()
+    try:
+        work = asyncio.sleep(0.01, "完成")
+        assert loop.run_until_complete(clock.run(work, deadline=clock.monotonic() + 5)) == "完成"
+        with pytest.raises(TimeoutError):
+            slow = asyncio.sleep(5)
+            loop.run_until_complete(clock.run(slow, deadline=clock.monotonic() + 0.01))
+    finally:
+        loop.close()

@@ -407,7 +407,7 @@
   "shared/telemetry/service.py": "12a29165ae89bf936de193d4a59d99bfddebd7cd7775f789743120b168b9c586",
   "shared/timing/README.md": "745d568e5cfbddb2455ebf9d9c7c92a5d7bc03c56d058b6b2a55a2d3376813f0",
   "shared/timing/budgets.py": "98f4c6e38908ff7044d431a14d3e00a94a81b5195059f89003626e6b56128808",
-  "shared/timing/clock.py": "352ccfc03edc2ff8418f12c2dc0db340671163cf1fbd261ebe79a4861f66073e",
+  "shared/timing/clock.py": "705d146c87959ce1d00c74c7b49ff4604e325187f39fc826b492c10ebc9de28c",
   "shared/timing/current.py": "79076ca33931a4058170aeba5df5048dab59464c317a3c82edd9e9e5c531e81c",
   "tests/architecture/README.md": "815e4932ece29a948bacde1219b5cfdb7cb1faf73a861591ed7ccaf280d0a112",
   "tests/architecture/sample_catalog.py": "e3d3289524367a25f62c85df30d7edea0c9e78043ffecdf1f17c8aba5662eeb5",
