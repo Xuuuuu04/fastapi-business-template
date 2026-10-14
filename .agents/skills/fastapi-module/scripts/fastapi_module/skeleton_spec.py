@@ -160,7 +160,7 @@ def call_field(operation: str) -> str:
 def reference_type(reference: str, available: dict[str, dict[str, SkeletonField]]) -> str:
     source, separator, name = reference.rpartition(".")
     if not separator or source not in available or name not in available[source]:
-        sources = "、".join(f"{source}.字段" for source in available)
+        sources = "、".join(f"{item}.字段" for item in available)
         raise ValueError(f"骨架字段来源未定义或属于未来阶段：{reference}；可用来源：{sources}")
     return available[source][name].type
 
