@@ -45,7 +45,7 @@ uv run dev business-state --module 模块名 --runs
 
 随后 `dev start --package order_shipping --cases R-01-C01` 开任务卡，替换本包模拟步骤并设置 simulated=False，`dev docs` 后 `dev finish --task 编号` 收工。本包必须真实实现，兄弟包仍模拟只提示；整条相关链测试仍必须通过，最终 `dev check --delivery` 才要求全部为真实实现。样例占位不能当作确认业务值。字段、权限、调用和样例出错时，生成之前逐项报告，不留下半个业务包。
 
-流程包在 `calls[].input` 和 `returns` 里用 `input.字段` 或 `包.操作.字段` 写明每个值的来源。生成的调用步骤按被调用的操作命名，例如调用 `order_pricing.quote` 的步骤叫 `fetch_order_pricing_quote`，产出字段叫 `order_pricing_quote`；样例 `observations` 的 `step` 和 `field` 照这个名字填写。三包连接示例见 `server/tests/framework/skeleton_sample.py`，命令与开发说明见 [填空开发](../../../doc/task-development.md)。
+流程包在 `calls[].input` 和 `returns` 里用 `input.字段` 或 `包.操作.字段` 写明每个值的来源。生成的调用步骤按被调用的操作命名，例如调用 `order_pricing.quote` 的步骤叫 `fetch_order_pricing_quote`，产出字段叫 `order_pricing_quote`；样例 `observations` 的 `step` 和 `field` 照这个名字填写。三包连接示例见 `server/tests/framework/skeleton_sample.py`，命令与开发说明见 [填空开发](../fastapi-project/references/task-development.md)。
 
 ## 生成新包
 
