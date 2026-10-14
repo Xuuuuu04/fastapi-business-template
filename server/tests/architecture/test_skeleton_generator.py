@@ -190,4 +190,4 @@ def test_three_package_skeleton_to_real_with_error_position(tmp_path: Path) -> N
     run(copy, [*entry, "docs"], env)
     run(copy, tests, env)
     # 替换成真实实现后直接通过交付检查，生成的测试和流程步骤不需要返工。
-    run(copy, [*entry, "check", "--database", "sqlite", "--delivery", "--workers", "0"], env)
+    run(copy, [*entry, "check", "--database", "sqlite", "--delivery", "--workers", "2"], env)

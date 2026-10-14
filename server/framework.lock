@@ -452,7 +452,7 @@
   "tests/architecture/test_rule_scenarios.py": "3dc3577b990fee80e677496e0227ef05d03291b8e53874c8f790623dfbf2043d",
   "tests/architecture/test_rules_ledger.py": "2eb1980a85c86c762bee84d986153992861b2c694e006642d5f2080b36b837d1",
   "tests/architecture/test_runtime_versions.py": "f782b9eefd1cdf1c2cc1a2c95916e61fd8b2dbfd948afb0b1d09cda0116a3dbb",
-  "tests/architecture/test_skeleton_generator.py": "9f8b5da358a1578eb59a954f4ee7588d6cefd2248ad5bc684b56f0f235fd9481",
+  "tests/architecture/test_skeleton_generator.py": "12e74ab7698450950cfeca0d1174ba295a793f6825d18d62b6b1e579ea8c0e8c",
   "tests/architecture/test_skill_lifecycle.py": "3dc28f69ce864d6af88224d0fa39e0db775d7911981335ab302d65eb812fb853",
   "tests/architecture/test_structure.py": "29edf20e983b2788cec73e83af0e4107e0276f880870851a2abe02a67d834ac9",
   "tests/architecture/test_task_cards.py": "117dcfb4e27374d99da8fe6354dd12d9e6bb44e889a5b8367e61bc46c7b5ece7",
