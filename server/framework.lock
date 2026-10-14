@@ -1,6 +1,6 @@
 {
   "../.agents/skills/fastapi-check/SKILL.md": "0214296720d6cd370754b2665f5f0237fa6da5cfa391e44a6d15b8f695ee0498",
-  "../.agents/skills/fastapi-check/references/check-rationale.md": "d2d4009621af8cabe4886c234e70aa0c90b6e4e44cb0929af693ed34470145a9",
+  "../.agents/skills/fastapi-check/references/check-rationale.md": "cdf2b445b21ff5f6ea53b65ccd20c95c80fd20cfb82f1d013161f1b4b6701ad4",
   "../.agents/skills/fastapi-check/scripts/fastapi_check/arguments.py": "7574229342bc51e611a14ccf79ffdb7e034f70f8657173af527f11da7ad055c8",
   "../.agents/skills/fastapi-check/scripts/fastapi_check/cache.py": "565f7ba0fa1f72ece07ae0bf2f3dbd60355d8bfc4f812f0d2db8e6fffef8c4b0",
   "../.agents/skills/fastapi-check/scripts/fastapi_check/check.py": "9eb2ab97bad372481c597060f9e1e1257558d6d5ed0f9f394fc2e46f1588e75a",
