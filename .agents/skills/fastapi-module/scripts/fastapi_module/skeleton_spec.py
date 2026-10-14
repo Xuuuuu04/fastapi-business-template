@@ -144,18 +144,24 @@ def validate_fields(operation: SkeletonOperation) -> None:
             if (
                 not re.fullmatch(NAME, name)
                 or keyword.iskeyword(name)
-                or name.startswith(("_", "model_", "phase_"))
+                or name.startswith(("_", "model_"))
                 or name == "result"
                 or field.type not in TYPES
             ):
                 raise ValueError(f"字段 {name} 的名称或类型 {field.type!r} 不支持")
 
 
-# 字段引用只能来自原始输入或已经运行的步骤产出。
+# 调用产出按被调用的完整操作名存放，例如 order_pricing.quote 存在 order_pricing_quote。
+def call_field(operation: str) -> str:
+    return operation.replace(".", "_")
+
+
+# 字段引用写成 input.字段 或 包.操作.字段，只能来自原始输入或前面已经调用过的操作。
 def reference_type(reference: str, available: dict[str, dict[str, SkeletonField]]) -> str:
-    source, separator, name = reference.partition(".")
+    source, separator, name = reference.rpartition(".")
     if not separator or source not in available or name not in available[source]:
-        raise ValueError(f"骨架字段来源未定义或属于未来阶段：{reference}")
+        sources = "、".join(f"{source}.字段" for source in available)
+        raise ValueError(f"骨架字段来源未定义或属于未来阶段：{reference}；可用来源：{sources}")
     return available[source][name].type
 
 
@@ -164,14 +170,21 @@ def validate_calls(operation: SkeletonOperation, operations: dict[str, SkeletonO
     available = {"input": operation.input}
     if len({call.operation for call in operation.calls}) != len(operation.calls):
         raise ValueError("同一操作重复调用需要独立的位置声明，不能使用本短骨架")
-    for number, call in enumerate(operation.calls, 1):
+    fields = set(operation.input)
+    for call in operation.calls:
         target = operations.get(call.operation)
         if target is None or call.case not in target.cases:
             raise ValueError(f"调用 {call.operation} 或独立样例 {call.case} 未定义")
         if operation.effect == "query" and target.effect == "command":
             raise ValueError("查询骨架不能连接对外写入操作")
         validate_mapping(call.input, target.input, available)
-        available[f"phase_{number}"] = target.output
+        if call_field(call.operation) in fields:
+            raise ValueError(
+                f"调用 {call.operation} 的产出字段 {call_field(call.operation)} "
+                "与输入字段或其他调用重名"
+            )
+        fields.add(call_field(call.operation))
+        available[call.operation] = target.output
     if operation.calls:
         validate_mapping(operation.returns, operation.output, available)
     elif operation.returns:

@@ -19,12 +19,14 @@ from tests.template_project import initialize
 
 
 # 错误连接在写文件之前拒绝，未来字段、类型差异和查询写入都不能猜着接。
-@pytest.mark.parametrize("fault", ["future", "type", "effect", "access", "case", "field"])
+@pytest.mark.parametrize("fault", ["future", "type", "effect", "access", "case", "field", "clash"])
 def test_invalid_skeleton_mapping_rejected(fault: str) -> None:
     spec = specification()
     chain = spec["packages"][2]["operations"][0]
     if fault == "future":
-        chain["calls"][0]["input"]["value"] = "phase_2.value"
+        chain["calls"][0]["input"]["value"] = "sample_counts.advance.value"
+    elif fault == "clash":
+        chain["input"]["sample_sources_load"] = {"type": "int", "meaning": "与调用产出重名"}
     elif fault == "type":
         chain["input"]["value"]["type"] = "str"
     elif fault == "effect":
@@ -36,6 +38,14 @@ def test_invalid_skeleton_mapping_rejected(fault: str) -> None:
     else:
         chain["input"]["value"]["type"] = "object"
     with pytest.raises(ValueError):
+        SkeletonBundle.model_validate(spec).validate_links()
+
+
+# 旧写法 phase_N 不再接受，报错列出此处可用的来源，照着改成 包.操作.字段。
+def test_old_phase_reference_lists_sources() -> None:
+    spec = specification()
+    spec["packages"][2]["operations"][0]["calls"][1]["input"]["value"] = "phase_1.value"
+    with pytest.raises(ValueError, match="可用来源：input.字段、sample_sources.load.字段"):
         SkeletonBundle.model_validate(spec).validate_links()
 
 
@@ -179,3 +189,5 @@ def test_three_package_skeleton_to_real_with_error_position(tmp_path: Path) -> N
     run(copy, ["-m", "ruff", "format", "service"], env)
     run(copy, [*entry, "docs"], env)
     run(copy, tests, env)
+    # 替换成真实实现后直接通过交付检查，生成的测试和流程步骤不需要返工。
+    run(copy, [*entry, "check", "--database", "sqlite", "--delivery", "--workers", "0"], env)

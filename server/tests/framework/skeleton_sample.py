@@ -35,11 +35,11 @@ def specification() -> dict:
                     },
                     {
                         "operation": "sample_counts.advance",
-                        "input": {"value": "phase_1.value"},
+                        "input": {"value": "sample_sources.load.value"},
                         "case": "sample_counts.R-01-C01",
                     },
                 ],
-                returns={"value": "phase_2.value"},
+                returns={"value": "sample_counts.advance.value"},
             )
         packages.append(
             {
@@ -62,18 +62,23 @@ def write_inputs(project: Path) -> Path:
         folder = project / "doc" / package
         (folder / "cases").mkdir(parents=True, exist_ok=True)
         case_path = next((folder / "cases").glob("*.json"), folder / "cases/one.json")
-        case_path.write_text(
-            json.dumps(
-                {
-                    "id": f"{package}.R-01-C01",
-                    "input": {"value": input},
-                    "initial": {},
-                    "expected": {"value": expected},
-                    "assertions": ["数量符合独立预期"],
-                    "tests": [f"tests/modules/{package}/test_{action}.py::test_case"],
-                }
-            )
-        )
+        case = {
+            "id": f"{package}.R-01-C01",
+            "input": {"value": input},
+            "initial": {},
+            "expected": {"value": expected},
+            "assertions": ["数量符合独立预期"],
+            "tests": [f"tests/modules/{package}/test_{action}.py::test_case"],
+        }
+        if package == "sample_chain":
+            # 观察点按被调用的操作命名：步骤 fetch_包_操作，字段 包_操作。
+            point = {
+                "operation": "sample_chain.run",
+                "step": "fetch_sample_counts_advance",
+                "field": "sample_counts_advance",
+            }
+            case["observations"] = [{"point": point, "value": {"value": expected}}]
+        case_path.write_text(json.dumps(case))
         (folder / "rules.md").write_text(
             "# 合成规则\n\n### R-01 合成计算\n\n独立合成样例，不是人类业务验收。\n\n"
             "| 样例编号 | 输入 | 结果 |\n| --- | --- | --- |\n"

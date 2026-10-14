@@ -9,7 +9,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from fastapi_check.check import INTEGRITY, steps
+from fastapi_check.check import INTEGRITY, QUALITY, steps
+from fastapi_check.quality.report import Problem, in_modules
 from fastapi_project.development.evidence import (
     full_check_current,
     latest_full_check,
@@ -48,6 +49,31 @@ def test_multi_package_plan_runs_common_checks_once(
     assert command.count("tests/modules/sample_records") == 1
     assert "tests/integration/sample_accounts" in command
     assert all(test in command for test in INTEGRITY)
+    assert QUALITY in command
+    assert plan[0][1] == ["ruff", "check", "sample.py"]
+    assert plan[1][1] == ["ruff", "format", "--check", "sample.py"]
+
+
+# 包级质量规则只报本包源码、测试、接口和业务文档的问题，别的包和公共文件不卡住本包。
+def test_module_quality_keeps_only_own_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "fastapi_project.development.selection.module_files",
+        lambda names: ["app/api/v1/sample_records.py"],
+    )
+    own = [
+        Problem("service/sample_records/steps/build_fee.py", 3, "step_name", "本包"),
+        Problem("tests/modules/sample_records/test_fee.py", 9, "function_comment", "本包"),
+        Problem("app/api/v1/sample_records.py", 1, "file_header", "本包接口"),
+        Problem("doc/sample_records/rules.md", 0, "rule_missing", "本包文档"),
+        Problem("server/service/sample_records/README.md", 4, "writing_style", "本包说明"),
+    ]
+    others = [
+        Problem("service/sample_records_extra/steps/build_fee.py", 3, "step_name", "名字相近"),
+        Problem("tests/conftest.py", 1, "function_comment", "框架文件"),
+        Problem("doc/README.md", 0, "doc_index", "公共文档"),
+    ]
+    assert in_modules(own + others, ["sample_records"]) == own
+    assert in_modules(own + others, []) == own + others
 
 
 # 快速检查不包含类型、生成文档或整合测试，记录范围也不能是完整检查。

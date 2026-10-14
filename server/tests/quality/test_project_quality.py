@@ -3,12 +3,15 @@
 任何一项有问题都会列出文件、行号、规则和整理建议。
 """
 
+import json
+import os
+
 from fastapi_check.quality.blocking import check_blocking
 from fastapi_check.quality.docs import check_business_docs, check_writing_style
 from fastapi_check.quality.files import check_files
 from fastapi_check.quality.naming import check_naming
 from fastapi_check.quality.readmes import check_readmes
-from fastapi_check.quality.report import Problem, unused_allowed, without_allowed
+from fastapi_check.quality.report import Problem, in_modules, unused_allowed, without_allowed
 
 from app.setup.catalog import MODULES
 from shared.modules.catalog import Catalog
@@ -19,21 +22,31 @@ def listed(problems: list[Problem]) -> str:
     return "\n".join(problem.text() for problem in problems)
 
 
+# dev check --module 和 dev finish 选中的包；完整检查和直接运行时为空，不过滤。
+def selected() -> list[str]:
+    return json.loads(os.environ.get("APP_DEVELOPMENT_MODULES", "[]"))
+
+
+# 去掉登记过的例外，包级检查再只留本包路径的问题。
+def scoped(problems: list[Problem]) -> list[Problem]:
+    return in_modules(without_allowed(problems), selected())
+
+
 # 代码写法：文件说明、函数说明、长度、嵌套、待办标记、连续注释。
 def test_code_style() -> None:
-    problems = without_allowed(check_files())
+    problems = scoped(check_files())
     assert problems == [], listed(problems)
 
 
 # 命名：小写下划线、含义清楚、模块名两个词、步骤名“动词_对象”。
 def test_naming() -> None:
-    problems = without_allowed(check_naming())
+    problems = scoped(check_naming())
     assert problems == [], listed(problems)
 
 
 # async 函数中没有阻塞调用。
 def test_no_blocking_calls() -> None:
-    problems = without_allowed(check_blocking())
+    problems = scoped(check_blocking())
     assert problems == [], listed(problems)
 
 
@@ -43,23 +56,23 @@ def test_readmes() -> None:
     names = {
         name: [item.name for item in module.provides] for name, module in catalog.modules.items()
     }
-    problems = without_allowed(check_readmes(contracts=names))
+    problems = scoped(check_readmes(contracts=names))
     assert problems == [], listed(problems)
 
 
 # 业务文档齐全、没有超长、规则编号能找到、生成文档没有过期。
 def test_business_docs() -> None:
-    problems = without_allowed(check_business_docs(Catalog(MODULES)))
+    problems = scoped(check_business_docs(Catalog(MODULES)))
     assert problems == [], listed(problems)
 
 
 # 文风：写给人看的文档不用禁用词，不残留未翻译的英文。
 def test_writing_style() -> None:
-    problems = without_allowed(check_writing_style())
+    problems = scoped(check_writing_style())
     assert problems == [], listed(problems)
 
 
-# 登记的例外都还有用，不再需要的例外要删除。
+# 登记的例外都还有用，不再需要的例外要删除；包级检查只看本包路径的例外。
 def test_no_stale_exceptions() -> None:
     everything = check_files() + check_naming() + check_blocking()
-    assert unused_allowed(everything) == []
+    assert in_modules(unused_allowed(everything), selected()) == []

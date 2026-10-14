@@ -26,8 +26,8 @@ def test_code(package: SkeletonPackage, operation: SkeletonOperation) -> str:
     return (
         code.HEADER + "from pathlib import Path\nimport pytest\n"
         "from tests.framework.skeleton_cases import run_case\n\n"
-        f"@pytest.mark.anyio\n@pytest.mark.parametrize('identity', [\n{marks}\n])\n"
         "# 同一份独立预期验证模拟与真实实现，模拟通过不代表可交付。\n"
+        f"@pytest.mark.anyio\n@pytest.mark.parametrize('identity', [\n{marks}\n])\n"
         "async def test_case(services, identity) -> None:\n"
         f"    actual, expected = await run_case(services, Path(__file__).resolve().parents[4], "
         f"{package.name + '.' + operation.name!r}, identity, {dependencies!r})\n"
@@ -67,7 +67,7 @@ def package_files(project: Path, package: SkeletonPackage, operations: dict) -> 
     for operation in package.operations:
         files[folder / ("data_" + operation.name + ".py")] = code.data_code(operation, operations)
         files[folder / "steps" / ("build_" + operation.name + ".py")] = code.step_code(
-            package, operation
+            package, operation, operations
         )
         files[root / "tests/modules" / package.name / ("test_" + operation.name + ".py")] = (
             test_code(package, operation)
