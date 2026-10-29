@@ -29,7 +29,7 @@ from tests.testing_app import make_settings, reset_database
 pytestmark = pytest.mark.anyio
 
 
-async def test_org_scoped_keys_and_legacy_unknown_reuse(tmp_path: Path) -> None:
+async def test_org_scoped_keys(tmp_path: Path) -> None:
     services, _, _ = await setup(tmp_path)
     first = Caller("same-user", "user", "用户", org_id="a")
     other = Caller("same-user", "user", "用户", org_id="b")
@@ -38,12 +38,7 @@ async def test_org_scoped_keys_and_legacy_unknown_reuse(tmp_path: Path) -> None:
         id = await services.runtime.submit(operation, input, caller=first, key="once")
         second = await services.runtime.submit(operation, input, caller=other, key="once")
         assert id != second
-        async with services.database.write() as connection:
-            await connection.execute(
-                jobs.update().where(jobs.c.id == id).values(key_scope=first.id, state="unknown")
-            )
-        reused = await services.runtime.submit(operation, input, caller=first, key="once")
-        assert reused == id
+        assert await services.runtime.submit(operation, input, caller=first, key="once") == id
         assert await services.runtime.submit(operation, input, caller=other, key="once") == second
     finally:
         await services.close()

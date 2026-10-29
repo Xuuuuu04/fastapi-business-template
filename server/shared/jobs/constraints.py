@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from shared.jobs.limits import ResourceLimit
@@ -24,8 +24,6 @@ async def take(queue: "JobQueue", connection: AsyncConnection, now: float) -> di
         if await expired(connection, row, now) or await serial_blocked(connection, row):
             continue
         plan = queue.catalog.plan(row["contract"])
-        if plan is not None and await missing_limits(connection, plan, row, now):
-            continue
         lease = plan.lease_seconds if plan else 60
         resources = plan.resources if plan else ()
         if row["serial_key"]:
@@ -50,7 +48,6 @@ async def take(queue: "JobQueue", connection: AsyncConnection, now: float) -> di
                 attempt=jobs.c.attempt + 1,
                 lease_until=now + lease,
                 updated_at=now,
-                failed_attempts=func.coalesce(jobs.c.failed_attempts, jobs.c.attempt),
             )
             .returning(*ticket_columns())
         )
@@ -158,24 +155,3 @@ async def lock_candidate(connection: AsyncConnection, id: str, now: float) -> An
         .with_for_update(skip_locked=True)
     )
     return (await connection.execute(pick)).mappings().first()
-
-
-async def missing_limits(connection: AsyncConnection, plan: Any, row: Any, now: float) -> bool:
-    missing = bool(plan.serial and not row["serial_key"])
-    missing |= bool(plan.valid_until_field and row["valid_until"] is None)
-    missing |= bool(plan.queue_timeout and row["attempt"] == 0 and row["queued_until"] is None)
-    if not missing:
-        return False
-    await connection.execute(
-        update(jobs)
-        .where(jobs.c.id == row["id"])
-        .values(
-            state="blocked",
-            updated_at=now,
-            finished_at=now,
-            error_code="limits_changed",
-            error_message="当前声明增加了旧任务未冻结的业务约束，请核对旧输入后重新登记",
-        )
-    )
-    await release(connection, row["contract"])
-    return True

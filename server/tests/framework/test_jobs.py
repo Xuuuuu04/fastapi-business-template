@@ -184,7 +184,8 @@ async def test_worker_loop(sample: Services) -> None:
 async def test_removed_key_stops_job(sample: Services) -> None:
     job_id = await sample.runtime.submit(calc, CalcInput(amount=Decimal("1")), caller=DEVELOPER)
     async with sample.database.write() as connection:
-        record = '{"id": "key:gone", "kind": "service", "name": "gone", "permissions": ["*"]}'
+        gone = {"id": "key:gone", "kind": "service", "name": "gone", "permissions": ["*"]}
+        record = json.dumps({**gone, "org_id": ""})
         await connection.execute(update(jobs).values(caller_json=record))
     await work_once(sample)
     job = await get_job(sample.database, job_id)

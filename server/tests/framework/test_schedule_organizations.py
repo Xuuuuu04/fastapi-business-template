@@ -56,6 +56,7 @@ def test_period_key_is_unambiguous_and_bounded() -> None:
     slot = datetime(2026, 10, 8, tzinfo=UTC)
     assert period_key("x:a", "b", slot) != period_key("x", "a:b", slot)
     assert len(period_key("name" * 20, "a" * 64, slot)) <= 120
+    assert len(period_key("name" * 40, "*", slot)) <= 120
 
 
 @pytest.mark.parametrize(

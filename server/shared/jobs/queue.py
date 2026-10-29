@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -42,8 +42,8 @@ class Ticket:
     input_json: str
     caller_json: str
     request_id: str
+    failed_attempts: int
     key: str | None = None
-    failed_attempts: int | None = 0
 
 
 class JobQueue:
@@ -71,7 +71,7 @@ class JobQueue:
             raise StepRuleBroken(f"操作 {item.name} 没有在模块的 jobs 中声明，不能作为任务登记")
         body, digest, key = plan.submission(input, key)
         if key:
-            existing = await same_key(connection, item.name, scope_for(caller), key, digest, caller)
+            existing = await same_key(connection, item.name, scope_for(caller), key, digest)
             if existing:
                 return existing
         now = business_now()
@@ -94,7 +94,7 @@ class JobQueue:
                 if plan.segmented:
                     await create_checkpoint(connection, str(row["id"]))
         except IntegrityError:
-            existing = await same_key(connection, item.name, scope_for(caller), key, digest, caller)
+            existing = await same_key(connection, item.name, scope_for(caller), key, digest)
             if existing:
                 return existing
             raise
@@ -151,9 +151,7 @@ class JobQueue:
         now = business_now()
         values: dict[str, Any] = {"state": state, "updated_at": now, "lease_until": None}
         if not deferred:
-            values["failed_attempts"] = (
-                func.coalesce(jobs.c.failed_attempts, jobs.c.attempt - 1) + 1
-            )
+            values["failed_attempts"] = jobs.c.failed_attempts + 1
         values |= {"error_code": code, "error_message": message[:1000], "last_run_id": run_id}
         if state in READY:
             values["run_after"] = run_after or now

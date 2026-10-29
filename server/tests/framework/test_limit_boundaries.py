@@ -13,29 +13,9 @@ from shared.effects.spec import AdapterReply
 from shared.errors.framework import StepRuleBroken
 from shared.jobs.limits import ResourceLimit, SerialKey, limit_problems
 from shared.jobs.resources import reconfigure
-from shared.jobs.tables import jobs
 from tests.framework.test_job_limits import Input, operation, setup
 
 pytestmark = pytest.mark.anyio
-
-
-async def test_old_job_without_new_limits_is_blocked(tmp_path: Path) -> None:
-    services, _, clock = await setup(tmp_path, serial=True)
-    try:
-        id = await services.runtime.submit(
-            operation, Input(session="s", expires=datetime.fromtimestamp(1000, UTC)), caller=SYSTEM
-        )
-        async with services.database.write() as connection:
-            await connection.execute(
-                jobs.update().where(jobs.c.id == id).values(serial_key=None, serial_position=None)
-            )
-        assert await services.queue.claim(clock.now()) is None
-        async with services.database.read() as connection:
-            row = (await connection.execute(select(jobs).where(jobs.c.id == id))).mappings().one()
-        assert row["state"] == "blocked" and row["attempt"] == 0
-        assert row["error_code"] == "limits_changed"
-    finally:
-        await services.close()
 
 
 async def test_resource_reconfiguration_requires_idle(tmp_path: Path) -> None:

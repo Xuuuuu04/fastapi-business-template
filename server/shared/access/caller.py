@@ -38,15 +38,20 @@ SYSTEM = Caller("system", "system", "系统定时任务", frozenset({"*"}), "*")
 DEVELOPER = Caller("developer", "developer", "本地开发者", frozenset({"*"}), "*")
 
 
+CALLER_KINDS: tuple[CallerKind, ...] = ("user", "service", "system", "developer", "anonymous")
+RECORD_KEYS = {"id", "kind", "name", "permissions", "org_id"}
+
+
 def caller_from_record(record: dict[str, object]) -> Caller:
-    permissions = record.get("permissions", [])
-    names = permissions if isinstance(permissions, list) else []
-    kind = str(record.get("kind", "anonymous"))
-    allowed: tuple[CallerKind, ...] = ("user", "service", "system", "developer", "anonymous")
-    return Caller(
-        id=str(record.get("id", "")),
-        kind=kind if kind in allowed else "anonymous",
-        name=str(record.get("name", "")),
-        permissions=frozenset(str(name) for name in names),
-        org_id=str(record.get("org_id", "")),
-    )
+    if set(record) != RECORD_KEYS:
+        raise ValueError(f"调用者记录必须正好包含这些字段：{'、'.join(sorted(RECORD_KEYS))}")
+    identity, name, org_id = record["id"], record["name"], record["org_id"]
+    if not (isinstance(identity, str) and isinstance(name, str) and isinstance(org_id, str)):
+        raise ValueError("调用者记录的 id、name、org_id 必须是文字")
+    permissions = record["permissions"]
+    if not isinstance(permissions, list) or not all(isinstance(item, str) for item in permissions):
+        raise ValueError("调用者记录的 permissions 必须是文字列表")
+    kind = next((item for item in CALLER_KINDS if item == record["kind"]), None)
+    if kind is None:
+        raise ValueError(f"调用者记录的 kind 无效：{record['kind']}")
+    return Caller(identity, kind, name, frozenset(permissions), org_id)

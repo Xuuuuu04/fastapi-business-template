@@ -41,13 +41,11 @@ def stage_declaration(stage: Stage, catalog: "Catalog") -> dict[str, str]:
         input_from=stage.input_from,
         cursor=format_of(plan.cursor if plan else None),
         segmented=bool(plan and plan.segmented),
+        source=[stage.freeze_sources, format_of(stage.source)],
+        member_results={name: format_of(model) for name, model in stage.members.items()},
     )
     if isinstance(stage, Wait):
         shape["wait"] = [stage.ready_field, stage.every, stage.timeout, stage.max_parallel]
-    if stage.freeze_sources or stage.source is not None:
-        shape["source"] = [stage.freeze_sources, format_of(stage.source)]
-    if stage.members:
-        shape["member_results"] = {name: format_of(model) for name, model in stage.members.items()}
     if isinstance(stage, FanOut):
         shape["members"] = [stage_declaration(child, catalog) for child in stage.stages]
         shape["group"] = group_signature(stage)

@@ -44,7 +44,7 @@ async def save_business_failure(
             deferred=True,
         )
         return
-    failures = ticket.failed_attempts + 1 if ticket.failed_attempts is not None else ticket.attempt
+    failures = ticket.failed_attempts + 1
     state, run_after = next_state(error.kind, failures, retries, wait_after)
     await queue.fail(
         ticket, state, error.code, error.detail, run_after=run_after, run_id=error.run_id
