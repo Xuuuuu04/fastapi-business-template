@@ -23,7 +23,7 @@ from tests.framework.import_sample import Input, module, operation, rows, sample
 from tests.testing_app import make_settings, prepare_test_database
 
 
-def test_history_scan(tmp_path: Path, caplog) -> None:
+def test_history_scan(tmp_path: Path) -> None:
     versions = tmp_path / "migrations" / "versions"
     versions.mkdir(parents=True)
     (versions / "old.py").write_text("""from alembic import op
@@ -36,9 +36,7 @@ def upgrade():
     from alembic.op import drop_table as remove_table
     remove_table("direct_import")
 """)
-    assert check_migrations(tmp_path, [], Settings()) == []
-    assert "legacy" in caplog.text and "APP_MIGRATION_STRICT" in caplog.text
-    errors = check_migrations(tmp_path, [], Settings(migration_strict=True))
+    errors = check_migrations(tmp_path, [], Settings())
     assert len(errors) == 5
     assert "old" in errors[2] or any("old 未登记" in e for e in errors)
     assert (
@@ -46,10 +44,7 @@ def upgrade():
             check_migrations(
                 tmp_path,
                 [],
-                Settings(
-                    migration_strict=True,
-                    owned_tables=["legacy", "other", "old", "direct_import"],
-                ),
+                Settings(owned_tables=["legacy", "other", "old", "direct_import"]),
             )
         )
         == 1

@@ -11,6 +11,7 @@ from shared.model_calls.providers import FakeModel
 from shared.modules.catalog import Catalog
 from shared.public import (
     Data,
+    Endpoint,
     Flow,
     Module,
     ModuleCache,
@@ -37,6 +38,22 @@ class Price(Data):
     price: int = meaning("合作方报价", unit="分")
 
 
+class PriceQuery(Data):
+    sku: str = meaning("商品编号")
+    token: str = meaning("合作方口令", secret=True)
+
+
+price_endpoint = Endpoint(
+    "partner.price",
+    "GET",
+    "/prices/{sku}",
+    input=PriceQuery,
+    output=Price,
+    effect="read",
+    path_fields=("sku",),
+)
+
+
 class PriceWork(WorkData):
     sku: str = meaning("商品编号")
     price: int = meaning("合作方报价", unit="分")
@@ -51,22 +68,22 @@ class PriceStore:
         cached = await self.cache.get_text(f"price:{sku}")
         if cached is not None:
             return int(cached)
-        reply = await self.remote.get(partner, f"/prices/{sku}")
-        await self.cache.set_text(f"price:{sku}", str(reply.data["price"]), 60)
-        return int(reply.data["price"])
+        reply = await self.remote.call(partner, price_endpoint, PriceQuery(sku=sku, token="secret"))
+        await self.cache.set_text(f"price:{sku}", str(reply.data.price), 60)
+        return reply.data.price
 
 
 ask_price = contract("price_probe.ask", "询价", input=Sku, output=Price, access="public")
 cached_price = contract("price_probe.cached", "缓存询价", input=Sku, output=Price, access="public")
 
 
-@step("询问合作方", reads=["sku"], writes=["price"], remotes=[partner])
+@step("询问合作方", reads=["sku"], writes=["price"], remotes=[partner], endpoints=[price_endpoint])
 async def ask(data: PriceWork, remote: RemoteClient) -> None:
-    reply = await remote.get(partner, f"/prices/{data.sku}", params={"token": "secret"})
-    data.price = int(reply.data["price"])
+    reply = await remote.call(partner, price_endpoint, PriceQuery(sku=data.sku, token="secret"))
+    data.price = reply.data.price
 
 
-@step("读取价格", reads=["sku"], writes=["price"])
+@step("读取价格", reads=["sku"], writes=["price"], endpoints=[price_endpoint])
 async def read_price(data: PriceWork, store: PriceStore) -> None:
     data.price = await store.price(data.sku)
 
@@ -86,6 +103,7 @@ price_module = Module(
     },
     store=PriceStore,
     remotes=(partner,),
+    endpoints=(price_endpoint,),
 )
 
 
@@ -120,7 +138,7 @@ async def test_remote_step_is_recorded(tmp_path: Path) -> None:
         first = record.steps[0]
         assert first.kind == "remote"
         assert [(item.remote, item.path, item.status) for item in first.remotes] == [
-            ("partner", "/prices/a1", 200)
+            ("partner", "/prices/{sku}", 200)
         ]
         assert "secret" not in str(record.to_dict())
     finally:

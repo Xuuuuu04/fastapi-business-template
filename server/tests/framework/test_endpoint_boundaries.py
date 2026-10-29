@@ -1,4 +1,3 @@
-import logging
 from dataclasses import replace
 from pathlib import Path
 
@@ -25,7 +24,6 @@ from tests.framework.endpoint_sample import (
     write_endpoint,
 )
 from tests.framework.test_endpoint_contracts import service
-from tests.framework.test_remote_steps import price_module
 from tests.testing_app import make_settings, reset_database
 
 
@@ -68,22 +66,13 @@ async def test_store_protocol(tmp_path: Path) -> None:
         Catalog([store_module(False)])
 
 
-def test_legacy_warning_then_strict(caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
-    with caplog.at_level(logging.WARNING, logger="server.remote_calls"):
-        Catalog([price_module])
-    assert "旧上游调用" in caplog.text
-    with pytest.raises(DeclarationError, match="旧上游调用"):
-        build(make_settings(tmp_path, remote_endpoints_strict=True), modules=[price_module])
-
-
 @pytest.mark.anyio
-async def test_runtime_strict_and_forgery() -> None:
+async def test_only_declared_endpoints_and_forgery() -> None:
     client = service(lambda request: httpx2.Response(200, json={"accepted": True, "count": 1}))
-    client.strict_endpoints = True
     gate = RemoteGate(client, (upstream,), [], "测试", endpoints=(write_endpoint,))
     try:
-        with pytest.raises(StepRuleBroken, match="严格接口模式"):
-            await gate.get(upstream, "/read")
+        with pytest.raises(StepRuleBroken, match="只能用 remote.call"):
+            await gate.send(upstream, RemoteRequest("GET", "/read"))
         with pytest.raises(StepRuleBroken, match="声明不一致"):
             await gate.send(
                 upstream,

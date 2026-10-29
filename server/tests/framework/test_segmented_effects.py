@@ -20,9 +20,11 @@ from tests.framework.test_remote_write_safety import (
     child,
     fail,
     partner,
+    read_record,
     run,
     send,
     write,
+    write_record,
 )
 from tests.testing_app import make_settings, prepare_test_database
 
@@ -49,6 +51,7 @@ def effect_module(nested: bool, fails: bool) -> Module:
             ),
         },
         remotes=(partner,),
+        endpoints=(read_record, write_record),
         jobs=(JobPlan(run, retry=Retry(2, (0,)), segmented=True, repeat_safe=True),),
     )
 

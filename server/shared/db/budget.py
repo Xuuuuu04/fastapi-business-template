@@ -19,7 +19,6 @@ class QueryBudget:
 @dataclass(frozen=True)
 class QueryPolicy:
     env: str = "local"
-    mode: str = "auto"
     explain: bool = False
 
     def explain_enabled(self) -> bool:
@@ -41,10 +40,8 @@ def check_budget(budget: QueryBudget | None, name: str) -> list[str]:
     ]
 
 
-def policy(env: str, mode: str, declared: bool) -> str:
-    if env == "production" or mode == "warn":
-        return "warn"
-    return "error" if env == "test" and (declared or mode == "error") else "warn"
+def policy(env: str) -> str:
+    return "error" if env == "test" else "warn"
 
 
 def comparison(run: RunRecord, budget: QueryBudget, declared: bool) -> dict[str, Any]:

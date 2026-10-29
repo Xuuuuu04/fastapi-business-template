@@ -12,7 +12,7 @@ from shared.errors.framework import (
 from shared.files.gate import ModuleFiles
 from shared.files.storage import LocalFiles
 from shared.files.uploads import UploadArea
-from shared.remote_calls.gate import RemoteGate
+from shared.records.models import RemoteCallRecord
 from shared.remote_calls.remote import Remote, RemoteConfig
 from shared.remote_calls.service import RemoteRequest, RemoteService
 
@@ -56,14 +56,15 @@ async def test_explicit_409_capture_preserves_default_errors() -> None:
         {target.name: httpx2.MockTransport(reply)},
         retry_waits=(0,),
     )
-    records = []
-    gate = RemoteGate(service, (target,), records, "检查受理结果")
+    records: list[RemoteCallRecord] = []
     try:
-        received = await gate.post(target, "/jobs", accepted_statuses=(409,))
+        received = await service.send(
+            target, RemoteRequest("POST", "/jobs", accepted_statuses=(409,)), records
+        )
         assert received.status == 409 and received.data == {"accepted": False}
         assert records[-1].outcome == "failed" and len(calls) == 1
         with pytest.raises(RemoteRejected):
-            await gate.post(target, "/jobs")
+            await service.send(target, RemoteRequest("POST", "/jobs"), records)
         assert len(calls) == 2
     finally:
         await service.close()

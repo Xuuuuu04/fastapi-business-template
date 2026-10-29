@@ -32,12 +32,10 @@ class RemoteService:
         configs: dict[str, RemoteConfig],
         transports: dict[str, httpx2.AsyncBaseTransport] | None = None,
         retry_waits: tuple[float, ...] = RETRY_WAITS,
-        strict_endpoints: bool = False,
     ) -> None:
         self.clock: Clock = RealClock()
 
         self.configs = configs
-        self.strict_endpoints = strict_endpoints
         self.transports = transports or {}
         self.retry_waits = retry_waits
         self.clients: dict[str, httpx2.AsyncClient] = {}

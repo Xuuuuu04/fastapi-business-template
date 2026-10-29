@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -10,8 +9,6 @@ from shared.remote_calls.remote import Remote
 from shared.remote_calls.request import FilePart
 from shared.remote_calls.serialization import request_for
 from shared.remote_calls.service import RemoteReply, RemoteRequest, RemoteService, is_write
-
-log = logging.getLogger("server.remote_calls")
 
 
 class RemoteGate:
@@ -25,7 +22,6 @@ class RemoteGate:
         effects: list[RemoteCallRecord] | None = None,
         before_write: Callable[[], Awaitable[None]] | None = None,
         endpoints: tuple[Endpoint[Any, Any], ...] = (),
-        strict_endpoints: bool | None = None,
     ) -> None:
         self._service = service
         self._allowed = allowed
@@ -35,55 +31,11 @@ class RemoteGate:
         self._effects = effects
         self._before_write = before_write
         self._endpoints = endpoints
-        self._strict_endpoints = (
-            getattr(service, "strict_endpoints", False)
-            if strict_endpoints is None
-            else strict_endpoints
-        )
-
-    async def get(
-        self, target: Remote, path: str, *, params: dict[str, Any] | None = None
-    ) -> RemoteReply:
-        return await self.send(target, RemoteRequest("GET", path, params=params))
-
-    async def post(
-        self,
-        target: Remote,
-        path: str,
-        *,
-        json: Any = None,
-        key: str = "",
-        accepted_statuses: tuple[int, ...] = (),
-    ) -> RemoteReply:
-        return await self.send(
-            target,
-            RemoteRequest("POST", path, json=json, key=key, accepted_statuses=accepted_statuses),
-        )
-
-    async def put(
-        self,
-        target: Remote,
-        path: str,
-        *,
-        json: Any = None,
-        key: str = "",
-        accepted_statuses: tuple[int, ...] = (),
-    ) -> RemoteReply:
-        return await self.send(
-            target,
-            RemoteRequest("PUT", path, json=json, key=key, accepted_statuses=accepted_statuses),
-        )
-
-    async def delete(self, target: Remote, path: str, *, key: str = "") -> RemoteReply:
-        return await self.send(target, RemoteRequest("DELETE", path, key=key))
 
     async def send(self, target: Remote, request: RemoteRequest) -> RemoteReply:
-        if request.endpoint:
-            self.check_request(request)
-        elif self._strict_endpoints:
-            raise StepRuleBroken("严格接口模式要求使用 remote.call 和已声明的 Endpoint")
-        else:
-            log.warning("%s 使用旧上游调用，请迁移为Endpoint及remote.call", self._place)
+        if not request.endpoint:
+            raise StepRuleBroken("只能用 remote.call 调用已声明的 Endpoint")
+        self.check_request(request)
         if self._transaction_started is not None and self._transaction_started():
             raise StepRuleBroken("写入事务开始后不能调用外部接口")
         if target not in self._allowed:

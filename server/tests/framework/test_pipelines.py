@@ -76,7 +76,7 @@ async def snapshot(services: Services, run_id: str):
 
 
 async def test_scheduled_four_stages_complete(piped: Services) -> None:
-    scheduler = Scheduler(piped.catalog.schedules, piped.queue, piped.database, "")
+    scheduler = Scheduler(piped.catalog.schedules, piped.queue, piped.database)
     now = time.time()
     await scheduler.tick(now)
     await scheduler.tick(now)

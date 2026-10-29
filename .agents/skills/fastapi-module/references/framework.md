@@ -123,7 +123,7 @@ class SqlQuoteStore:
 - 用 SQLAlchemy Core，不用 ORM，不能执行原始 SQL 文本。
 - 带 `org_column()` 的表，每一层查询（子查询、别名、更新关联的表）都要写 `表.c.org_id == caller.org_id`。只认 `列 == 值`，`in_`、`or_` 里缺条件或无法判断的语句会被拒绝。`owner_column` 同理，没有 see_all 权限的调用者每层写 `owner_id == caller.id`。
 - 按读到的值决定写入（扣库存、状态流转）时，在保存步骤里 `first_for_update`，或用 `change_or_fail(update(...).where(表.c.状态 == 读到的状态), 错误())`。不要在只读步骤读、再在保存步骤无条件写。
-- 查询额度：contract 写 `query_budget=QueryBudget(queries=20, rows=5000, bytes=64000, repeated=20)`。没写的用宽松默认值（1000 次、100000 行、64000000 字节、同一函数 100 次），超了只警告；写了之后测试环境超额就失败并回滚，生产只记录。
+- 查询额度：contract 写 `query_budget=QueryBudget(queries=20, rows=5000, bytes=64000, repeated=20)`。没写的用默认值（1000 次、100000 行、64000000 字节、同一函数 100 次）。测试环境超额就失败并回滚，其他环境只记录。
 - 新增表的迁移步骤见 SKILL.md“生成命令”。只保留不修改的外部表登记在 `Module(external_tables=...)`，产品维护但已不在代码里的历史表登记在 `owned_tables`。旧系统的表定义放 `server/legacy/`，用 `legacy.schema` 的 `legacy_metadata`，不进迁移；存储构造参数写 `legacy` 拿到 `APP_LEGACY_DATABASE_URL` 的只读入口。
 
 例子：`test_conditional_change.py`、`test_bulk_insert.py`、`test_owner_scope.py`、`test_common_services.py`、`query_budget_sample.py`、`test_legacy_database.py`。

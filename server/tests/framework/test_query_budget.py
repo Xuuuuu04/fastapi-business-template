@@ -66,14 +66,11 @@ async def test_loop_fails_batch_passes(settings: Settings) -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize(
-    "declared,env,mode",
-    [(False, "test", "auto"), (True, "test", "warn"), (True, "production", "error")],
+    "declared,env", [(False, "production"), (True, "production"), (True, "local")]
 )
-async def test_warning_compatibility(
-    settings: Settings, declared: bool, env: str, mode: str
-) -> None:
+async def test_only_test_environment_fails(settings: Settings, declared: bool, env: str) -> None:
     built = await sample(settings, QueryBudget(queries=2) if declared else None)
-    built.runtime.query_policy = QueryPolicy(env, mode)
+    built.runtime.query_policy = QueryPolicy(env)
     item = next(iter(built.catalog.bindings))
     try:
         await built.runtime.run(item, Input(size=220), caller=ANONYMOUS)
@@ -114,9 +111,9 @@ def test_invalid_declaration() -> None:
 
 
 @pytest.mark.anyio
-async def test_default_error_opt_in(settings: Settings) -> None:
+async def test_default_budget_fails_in_test(settings: Settings) -> None:
     built = await sample(settings, None)
-    built.runtime.query_policy = QueryPolicy("test", "error")
+    built.runtime.query_policy = QueryPolicy("test")
     try:
         with pytest.raises(StepRuleBroken, match="逐行查询"):
             await built.runtime.run(
@@ -130,11 +127,12 @@ async def test_default_error_opt_in(settings: Settings) -> None:
 @pytest.mark.postgres_only
 async def test_postgres_explain(settings: Settings) -> None:
     built = await sample(settings, QueryBudget(rows=2))
-    built.runtime.query_policy = QueryPolicy("test", "warn", True)
+    built.runtime.query_policy = QueryPolicy("test", True)
     try:
-        await built.runtime.run(
-            next(iter(built.catalog.bindings)), Input(batch=True), caller=ANONYMOUS
-        )
+        with pytest.raises(StepRuleBroken):
+            await built.runtime.run(
+                next(iter(built.catalog.bindings)), Input(batch=True), caller=ANONYMOUS
+            )
         run = (await built.recorder.recent(RunFilter(top_only=False), 10))[0]
         call = run.steps[0].database[0]
         assert call.explain_status == "ok" and call.explain
@@ -145,7 +143,7 @@ async def test_postgres_explain(settings: Settings) -> None:
             "Plan Width",
             "Total Cost",
         }
-        assert not QueryPolicy("production", "error", True).explain_enabled()
+        assert not QueryPolicy("production", True).explain_enabled()
     finally:
         await close_sample(built)
 
@@ -236,7 +234,7 @@ async def test_explain_uses_operation_total(settings: Settings) -> None:
     from tests.framework.query_budget_sample import Store, Work, load_items
 
     built = await sample(settings, QueryBudget(queries=5))
-    built.runtime.query_policy = QueryPolicy("test", "warn", True)
+    built.runtime.query_policy = QueryPolicy("test", True)
     item = next(iter(built.catalog.bindings))
 
     @step("先读取", reads=["size"])
@@ -248,7 +246,8 @@ async def test_explain_uses_operation_total(settings: Settings) -> None:
     flow = Flow("分步查询", work=Work, result="result", steps=[load_first, load_items])
     built.runtime.catalog = Catalog([replace(module, provides={item: flow})])
     try:
-        await built.runtime.run(item, Input(size=3), caller=ANONYMOUS)
+        with pytest.raises(StepRuleBroken):
+            await built.runtime.run(item, Input(size=3), caller=ANONYMOUS)
         run = (await built.recorder.recent(RunFilter(top_only=False), 10))[0]
         assert run.query_budget["actual"]["queries"] == 6
         assert run.steps[1].database[-1].explain_status == "ok"

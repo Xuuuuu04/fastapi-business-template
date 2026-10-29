@@ -1,5 +1,4 @@
 import ast
-import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -10,7 +9,6 @@ from sqlalchemy import Table
 from shared.config.settings import Settings
 from shared.modules.module import Module
 
-log = logging.getLogger("server.migrations")
 RETIRED = frozenset({"system_ops_state"})
 
 
@@ -156,9 +154,4 @@ def table_argument(call: ast.Call) -> str:
 
 def check_migrations(root: Path, modules: Sequence[Module], settings: Settings) -> list[str]:
     tables = ownership(modules, settings)
-    problems = migration_problems(root / "migrations" / "versions", tables)
-    if settings.migration_strict:
-        return problems
-    for problem in problems:
-        log.warning("迁移兼容提醒：%s；整理后开启 APP_MIGRATION_STRICT=true", problem)
-    return []
+    return migration_problems(root / "migrations" / "versions", tables)

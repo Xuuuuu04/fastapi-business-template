@@ -12,6 +12,7 @@ from shared.model_calls.providers import FakeModel
 from shared.public import (
     Call,
     Data,
+    Endpoint,
     Flow,
     JobPlan,
     Module,
@@ -41,18 +42,34 @@ class Work(WorkData):
     result: Nothing = meaning("空结果")
 
 
+class Saved(Data):
+    saved: bool = meaning("对方是否已保存")
+
+
+read_record = Endpoint(
+    "write_probe.read", "GET", "/record", input=Nothing, output=Saved, effect="read"
+)
+write_record = Endpoint(
+    "write_probe.write", "POST", "/record", input=Nothing, output=Saved, effect="write"
+)
 write = contract(
     "effect_probe.write", "调用外部系统", input=Input, output=Nothing, access="public", entry=False
 )
 run = contract("effect_probe.run", "调用后失败", input=Input, output=Nothing, access="public")
 
 
-@step("请求合成服务", reads=["method"], writes=["result"], remotes=[partner])
+@step(
+    "请求合成服务",
+    reads=["method"],
+    writes=["result"],
+    remotes=[partner],
+    endpoints=[read_record, write_record],
+)
 async def send(data: Work, remote: RemoteClient) -> None:
     if data.method == "GET":
-        await remote.get(partner, "/record")
+        await remote.call(partner, read_record, Nothing())
     else:
-        await remote.post(partner, "/record", key="synthetic-stable-key")
+        await remote.call(partner, write_record, Nothing(), key="synthetic-stable-key")
     data.result = Nothing()
 
 
@@ -81,6 +98,7 @@ async def test_job_does_not_replay_external_effect(
             run: Flow("失败流程", work=Work, result="result", steps=steps),
         },
         remotes=(partner,),
+        endpoints=(read_record, write_record),
         jobs=(JobPlan(run, retry=Retry(1, (0,))),),
     )
     settings = make_settings(tmp_path)

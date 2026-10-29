@@ -8,9 +8,9 @@ from sqlalchemy import select
 from app.setup.build import Services
 from shared.access.caller import SYSTEM
 from shared.config.settings import Settings
-from shared.jobs.organizations import period_key, schedule_caller
+from shared.jobs.organizations import period_key
 from shared.jobs.plan import Schedule, build_slot_input
-from shared.jobs.schedule import Scheduler, latest_slot
+from shared.jobs.schedule import Scheduler
 from shared.jobs.tables import jobs
 from shared.public import Data, meaning
 from tests.framework.sample_modules import SlowInput, slow
@@ -52,26 +52,6 @@ async def test_module_org_selection_and_global_task(sample: Services) -> None:
     assert {json.loads(row)["org_id"] for row in rows} == {"beta", "*"}
 
 
-async def test_existing_single_org_slot_is_reused(sample: Services) -> None:
-    timer = Schedule("minute", "每分钟", slow, SlowInput(mark="t"), every=timedelta(minutes=1))
-    now = datetime(2026, 10, 8, 0, 0, tzinfo=UTC)
-    slot = latest_slot(timer, now)
-    async with sample.database.write() as connection:
-        await sample.queue.submit(
-            connection,
-            slow,
-            timer.input,
-            schedule_caller("alpha"),
-            key=f"schedule:minute:{slot.isoformat()}",
-            request_id="",
-        )
-    scheduler = Scheduler([timer], sample.queue, sample.database, org_id="alpha")
-    assert await scheduler.tick(now.timestamp()) == 1
-    async with sample.database.read() as connection:
-        rows = (await connection.execute(select(jobs))).all()
-    assert len(rows) == 1
-
-
 def test_period_key_is_unambiguous_and_bounded() -> None:
     slot = datetime(2026, 10, 8, tzinfo=UTC)
     assert period_key("x:a", "b", slot) != period_key("x", "a:b", slot)
@@ -84,7 +64,6 @@ def test_period_key_is_unambiguous_and_bounded() -> None:
         {"schedule_org_ids": ["a", "a"]},
         {"schedule_org_ids": ["*"]},
         {"schedule_org_ids": [""]},
-        {"schedule_org_id": "a", "schedule_org_ids": ["b"]},
     ],
 )
 def test_invalid_org_configuration_is_rejected(values) -> None:

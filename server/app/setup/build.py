@@ -120,7 +120,7 @@ def product_catalog(
     selected = with_effects(spec, modules)
     from shared.scenarios.simulation import check_simulations
 
-    catalog = Catalog(selected, strict_endpoints=settings.remote_endpoints_strict)
+    catalog = Catalog(selected)
     check_simulations(catalog, settings.env)
     return catalog
 
@@ -215,10 +215,7 @@ def cache_service(settings: Settings) -> Cache:
 
 def remote_service(settings: Settings, catalog: Catalog) -> RemoteService:
     used = {item.name for module in catalog.modules.values() for item in module.remotes}
-    return RemoteService(
-        {key: value for key, value in settings.remotes.items() if key in used},
-        strict_endpoints=settings.remote_endpoints_strict,
-    )
+    return RemoteService({key: value for key, value in settings.remotes.items() if key in used})
 
 
 def model_service(
@@ -259,4 +256,4 @@ def store_requirements(catalog: Catalog) -> set[str]:
 
 
 def query_policy(settings: Settings) -> QueryPolicy:
-    return QueryPolicy(settings.env, settings.query_budget_mode, settings.query_budget_explain)
+    return QueryPolicy(settings.env, settings.query_budget_explain)

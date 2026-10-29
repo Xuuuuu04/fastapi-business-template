@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 from shared.db.database import Database
 from shared.errors.kinds import BusinessError
-from shared.jobs.organizations import configured_orgs, legacy_exists, period_key, schedule_caller
+from shared.jobs.organizations import period_key, schedule_caller, validate_orgs
 from shared.jobs.plan import Schedule, build_slot_input
 from shared.jobs.queue import JobQueue
 
@@ -32,10 +32,9 @@ class Scheduler:
         schedules: list[Schedule],
         queue: JobQueue,
         database: Database,
-        org_id: str = "",
         org_ids: tuple[str, ...] = (),
     ) -> None:
-        self.org_ids = configured_orgs(org_id, org_ids)
+        self.org_ids = validate_orgs(org_ids)
         self.schedules = schedules
         self.queue = queue
         self.database = database
@@ -74,10 +73,6 @@ class Scheduler:
         key = period_key(schedule.name, org_id, slot)
         try:
             async with self.database.write() as connection:
-                if org_id != "*" and await legacy_exists(
-                    connection, schedule.name, schedule.contract.name, org_id, slot
-                ):
-                    return True
                 await self.queue.submit(
                     connection,
                     schedule.contract,

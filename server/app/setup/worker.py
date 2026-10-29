@@ -29,7 +29,6 @@ async def serve(settings: Settings, *, application: ApplicationSpec | None = Non
         shutdown_seconds=settings.job_shutdown_seconds,
         record_days=settings.run_record_days,
         health_file=settings.job_health_file,
-        schedule_org_id=settings.schedule_org_id,
         schedule_org_ids=tuple(settings.schedule_org_ids),
     )
     worker = Worker(services.runtime, services.queue, settings.api_keys, options)

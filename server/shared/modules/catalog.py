@@ -12,7 +12,6 @@ from shared.modules.contract import Contract
 from shared.modules.module import Module
 from shared.pipelines.plan import stages_of
 from shared.pipelines.registration import check_pipelines, expand
-from shared.remote_calls.checks import check_endpoints
 
 
 @dataclass(frozen=True, eq=False)
@@ -24,14 +23,12 @@ class Binding:
 
 
 class Catalog:
-    def __init__(self, modules: Sequence[Module], *, strict_endpoints: bool = False) -> None:
+    def __init__(self, modules: Sequence[Module]) -> None:
         pipeline_problems = check_pipelines(modules)
         if pipeline_problems:
             raise DeclarationError(pipeline_problems)
         modules = expand(modules)
         problems = pipeline_problems + check_catalog(modules)
-        if strict_endpoints:
-            problems += check_endpoints(modules, strict=True)
         if problems:
             raise DeclarationError(problems)
         self.modules = {module.name: module for module in modules}

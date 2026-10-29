@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from shared.access.keys import ApiKeyConfig
 from shared.access.vault import LOCAL_DATA_KEY
-from shared.jobs.organizations import configured_orgs
+from shared.jobs.organizations import validate_orgs
 from shared.remote_calls.remote import RemoteConfig
 
 LOCAL_JWT_SECRET = "local-development-only-secret-change-me"
@@ -24,13 +24,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///var/local.db"
     owned_tables: list[str] = []
     external_tables: list[str] = []
-    migration_strict: bool = False
     database_pool_size: int = Field(default=10, ge=1, le=200)
     database_wait_seconds: float = Field(default=10, gt=0, le=120)
     database_org_setting: str = Field(
         default="", pattern=r"^$|^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$"
     )
-    schedule_org_id: str = ""
     schedule_org_ids: list[str] = []
 
     docs: bool = True
@@ -47,7 +45,6 @@ class Settings(BaseSettings):
     run_record_buffer: int = Field(default=5000, ge=10)
     run_record_days: int = Field(default=14, ge=1)
     step_checks: bool | None = None
-    query_budget_mode: Literal["auto", "warn", "error"] = "auto"
     query_budget_explain: bool = False
     heavy_concurrency: int = Field(default=4, ge=1, le=64)
 
@@ -66,7 +63,6 @@ class Settings(BaseSettings):
     job_health_seconds: float = Field(default=60, ge=10)
 
     remotes: dict[str, RemoteConfig] = {}
-    remote_endpoints_strict: bool = False
     legacy_database_url: str = ""
     cache_url: str = ""
     cache_timeout_seconds: float = Field(default=3, gt=0, le=30)
@@ -98,7 +94,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def schedule_organizations(self) -> "Settings":
-        configured_orgs(self.schedule_org_id, self.schedule_org_ids)
+        validate_orgs(self.schedule_org_ids)
         return self
 
     @model_validator(mode="after")

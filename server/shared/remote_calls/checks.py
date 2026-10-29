@@ -1,6 +1,5 @@
 import ast
 import inspect
-import logging
 import textwrap
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
@@ -12,10 +11,8 @@ if TYPE_CHECKING:
     from shared.flow.step import Step
     from shared.modules.module import Module
 
-log = logging.getLogger("server.remote_calls")
 
-
-def check_endpoints(modules: Sequence["Module"], *, strict: bool = False) -> list[str]:
+def check_endpoints(modules: Sequence["Module"]) -> list[str]:
     problems: list[str] = []
     defined: dict[str, Endpoint[Any, Any]] = {}
     for module in modules:
@@ -30,11 +27,11 @@ def check_endpoints(modules: Sequence["Module"], *, strict: bool = False) -> lis
             if not isinstance(flow, Flow):
                 continue
             for part in flow.steps:
-                problems += check_step_endpoints(module, part, strict)
+                problems += check_step_endpoints(module, part)
     return problems
 
 
-def check_step_endpoints(module: "Module", part: "Step", strict: bool) -> list[str]:
+def check_step_endpoints(module: "Module", part: "Step") -> list[str]:
     place = f"步骤“{part.title}”（{part.source}）"
     problems = []
     for endpoint in part.endpoints:
@@ -42,20 +39,18 @@ def check_step_endpoints(module: "Module", part: "Step", strict: bool) -> list[s
             problems.append(f"{place} 上游接口 {endpoint.name} 未在Module.endpoints登记")
     if part.endpoints and not ({"store", "remote"} & set(part.params)):
         problems.append(f"{place} 声明endpoints但没有store或remote参数")
-    problems += inspect_calls(part.func, part.endpoints, place, strict)
+    problems += inspect_calls(part.func, part.endpoints, place)
     if "store" in part.params and module.store is not None:
         for name, method in inspect.getmembers(module.store, inspect.isfunction):
             if name not in store_methods(part.func):
                 continue
-            problems += inspect_calls(method, part.endpoints, f"存储 {method.__qualname__}", strict)
+            problems += inspect_calls(method, part.endpoints, f"存储 {method.__qualname__}")
         if part.endpoints and not module.remotes:
             problems.append(f"{place} 没有在Module.remotes登记外部系统")
     return problems
 
 
-def inspect_calls(
-    func: Any, allowed: tuple[Endpoint[Any, Any], ...], place: str, strict: bool
-) -> list[str]:
+def inspect_calls(func: Any, allowed: tuple[Endpoint[Any, Any], ...], place: str) -> list[str]:
     try:
         tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
     except (OSError, TypeError, IndentationError):
@@ -71,11 +66,7 @@ def inspect_calls(
         if not remote:
             continue
         if node.func.attr in ("get", "post", "put", "delete", "send"):
-            message = f"{place} 使用旧上游调用，请迁移为Endpoint及remote.call"
-            if strict:
-                problems.append(message)
-            else:
-                log.warning(message)
+            problems.append(f"{place} 只能用 remote.call 调用已声明的 Endpoint")
         elif node.func.attr == "call":
             reference = (
                 node.args[1]
