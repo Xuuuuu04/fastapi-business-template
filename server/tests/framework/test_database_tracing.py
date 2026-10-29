@@ -19,9 +19,7 @@ async def test_query_latency_values_and_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/queries.db")
-    record = StepRecord(
-        "s", "load", "读取", "read", "", "service/test_pkg/steps/load.py:1", database_complete=True
-    )
+    record = StepRecord("s", "load", "读取", "read", "", "service/test_pkg/steps/load.py:1")
     try:
         async with engine.connect() as connection:
             original = type(connection).execute
@@ -51,7 +49,7 @@ async def test_query_latency_values_and_failure(
 
 async def test_query_detail_limit_is_explicit(tmp_path: Path) -> None:
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/limit.db")
-    record = StepRecord("s", "count", "计数", "read", "", "step.py:1", database_complete=True)
+    record = StepRecord("s", "count", "计数", "read", "", "step.py:1")
     try:
         async with engine.connect() as connection:
             db = Db(connection, read_only=True, place="计数", record=record)

@@ -112,8 +112,6 @@ def test_calc_declaration_and_graph() -> None:
         elapsed_ms=1.5,
     )
     assert "耗时算在本步骤内" in step_node("one", 1, record)[0]
-    record.calcs = None
-    assert "产出未知" in step_node("one", 1, record)[0]
 
 
 def runtime_module(through_store: bool) -> Module:

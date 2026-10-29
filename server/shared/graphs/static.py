@@ -22,11 +22,10 @@ def module_graph(catalog: Catalog) -> str:
 
 
 def budget_sentence(budget: Any) -> str:
-    source = "（默认值，操作没有单独声明）" if budget is None else ""
     data = budget or DEFAULT_BUDGET
     content = round(data.bytes / 1_000_000)
     return (
-        f"查询额度{source}：最多 {data.queries} 次查询、{data.rows} 行结果、"
+        f"查询额度：最多 {data.queries} 次查询、{data.rows} 行结果、"
         f"{content} MB 返回内容、同一存储函数最多调用 {data.repeated} 次"
     )
 

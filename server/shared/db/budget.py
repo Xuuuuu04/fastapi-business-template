@@ -44,7 +44,7 @@ def policy(env: str) -> str:
     return "error" if env == "test" else "warn"
 
 
-def comparison(run: RunRecord, budget: QueryBudget, declared: bool) -> dict[str, Any]:
+def comparison(run: RunRecord, budget: QueryBudget) -> dict[str, Any]:
     actual = {
         key: sum(getattr(step, "database_" + key) for step in run.steps)
         for key in ("rows", "bytes")
@@ -77,7 +77,6 @@ def comparison(run: RunRecord, budget: QueryBudget, declared: bool) -> dict[str,
     ]
     return dict(
         limits=asdict(budget),
-        declared=declared,
         actual=actual,
         unknown=unknown,
         exceeded=exceeded,
@@ -88,8 +87,8 @@ def comparison(run: RunRecord, budget: QueryBudget, declared: bool) -> dict[str,
     )
 
 
-def evaluate(run: RunRecord, budget: QueryBudget, declared: bool, mode: str) -> None:
-    run.query_budget = comparison(run, budget, declared) | {"mode": mode}
+def evaluate(run: RunRecord, budget: QueryBudget, mode: str) -> None:
+    run.query_budget = comparison(run, budget) | {"mode": mode}
     issues = run.query_budget["exceeded"] or run.query_budget["repeated"]
     if not issues:
         return
@@ -100,8 +99,6 @@ def evaluate(run: RunRecord, budget: QueryBudget, declared: bool, mode: str) -> 
 
 
 def budget_text(result: dict[str, Any]) -> str:
-    if not result:
-        return "查询额度未知（旧记录没有保存额度数据）"
     actual, limits = result["actual"], result["limits"]
     names = {"queries": "查询", "rows": "行", "bytes": "内容"}
     counts = "，".join(
