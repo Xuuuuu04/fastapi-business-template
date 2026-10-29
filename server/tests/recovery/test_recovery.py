@@ -61,15 +61,15 @@ async def test_worker_stop_leaves_job_for_recovery(sample: Services) -> None:
     stop = asyncio.Event()
     running = asyncio.create_task(worker.run(stop))
     for _ in range(50):
-        if (await get_job(sample.database, job_id)).state == "running":  # type: ignore[union-attr]
+        if (job := await get_job(sample.database, job_id)) and job.state == "running":
             break
         await asyncio.sleep(0.02)
     stop.set()
     await asyncio.wait_for(running, 2)
-    assert (await get_job(sample.database, job_id)).state == "running"  # type: ignore[union-attr]
+    assert (job := await get_job(sample.database, job_id)) and job.state == "running"
     await asyncio.sleep(0.35)
     assert await sample.queue.reclaim(time.time()) == 1
-    assert (await get_job(sample.database, job_id)).state == "waiting_retry"  # type: ignore[union-attr]
+    assert (job := await get_job(sample.database, job_id)) and job.state == "waiting_retry"
 
 
 # 规则版本变化后，用同一个请求编号重试返回原任务，不产生第二次业务效果。

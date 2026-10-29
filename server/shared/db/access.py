@@ -6,7 +6,7 @@ store 使用的数据库入口 Db：只能执行语句，不能提交、回滚�
 import re
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import (
     ColumnElement,
@@ -256,7 +256,9 @@ def is_write(statement: Executable) -> bool:
         if not words or words[0] not in READ_WORDS:
             return True
         return words[0] == "with" and any(word in WRITE_WORDS for word in words)
-    return any(getattr(node, "is_dml", False) for node in visitors.iterate(statement))  # type: ignore[arg-type]
+    return any(
+        getattr(node, "is_dml", False) for node in visitors.iterate(cast(ClauseElement, statement))
+    )
 
 
 # 位置文字转回列的 Python 类型，例如整数编号；转不了时报参数错误，不静默当成从头读。

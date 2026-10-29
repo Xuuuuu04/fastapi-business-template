@@ -4,6 +4,7 @@
 """
 
 from pathlib import Path
+from typing import Any
 
 from fastapi_check.quality.blocking import check_blocking
 from fastapi_check.quality.docs import check_files as check_doc_files
@@ -28,7 +29,7 @@ def write(root: Path, name: str, text: str) -> None:
 
 
 # 返回问题的规则名集合。
-def rules_of(problems: list) -> set[str]:  # type: ignore[type-arg]
+def rules_of(problems: list[Any]) -> set[str]:
     return {problem.rule for problem in problems}
 
 

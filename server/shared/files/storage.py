@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import anyio
-import boto3  # type: ignore[import-untyped]
-from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+import boto3
+from botocore.exceptions import ClientError
 
 from shared.errors.framework import StepRuleBroken
 

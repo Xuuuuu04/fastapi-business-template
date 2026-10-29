@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
 from fastapi_check.arguments import default_workers
@@ -29,10 +30,10 @@ def test_scheduling_preserves_every_case(monkeypatch: pytest.MonkeyPatch) -> Non
     items = [SimpleNamespace(name=name) for name in ("a", "b", *reversed(LONG_TESTS))]
     original = items.copy()
     monkeypatch.setenv("APP_TEST_WORKERS", "0")
-    schedule(items)  # type: ignore[arg-type]
+    schedule(cast(Any, items))
     assert items == original
     monkeypatch.setenv("APP_TEST_WORKERS", "4")
-    schedule(items)  # type: ignore[arg-type]
+    schedule(cast(Any, items))
     assert {id(item) for item in items} == {id(item) for item in original}
     assert len(items) == len(original)
     assert [item.name for item in items[:4]] == [LONG_TESTS[0], "a", LONG_TESTS[1], "b"]

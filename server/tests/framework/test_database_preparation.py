@@ -4,6 +4,7 @@
 
 import asyncio
 from pathlib import Path
+from typing import Any
 
 import pytest
 from sqlalchemy import (
@@ -160,9 +161,9 @@ async def test_warm_snapshot_avoids_ddl_but_explicit_reset_still_rebuilds(
     original = schema.create_all
 
     # 记录实际建表次数，不能仅凭缓存数量判断没有执行 DDL。
-    def tracked(*args: object, **kwargs: object) -> None:
+    def tracked(*args: Any, **kwargs: Any) -> None:
         calls.append(True)
-        original(*args, **kwargs)  # type: ignore[arg-type]
+        original(*args, **kwargs)
 
     monkeypatch.setattr(schema, "create_all", tracked)
     url = url_at(tmp_path / "copy")

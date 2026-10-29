@@ -6,6 +6,7 @@
 import logging
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from fastapi import APIRouter
@@ -186,7 +187,7 @@ def test_body_limit(tmp_path: Path) -> None:
 
 # 同时处理的请求达到上限时返回 503。
 def test_inflight_limit(sample_client: TestClient) -> None:
-    limits = sample_client.app.state.limits  # type: ignore[attr-defined]
+    limits = cast(Any, sample_client.app).state.limits
     limits.inflight = limits.max_inflight
     try:
         reply = sample_client.get("/health/live")

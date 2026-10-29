@@ -4,6 +4,7 @@
 """
 
 import asyncio
+from typing import Any, cast
 
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -21,7 +22,8 @@ def test_health(sample_client: TestClient) -> None:
 
 # 数据库结构版本与代码不一致时，就绪检查返回 503 和原因。
 def test_ready_needs_migration(sample_client: TestClient) -> None:
-    asyncio.run(set_version(sample_client.app.state.settings.database_url, "old"))  # type: ignore[attr-defined]
+    state = cast(Any, sample_client.app).state
+    asyncio.run(set_version(state.settings.database_url, "old"))
     ready = sample_client.get("/health/ready")
     assert ready.status_code == 503 and "请先执行迁移" in ready.json()["problems"][0]
 
@@ -136,7 +138,7 @@ class BrokenCache:
 
 # 缓存读不到时，就绪检查返回 503，避免把请求转给每次限流都会失败的实例。
 def test_ready_needs_cache(sample_client: TestClient) -> None:
-    services = sample_client.app.state.services  # type: ignore[attr-defined]
+    services = cast(Any, sample_client.app).state.services
     working, services.cache = services.cache, BrokenCache()
     try:
         ready = sample_client.get("/health/ready")

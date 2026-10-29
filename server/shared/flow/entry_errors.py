@@ -4,7 +4,7 @@
 
 import asyncio
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from shared.access.caller import Caller
 from shared.db.database import is_readonly_violation, is_unavailable
@@ -92,5 +92,5 @@ async def settle_entry(
     status = "refused" if refused else "failed"
     await runtime.close_run(run, status)
     with suppress(AttributeError):
-        problem.run_id = run.id  # type: ignore[attr-defined]
+        cast(Any, problem).run_id = run.id
     return problem

@@ -3,6 +3,7 @@
 """
 
 from decimal import Decimal
+from typing import Any, cast
 
 import pytest
 from sqlalchemy import func, select
@@ -56,7 +57,7 @@ async def test_failure_after_save_rolls_back(sample: Services) -> None:
             calc, CalcInput(amount=Decimal("5"), fail_at="save"), caller=DEVELOPER
         )
     assert await count_notes(sample) == 0
-    run = await sample.recorder.get(caught.value.run_id)  # type: ignore[attr-defined]
+    run = await sample.recorder.get(cast(Any, caught.value).run_id)
     assert run is not None and run.status == "failed"
     assert "在“保存结果”步骤停止" in run.summary
     assert "写入已全部撤销" in run.summary
@@ -107,7 +108,7 @@ async def test_timeout_is_reported(sample: Services) -> None:
 # 传入类型不对的输入会指出期望的类型。
 async def test_wrong_input_type(sample: Services) -> None:
     with pytest.raises(StepRuleBroken, match="需要 CalcInput"):
-        await sample.runtime.run(calc, SlowInput(mark="x"), caller=DEVELOPER)  # type: ignore[arg-type]
+        await sample.runtime.run(calc, cast(Any, SlowInput(mark="x")), caller=DEVELOPER)
 
 
 # 大模型调用记录提示词名称、版本和模型。

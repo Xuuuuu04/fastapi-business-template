@@ -4,7 +4,7 @@
 """
 
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -54,7 +54,7 @@ def write_extra(data: Work) -> None:
 # 把浮点数写进金额字段。
 @step("写浮点数", reads=["items"], writes=["total"])
 def write_float(data: Work) -> None:
-    data.total = 1.5  # type: ignore[assignment]
+    data.total = cast(Any, 1.5)
 
 
 # 声明要写却没有写。

@@ -34,9 +34,9 @@ def keep_finished_runs() -> Iterator[None]:
         await original(self, run, status)
         FINISHED.append(run)
 
-    Runtime.close_run = kept  # type: ignore[method-assign]
-    yield
-    Runtime.close_run = original  # type: ignore[method-assign]
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(Runtime, "close_run", kept)
+        yield
 
 
 # 每个测试开始前清空上一个测试留下的记录。

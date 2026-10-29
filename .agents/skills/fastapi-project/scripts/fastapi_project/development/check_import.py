@@ -9,9 +9,9 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
-import ijson  # type: ignore[import-untyped]
+import ijson
 from fastapi_project.development.check_assets import atomic_bytes, compact_case
-from ijson.common import ObjectBuilder  # type: ignore[import-untyped]
+from ijson.common import ObjectBuilder
 
 
 # 一次只在内存保留一项测试；不把整个历史JSON或完整数据库轮次载入内存。

@@ -3,7 +3,7 @@
 """
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -29,6 +29,6 @@ def test_only_fixed_sqlite_template_is_skipped(
             name="database", keywords={"postgres_only"}, add_marker=database_marks.append
         ),
     ]
-    select_database_cases(pytestconfig, items)  # type: ignore[arg-type]
+    select_database_cases(pytestconfig, cast(Any, items))
     assert len(template_marks) == expected
     assert database_marks == []

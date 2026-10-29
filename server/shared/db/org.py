@@ -5,10 +5,10 @@
 """
 
 from collections.abc import Callable, Iterable, Iterator
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import Column, String, Table
-from sqlalchemy.sql import Executable, operators, visitors
+from sqlalchemy.sql import ClauseElement, Executable, operators, visitors
 from sqlalchemy.sql.dml import Delete, Insert, Update
 from sqlalchemy.sql.elements import (
     BinaryExpression,
@@ -29,7 +29,7 @@ def org_column() -> Column[str]:
 
 # 对带组织列的表执行语句时，检查每一层查询的条件和写入的值。
 def check_org(statement: Executable, caller: Caller) -> None:
-    nodes = list(visitors.iterate(statement))  # type: ignore[arg-type]
+    nodes = list(visitors.iterate(cast(ClauseElement, statement)))
     owners = [node.table for node in nodes if isinstance(node, ColumnClause)]
     scoped = {node for node in [*nodes, *owners] if is_scoped(node)}
     if not scoped or caller.org_id == "*":

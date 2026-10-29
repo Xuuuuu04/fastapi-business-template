@@ -2,6 +2,8 @@
 验证外部调用、缓存和组织数据库入口的关键限制。
 """
 
+from typing import Any, cast
+
 import httpx2
 import pytest
 from sqlalchemy import (
@@ -164,7 +166,7 @@ def test_org_filter_checks_nested_queries() -> None:
 # 业务数据库入口拒绝无法检查组织条件的原始 SQL 文本。
 def test_business_db_rejects_sql_text() -> None:
     caller = Caller("1", "user", "北区用户", frozenset(), "north")
-    db = Db(None, read_only=True, place="查询", caller=caller)  # type: ignore[arg-type]
+    db = Db(cast(Any, None), read_only=True, place="查询", caller=caller)
     with pytest.raises(StepRuleBroken):
         db._check(text("SELECT * FROM file_library_files"))
 

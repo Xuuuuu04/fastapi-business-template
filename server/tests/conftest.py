@@ -47,9 +47,9 @@ def track_operations() -> Iterator[None]:
         EXECUTED.add(binding.contract.name)
         return original(self, binding, scope, parent, step)
 
-    Runtime.open_run = tracked  # type: ignore[method-assign]
-    yield
-    Runtime.open_run = original  # type: ignore[method-assign]
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(Runtime, "open_run", tracked)
+        yield
 
 
 # 完整运行时，模块总目录中没有被任何测试执行过的操作会让测试失败。

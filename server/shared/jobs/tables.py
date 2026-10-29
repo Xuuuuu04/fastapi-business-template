@@ -6,6 +6,8 @@
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, Table, Text, text
 
 from shared.db.tables import metadata
+from shared.operations import tables as operations_tables
+from shared.pipelines import tables as pipeline_tables
 
 jobs = Table(
     "system_jobs",
@@ -83,7 +85,3 @@ segments = Table(
     Column("elapsed_ms", Float, nullable=False),
     Column("committed_at", Float, nullable=False),
 )
-
-# 新流程表随框架任务表登记，空产品也有一致的迁移结构。
-from shared.operations import tables as operations_tables  # noqa: E402,F401
-from shared.pipelines import tables as pipeline_tables  # noqa: E402,F401

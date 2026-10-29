@@ -4,10 +4,10 @@
 不能改负责人；有这个权限的调用者（例如主管）不受限制。检查方式与组织隔离相同。
 """
 
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import Column, String, Table
-from sqlalchemy.sql import Executable, visitors
+from sqlalchemy.sql import ClauseElement, Executable, visitors
 from sqlalchemy.sql.dml import Delete, Insert, Update
 from sqlalchemy.sql.elements import ColumnClause
 from sqlalchemy.sql.selectable import Select
@@ -32,7 +32,7 @@ def owner_column(see_all: str) -> Column[str]:
 
 # 对按负责人隔离、且调用者没有 see_all 权限的表，检查每一层查询的条件和写入的值。
 def check_owner(statement: Executable, caller: Caller) -> None:
-    nodes = list(visitors.iterate(statement))  # type: ignore[arg-type]
+    nodes = list(visitors.iterate(cast(ClauseElement, statement)))
     owners = [node.table for node in nodes if isinstance(node, ColumnClause)]
 
     # 只检查调用者不能看全部的表。

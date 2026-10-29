@@ -109,8 +109,8 @@ async def test_expired_lease(sample: Services) -> None:
     async with sample.database.write() as connection:
         await connection.execute(update(jobs).values(lease_until=time.time() - 1))
     assert await sample.queue.reclaim(time.time()) == 2
-    assert (await get_job(sample.database, safe)).state == "waiting_retry"  # type: ignore[union-attr]
-    assert (await get_job(sample.database, unsafe)).state == "unknown"  # type: ignore[union-attr]
+    assert (job := await get_job(sample.database, safe)) and job.state == "waiting_retry"
+    assert (job := await get_job(sample.database, unsafe)) and job.state == "unknown"
 
 
 # 过期的尝试不能覆盖新尝试：它的业务写入被撤销。
