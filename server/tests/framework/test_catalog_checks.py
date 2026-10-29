@@ -46,8 +46,10 @@ def test_uses_disabled_module() -> None:
 
 
 def test_ownership_and_access_names() -> None:
-    wrong = contract("other.calc", "错位", input=CalcInput, output=CalcResult, access="admin")
-    module = Module("sample_wrong", "错位", "1", provides={wrong: calc_flow})
+    wrong = contract(
+        "other.calc", "错位", input=CalcInput, output=CalcResult, access="admin", effect="command"
+    )
+    module = Module("sample_wrong", "错位", "1", provides={wrong: calc_flow}, kind="capability")
     problems = problems_of(module)
     assert any("名称前缀必须是 sample_wrong." in item for item in problems)
     assert any(
@@ -57,10 +59,20 @@ def test_ownership_and_access_names() -> None:
 
 def test_module_cycle() -> None:
     x_run = contract(
-        "sample_x.run", "甲", input=CalcInput, output=CalcResult, access="sample_x.use"
+        "sample_x.run",
+        "甲",
+        input=CalcInput,
+        output=CalcResult,
+        access="sample_x.use",
+        effect="command",
     )
     y_run = contract(
-        "sample_y.run", "乙", input=CalcInput, output=CalcResult, access="sample_y.use"
+        "sample_y.run",
+        "乙",
+        input=CalcInput,
+        output=CalcResult,
+        access="sample_y.use",
+        effect="command",
     )
 
     @step("调用乙", reads=["amount"], writes=["result"], uses=[y_run])
@@ -74,12 +86,14 @@ def test_module_cycle() -> None:
         "甲",
         "1",
         provides={x_run: Flow("甲", work=OuterWork, result="result", steps=[call_y])},
+        kind="capability",
     )
     y_module = Module(
         "sample_y",
         "乙",
         "1",
         provides={y_run: Flow("乙", work=OuterWork, result="result", steps=[call_x])},
+        kind="capability",
     )
     problems = problems_of(x_module, y_module)
     assert any("操作之间存在循环调用" in item for item in problems)
@@ -88,18 +102,28 @@ def test_module_cycle() -> None:
 
 def test_links_follow_uses() -> None:
     back = contract(
-        "sample_back.run", "回调", input=CalcInput, output=CalcResult, access="sample_back.use"
+        "sample_back.run",
+        "回调",
+        input=CalcInput,
+        output=CalcResult,
+        access="sample_back.use",
+        effect="command",
     )
     back_flow = Flow("回调", work=OuterWork, result="result", steps=[save_first, call_calc])
     back_module = Module(
-        "sample_back", "回调", "1", provides={back: back_flow}, store=calc_module.store
+        "sample_back",
+        "回调",
+        "1",
+        provides={back: back_flow},
+        store=calc_module.store,
+        kind="workflow",
     )
     catalog = Catalog([calc_module, back_module])
     assert catalog.links()["sample_back"] == {"sample_calc": ["示例计算"]}
 
 
 def test_table_prefix() -> None:
-    module = Module("sample_table", "表名", "1", provides={}, tables=(notes,))
+    module = Module("sample_table", "表名", "1", provides={}, tables=(notes,), kind="capability")
     assert any("必须以 sample_table_ 开头" in item for item in problems_of(module))
 
 
@@ -108,7 +132,7 @@ def test_store_params() -> None:
         def __init__(self, database: object, remote: object) -> None:
             self.database, self.remote = database, remote
 
-    module = Module("sample_store", "存储", "1", provides={}, store=WrongStore)
+    module = Module("sample_store", "存储", "1", provides={}, store=WrongStore, kind="capability")
     problems = problems_of(module)
     assert any("不认识的构造参数 database" in item for item in problems)
     assert any("没有在 remotes 中声明外部系统" in item for item in problems)
@@ -117,7 +141,9 @@ def test_store_params() -> None:
 def test_jobs_and_schedules() -> None:
     plan = JobPlan(calc)
     timer = Schedule("wrong", "错误计划", slow, SlowInput(mark="x"), every=None, daily_at=None)
-    module = Module("sample_jobs", "任务", "1", provides={}, jobs=(plan,), schedules=(timer,))
+    module = Module(
+        "sample_jobs", "任务", "1", provides={}, jobs=(plan,), schedules=(timer,), kind="capability"
+    )
     problems = problems_of(module)
     assert any("不是模块 sample_jobs 提供的操作" in item for item in problems)
     assert any("需要先在 jobs 中声明" in item for item in problems)
@@ -135,5 +161,6 @@ def test_schedule_zone() -> None:
         prompts=calc_module.prompts,
         jobs=calc_module.jobs,
         schedules=(timer,),
+        kind="capability",
     )
     assert any("时区 Mars/Base 无法识别" in item for item in problems_of(module))

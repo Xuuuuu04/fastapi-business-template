@@ -69,10 +69,17 @@ def module_for(budget: QueryBudget | None = SAMPLE_BUDGET) -> Module:
         output=Output,
         access="public",
         query_budget=budget,
+        effect="command",
     )
     flow = Flow("读取", work=Work, result="result", steps=[load_items])
     return Module(
-        "query_sample", "查询样例", "1.0.0", provides={item: flow}, store=Store, tables=(items,)
+        "query_sample",
+        "查询样例",
+        "1.0.0",
+        provides={item: flow},
+        store=Store,
+        tables=(items,),
+        kind="capability",
     )
 
 

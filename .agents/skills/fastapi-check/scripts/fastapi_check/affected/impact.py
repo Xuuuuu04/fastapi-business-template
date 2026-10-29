@@ -1,5 +1,3 @@
-import shlex
-from collections import deque
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -12,27 +10,18 @@ from shared.modules.validation.framework_files import FRAMEWORK, REGISTRATION
 
 MODULE_AREAS = (
     ("server/service/", "代码"),
-    ("doc/", "样例"),
     ("server/app/api/v1/", "接口"),
     ("server/tests/modules/", "测试"),
     ("server/tests/integration/", "测试"),
 )
-CHECK = "APP_DISABLED_MODULES='[]' uv run dev check"
 PRODUCT_FILES = {entry.removeprefix("../") for entry in REGISTRATION if entry.startswith("../")}
 
 
 @dataclass(frozen=True)
 class ImpactScope:
     direct: list[str]
-    dependents: list[str]
-    affected: list[str]
-    reasons: dict[str, list[str]]
-    commands: list[str]
     full_check: bool
     full_check_reasons: list[str]
-    registered: list[str]
-    enabled: list[str]
-    unknown: list[str]
     unmapped: list[str]
 
 
@@ -55,9 +44,7 @@ def module_area(path: str, modules: Iterable[str] = ()) -> tuple[str, str] | Non
             )
             return (owner, area) if owner is not None else None
         if len(parts) > 1:
-            if (prefix == "doc/" and parts[0] == "api") or (
-                prefix == "server/tests/integration/" and parts[0] == "system"
-            ):
+            if prefix == "server/tests/integration/" and parts[0] == "system":
                 return None
             return parts[0], area
     return None
@@ -91,25 +78,6 @@ def shared_reason(path: str, framework: set[str], modules: Iterable[str] = ()) -
     return ""
 
 
-def dependent_reasons(catalog: Catalog, direct: Iterable[str]) -> dict[str, list[str]]:
-    reverse: dict[str, list[tuple[str, str]]] = {}
-    for caller, provider, operation in sorted(set(catalog.edges())):
-        reverse.setdefault(provider, []).append((caller, operation))
-    pending = deque(sorted(direct))
-    seen = set(pending)
-    reasons: dict[str, set[str]] = {}
-    while pending:
-        provider = pending.popleft()
-        for caller, operation in reverse.get(provider, []):
-            reasons.setdefault(caller, set()).add(
-                f"{caller} 调用 {provider}（{operation}）；{provider} 已在影响范围"
-            )
-            if caller not in seen:
-                seen.add(caller)
-                pending.append(caller)
-    return {name: sorted(items) for name, items in sorted(reasons.items())}
-
-
 def code_paths(files: Iterable[str]) -> list[str]:
     return sorted(
         path
@@ -118,70 +86,37 @@ def code_paths(files: Iterable[str]) -> list[str]:
     )
 
 
-def impact_scope(
-    files: Iterable[str],
-    catalog: Catalog,
-    disabled_modules: Iterable[str] = (),
-    root: Path = ROOT,
-) -> ImpactScope:
+def impact_scope(files: Iterable[str], catalog: Catalog, root: Path = ROOT) -> ImpactScope:
     paths = code_paths(files)
     registered = sorted(catalog.modules)
-    direct_reasons: dict[str, list[str]] = {}
+    direct: set[str] = set()
     unmapped = []
     tools = library_links(root)
     for path in paths:
-        if record_tool_impact(path, tools, catalog, direct_reasons):
-            continue
+        users = tool_impact(path, tools, catalog)
         owner = module_area(path, registered)
-        if owner is None:
+        if users:
+            direct |= users
+        elif owner is None:
             unmapped.append(path)
         else:
-            name, area = owner
-            direct_reasons.setdefault(name, []).append(f"{area}改动：{path}")
-    direct = sorted(direct_reasons)
-    unknown = sorted(set(direct) - set(registered))
+            direct.add(owner[0])
     framework = set(framework_files(paths))
-    full_reasons = [
-        reason for path in paths if (reason := shared_reason(path, framework, registered))
+    reasons = [reason for path in paths if (reason := shared_reason(path, framework, registered))]
+    reasons += [
+        f"模块 {name} 未登记；无法确定完整调用方，需先登记或确认删除"
+        for name in sorted(direct - set(registered))
     ]
-    full_reasons += [
-        f"模块 {name} 未登记；无法确定完整调用方，需先登记或确认删除" for name in unknown
-    ]
-    dependencies = dependent_reasons(catalog, direct)
-    dependents = sorted(set(dependencies) - set(direct))
-    affected = sorted(set(direct) | set(dependents) | (set(registered) if full_reasons else set()))
-    reasons = {
-        name: sorted(direct_reasons.get(name, []) + dependencies.get(name, []) + full_reasons)
-        for name in affected
-    }
-    commands = check_commands(affected, bool(full_reasons))
-    return ImpactScope(
-        direct,
-        dependents,
-        affected,
-        reasons,
-        commands,
-        bool(full_reasons),
-        sorted(full_reasons),
-        registered,
-        sorted(set(registered) - set(disabled_modules)),
-        unknown,
-        unmapped,
-    )
+    return ImpactScope(sorted(direct), bool(reasons), sorted(reasons), unmapped)
 
 
-def record_tool_impact(
-    path: str, tools: dict[str, list[str]], catalog: Catalog, reasons: dict[str, list[str]]
-) -> bool:
+def tool_impact(path: str, tools: dict[str, list[str]], catalog: Catalog) -> set[str]:
     if not path.startswith("server/library/"):
-        return False
+        return set()
     parts = PurePosixPath(path).parts
     if len(parts) < 3:
-        return False
-    users = tool_users(parts[2], tools).intersection(catalog.modules)
-    for user in users:
-        reasons.setdefault(user, []).append(f"工具{parts[2]}改动：{path}")
-    return bool(users)
+        return set()
+    return tool_users(parts[2], tools).intersection(catalog.modules)
 
 
 def tool_users(name: str, links: dict[str, list[str]]) -> set[str]:
@@ -194,31 +129,3 @@ def tool_users(name: str, links: dict[str, list[str]]) -> set[str]:
                 found.add(user)
                 pending.append(user)
     return found
-
-
-def check_commands(affected: list[str], full: bool) -> list[str]:
-    if full:
-        return [CHECK]
-    if not affected:
-        return []
-    return [CHECK + " " + " ".join(f"--module {shlex.quote(name)}" for name in affected)]
-
-
-def scope_markdown(scope: ImpactScope) -> list[str]:
-    lines = [
-        "检查范围按完整登记模块计算（含 Step.uses 与 Step.later），不因关闭模块缩小。",
-        f"- 完整登记范围：{'、'.join(scope.registered) or '无'}",
-        f"- 当前启用范围：{'、'.join(scope.enabled) or '无'}（仅说明运行配置）",
-        f"- 直接改动：{'、'.join(scope.direct) or '无'}",
-        f"- 直接或传递调用方：{'、'.join(scope.dependents) or '无'}",
-        f"- 建议检查：{'、'.join(scope.affected) or '无'}",
-        "",
-    ]
-    for name, reasons in scope.reasons.items():
-        lines.append(f"- {name}：{'；'.join(reasons)}")
-    if scope.unknown:
-        lines += ["", f"未登记模块：{'、'.join(scope.unknown)}；不能确认其下游完整性。"]
-    lines += ["", "建议在 server 目录执行（显式启用全部登记模块，尚未执行）："]
-    lines += [f"- `{command}`" for command in scope.commands] or ["没有模块检查建议。"]
-    lines += ["", "仅使用当前静态声明；删除的调用或未声明的外部调用仍需人工确认。"]
-    return lines

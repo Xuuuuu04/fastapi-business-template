@@ -7,7 +7,7 @@ from sqlalchemy import case, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from shared.access.caller import Caller, caller_from_record
+from shared.access.caller import Caller
 from shared.data.models import Data
 from shared.errors.framework import DuplicateRequest, QueueFull, StepRuleBroken
 from shared.flow.entry_errors import check_access
@@ -34,39 +34,20 @@ async def submit_entry(
 
 
 async def same_key(
-    connection: AsyncConnection,
-    name: str,
-    scope: str,
-    key: str,
-    digest: str,
-    caller: Caller | None = None,
+    connection: AsyncConnection, name: str, scope: str, key: str, digest: str
 ) -> str:
-    scopes = (scope, caller.id) if caller else (scope,)
-    query = select(jobs.c.id, jobs.c.input_hash, jobs.c.caller_json).where(
-        jobs.c.contract == name, jobs.c.key_scope.in_(scopes), jobs.c.key == key
+    query = select(jobs.c.id, jobs.c.input_hash).where(
+        jobs.c.contract == name, jobs.c.key_scope == scope, jobs.c.key == key
     )
-    rows = (await connection.execute(query)).all()
-    matches = [row for row in rows if caller is None or matching_scope(row.caller_json, caller)]
-    if len(matches) > 1:
-        raise StepRuleBroken("同一业务键有多份身份相符的历史任务，需要先核对原任务")
-    if matches and matches[0].input_hash != digest:
-        raise DuplicateRequest(f"请求编号 {key} 已用于内容不同的任务 {matches[0].id}")
-    return str(matches[0].id) if matches else ""
+    row = (await connection.execute(query)).first()
+    if row is not None and row.input_hash != digest:
+        raise DuplicateRequest(f"请求编号 {key} 已用于内容不同的任务 {row.id}")
+    return str(row.id) if row is not None else ""
 
 
 def scope_for(caller: Caller) -> str:
     body = json.dumps([caller.kind, caller.id, caller.org_id])
     return hashlib.sha256(body.encode()).hexdigest()
-
-
-def matching_scope(body: str, caller: Caller) -> bool:
-    try:
-        raw = json.loads(body)
-    except ValueError:
-        raise StepRuleBroken("历史任务身份损坏，需要先查证") from None
-    if not isinstance(raw, dict) or not {"org_id", "kind", "id"} <= set(raw):
-        raise StepRuleBroken("历史任务身份不完整，需要先查证")
-    return scope_for(caller_from_record(raw)) == scope_for(caller)
 
 
 async def reserve(connection: AsyncConnection, item: Contract[Any, Any], limit: int) -> None:

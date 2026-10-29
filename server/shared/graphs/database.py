@@ -29,7 +29,7 @@ def database_nodes(node: str, step: StepRecord) -> list[str]:
             f"        {node} -.-> {node}_total{index}",
         ]
     missing = step.database_count - len(step.database)
-    if missing or not step.database_complete:
-        text = f"另 {missing} 次 SQL 仅统计次数和耗时" if missing else "旧记录未采集 SQL 细节"
+    if missing:
+        text = f"另 {missing} 次 SQL 仅统计次数和耗时"
         lines += [f'        {node}_db_unknown["{text}"]', f"        {node} -.-> {node}_db_unknown"]
     return lines

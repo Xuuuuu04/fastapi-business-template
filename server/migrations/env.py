@@ -15,8 +15,7 @@ from shared.db.tables import metadata
 
 config = context.config
 LOADED = (application_modules(), shared.jobs.tables, shared.records.tables, shared.access.audit)
-MODE = "offline" if context.get_x_argument(as_dictionary=True).get("url") else "runtime"
-OWNERSHIP = ownership(application_modules(), application().settings(MODE))
+OWNERSHIP = ownership(application_modules())
 
 
 def database_url() -> str:

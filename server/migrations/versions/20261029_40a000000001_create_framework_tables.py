@@ -126,7 +126,7 @@ def upgrade() -> None:
     sa.Column('key_scope', sa.String(length=120), nullable=False),
     sa.Column('key', sa.String(length=120), nullable=True),
     sa.Column('attempt', sa.Integer(), nullable=False),
-    sa.Column('failed_attempts', sa.Integer(), nullable=True),
+    sa.Column('failed_attempts', sa.Integer(), server_default=sa.text('0'), nullable=False),
     sa.Column('serial_key', sa.String(length=64), nullable=True),
     sa.Column('serial_position', sa.Integer(), nullable=True),
     sa.Column('queued_until', sa.Float(), nullable=True),

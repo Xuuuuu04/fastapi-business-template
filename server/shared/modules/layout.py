@@ -22,23 +22,12 @@ def actual_files(folder: Path) -> bool:
 KINDS = ("capability", "workflow")
 
 
-def descriptor(name: str, *, kind: str = "") -> dict[str, object]:
-    return {
-        "schema_version": 1,
-        "layout": "standard",
-        "module": name,
-        **({"kind": kind} if kind else {}),
-        "dependencies": "strict",
-    }
+def descriptor(name: str, kind: str) -> dict[str, object]:
+    return {"schema_version": 1, "layout": "standard", "module": name, "kind": kind}
 
 
-def declared_kind(folder: Path) -> str | None:
-    try:
-        content = json.loads((folder / "module.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    kind = content.get("kind") if isinstance(content, dict) else None
-    return kind if kind in KINDS else None
+def declared_kind(folder: Path) -> str:
+    return str(json.loads((folder / "module.json").read_text(encoding="utf-8"))["kind"])
 
 
 def check_layout(root: Path, names: Iterable[str]) -> list[str]:
@@ -67,22 +56,28 @@ def check_package(folder: Path) -> list[str]:
         for name in sorted(REQUIRED)
         if not (folder / name).is_file()
     ]
-    kind = declared_kind(folder)
-    required = []
-    if kind != "workflow":
-        required += [("store", name) for name in ("contract.py", "sql.py", "tables.py")]
-    elif (folder / "store").exists():
-        problems.append(f"service/{folder.name}/store：流程包不拥有数据，数据存取放到能力包")
-    for area, name in required:
-        if not (folder / area / name).is_file():
-            problems.append(f"service/{folder.name}/{area}/{name}：缺少标准文件")
+    marker = check_marker(folder)
+    if not marker:
+        problems += kind_problems(folder, declared_kind(folder))
     for path in sorted(folder.rglob("*")):
         parts = path.relative_to(folder).parts
         if any(part in IGNORED for part in parts):
             continue
         if path.is_symlink() or not permitted(parts, path.is_dir()):
             problems.append(f"service/{folder.name}/{'/'.join(parts)}：文件位置不符合标准结构")
-    return problems + check_marker(folder)
+    return problems + marker
+
+
+def kind_problems(folder: Path, kind: str) -> list[str]:
+    if kind == "workflow":
+        if (folder / "store").exists():
+            return [f"service/{folder.name}/store：流程包不拥有数据，数据存取放到能力包"]
+        return []
+    return [
+        f"service/{folder.name}/store/{name}：缺少标准文件"
+        for name in ("contract.py", "sql.py", "tables.py")
+        if not (folder / "store" / name).is_file()
+    ]
 
 
 def permitted(parts: tuple[str, ...], directory: bool) -> bool:
@@ -109,14 +104,9 @@ def check_marker(folder: Path) -> list[str]:
             "用 uv run dev new-module 生成业务包"
         ]
     kind = content.get("kind") if isinstance(content, dict) else None
-    normalized = (
-        {key: value for key, value in content.items() if key != "kind"}
-        if isinstance(content, dict)
-        else content
-    )
     if kind not in KINDS:
         kinds = "capability（能力包）或 workflow（流程包）"
         return [f"service/{folder.name}/module.json：kind 必须写 {kinds}"]
-    if normalized != descriptor(folder.name):
+    if content != descriptor(folder.name, kind):
         return [f"service/{folder.name}/module.json：结构说明与标准业务包不一致"]
     return []

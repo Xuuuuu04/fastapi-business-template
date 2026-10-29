@@ -66,11 +66,9 @@ async def run_part(
         reads=list(part.reads),
         writes=list(part.writes),
         calcs=[f"{func.__name__} · {source_of(func)}" for func in part.calcs],
-        database_complete=True,
         database_explain=scope.runtime.query_policy.explain_enabled(),
         query_limits=asdict(binding.contract.query_budget or DEFAULT_BUDGET),
         query_prior=prior_totals(run),
-        outputs_recorded=True,
         simulated=part.simulated,
         started_at=business_now(),
     )

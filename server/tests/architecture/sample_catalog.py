@@ -13,6 +13,7 @@ records = Module(
             input=CalcInput,
             output=CalcResult,
             access="sample_records.use",
+            effect="command",
         ): calc_flow
         for name in (
             "create_record",
@@ -22,6 +23,7 @@ records = Module(
             "clean_records",
         )
     },
+    kind="capability",
 )
 accounts = Module(
     "sample_accounts",
@@ -35,7 +37,9 @@ accounts = Module(
             input=CalcInput,
             output=CalcResult,
             access="sample_accounts.use",
+            effect="command",
         ): calc_flow
     },
+    kind="capability",
 )
 MODULES = [accounts, records]

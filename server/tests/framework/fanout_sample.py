@@ -173,19 +173,44 @@ async def sum_members(data: SumWork, pipeline: PipelineGate) -> None:
 
 
 choose = contract(
-    "fanout_sample.choose", "选来源", input=Begin, output=Source, access="fanout_sample.run"
+    "fanout_sample.choose",
+    "选来源",
+    input=Begin,
+    output=Source,
+    access="fanout_sample.run",
+    effect="command",
 )
 plan = contract(
-    "fanout_sample.plan", "规划成员", input=Source, output=Batch, access="fanout_sample.run"
+    "fanout_sample.plan",
+    "规划成员",
+    input=Source,
+    output=Batch,
+    access="fanout_sample.run",
+    effect="command",
 )
 collect = contract(
-    "fanout_sample.collect", "采集成员", input=Request, output=Result, access="fanout_sample.run"
+    "fanout_sample.collect",
+    "采集成员",
+    input=Request,
+    output=Result,
+    access="fanout_sample.run",
+    effect="command",
 )
 poll = contract(
-    "fanout_sample.poll", "检查成员", input=Result, output=Result, access="fanout_sample.run"
+    "fanout_sample.poll",
+    "检查成员",
+    input=Result,
+    output=Result,
+    access="fanout_sample.run",
+    effect="command",
 )
 combine = contract(
-    "fanout_sample.combine", "单独汇算", input=Batch, output=Total, access="fanout_sample.run"
+    "fanout_sample.combine",
+    "单独汇算",
+    input=Batch,
+    output=Total,
+    access="fanout_sample.run",
+    effect="command",
 )
 pipeline = Pipeline(
     "fanout_sample.daily",
@@ -224,4 +249,5 @@ module = Module(
         JobPlan(op, repeat_safe=True, max_queued=3) for op in (choose, plan, collect, poll, combine)
     ),
     pipelines=(pipeline,),
+    kind="capability",
 )

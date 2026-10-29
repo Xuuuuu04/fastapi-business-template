@@ -64,7 +64,12 @@ class Store:
 
 
 operation = contract(
-    "import_sample.load", "导入固定来源", input=Input, output=Result, access="public"
+    "import_sample.load",
+    "导入固定来源",
+    input=Input,
+    output=Result,
+    access="public",
+    effect="command",
 )
 
 
@@ -100,4 +105,5 @@ module = Module(
     store=Store,
     tables=(parents, rows),
     jobs=(JobPlan(operation, segmented=True, repeat_safe=True, import_plan=plan),),
+    kind="capability",
 )

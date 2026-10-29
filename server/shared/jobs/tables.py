@@ -16,7 +16,7 @@ jobs = Table(
     Column("key_scope", String(120), nullable=False, default=""),
     Column("key", String(120), nullable=True),
     Column("attempt", Integer, nullable=False, default=0),
-    Column("failed_attempts", Integer, nullable=True, default=0),
+    Column("failed_attempts", Integer, nullable=False, default=0, server_default=text("0")),
     Column("serial_key", String(64), nullable=True, index=True),
     Column("serial_position", Integer, nullable=True),
     Column("queued_until", Float, nullable=True),

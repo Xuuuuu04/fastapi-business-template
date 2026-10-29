@@ -23,7 +23,7 @@ def run_graph(runs: list[RunRecord]) -> str:
     entries = {run.id: f"entry_{run.id}" for run in runs}
     for run in runs:
         state = RUN_STATUS_TEXT.get(run.status, run.status)
-        aliases = "、".join(run.aliases) if run.aliases is not None else "未知（旧记录）"
+        aliases = "、".join(run.aliases)
         lines.append(f'    subgraph run_{run.id}["{label(run.title)}（{state}）"]')
         entry = entries[run.id]
         text = label(
@@ -34,8 +34,9 @@ def run_graph(runs: list[RunRecord]) -> str:
         )
         style = run.status if run.status in ("ok", "running") else "failed"
         lines.append(f'        {entry}["{text}"]:::{style}')
-        text = label(budget_text(run.query_budget), limit=None)
-        lines += [f'        {entry}_budget["{text}"]', f"        {entry} -.-> {entry}_budget"]
+        if run.query_budget:
+            text = label(budget_text(run.query_budget), limit=None)
+            lines += [f'        {entry}_budget["{text}"]', f"        {entry} -.-> {entry}_budget"]
         previous = entry
         for index, step in enumerate(run.steps, start=1):
             node = f"n_{run.id}_{index}"
@@ -166,7 +167,7 @@ def run_section(run: RunRecord, is_root: bool) -> list[str]:
     lines += ["| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for index, step in enumerate(run.steps, start=1):
         lines.append(step_row(index, step))
-    lines += ["", budget_text(run.query_budget)]
+    lines += ["", budget_text(run.query_budget)] if run.query_budget else []
     lines += database_table(run)
     lines += remote_table(run)
     models = [(step.title, call) for step in run.steps for call in step.models]
@@ -206,8 +207,7 @@ def step_row(index: int, step: StepRecord) -> str:
     values = [index, step.title, STEP_KIND_TEXT.get(step.kind, step.kind), status]
     values += [
         duration(step.elapsed_ms),
-        (f"产出 {len(step.outputs)}/{len(step.writes)}；" if step.outputs_recorded else "")
-        + "；".join(step.values),
+        f"产出 {len(step.outputs)}/{len(step.writes)}；" + "；".join(step.values),
         "；".join(notes),
         f"{place} · {step.name}",
     ]

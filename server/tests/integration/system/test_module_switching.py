@@ -29,7 +29,8 @@ def test_disabled_module_routes_disappear(
     second_router = APIRouter()
     second_router.add_api_route("/test/extra", lambda: {"ok": True})
     modules = [
-        Module(name, "接口测试", "1", provides={}) for name in ("sample_calc", "sample_outer")
+        Module(name, "接口测试", "1", provides={}, kind="capability")
+        for name in ("sample_calc", "sample_outer")
     ]
     monkeypatch.setattr("app.setup.build.MODULES", modules)
     monkeypatch.setattr(

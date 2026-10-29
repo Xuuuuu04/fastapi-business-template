@@ -34,12 +34,21 @@ def build_answer(data: Work) -> None:
     data.answer = Answer(total=data.total)
 
 
-ask = contract("check_demo.ask", "检查示例", input=Ask, output=Answer, access="check_demo.use")
+ask = contract(
+    "check_demo.ask",
+    "检查示例",
+    input=Ask,
+    output=Answer,
+    access="check_demo.use",
+    effect="command",
+)
 
 
 def problems_of(*steps: Any, work: type[WorkData] = Work, **options: Any) -> list[str]:
     flow = Flow("检查示例", work=work, result="answer", steps=list(steps))
-    module = Module("check_demo", "检查示例", "1", provides={ask: flow}, **options)
+    module = Module(
+        "check_demo", "检查示例", "1", provides={ask: flow}, kind="capability", **options
+    )
     with pytest.raises(DeclarationError) as caught:
         Catalog([module])
     return caught.value.problems
@@ -47,7 +56,7 @@ def problems_of(*steps: Any, work: type[WorkData] = Work, **options: Any) -> lis
 
 def test_valid_flow_passes() -> None:
     flow = Flow("检查示例", work=Work, result="answer", steps=[count_total, build_answer])
-    Catalog([Module("check_demo", "检查示例", "1", provides={ask: flow})])
+    Catalog([Module("check_demo", "检查示例", "1", provides={ask: flow}, kind="capability")])
 
 
 def test_read_before_write() -> None:
@@ -141,10 +150,17 @@ def test_model_after_save_is_rejected() -> None:
         text: TextResult = meaning("说明")
 
     late = contract(
-        "late_demo.run", "后调模型", input=SlowInput, output=TextResult, access="late_demo.use"
+        "late_demo.run",
+        "后调模型",
+        input=SlowInput,
+        output=TextResult,
+        access="late_demo.use",
+        effect="command",
     )
     flow = Flow("后调模型", work=LateWork, result="text", steps=[save_mark, ask_after])
-    module = Module("late_demo", "后调模型", "1", provides={late: flow}, store=NoteStore)
+    module = Module(
+        "late_demo", "后调模型", "1", provides={late: flow}, store=NoteStore, kind="capability"
+    )
     with pytest.raises(DeclarationError) as caught:
         Catalog([calc_module, module])
     assert any("在写入事务开始后" in item for item in caught.value.problems)

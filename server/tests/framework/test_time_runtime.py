@@ -84,7 +84,12 @@ async def test_queue_uses_product_clock_without_runtime_context(tmp_path: Path) 
         data.result = Nothing()
 
     operation = contract(
-        "clock_probe.run", "空任务", input=Nothing, output=Nothing, access="public"
+        "clock_probe.run",
+        "空任务",
+        input=Nothing,
+        output=Nothing,
+        access="public",
+        effect="command",
     )
     module = Module(
         "clock_probe",
@@ -92,6 +97,7 @@ async def test_queue_uses_product_clock_without_runtime_context(tmp_path: Path) 
         "1",
         {operation: Flow("空任务", work=Work, result="result", steps=[result])},
         jobs=(JobPlan(operation),),
+        kind="capability",
     )
     settings = make_settings(tmp_path)
     await reset_database(settings.database_url)

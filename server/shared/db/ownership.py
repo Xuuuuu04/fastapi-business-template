@@ -6,7 +6,6 @@ from typing import Any
 
 from sqlalchemy import Table
 
-from shared.config.settings import Settings
 from shared.modules.module import Module
 
 
@@ -19,8 +18,8 @@ class TableOwnership:
         if table not in self.owned:
             raise ValueError(
                 f"拒绝{action}表 {table}：未登记为本产品维护的表。"
-                "请在模块 tables 或 owned_tables / APP_OWNED_TABLES 登记归属；"
-                "只保留的外部或历史表登记 external_tables / APP_EXTERNAL_TABLES。"
+                "请在模块 tables 或 owned_tables 登记归属；"
+                "只保留的外部或历史表登记 external_tables。"
             )
 
     def include_object(
@@ -36,7 +35,7 @@ class TableOwnership:
         return True
 
 
-def ownership(modules: Sequence[Module], settings: Settings) -> TableOwnership:
+def ownership(modules: Sequence[Module]) -> TableOwnership:
     import shared.access.audit as audit
     import shared.db.history as history
     import shared.effects.tables as effects
@@ -51,8 +50,7 @@ def ownership(modules: Sequence[Module], settings: Settings) -> TableOwnership:
         for value in vars(source).values()
         if isinstance(value, Table)
     }
-    owned.update(settings.owned_tables)
-    external = set(settings.external_tables)
+    external: set[str] = set()
     for module in modules:
         owned.update(table.key for table in module.tables)
         owned.update(module.owned_tables)
@@ -97,7 +95,7 @@ def migration_problems(folder: Path, tables: TableOwnership) -> list[str]:
             elif table not in tables.owned:
                 problems.append(
                     f"{path.name}:{node.lineno}：{action} 表 {table} 未登记为owned；"
-                    "在模块 tables/owned_tables 或 APP_OWNED_TABLES 登记；"
+                    "在模块 tables 或 owned_tables 登记；"
                     "external_tables仅保留，不能由迁移修改"
                 )
     return problems
@@ -149,6 +147,6 @@ def table_argument(call: ast.Call) -> str:
     return table
 
 
-def check_migrations(root: Path, modules: Sequence[Module], settings: Settings) -> list[str]:
-    tables = ownership(modules, settings)
+def check_migrations(root: Path, modules: Sequence[Module]) -> list[str]:
+    tables = ownership(modules)
     return migration_problems(root / "migrations" / "versions", tables)

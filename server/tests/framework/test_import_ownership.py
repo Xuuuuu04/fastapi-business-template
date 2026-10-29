@@ -10,7 +10,6 @@ from sqlalchemy import Column, Integer, MetaData, Table, func, select
 from app.setup.build import build
 from app.setup.catalog import MODULES
 from shared.access.caller import SYSTEM
-from shared.config.settings import Settings
 from shared.db.ownership import check_migrations, ownership
 from shared.errors.framework import DeclarationError
 from shared.graphs.observed import run_graph
@@ -18,6 +17,7 @@ from shared.graphs.static import flow_graph
 from shared.jobs.views import get_job
 from shared.jobs.worker import Worker, WorkerOptions
 from shared.modules.catalog import Catalog
+from shared.modules.module import Module
 from shared.records.stores import RunFilter
 from tests.framework.import_sample import Input, module, operation, rows, sample_metadata
 from tests.testing_app import make_settings, prepare_test_database
@@ -36,18 +36,16 @@ def upgrade():
     from alembic.op import drop_table as remove_table
     remove_table("direct_import")
 """)
-    errors = check_migrations(tmp_path, [], Settings())
+    errors = check_migrations(tmp_path, [])
     assert len(errors) == 5
     assert "old" in errors[2] or any("old 未登记" in e for e in errors)
-    assert (
-        len(
-            check_migrations(
-                tmp_path,
-                [],
-                Settings(owned_tables=["legacy", "other", "old", "direct_import"]),
-            )
-        )
-        == 1
+    owner = history_module(owned_tables=("legacy", "other", "old", "direct_import"))
+    assert len(check_migrations(tmp_path, [owner])) == 1
+
+
+def history_module(**tables: tuple[str, ...]) -> Module:
+    return Module(
+        name="history", title="历史表", version="1", provides={}, kind="capability", **tables
     )
 
 
@@ -76,26 +74,12 @@ async def test_autogenerate_refuses_unknown(tmp_path: Path) -> None:
             await connection.run_sync(extra.create_all)
 
             with pytest.raises(ValueError, match="unregistered_history"):
-                await connection.run_sync(compare_owned, ownership(MODULES, settings))
-            excluded = await connection.run_sync(
-                compare_owned,
-                ownership(
-                    MODULES,
-                    settings.model_copy(
-                        update={"external_tables": ["unregistered_history"]},
-                    ),
-                ),
-            )
+                await connection.run_sync(compare_owned, ownership(MODULES))
+            external = history_module(external_tables=("unregistered_history",))
+            excluded = await connection.run_sync(compare_owned, ownership([*MODULES, external]))
             assert not any("unregistered_history" in str(item) for item in excluded)
-            owned = await connection.run_sync(
-                compare_owned,
-                ownership(
-                    MODULES,
-                    settings.model_copy(
-                        update={"owned_tables": ["unregistered_history"]},
-                    ),
-                ),
-            )
+            owner = history_module(owned_tables=("unregistered_history",))
+            owned = await connection.run_sync(compare_owned, ownership([*MODULES, owner]))
             assert any("unregistered_history" in str(item) for item in owned)
     finally:
         async with services.database.write() as connection:

@@ -7,10 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from shared.modules.validation import framework_files
-
 SOURCE_FILE = "template-source.json"
-LIST_MODULES = (("server/shared/modules/validation/framework_files.py", "FRAMEWORK"),)
+FRAMEWORK_LIST = "server/shared/modules/validation/framework_files.py"
+PROVENANCE_KEYS = ("schema_version", "version", "revision", "files")
 MANUAL_FILES = (
     "server/pyproject.toml",
     "server/uv.lock",
@@ -50,16 +49,10 @@ class Manifest:
 
 
 def manifest(template: Path) -> Manifest:
-    found = [
-        (module, first) for module, first in LIST_MODULES if safe_path(template, module).is_file()
-    ]
-    if not found:
-        return Manifest(
-            framework_files.FRAMEWORK, framework_files.REGISTRATION, framework_files.SUFFIXES
-        )
-    module, first = found[0]
-    path = safe_path(template, module)
-    names = (first, "REGISTRATION", "SUFFIXES")
+    path = safe_path(template, FRAMEWORK_LIST)
+    if not path.is_file():
+        raise ValueError(f"模板缺少框架清单 {FRAMEWORK_LIST}")
+    names = ("FRAMEWORK", "REGISTRATION", "SUFFIXES")
     values = {
         target.id: ast.literal_eval(node.value)
         for node in ast.parse(path.read_text(encoding="utf-8")).body
@@ -69,7 +62,7 @@ def manifest(template: Path) -> Manifest:
     }
     missing = [name for name in names if name not in values]
     if missing:
-        raise ValueError(f"{module} 缺少框架清单常量：{'、'.join(missing)}")
+        raise ValueError(f"{FRAMEWORK_LIST} 缺少框架清单常量：{'、'.join(missing)}")
     return Manifest(*(tuple(values[name]) for name in names))
 
 
@@ -80,9 +73,7 @@ def project_path(entry: str) -> str:
 def managed_files(project: Path, listing: Manifest | None = None) -> dict[str, bytes]:
     listing = listing or manifest(project)
     found = {}
-    framework = listing.framework
-    entries = (*framework, "tools") if (project / "server/tools").exists() else framework
-    for entry in entries:
+    for entry in listing.framework:
         if entry == "pyproject.toml":
             continue
         base = safe_path(project, project_path(entry))
@@ -131,18 +122,20 @@ def save_provenance(target: Path, source: Path) -> None:
 
 def check_base(target: Path, base: Path, listing: Manifest | None = None) -> list[str]:
     path = safe_path(target, SOURCE_FILE)
-    if not path.exists():
-        return []
+    if not path.is_file():
+        raise ValueError(f"项目缺少 {SOURCE_FILE}，不知道来自哪个模板版本，不能自动升级")
     recorded = json.loads(path.read_text(encoding="utf-8"))
+    missing = [key for key in PROVENANCE_KEYS if key not in recorded]
+    if missing:
+        raise ValueError(f"{SOURCE_FILE} 缺少 {'、'.join(missing)}")
     different = [
         name for name, digest in recorded["files"].items() if file_digest(base, name) != digest
     ]
     if different:
-        version = recorded.get("version", "未知")
-        revision = recorded.get("revision") or "未记录"
+        revision = f"（提交 {recorded['revision']}）" if recorded["revision"] else ""
         raise ValueError(
             f"旧模板与 template-source.json 不一致：{'、'.join(sorted(different)[:3])} "
-            f"等 {len(different)} 个文件不同。请按记录的版本 {version}（提交 {revision}）"
+            f"等 {len(different)} 个文件不同。请按记录的版本 {recorded['version']}{revision}"
             "取出旧模板，并在新模板的 server/ 下运行升级"
         )
     return sorted(managed_files(base, listing).keys() - recorded["files"].keys())

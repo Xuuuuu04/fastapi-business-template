@@ -15,12 +15,8 @@ def step_node(node: str, index: int, step: StepRecord) -> list[str]:
     status = STEP_STATUS_TEXT.get(step.status, step.status)
     parts = [f"{index}. {step.title}", f"{status} · {duration(step.elapsed_ms)}"]
     outputs = "、".join(step.outputs) or "无"
-    parts.append(
-        f"产出 {len(step.outputs)}/{len(step.writes)}：{outputs}"
-        if step.outputs_recorded
-        else "产出未知（旧记录没有保存）"
-    )
-    calcs = "、".join(step.calcs) if step.calcs is not None else "未知（旧记录）"
+    parts.append(f"产出 {len(step.outputs)}/{len(step.writes)}：{outputs}")
+    calcs = "、".join(step.calcs)
     if calcs:
         parts.append(f"纯计算（耗时算在本步骤内）：{calcs}")
     if step.error_code:

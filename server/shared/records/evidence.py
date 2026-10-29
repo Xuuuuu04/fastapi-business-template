@@ -15,7 +15,6 @@ def step_evidence(step: StepRecord) -> dict[str, Any]:
         "reads",
         "writes",
         "outputs",
-        "outputs_recorded",
         "condition",
         "condition_name",
         "condition_source",

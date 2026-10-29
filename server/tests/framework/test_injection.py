@@ -62,15 +62,38 @@ class ProbeFailed(BusinessError):
     message = "按测试要求在登记任务后失败"
 
 
-follow = contract("inject_probe.follow", "后续任务", input=Nothing, output=Nothing, access=PUBLIC)
+follow = contract(
+    "inject_probe.follow",
+    "后续任务",
+    input=Nothing,
+    output=Nothing,
+    access=PUBLIC,
+    effect="command",
+)
 order = contract(
-    "inject_probe.order", "下单", input=Order, output=Receipt, access=PUBLIC, errors=(ProbeFailed,)
+    "inject_probe.order",
+    "下单",
+    input=Order,
+    output=Receipt,
+    access=PUBLIC,
+    errors=(ProbeFailed,),
+    effect="command",
 )
 talk = contract(
-    "inject_probe.talk", "流式输出", input=Nothing, output=Nothing, access=PUBLIC, stream=True
+    "inject_probe.talk",
+    "流式输出",
+    input=Nothing,
+    output=Nothing,
+    access=PUBLIC,
+    stream=True,
+    effect="command",
 )
-twice = contract("inject_probe.twice", "并发调用", input=Nothing, output=Nothing, access=PUBLIC)
-old = contract("inject_probe.old", "读旧库", input=Nothing, output=Nothing, access=PUBLIC)
+twice = contract(
+    "inject_probe.twice", "并发调用", input=Nothing, output=Nothing, access=PUBLIC, effect="command"
+)
+old = contract(
+    "inject_probe.old", "读旧库", input=Nothing, output=Nothing, access=PUBLIC, effect="command"
+)
 
 
 @step("记下调用者", writes=["who"])
@@ -141,6 +164,7 @@ probe = Module(
     },
     store=OldStore,
     jobs=(JobPlan(follow),),
+    kind="capability",
 )
 
 

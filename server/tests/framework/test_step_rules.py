@@ -81,9 +81,18 @@ def test_try_step_returns_values() -> None:
 
 
 async def run_with(settings: Settings, *parts: Any) -> BaseException:
-    ask = contract("rule_demo.run", "规则示例", input=Ask, output=Answer, access="rule_demo.use")
+    ask = contract(
+        "rule_demo.run",
+        "规则示例",
+        input=Ask,
+        output=Answer,
+        access="rule_demo.use",
+        effect="command",
+    )
     flow = Flow("规则示例", work=Work, result="answer", steps=list(parts))
-    module = Module("rule_demo", "规则示例", "1", provides={ask: flow}, store=NoteStore)
+    module = Module(
+        "rule_demo", "规则示例", "1", provides={ask: flow}, store=NoteStore, kind="capability"
+    )
     await reset_database(settings.database_url)
     services = build(settings, modules=[module], provider=FakeModel())
     async with services.database.write() as connection:

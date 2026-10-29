@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from app.api.runner import RunDep
 from app.setup.build import build
 from app.setup.web import create_app
-from shared.access.caller import Caller
+from shared.access.caller import Caller, caller_from_record
 from shared.access.tokens import issue_token, verify_token
 from shared.config.settings import Settings
 from shared.errors.framework import ConfigError, NotSignedIn
@@ -19,7 +19,12 @@ from shared.public import Data, Flow, Module, WorkData, contract, meaning, remot
 from tests.testing_app import KEY, make_settings, reset_database_now
 
 remote_module = Module(
-    "sample_partner", "外部系统示例", "1", provides={}, remotes=(remote("partner", "合作方"),)
+    "sample_partner",
+    "外部系统示例",
+    "1",
+    provides={},
+    remotes=(remote("partner", "合作方"),),
+    kind="capability",
 )
 
 
@@ -48,13 +53,19 @@ def check_token(data: LoginWork) -> None:
 
 
 login = contract(
-    "secure_demo.login", "检查令牌", input=Login, output=Checked, access="secure_demo.use"
+    "secure_demo.login",
+    "检查令牌",
+    input=Login,
+    output=Checked,
+    access="secure_demo.use",
+    effect="command",
 )
 secure_module = Module(
     "secure_demo",
     "安全示例",
     "1",
     provides={login: Flow("检查令牌", work=LoginWork, result="result", steps=[check_token])},
+    kind="capability",
 )
 router = APIRouter()
 
@@ -234,3 +245,23 @@ def test_api_docs_offer_both_authentication_methods(sample_client: TestClient) -
     assert schemes["登录令牌"]["scheme"] == "bearer"
     security = schema["paths"]["/api/system/modules"]["get"]["security"]
     assert {"服务密钥": []} in security and {"登录令牌": []} in security
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"kind": "robot"},
+        {"org_id": None},
+        {"permissions": "orders.read"},
+        {"extra": "x"},
+    ],
+)
+def test_caller_record_is_strict(change: dict[str, object]) -> None:
+    caller = Caller("u1", "user", "用户", frozenset({"orders.read"}), "org")
+    record = caller.to_record()
+    assert caller_from_record(record) == caller
+    with pytest.raises(ValueError):
+        caller_from_record({**record, **change})
+    del record["org_id"]
+    with pytest.raises(ValueError):
+        caller_from_record(record)

@@ -22,7 +22,7 @@ def test_http_run_identifies_sql_and_outputs(sample_client: TestClient) -> None:
     run = detail["runs"][0]
     assert run["status"] == "ok"
     recorded = next(part for part in run["steps"] if part["database_count"])
-    assert recorded["outputs_recorded"] and recorded["outputs"]
+    assert recorded["outputs"]
     assert recorded["elapsed_ms"] > 0 and recorded["database_count"] == 2
     assert [call["method"] for call in recorded["database"]] == ["change", "scalar"]
     for call in recorded["database"]:
@@ -76,17 +76,9 @@ async def test_development_evidence_omits_business_values(sample: Services) -> N
     assert "987654321" not in str(evidence) and "key:" not in str(evidence)
     assert any(step["outputs"].get("total") == "已写入数字" for step in evidence["steps"])
     assert run_from_dict(run.to_dict()) == run
-    legacy = run.to_dict()
-    legacy["source_version"] = "removed-field"
-    for step in legacy["steps"]:
-        for field in (
-            "outputs",
-            "outputs_recorded",
-            "database",
-            "database_count",
-            "database_elapsed_ms",
-            "database_complete",
-        ):
-            step.pop(field)
-    old = run_from_dict(legacy)
-    assert "产出未知（旧记录没有保存）" in run_graph([old])
+    with pytest.raises(TypeError):
+        run_from_dict({**run.to_dict(), "source_version": "removed-field"})
+    without_steps = run.to_dict()
+    del without_steps["steps"][0]["database"]
+    with pytest.raises(KeyError):
+        run_from_dict(without_steps)

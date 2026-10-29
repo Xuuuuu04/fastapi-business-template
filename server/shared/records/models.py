@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 STEP_KIND_TEXT = {
@@ -109,16 +109,15 @@ class StepRecord:
     elapsed_ms: float = 0.0
     values: list[str] = field(default_factory=list)
     outputs: dict[str, str] = field(default_factory=dict)
-    outputs_recorded: bool = False
     notes: list[str] = field(default_factory=list)
     children: list[str] = field(default_factory=list)
     models: list[ModelCallRecord] = field(default_factory=list)
     remotes: list[RemoteCallRecord] = field(default_factory=list)
     database: list[DatabaseCallRecord] = field(default_factory=list)
-    calcs: list[str] | None = None
+    calcs: list[str] = field(default_factory=list)
     database_count: int = 0
     database_elapsed_ms: float = 0.0
-    database_complete: bool = False
+    database_complete: bool = True
     database_explain: bool = False
     query_limits: dict[str, int] = field(default_factory=dict)
     query_prior: dict[str, int] = field(default_factory=dict)
@@ -178,32 +177,23 @@ class RunRecord:
     segment_shutdown_seconds: float | None = None
     segment_warning: str = ""
 
-    aliases: list[str] | None = None
-    module_aliases: list[str] | None = None
+    aliases: list[str] = field(default_factory=list)
+    module_aliases: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 def run_from_dict(data: dict[str, Any]) -> RunRecord:
-    steps = []
-    for raw in data.get("steps", []):
-        models = [ModelCallRecord(**item) for item in raw.get("models", [])]
-        remotes = [RemoteCallRecord(**item) for item in raw.get("remotes", [])]
-        database = [DatabaseCallRecord(**item) for item in raw.get("database", [])]
-        steps.append(
-            StepRecord(
-                **{
-                    **known(StepRecord, raw),
-                    "models": models,
-                    "remotes": remotes,
-                    "database": database,
-                }
-            )
-        )
-    return RunRecord(**{**known(RunRecord, data), "steps": steps})
+    return RunRecord(**{**data, "steps": [step_from_dict(raw) for raw in data["steps"]]})
 
 
-def known(kind: type, data: dict[str, Any]) -> dict[str, Any]:
-    names = {item.name for item in fields(kind)}
-    return {key: value for key, value in data.items() if key in names}
+def step_from_dict(raw: dict[str, Any]) -> StepRecord:
+    return StepRecord(
+        **{
+            **raw,
+            "models": [ModelCallRecord(**item) for item in raw["models"]],
+            "remotes": [RemoteCallRecord(**item) for item in raw["remotes"]],
+            "database": [DatabaseCallRecord(**item) for item in raw["database"]],
+        }
+    )

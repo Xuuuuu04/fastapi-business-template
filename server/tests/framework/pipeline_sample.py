@@ -70,7 +70,14 @@ async def publish(data: RefWork, store: Store) -> None:
 
 
 operations = tuple(
-    contract(f"pipeline_sample.{name}", name, input=Ref, output=Ref, access="pipeline_sample.run")
+    contract(
+        f"pipeline_sample.{name}",
+        name,
+        input=Ref,
+        output=Ref,
+        access="pipeline_sample.run",
+        effect="command",
+    )
     for name in ("choose", "collect", "poll", "publish")
 )
 pipeline = Pipeline(
@@ -106,4 +113,5 @@ module = Module(
             slot_input_field="request.period",
         ),
     ),
+    kind="capability",
 )

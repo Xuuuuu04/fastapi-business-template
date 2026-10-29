@@ -1,5 +1,5 @@
 import pytest
-from fastapi_check.affected.impact import CHECK, impact_scope, module_area
+from fastapi_check.affected.impact import impact_scope, module_area
 
 from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
@@ -20,9 +20,7 @@ from tests.architecture.sample_catalog import MODULES
 def test_shared_paths_do_not_invent_modules(path: str) -> None:
     catalog = Catalog(MODULES)
     scope = impact_scope([path], catalog)
-    assert scope.direct == scope.unknown == []
-    assert scope.affected == sorted(catalog.modules)
-    assert scope.full_check and scope.commands == [CHECK]
+    assert scope.direct == [] and scope.full_check
     assert path in scope.unmapped
 
 
@@ -34,5 +32,4 @@ def test_topic_api_uses_longest_registered_prefix() -> None:
 def test_topic_api_belongs_to_registered_module() -> None:
     path = "server/app/api/v1/sample_accounts_security.py"
     scope = impact_scope([path], Catalog(MODULES))
-    assert scope.direct == scope.affected == ["sample_accounts"]
-    assert not scope.unknown and not scope.full_check
+    assert scope.direct == ["sample_accounts"] and not scope.full_check

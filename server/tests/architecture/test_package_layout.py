@@ -16,7 +16,9 @@ def package(root: Path, kind: str | None, *, store: bool, extra: tuple[str, ...]
         (folder / "store").mkdir()
         for name in ("contract.py", "sql.py", "tables.py"):
             (folder / "store" / name).write_text("", encoding="utf-8")
-    marker = descriptor("order_desk", kind=kind or "")
+    marker = (
+        descriptor("order_desk", kind) if kind else {"schema_version": 1, "module": "order_desk"}
+    )
     (folder / "module.json").write_text(json.dumps(marker), encoding="utf-8")
 
 

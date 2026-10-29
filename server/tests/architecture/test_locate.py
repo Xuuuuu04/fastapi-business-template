@@ -20,6 +20,7 @@ price = contract(
     output=CalcResult,
     access="public",
     aliases=("change price", "/api/v1/price/old"),
+    effect="command",
 )
 price_module = Module(
     "sample_price",
@@ -28,6 +29,7 @@ price_module = Module(
     {price: calc_flow},
     store=NoteStore,
     aliases=("价格表", "price table"),
+    kind="capability",
 )
 router = APIRouter(prefix="/api/v1/price")
 
@@ -57,7 +59,12 @@ def test_business_queries(tmp_path: Path, query: str) -> None:
 def test_bounded_large_project(tmp_path: Path) -> None:
     operations = {
         contract(
-            f"sample_price.op_{n}", "价格", input=CalcInput, output=CalcResult, access="public"
+            f"sample_price.op_{n}",
+            "价格",
+            input=CalcInput,
+            output=CalcResult,
+            access="public",
+            effect="command",
         ): calc_flow
         for n in range(1000)
     }
@@ -107,7 +114,6 @@ async def test_aliases_in_real_run(sample) -> None:
     from shared.access.caller import DEVELOPER
     from shared.graphs.observed import run_graph
     from shared.graphs.static import flow_graph
-    from shared.records.models import run_from_dict
     from shared.records.stores import RunFilter
     from tests.framework.sample_modules import calc, calc_module
 
@@ -119,9 +125,6 @@ async def test_aliases_in_real_run(sample) -> None:
     assert run.aliases == ["调价"] and run.module_aliases == ["价格表"]
     assert "调价" in run_graph([run])
     assert "调价" in flow_graph(sample.runtime.catalog.binding(aliased))
-    old = run.to_dict()
-    del old["aliases"], old["module_aliases"]
-    assert "未知（旧记录）" in run_graph([run_from_dict(old)])
 
 
 def test_schedule_and_pipeline_names(tmp_path: Path) -> None:

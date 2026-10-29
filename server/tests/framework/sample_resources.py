@@ -11,5 +11,9 @@ class SecretStore:
         self.vault = vault
 
 
-file_module = Module("sample_files", "文件服务测试", "1", provides={}, store=FileStore)
-secret_module = Module("sample_secrets", "加密服务测试", "1", provides={}, store=SecretStore)
+file_module = Module(
+    "sample_files", "文件服务测试", "1", provides={}, store=FileStore, kind="capability"
+)
+secret_module = Module(
+    "sample_secrets", "加密服务测试", "1", provides={}, store=SecretStore, kind="capability"
+)

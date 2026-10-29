@@ -23,7 +23,5 @@ def schedule_caller(org_id: str) -> Caller:
 
 
 def period_key(name: str, org_id: str, slot: datetime) -> str:
-    if org_id == "*":
-        return f"schedule:{name}:{slot.isoformat()}"
     body = json.dumps([name, org_id, slot.isoformat()], ensure_ascii=False, separators=(",", ":"))
-    return "schedule:org:" + hashlib.sha256(body.encode()).hexdigest()
+    return "schedule:" + hashlib.sha256(body.encode()).hexdigest()
