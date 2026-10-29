@@ -1,6 +1,5 @@
 import pytest
 from fastapi_project.development.impact import CHECK, impact_scope, module_area
-from fastapi_project.impact import belongs, modules_part
 
 from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
@@ -25,7 +24,6 @@ def test_shared_paths_do_not_invent_modules(path: str) -> None:
     assert scope.affected == sorted(catalog.modules)
     assert scope.full_check and scope.commands == [CHECK]
     assert path in scope.unmapped
-    assert modules_part([path], catalog.modules) == ["没有改动业务模块。"]
 
 
 def test_topic_api_uses_longest_registered_prefix() -> None:
@@ -38,5 +36,3 @@ def test_topic_api_belongs_to_registered_module() -> None:
     scope = impact_scope([path], Catalog(MODULES))
     assert scope.direct == scope.affected == ["sample_accounts"]
     assert not scope.unknown and not scope.full_check
-    assert belongs(path, "sample_accounts")
-    assert "sample_accounts" in "\n".join(modules_part([path], ["sample_accounts"]))

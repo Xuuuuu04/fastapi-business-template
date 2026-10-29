@@ -17,7 +17,6 @@ from shared.model_calls.providers import FakeModel, ModelRequest
 from shared.records.version import source_version
 from tests.framework.sample_modules import calc_module, outer_module, sample_metadata
 from tests.framework.sample_routes import sample_router
-from tests.scheduling import schedule
 from tests.testing_app import (
     make_settings,
     on_postgres,
@@ -25,7 +24,7 @@ from tests.testing_app import (
     prepare_test_database_now,
 )
 
-pytest_plugins = ["tests.failure_reports", "tests.development_history", "tests.resources"]
+pytest_plugins = ["tests.failure_reports", "tests.resources"]
 
 EXECUTED: set[str] = set()
 
@@ -84,14 +83,6 @@ def pytest_testnodedown(node: Any, error: Any) -> None:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    schedule(items)
-    if os.environ.get("APP_DEVELOPMENT_REPEAT_DATABASE") == "1":
-        once = pytest.mark.skip(
-            reason="此模板测试固定使用 SQLite，已在本轮默认检查成功执行，不在第二数据库重复"
-        )
-        for item in items:
-            if "sqlite_template" in item.keywords:
-                item.add_marker(once)
     if on_postgres():
         return
     skip = pytest.mark.skip(reason="只在 PostgreSQL 上运行，设置 APP_TEST_DATABASE_URL 后执行")

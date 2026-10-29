@@ -1,30 +1,7 @@
-import json
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 
-from fastapi_check.quality.rules import PROJECT
 from fastapi_template.template.files import save_provenance
-from fastapi_template.template.initialization import initialize
 from fastapi_template.template.merge import apply_plan, update_plan
-
-from shared.modules.validation.framework_lock import differences
-
-
-def test_copy_retains_skills_and_uses_product_paths(tmp_path: Path) -> None:
-    target = tmp_path / "product"
-    initialize(PROJECT, target, "独立产品")
-    assert sorted(path.name for path in (target / ".agents").iterdir()) == ["skills"]
-    result = subprocess.run(
-        [sys.executable, "-m", "fastapi_dev.main", "inspect"],
-        cwd=target / "server",
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout)["modules"] == []
 
 
 def test_upgrade_removes_old_tools_and_copies_skills(tmp_path: Path) -> None:
@@ -44,20 +21,3 @@ def test_upgrade_removes_old_tools_and_copies_skills(tmp_path: Path) -> None:
     apply_plan(target, base, source, changes)
     assert not (target / "server/tools/check.py").exists()
     assert (target / skill).read_text() == "VERSION = 2\n"
-
-
-def test_server_starts_without_project_skills(tmp_path: Path) -> None:
-    target = tmp_path / "product"
-    initialize(PROJECT, target, "部署样例")
-    shutil.rmtree(target / ".agents")
-    result = subprocess.run(
-        [sys.executable, "-c", "from app.setup.web import create_app; create_app()"],
-        cwd=target / "server",
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
-    file = target / "server/shared/modules/layout.py"
-    file.write_text(file.read_text() + "\nCHANGED = True\n")
-    assert any("layout.py" in name for name in differences(target / "server", include_skills=False))

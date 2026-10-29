@@ -1,9 +1,11 @@
-import json
-from pathlib import Path
-
 import pytest
-from fastapi_project.development.impact import CHECK, framework_files, impact_scope, scope_markdown
-from fastapi_project.impact import Repo, belongs, report, report_data
+from fastapi_project.development.impact import (
+    CHECK,
+    framework_files,
+    impact_scope,
+    module_area,
+    scope_markdown,
+)
 
 from shared.modules.catalog import Catalog
 from shared.public import (
@@ -164,7 +166,8 @@ def test_unrelated_paths_and_no_changes(catalog: Catalog) -> None:
     scope = impact_scope([path, "README.md"], catalog)
     assert scope.affected == scope.direct == ["unrelated"] and not scope.dependents
     assert scope.unmapped == ["README.md"]
-    assert belongs(path, "unrelated") and not belongs(path, "gamma")
+    assert module_area(path, ["unrelated"]) == ("unrelated", "测试")
+    assert module_area(path, ["gamma"]) != ("gamma", "测试")
     assert framework_files(["server/shared_extra/example.py"]) == []
     empty = impact_scope([], catalog)
     assert empty.commands == empty.affected == [] and not empty.full_check
@@ -176,80 +179,3 @@ def test_multiple_direct_changes_are_stable(catalog: Catalog) -> None:
     assert scope.direct == ["beta", "gamma"]
     assert scope.dependents == ["alpha", "background"]
     assert scope == impact_scope(reversed(paths), catalog)
-
-
-@pytest.fixture
-def repo(tmp_path: Path) -> Repo:
-    result = Repo(tmp_path)
-    write(tmp_path / "server/service/gamma/public.py", "BEFORE = 1\n")
-    write(tmp_path / "doc/gamma/cases/c.json", "{}\n")
-    write(tmp_path / "doc/api/openapi.json", json.dumps({"paths": {"/old": {"get": {}}}}))
-    result.git("init", "-q", "-b", "main")
-    result.git("add", "-A")
-    result.git(
-        "-c",
-        "user.name=测试",
-        "-c",
-        "user.email=test@example.invalid",
-        "commit",
-        "-q",
-        "-m",
-        "测试初始提交",
-    )
-    return result
-
-
-def test_git_report_preserves_all_sections_and_stable_json(repo: Repo, catalog: Catalog) -> None:
-    write(repo.root / "doc/gamma/cases/c.json", '{"changed": true}\n')
-    write(repo.root / "doc/api/openapi.json", json.dumps({"paths": {}}))
-    write(repo.root / "server/migrations/versions/new.py", "REVISION = 1\n")
-    data = report_data("main", catalog, repo, ["beta"])
-    assert data["schema_version"] == 1 and data["base"] == "main"
-    assert data["direct"] == ["gamma"] and data["full_check"]
-    assert data["enabled"] == [name for name in sorted(catalog.modules) if name != "beta"]
-    assert set(data) == {
-        "schema_version",
-        "base",
-        "fork_point",
-        "files",
-        "sections",
-        "direct",
-        "dependents",
-        "affected",
-        "reasons",
-        "commands",
-        "full_check",
-        "full_check_reasons",
-        "registered",
-        "enabled",
-        "unknown",
-        "unmapped",
-    }
-    assert json.loads(json.dumps(data, ensure_ascii=False)) == data
-    text = report("main", catalog, repo)
-    assert "删除接口：GET /old" in text and "new.py" in text
-    assert list(data["sections"]) == [
-        "框架文件",
-        "涉及的模块",
-        "接口",
-        "数据库迁移",
-        "检查范围",
-    ]
-
-
-def test_git_rename_and_untracked_paths(repo: Repo, catalog: Catalog) -> None:
-    (repo.root / "server/service/unrelated").mkdir()
-    repo.git("mv", "server/service/gamma/public.py", "server/service/unrelated/renamed.py")
-    repo.git("rm", "doc/gamma/cases/c.json")
-    write(repo.root / "server/service/future/public.py", "NEW = 1\n")
-    data = report_data("main", catalog, repo)
-    assert "server/service/gamma/public.py" in data["files"]
-    assert "server/service/unrelated/renamed.py" in data["files"]
-    assert "doc/gamma/cases/c.json" in data["files"]
-    assert data["direct"] == ["future", "gamma", "unrelated"] and data["unknown"] == ["future"]
-    assert "| future | 代码 |" in report("main", catalog, repo)
-
-
-def write(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")

@@ -50,14 +50,13 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 |---|---|
 | 创建新产品、更新框架 | `fastapi-template` |
 | 新建业务包、操作、流程、纯工具与前后端接口 | `fastapi-module` |
-| 计划、规则、任务、文档、面板、整合与证据 | `fastapi-project` |
 | 运行局部检查、联合检查、完整检查 | `fastapi-check` |
 | 查运行报告、处理后台任务、生成服务密钥 | `fastapi-operations` |
 
-业务迁移见 `fastapi-template` 的迁移参考，前后端接口适配见 `fastapi-module` 的接口参考。六个日常 Skill 入口包含本 guide；`fastapi-docs`、`fastapi-migration` 目录仅保留兼容 Python 工具，不是额外的 Skill 入口。各 Skill 的 `scripts/run_*.py` 旧长命令仍然能用，只为兼容已有脚本保留；说明、输出和新写的文档一律用 `uv run dev 子命令`。
+业务迁移见 `fastapi-template` 的迁移参考，前后端接口适配见 `fastapi-module` 的接口参考。五个日常 Skill 入口包含本 guide；`fastapi-project`、`fastapi-docs`、`fastapi-migration` 只放 `dev locate`、`dev docs`、`dev compare-api` 的脚本，不是 Skill 入口。所有命令一律用 `uv run dev 子命令`。
 
 写文档和生成文字时，遵循 [文风与术语约定](references/writing-style.md)：完整句子、统一术语、图上只放流程、细节进表格。
 
 ## 复制项目时
 
-只复制 `.agents/skills/`。本机的任务记录、检查证据和临时工作目录不要带走。生产服务不会导入 Skill 里的脚本。
+只复制 `.agents/skills/`。本机的临时工作目录不要带走。生产服务不会导入 Skill 里的脚本。

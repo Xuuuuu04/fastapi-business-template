@@ -1,17 +1,9 @@
-import hashlib
-import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from fastapi_check.check import INTEGRITY, QUALITY, steps
 from fastapi_check.quality.report import Problem, in_modules
-from fastapi_project.development.evidence import (
-    full_check_current,
-    latest_full_check,
-    system_fingerprint,
-)
 from fastapi_project.development.selection import (
     Selection,
     affected_modules,
@@ -78,7 +70,6 @@ def test_quick_plan_is_local_and_not_acceptance(
     assert all("mypy" not in command and "docs" not in command for _, command in plan)
     assert not any(test in plan[-1][1] for test in INTEGRITY)
     assert selection.scope() == {"kind": "quick", "modules": ["sample_records"]}
-    assert latest_full_check([{"scope": selection.scope()}]) is None
 
 
 def test_old_and_new_graph_union_keeps_removed_callers() -> None:
@@ -140,126 +131,26 @@ def test_unchanged_and_unreadable_graph(repository: Path) -> None:
         previous_graph(repository, "HEAD")
 
 
-def test_full_check_tracks_registration_and_exact_modules(tmp_path: Path) -> None:
-    file = tmp_path / "server/app/setup/catalog.py"
-    file.parent.mkdir(parents=True)
-    file.write_text("MODULES = []\n", encoding="utf-8")
-    record = {
-        "fingerprints": {"a": "1"},
-        "source_changed": False,
-        "system_fingerprint": system_fingerprint(tmp_path),
-    }
-    assert full_check_current(record, {"a": "1"}, tmp_path)
-    assert not full_check_current(record, {}, tmp_path)
-    file.write_text("MODULES = [new]\n", encoding="utf-8")
-    assert not full_check_current(record, {"a": "1"}, tmp_path)
-
-
-@pytest.mark.parametrize(
-    "relative",
-    [
-        "server/shared/probe.py",
-        "server/uv.lock",
-        "server/tests/framework/test_probe.py",
-        ".agents/skills/fastapi-guide/SKILL.md",
-        "server/migrations/probe.py",
-    ],
-)
-def test_empty_template_expires_after_framework_change(tmp_path: Path, relative: str) -> None:
-    source = tmp_path / relative
-    source.parent.mkdir(parents=True)
-    source.write_text("first\n")
-    record = {
-        "fingerprints": {},
-        "source_changed": False,
-        "system_fingerprint": system_fingerprint(tmp_path),
-    }
-    assert full_check_current(record, {}, tmp_path)
-    source.write_text("second\n")
-    assert not full_check_current(record, {}, tmp_path)
-
-
 def test_validation_and_local_files(tmp_path: Path) -> None:
     catalog = Catalog(MODULES)
     with pytest.raises(ValueError, match="没有登记"):
         validate_modules(("not_registered",), catalog)
     with pytest.raises(ValueError, match="缺少"):
         validate_modules(("sample_records",), catalog, tmp_path)
-    from tests.architecture.test_history_versions import sample_project
-
-    sample_project(tmp_path)
+    routers = tmp_path / "server/app/api/routers.py"
+    routers.parent.mkdir(parents=True)
+    routers.write_text(
+        "from app.api.v1 import sample_accounts, sample_records\n\n"
+        "MODULE_ROUTERS: dict[str, tuple] = {\n"
+        '    "sample_accounts": (sample_accounts.router,),\n'
+        '    "sample_records": (sample_records.router,),\n'
+        "}\n"
+    )
+    for name in ("sample_accounts", "sample_records"):
+        for relative in (f"service/{name}/module.py", f"app/api/v1/{name}.py"):
+            path = tmp_path / "server" / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("VALUE = 1\n")
     files = module_files(("sample_records",), tmp_path / "server")
     assert "app/api/v1/sample_records.py" in files
     assert not any("sample_accounts" in path for path in files)
-
-
-def test_product_template_validation_tracks_tool_files_only(tmp_path: Path) -> None:
-    from tests.check_profile import template_tools_unchanged
-
-    root = tmp_path / "product"
-    tool = root / ".agents/skills/fastapi-check/scripts/fastapi_check/probe.py"
-    devtool = root / "server/devtools/src/fastapi_dev/probe.py"
-    for path in (tool, devtool):
-        path.parent.mkdir(parents=True)
-        path.write_text("VALUE = 1\n", encoding="utf-8")
-    assert not template_tools_unchanged(root)
-    origin = root / "template-source.json"
-    origin.write_text(
-        json.dumps(
-            {
-                "files": {
-                    path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
-                    for path in (tool, devtool)
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
-    assert template_tools_unchanged(root)
-    for relative in (
-        "server/service/sample/steps.py",
-        "server/uv.lock",
-        "server/migrations/versions/product.py",
-        "server/shared/flow/view.py",
-        "server/framework.lock",
-        "server/pyproject.toml",
-        ".agents/skills/fastapi-check/SKILL.md",
-    ):
-        changed = root / relative
-        changed.parent.mkdir(parents=True, exist_ok=True)
-        changed.write_text("product change\n", encoding="utf-8")
-    assert template_tools_unchanged(root)
-    for path in (tool, devtool):
-        path.write_text("VALUE = 2\n", encoding="utf-8")
-        assert not template_tools_unchanged(root)
-        path.write_text("VALUE = 1\n", encoding="utf-8")
-    origin.write_text("{", encoding="utf-8")
-    assert not template_tools_unchanged(root)
-
-
-@pytest.mark.parametrize(
-    ("group", "delivery", "count"), [("all", "0", 1), ("all", "1", 1), ("framework", "0", 2)]
-)
-def test_product_template_selection_respects_delivery(
-    group: str, delivery: str, count: int, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from fastapi_check.quality.rules import ROOT
-
-    from tests import resources
-
-    monkeypatch.setenv("APP_TEST_GROUP", group)
-    monkeypatch.setenv("APP_DEVELOPMENT_DELIVERY", delivery)
-    monkeypatch.setattr("tests.check_profile.template_tools_unchanged", lambda root: True)
-    items = [
-        SimpleNamespace(
-            path=ROOT / "tests/architecture" / name, get_closest_marker=lambda name: None
-        )
-        for name in ("test_tools.py", "test_structure.py")
-    ]
-    removed = []
-    config = SimpleNamespace(
-        hook=SimpleNamespace(pytest_deselected=lambda items: removed.extend(items))
-    )
-    resources.pytest_collection_modifyitems(config, items)
-    assert len(items) == count and len(removed) == 2 - count
-    assert any(item.path.name == "test_structure.py" for item in items)

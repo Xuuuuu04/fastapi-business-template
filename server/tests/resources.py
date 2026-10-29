@@ -6,14 +6,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from fastapi_project.development.database_leases import (
-    DatabaseLease,
-    allocate_database,
-    control_dsn,
-    release_database,
-)
 
-__all__ = ["DatabaseLease", "allocate_database", "control_dsn", "release_database"]
+from tests.database_leases import allocate_database, release_database
 
 
 @pytest.hookimpl(trylast=True)
@@ -73,18 +67,12 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    from tests.check_profile import template_tool, template_tools_unchanged
-
     selected = os.environ.get("APP_TEST_GROUP", "all")
-    root = Path(__file__).resolve().parents[2]
-    product = selected != "framework" and template_tools_unchanged(root)
     kept, deselected = [], []
     for item in items:
         marker = item.get_closest_marker("test_group")
         group = marker.args[0] if marker else test_group(Path(str(item.path)))
-        include = (selected == "all" or group == selected) and not (
-            product and template_tool(Path(str(item.path)), root)
-        )
+        include = selected == "all" or group == selected
         (kept if include else deselected).append(item)
     config.hook.pytest_deselected(items=deselected)
     items[:] = kept

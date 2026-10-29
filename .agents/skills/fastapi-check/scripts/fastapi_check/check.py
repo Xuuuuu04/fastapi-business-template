@@ -1,23 +1,11 @@
+import argparse
 import json
+import os
 import subprocess
 import sys
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from time import perf_counter
 
-from fastapi_check.arguments import arguments
-from fastapi_check.cache import cached_round, execution_profile
 from fastapi_check.development_rules import check_development
-from fastapi_check.matrix import CheckOptions, clean_environment, databases, execute_matrix
-from fastapi_check.outcomes import (
-    NEXT_STEPS,
-    announce_template_reuse,
-    check_scope,
-    test_problems,
-)
-from fastapi_check.quality.rules import PROJECT, ROOT
-from fastapi_project.development.evidence import system_fingerprint
-from fastapi_project.development.history import fingerprints, save_check
+from fastapi_check.quality.rules import ROOT
 from fastapi_project.development.selection import (
     Selection,
     module_files,
@@ -33,60 +21,118 @@ INTEGRITY = (
     "tests/architecture/test_structure.py::test_migrations_match_tables",
 )
 QUALITY = "tests/quality/test_project_quality.py"
+NEXT_STEPS = {
+    "迁移表归属": "请按上方列出的表补充归属登记",
+    "实现状态": "交付前把模拟步骤换成真实实现并设置 simulated=False",
+    "代码风格": "请对上方列出的文件运行 uv run ruff check --fix，再处理剩余问题",
+    "代码格式": "请对上方列出的文件运行 uv run ruff format",
+    "类型检查": "请按上方 mypy 输出修正类型",
+    "接口文档": "openapi.json 已过期，请运行 uv run dev docs",
+}
+SYSTEM_ENVIRONMENT = {
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+    "LANG",
+    "TZ",
+    "SYSTEMROOT",
+    "WINDIR",
+    "PYTHONPATH",
+    "PYTHONUNBUFFERED",
+    "PYTHONDONTWRITEBYTECODE",
+    "UV_CACHE_DIR",
+    "APP_TEST_REDIS_URL",
+    "APP_TEST_S3_ENDPOINT",
+    "APP_TEST_S3_ACCESS_KEY",
+    "APP_TEST_S3_SECRET_KEY",
+    "APP_TEST_S3_BUCKET",
+    "APP_TEST_S3_REGION",
+}
 
 
-def steps(selection: Selection | None = None) -> list[tuple[str, list[str]]]:
-    selection = selection or Selection()
-    typed = [name for name in TYPED if any((ROOT / name).rglob("*.py"))]
+def default_workers() -> int:
+    return max(2, min(4, (os.cpu_count() or 2) - 2))
+
+
+def arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="静态检查加测试")
+    parser.add_argument(
+        "--module", action="append", default=[], help="指定模块，可重复或用逗号分隔"
+    )
+    parser.add_argument("--quick", action="store_true", help="只查所选模块的风格、格式和测试")
+    parser.add_argument("--affected", action="store_true", help="按和 --base 的差异选出受影响模块")
+    parser.add_argument("--base", default="origin/main", help="--affected 的比较分支")
+    parser.add_argument("--postgres", default="", help="测试改用这个隔离 PostgreSQL 控制地址")
+    parser.add_argument("--workers", type=int, default=default_workers(), help="测试进程数")
+    parser.add_argument(
+        "--group", choices=["all", "pure", "module", "flow", "framework"], default="all"
+    )
+    parser.add_argument("--delivery", action="store_true", help="交付检查，不允许模拟步骤")
+    args = parser.parse_args()
+    if not 0 <= args.workers <= 32:
+        parser.error("workers应为0至32")
+    if args.affected and (args.module or args.quick):
+        parser.error("--affected 不能与 --module 或 --quick 同时使用")
+    if args.quick and not module_names(args.module):
+        parser.error("--quick 必须指定 --module")
+    return args
+
+
+def steps(selection: Selection) -> list[tuple[str, list[str]]]:
     tests = ["-m", "pytest", "-q", "--durations=10"]
     for module in selection.modules:
         tests += [f"tests/modules/{module}", f"tests/integration/{module}"]
     files = module_files(selection.modules) if selection.modules else [".", "../.agents/skills"]
     if not files:
-        raise ValueError("包级检查没有可检查的 Python 文件")
+        raise ValueError("所选模块没有可检查的 Python 文件")
     if selection.quick:
         return [
-            ("局部代码风格", ["ruff", "check", *files]),
-            ("局部代码格式", ["ruff", "format", "--check", *files]),
-            ("快速模块测试", tests),
+            ("代码风格", ["ruff", "check", *files]),
+            ("代码格式", ["ruff", "format", "--check", *files]),
+            ("模块测试", tests),
         ]
     if selection.modules:
         tests += [*INTEGRITY, QUALITY]
+    typed = [name for name in TYPED if any((ROOT / name).rglob("*.py"))]
     return [
         ("代码风格", ["ruff", "check", *files]),
         ("代码格式", ["ruff", "format", "--check", *files]),
         ("类型检查", ["mypy", *typed]),
-        (
-            "接口文档",
-            ["-m", "fastapi_dev.main", "docs", "--check"],
-        ),
-        ("模块测试" if selection.modules else "默认测试", tests),
+        ("接口文档", ["-m", "fastapi_dev.main", "docs", "--check"]),
+        ("模块测试" if selection.modules else "测试", tests),
     ]
 
 
+def environment(
+    selection: Selection, postgres: str, workers: int, group: str, delivery: bool
+) -> dict[str, str]:
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key in SYSTEM_ENVIRONMENT or key.startswith("LC_")
+    }
+    env |= {
+        "APP_TEST_GROUP": group,
+        "APP_TEST_WORKERS": str(workers),
+        "APP_DEVELOPMENT_DELIVERY": "1" if delivery else "0",
+        "APP_DEVELOPMENT_MODULES": json.dumps([] if selection.quick else list(selection.modules)),
+        "APP_DISABLED_MODULES": "[]",
+    }
+    if postgres:
+        env["APP_TEST_CONTROL_URL"] = postgres
+    return env
+
+
 def run(title: str, command: list[str], env: dict[str, str]) -> bool:
-    direct = command[0] == "-m" or command[0].endswith(".py")
+    direct = command[0] == "-m"
     runner = [sys.executable, *command] if direct else [sys.executable, "-m", *command]
     print(f"\n==> {title}：{' '.join(command)}", flush=True)
     return subprocess.run(runner, cwd=ROOT, env=env, check=False).returncode == 0
-
-
-def run_tests(
-    title: str, command: list[str], env: dict[str, str], database: str
-) -> tuple[bool, dict[str, object]]:
-    with TemporaryDirectory(prefix="template-check-") as folder:
-        result = Path(folder) / "tests.json"
-        passed = run(title, command, {**env, "APP_DEVELOPMENT_RESULT": str(result)})
-        evidence = (
-            json.loads(result.read_text(encoding="utf-8"))
-            if result.exists()
-            else {"exit_code": 1, "cases": []}
-        )
-    actual = evidence.get("database", database)
-    return passed and evidence["exit_code"] == 0 and actual == database, {
-        "database": actual,
-        **evidence,
-    }
 
 
 def migration_check() -> bool:
@@ -101,146 +147,18 @@ def migration_check() -> bool:
 
 
 def execute(
-    selection: Selection, postgres: str, options: CheckOptions | None = None
+    selection: Selection, postgres: str, workers: int, group: str, delivery: bool
 ) -> list[tuple[str, bool]]:
-    options = options or CheckOptions()
-    matrix = databases(postgres, options.database)
-    announce_template_reuse(options)
-    started = perf_counter()
-    modules, links, before, system_before = check_versions(selection)
-    profile = execution_profile(options, postgres)
-    scope = check_scope(selection, options, modules)
-    if not options.delivery and not options.fresh:
-        cached = cached_round(PROJECT, before, system_before, scope, profile)
-        if cached:
-            print(f"沿用检查 {cached['id']}（{cached['finished_at']}），没有重新执行")
-            return list(cached["checks"].items())
-    env = check_environment(selection, postgres, options)
+    env = environment(selection, postgres, workers, group, delivery)
+    results = [("迁移表归属", migration_check()), ("实现状态", not check_development(delivery))]
     selected = steps(selection)
-    results, timings, problems = run_static_checks(selected, env)
-    outcomes = execute_matrix(
-        matrix, postgres, selected[-1][1], env, options, run_tests, selected[-1][0]
-    )
-    suites = []
-    for database, passed, evidence, seconds in outcomes:
-        title = "PostgreSQL 测试" if database == "postgresql" else selected[-1][0]
-        results.append((title, passed))
-        if not passed:
-            problems += test_problems(title, evidence)
-        suites.append(evidence)
-        timings[title] = seconds
-    finish_check(
-        selection,
-        before,
-        system_before,
-        modules,
-        links,
-        results,
-        suites,
-        timings,
-        started,
-        options,
-        profile,
-        scope,
-        problems,
-    )
-    return results
-
-
-def run_static_checks(
-    selected: list[tuple[str, list[str]]], env: dict[str, str]
-) -> tuple[list[tuple[str, bool]], dict[str, float], list[str]]:
-    timings: dict[str, float] = {}
-    rules = check_development(env.get("APP_DEVELOPMENT_DELIVERY") == "1")
-    results = [("迁移表归属", migration_check()), ("实现状态", not rules)]
-    problems = [f"实现状态：{text}" for text in rules]
     for title, command in selected[:-1]:
-        start = perf_counter()
         results.append((title, run(title, command, env)))
-        timings[title] = round(perf_counter() - start, 3)
-    problems += [
-        f"{title}：{NEXT_STEPS[title]}"
-        for title, passed in results
-        if not passed and title in NEXT_STEPS
-    ]
-    return results, timings, problems
-
-
-def check_versions(
-    selection: Selection,
-) -> tuple[list[str], dict[str, dict[str, list[str]]], dict[str, str], str]:
-    from app.setup.application import application_modules
-    from shared.modules.catalog import Catalog
-
-    registered = application_modules()
-    modules = list(selection.modules) or [item.name for item in registered]
-    links = Catalog(registered).links()
-    return modules, links, fingerprints(PROJECT, modules, links), system_fingerprint(PROJECT)
-
-
-def check_environment(
-    selection: Selection, postgres: str, options: CheckOptions | None = None
-) -> dict[str, str]:
-    from app.setup.application import application
-
-    options = options or CheckOptions()
-    env = {
-        **clean_environment(),
-        "APP_TEST_GROUP": options.group,
-        "APP_DEVELOPMENT_DELIVERY": "1" if options.delivery else "0",
-        "APP_DISABLED_MODULES": "[]",
-        "APP_DEVELOPMENT_REPEAT_DATABASE": "0",
-    }
-    if postgres:
-        env.pop("APP_TEST_DATABASE_URL", None)
-    env["APP_MODULE_DEPENDENCIES_STRICT"] = str(
-        application().settings("test").module_dependencies_strict
-    ).lower()
-    env["APP_DEVELOPMENT_MODULES"] = json.dumps([] if selection.quick else list(selection.modules))
-    return env
-
-
-def finish_check(
-    selection: Selection,
-    before: dict[str, str],
-    system_before: str,
-    modules: list[str],
-    links: dict[str, dict[str, list[str]]],
-    results: list[tuple[str, bool]],
-    suites: list[dict[str, object]],
-    timings: dict[str, float],
-    started: float,
-    options: CheckOptions | None = None,
-    profile: dict[str, object] | None = None,
-    scope: dict[str, object] | None = None,
-    problems: list[str] | None = None,
-) -> None:
-    changed = before != fingerprints(
-        PROJECT, modules, links
-    ) or system_before != system_fingerprint(PROJECT)
-    elapsed = round(perf_counter() - started, 3)
-    path = save_check(
-        PROJECT,
-        {
-            "fingerprints": before,
-            "scope": scope or selection.scope(),
-            "source_changed": changed,
-            "system_fingerprint": system_before,
-            "passed": all(passed for _, passed in results),
-            "checks": dict(results),
-            "problems": problems or [],
-            "suites": suites,
-            "timings": timings,
-            "elapsed_seconds": elapsed,
-            "selection_reasons": list(selection.reasons),
-            "execution_profile": profile or {},
-        },
-    )
-    print(f"\n本轮检查记录：{path.relative_to(PROJECT)}")
-    print(
-        f"本轮耗时：{elapsed:.3f} 秒；"
-        + "；".join(f"{title} {seconds:.3f}s" for title, seconds in timings.items())
-    )
+    title, tests = selected[-1]
+    if workers:
+        tests = [*tests, "--dist=load", "--maxschedchunk=2", "-n", str(workers)]
+    results.append((title, run(title, tests, env)))
+    return results
 
 
 def main() -> None:
@@ -262,19 +180,13 @@ def main() -> None:
         print(reason, flush=True)
     if selection.unchanged:
         return
-    print(f"检查范围：{'、'.join(selection.modules) or '全部登记模块'}", flush=True)
-    if selection.quick:
-        print("快速调试：未执行完整类型、接口文档及整合检查，不能代替包验收。", flush=True)
-    results = execute(
-        selection,
-        args.postgres,
-        CheckOptions(args.database, args.workers, args.group, args.delivery),
-    )
+    print(f"检查范围：{'、'.join(selection.modules) or '全部模块'}", flush=True)
+    results = execute(selection, args.postgres, args.workers, args.group, args.delivery)
     print("\n检查结果：")
     for title, passed in results:
         print(f"  {'通过' if passed else '失败'}  {title}")
-    if not args.postgres:
-        print("  未运行  PostgreSQL 测试（生产使用 PostgreSQL 时，发布前必须加 --postgres 运行）")
+        if not passed and title in NEXT_STEPS:
+            print(f"        {NEXT_STEPS[title]}")
     sys.exit(0 if all(passed for _, passed in results) else 1)
 
 

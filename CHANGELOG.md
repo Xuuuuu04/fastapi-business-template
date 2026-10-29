@@ -9,6 +9,8 @@
 - 生成器（new-library、new-operation、new-pipeline、skeleton、模块清单、迁移合并、新产品入口）不再生成说明注释和文件头说明；各 README 示例代码里的注释改成正文或真实代码。
 - 删除全部自动生成和手工登记的开发资料：业务文档（needs/rules/changes/flows.md、模块关系、开发进度、项目设计、接口清单 index.md）、AGENTS 里的当前状态段、业务现状档案、规则台账与 `dev rules`、业务词表与 `dev glossary`、确认样例核对、项目计划 `project-plan.json` 与 `dev plan`、任务卡 `dev start/finish/ask-contract/review-pack`、开发面板 `dev panel`、项目状态 `dev status`，以及 7 个 `scripts/run_*.py` 兼容入口（只留 `uv run dev`）。`dev docs` 只生成 `doc/api/openapi.json`。删除 93 个文件，约 1 万行。
 - 生成器不再写业务文档、项目计划和规则编号；`dev locate` 只按代码声明查找，`dev impact` 去掉规则和流程文档两节，`dev merge` 只重建模块登记、路由和 openapi.json。交付检查仍拒绝模拟骨架。
+- `dev check` 只做静态检查（风格、格式、类型、接口文档、迁移归属）和跑测试：不再计算源码指纹、不存档、不沿用上次结果、不按模板工具摘要跳过测试，SQLite 和 PostgreSQL 不再并行双跑（要 PostgreSQL 时加 `--postgres`）。完整检查从约 119 秒降到 36 秒。
+- 删除 `dev skeleton`（按规格生成多包骨架）、`dev merge`（本机分支整合）、`dev impact`（改动影响报告）、`dev pin/gc`（检查证据保留与清理），以及复制整个模板再重跑全部测试的端到端测试。`check --affected` 仍按改动选包。
 - 已有产品接入：升级后旧代码的注释会被新检查报出，用同样的方式删除；意图改用名字、类型、`meaning()` 和测试表达，修改原因写进提交说明。
 
 ## 3.2.0（2026-10-14）

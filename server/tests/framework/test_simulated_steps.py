@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 from fastapi_check.development_rules import simulated_steps
-from fastapi_project.development.check_assets import compact_case
 
 from app.setup.build import build
 from shared.access.caller import SYSTEM
@@ -53,8 +52,6 @@ async def test_simulation_requires_explicit_context_and_marks_evidence(tmp_path:
         successful = next(record for record in records if record.status == "ok")
         evidence = run_evidence(successful)
         assert evidence["simulated"] and all(step["simulated"] for step in evidence["steps"])
-        case = compact_case({"nodeid": "synthetic", "runs": [evidence]}, tmp_path)
-        assert case["runs"][0]["simulated"]
         built.runtime.allow_simulation = False
         with simulate(providers), pytest.raises(StepRuleBroken, match="test配置"):
             await built.runtime.run(operation, Input(amount=4), caller=SYSTEM)

@@ -6,14 +6,9 @@ import sys
 from pathlib import Path
 
 COMMANDS = {
-    "pin": "fastapi_project.retention",
-    "gc": "fastapi_project.retention",
-    "merge": "fastapi_project.integration",
-    "skeleton": "fastapi_module.skeleton",
     "new-library": "fastapi_module.new_library",
     "check": "fastapi_check.check",
     "locate": "fastapi_project.locate",
-    "impact": "fastapi_project.impact",
     "docs": "fastapi_docs.openapi",
     "diagnose": "fastapi_operations.diagnose",
     "jobs": "fastapi_operations.jobs",

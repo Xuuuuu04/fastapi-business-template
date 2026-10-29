@@ -3,14 +3,11 @@ from pathlib import Path
 
 import pytest
 from fastapi_module.new_library import library_files
-from fastapi_project.development.history import fingerprints
-from fastapi_project.development.impact import impact_scope
 
 from shared.errors.framework import DeclarationError
-from shared.modules.catalog import Catalog
 from shared.modules.libraries import library_specs
 from shared.modules.validation.library_rules import check_libraries
-from shared.public import Flow, Module, Nothing, WorkData, contract, meaning, step
+from shared.public import Nothing, WorkData, meaning, step
 
 
 def generate(root: Path, name: str = "text_formats") -> None:
@@ -27,23 +24,6 @@ def test_library_generation_and_purity(tmp_path: Path) -> None:
     source = root / "library/text_formats/calc/texts.py"
     source.write_text("import time\n\ndef now() -> float:\n    return time.time()\n")
     assert any(problem.rule == "calc_purity" for problem in check_libraries(root))
-
-
-def test_library_dependency_expires_only_consumers(tmp_path: Path) -> None:
-    root = tmp_path / "server"
-    generate(root)
-    user = root / "service/text_reads/calc/texts.py"
-    user.parent.mkdir(parents=True)
-    user.write_text("from library.text_formats.public import normalize_text\n")
-    other = root / "service/other_reads/calc/texts.py"
-    other.parent.mkdir(parents=True)
-    other.write_text("VALUE = 1\n")
-    before = fingerprints(tmp_path, ["text_reads", "other_reads"])
-    source = root / "library/text_formats/calc/texts.py"
-    source.write_text(source.read_text() + "\nVALUE = 2\n")
-    after = fingerprints(tmp_path, ["text_reads", "other_reads"])
-    assert before["text_reads"] != after["text_reads"]
-    assert before["other_reads"] == after["other_reads"]
 
 
 def test_library_cycle_is_visible(tmp_path: Path) -> None:
@@ -111,41 +91,3 @@ class Work(WorkData):
 @step("返回空结果", writes=["result"])
 def produce(data: Work) -> None:
     data.result = Nothing()
-
-
-def test_tool_change_reaches_real_importers(tmp_path: Path) -> None:
-    root = tmp_path / "server"
-    generate(root, "text_first")
-    generate(root, "text_second")
-    relay = root / "library/text_second/public.py"
-    relay.write_text("from library.text_first.public import normalize_text\n\n__all__ = []\n")
-    user = root / "service/text_reads/calc/texts.py"
-    user.parent.mkdir(parents=True)
-    user.write_text("from library.text_second.public import normalize_text\n")
-    read = contract(
-        "text_reads.read",
-        "读取",
-        input=Nothing,
-        output=Nothing,
-        access="text_reads.read",
-        effect="query",
-    )
-    catalog = Catalog(
-        [
-            Module(
-                "text_reads",
-                "读取",
-                "1",
-                {read: Flow("读取", work=Work, result="result", steps=[produce])},
-                kind="capability",
-            )
-        ]
-    )
-
-    direct = impact_scope(["server/library/text_first/calc/texts.py"], catalog, root=root)
-    assert direct.direct == ["text_reads"]
-    assert any("工具text_first改动" in reason for reason in direct.reasons["text_reads"])
-
-    generate(root, "unused_tools")
-    unused = impact_scope(["server/library/unused_tools/calc/texts.py"], catalog, root=root)
-    assert unused.direct == [] and "server/library/unused_tools/calc/texts.py" in unused.unmapped

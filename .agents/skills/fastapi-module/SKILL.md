@@ -9,31 +9,6 @@ description: 在本项目新增业务包，或把已有业务包调整成固定�
 
 业务含义还没定的地方先问用户，不要自己补。
 
-## 先搭整条链的模拟骨架
-
-在新项目根目录保存 `skeleton.json`，最小完整规格如下：
-
-```json
-{
-  "line": "订单",
-  "packages": [{
-    "name": "order_shipping", "title": "订单运费", "kind": "capability",
-    "operations": [{
-      "name": "fee", "title": "计算运费", "access": "public", "effect": "query",
-      "input": {"quantity": {"type": "int", "meaning": "件数"}},
-      "output": {"amount": {"type": "int", "meaning": "运费分"}},
-      "cases": ["order_shipping.R-01-C01"]
-    }]
-  }]
-}
-```
-
-在 `server/` 执行 `uv run dev skeleton --init --spec ../skeleton.json`，自动生成独立样例，已有文件不覆盖。填写 `doc/order_shipping/cases/order_shipping.R-01-C01.json` 的业务值（如 quantity=2、amount=200）；编号和测试引用已经填好。再运行 `uv run dev skeleton --spec ../skeleton.json --preview`，确认后去掉 `--preview` 生成。
-
-随后替换本包模拟步骤并设置 simulated=False，运行 `dev check --module order_shipping`；整条相关链测试必须通过，`dev check --delivery` 要求全部为真实实现。样例占位不能当作确认业务值。字段、权限、调用和样例出错时，生成之前逐项报告，不留下半个业务包。
-
-流程包在 `calls[].input` 和 `returns` 里用 `input.字段` 或 `包.操作.字段` 写明每个值的来源。生成的调用步骤按被调用的操作命名，例如调用 `order_pricing.quote` 的步骤叫 `fetch_order_pricing_quote`，产出字段叫 `order_pricing_quote`；样例 `observations` 的 `step` 和 `field` 照这个名字填写。三包连接示例见 `server/tests/framework/skeleton_sample.py`。
-
 ## 生成新包
 
 在 `server/` 目录执行：
