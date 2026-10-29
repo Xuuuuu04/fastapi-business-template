@@ -38,12 +38,9 @@ async def adjust_price() -> str:
 
 @pytest.mark.parametrize(
     "query",
-    ["价格表", "PRICE TABLE", "/api/v1/price/adjust", "/api/v1/price/old", "R-01", "规则标题"],
+    ["价格表", "PRICE TABLE", "/api/v1/price/adjust", "/api/v1/price/old", "R-01"],
 )
 def test_business_queries(tmp_path: Path, query: str) -> None:
-    folder = tmp_path / "doc/sample_price"
-    folder.mkdir(parents=True)
-    folder.joinpath("rules.md").write_text("## R-01 规则标题\n")
     flow = replace_flow_rule()
     catalog = Catalog([replace(price_module, provides={price: flow})])
     app = FastAPI()
@@ -53,7 +50,7 @@ def test_business_queries(tmp_path: Path, query: str) -> None:
     hit = result["results"][0]
     assert hit["operation"] == price.name
     assert hit["steps"]["items"][0]["source"].startswith("server/tests/")
-    assert "uv run dev status --operation sample_price.adjust" in hit["next"]
+    assert hit["next"] == "uv run dev check --module sample_price"
     assert result["database_read"] is False
 
 

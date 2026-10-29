@@ -12,7 +12,7 @@ from shared.modules.validation.framework_lock import LOCKED
 
 MODULE_AREAS = (
     ("server/service/", "代码"),
-    ("doc/", "业务文档"),
+    ("doc/", "样例"),
     ("server/app/api/v1/", "接口"),
     ("server/tests/modules/", "测试"),
     ("server/tests/integration/", "测试"),

@@ -28,8 +28,9 @@ def product(tmp_path: Path) -> Path:
         result = subprocess.run(
             [
                 sys.executable,
-                "../.agents/skills/fastapi-module/scripts/run_module.py",
-                "new_module",
+                "-m",
+                "fastapi_dev.main",
+                "new-module",
                 name,
                 "--title",
                 title,
@@ -75,7 +76,7 @@ def test_missing_marker_requires_explicit_adoption(product: Path) -> None:
     with pytest.raises(ConfigError, match="uv run dev adopt-modules"):
         check_structure(MODULES, product)
     result = subprocess.run(
-        [sys.executable, "../.agents/skills/fastapi-module/scripts/run_module.py", "adopt_modules"],
+        [sys.executable, "-m", "fastapi_dev.main", "adopt-modules"],
         cwd=product,
         text=True,
         capture_output=True,

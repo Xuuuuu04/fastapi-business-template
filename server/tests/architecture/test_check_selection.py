@@ -37,7 +37,7 @@ def test_multi_package_plan_runs_common_checks_once(
         "代码风格",
         "代码格式",
         "类型检查",
-        "生成文档",
+        "接口文档",
         "模块测试",
     ]
     command = plan[-1][1]
@@ -58,13 +58,11 @@ def test_module_quality_keeps_only_own_paths(monkeypatch: pytest.MonkeyPatch) ->
         Problem("service/sample_records/steps/build_fee.py", 3, "step_name", "本包"),
         Problem("tests/modules/sample_records/test_fee.py", 9, "comment", "本包"),
         Problem("app/api/v1/sample_records.py", 1, "docstring", "本包接口"),
-        Problem("doc/sample_records/rules.md", 0, "rule_missing", "本包文档"),
         Problem("server/service/sample_records/README.md", 4, "writing_style", "本包说明"),
     ]
     others = [
         Problem("service/sample_records_extra/steps/build_fee.py", 3, "step_name", "名字相近"),
         Problem("tests/conftest.py", 1, "comment", "框架文件"),
-        Problem("doc/README.md", 0, "doc_index", "公共文档"),
     ]
     assert in_modules(own + others, ["sample_records"]) == own
     assert in_modules(own + others, []) == own + others

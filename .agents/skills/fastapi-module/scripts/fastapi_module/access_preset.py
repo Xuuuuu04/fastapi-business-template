@@ -5,7 +5,7 @@ from string import Template
 
 from alembic.script import ScriptDirectory
 from alembic.util import CommandError
-from fastapi_check.quality.rules import PROJECT, ROOT
+from fastapi_check.quality.rules import ROOT
 from fastapi_module.new_module import camel
 
 TEMPLATES = Path(__file__).resolve().parents[2] / "assets/templates/access"
@@ -14,7 +14,6 @@ TEMPLATES = Path(__file__).resolve().parents[2] / "assets/templates/access"
 def preset_targets(name: str, revision: str) -> dict[Path, Path]:
     places = {
         "service": ROOT / "service" / name,
-        "doc": PROJECT / "doc" / name,
         "tests/modules": ROOT / "tests/modules" / name,
         "tests/integration": ROOT / "tests/integration" / name,
     }
@@ -60,11 +59,11 @@ def write_preset(name: str, title: str) -> list[Path]:
 
 def next_steps(name: str) -> list[str]:
     return [
-        f"1. 读 doc/{name}/rules.md，确认登录规则；角色、停用、改口令等按产品需要再加",
+        "1. 确认登录规则；角色、停用、改口令等按产品需要再加",
         "2. uv run alembic upgrade head（账号表的迁移已经生成）",
         f"3. uv run dev make-key --name 账号管理 --org-id 组织代码 --permissions {name}.manage，"
         "把摘要配置进 APP_API_KEYS，再用它调用 POST /api/v1/access/accounts 建第一个账号",
-        "4. uv run dev docs",
+        "4. uv run dev docs（更新 openapi.json）",
         f"5. uv run dev check --module {name}（先检查本模块）",
         "6. uv run dev check（交付前检查全部模块）",
     ]

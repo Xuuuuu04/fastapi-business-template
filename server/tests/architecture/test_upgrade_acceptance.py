@@ -34,8 +34,9 @@ def old_product(base: Path, target: Path, env: dict[str, str]) -> str:
     run(
         base,
         [
-            "../.agents/skills/fastapi-template/scripts/run_template.py",
-            "start_project",
+            "-m",
+            "fastapi_dev.main",
+            "new-project",
             str(target),
             "--name",
             "合成旧产品",
@@ -46,8 +47,9 @@ def old_product(base: Path, target: Path, env: dict[str, str]) -> str:
         run(
             target,
             [
-                "../.agents/skills/fastapi-module/scripts/run_module.py",
-                "new_module",
+                "-m",
+                "fastapi_dev.main",
+                "new-module",
                 name,
                 "--title",
                 "合成历史业务",

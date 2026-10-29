@@ -1,157 +1,17 @@
-import os
-import re
 from pathlib import Path
 
 from fastapi_check.quality.report import Problem
-from fastapi_check.quality.rules import BUSINESS_DOCS, MAX_BUSINESS_DOC_LINES, PROJECT
-from fastapi_docs.export_docs import outdated
-
-from shared.data.fields import notes_of
-from shared.modules.catalog import Catalog
+from fastapi_check.quality.rules import PROJECT
 
 BANNED_WORDS = ("阻断", "巡检", "巡查", "红线", "门禁", "判官", "————", "「", "」")
 BANNED_PHRASES = ("Successful Response", "Validation Error")
 STYLE_SKIP = ("writing-style.md",)
-STYLE_GENERATED = (
-    "doc/api/",
-    "doc/modules.md",
-    "doc/development.md",
-    "doc/progress.md",
-    "server/out/",
-    "server/var/",
-)
-
-
-def check_business_docs(catalog: Catalog, project: Path = PROJECT) -> list[Problem]:
-
-    problems = check_development_rules(catalog, project)
-    index = project / "doc" / "README.md"
-    index_text = index.read_text(encoding="utf-8") if index.exists() else ""
-    for name, module in catalog.modules.items():
-        folder = project / module.doc
-        problems += check_files(folder, project)
-        if name not in index_text:
-            problems.append(
-                Problem("doc/README.md", 0, "doc_index", f"业务文档目录没有列出模块 {name}")
-            )
-        rules = folder / "rules.md"
-        if rules.exists():
-            problems += check_rule_ids(catalog, name, rules, project)
-    for path in outdated(catalog):
-        problems.append(
-            Problem(
-                path.relative_to(project).as_posix(),
-                0,
-                "doc_generated",
-                "自动生成的文档与当前声明不一致",
-                "运行 uv run dev docs",
-            )
-        )
-    return problems
-
-
-def check_development_rules(
-    catalog: Catalog, project: Path, *, delivery: bool | None = None
-) -> list[Problem]:
-    from fastapi_project.development.confirmed_cases import case_problems
-    from fastapi_project.development.glossary import target_problems
-    from fastapi_project.development.ledger import read_ledger
-
-    delivery = os.environ.get("APP_DEVELOPMENT_DELIVERY") == "1" if delivery is None else delivery
-    if (project / ".agents/records/ledger-write.json").exists():
-        return [
-            Problem(
-                "doc/rules-ledger.json",
-                0,
-                "ledger_recovery",
-                "规则写入尚未恢复，请先运行dev rules recover",
-            )
-        ]
-    problems = [
-        Problem("doc/rules-ledger.json", 0, "confirmed_case", problem)
-        for problem in case_problems(
-            project,
-            read_ledger(project),
-            delivery=delivery,
-        )
-    ]
-    problems += [
-        Problem("doc/glossary.json", 0, "glossary_target", problem)
-        for problem in target_problems(project, catalog)
-    ]
-    if delivery:
-        problems += [
-            Problem(
-                "service/" + binding.module.name,
-                0,
-                "simulated_implementation",
-                "交付不能包含模拟骨架：" + binding.contract.name,
-            )
-            for binding in catalog.bindings.values()
-            if any(part.simulated for part in binding.flow.steps)
-        ]
-    return problems
-
-
-def check_files(folder: Path, project: Path) -> list[Problem]:
-    problems = []
-    for file_name in BUSINESS_DOCS:
-        path = folder / file_name
-        name = path.relative_to(project).as_posix()
-        if not path.exists():
-            problems.append(
-                Problem(
-                    name,
-                    0,
-                    "doc_missing",
-                    "缺少业务文档",
-                    "新模块用 uv run dev new-module 生成文档骨架",
-                )
-            )
-            continue
-        count = len(path.read_text(encoding="utf-8").splitlines())
-        if count > MAX_BUSINESS_DOC_LINES:
-            problems.append(
-                Problem(
-                    name,
-                    0,
-                    "doc_lines",
-                    f"文档有 {count} 行，超过 {MAX_BUSINESS_DOC_LINES} 行",
-                    "按业务主题拆分或整理，保留全部业务条件和确认样例",
-                )
-            )
-    return problems
-
-
-def check_rule_ids(catalog: Catalog, name: str, rules: Path, project: Path) -> list[Problem]:
-    text = rules.read_text(encoding="utf-8")
-    written = set(re.findall(r"^#{2,4}\s+(R-\d+)\b", text, re.MULTILINE))
-    used = rule_ids(catalog, name)
-    path = rules.relative_to(project).as_posix()
-    return [
-        Problem(
-            path,
-            0,
-            "rule_missing",
-            f"代码引用了规则 {rule}，但文档中没有这一条",
-            f"加一个标题“### {rule} 规则名称”",
-        )
-        for rule in sorted(used - written)
-    ]
-
-
-def rule_ids(catalog: Catalog, name: str) -> set[str]:
-    found = set()
-    for item, flow in catalog.modules[name].provides.items():
-        found |= {part.rule for part in flow.steps if part.rule}
-        for model in (flow.work, item.input, item.output):
-            found |= {note.rule for note in notes_of(model).values() if note.rule}
-    return found
+STYLE_GENERATED = ("server/out/", "server/var/")
 
 
 def check_writing_style(project: Path = PROJECT) -> list[Problem]:
     problems: list[Problem] = []
-    folders = [project / "doc", project / ".agents" / "skills", project / "server"]
+    folders = [project / ".agents" / "skills", project / "server"]
     singles = [project / "AGENTS.md", project / "README.md"]
     for path in singles + [item for folder in folders for item in folder.rglob("*.md")]:
         if not path.exists() or path.name in STYLE_SKIP:

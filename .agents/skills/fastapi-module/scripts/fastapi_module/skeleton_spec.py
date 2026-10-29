@@ -1,6 +1,6 @@
 import keyword
 import re
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -53,7 +53,6 @@ class SkeletonPackage(BaseModel):
 
 class SkeletonBundle(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    line: str = Field(min_length=1, max_length=100)
     packages: list[SkeletonPackage] = Field(min_length=1)
 
     def validate_links(self) -> None:
@@ -187,3 +186,16 @@ def validate_mapping(
     for name, reference in values.items():
         if reference_type(reference, available) != target[name].type:
             raise ValueError(f"字段 {name} 来源 {reference} 的类型与 {target[name].type} 不一致")
+
+
+class CaseFixture(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=r"^[a-z][a-z0-9_]*\.R-\d+-C\d+$")
+    input: dict[str, Any]
+    initial: dict[str, Any]
+    expected: dict[str, Any]
+    observations: list[dict[str, Any]] = Field(default_factory=list)
+    database: dict[str, Any] = Field(default_factory=dict)
+    effects: dict[str, Any] = Field(default_factory=dict)
+    assertions: list[str] = Field(min_length=1)
+    tests: list[str] = Field(min_length=1)

@@ -3,9 +3,12 @@ from pathlib import Path
 
 from fastapi_module import skeleton_code as code
 from fastapi_module.new_module import add_route
-from fastapi_module.skeleton_spec import SkeletonBundle, SkeletonOperation, SkeletonPackage
-from fastapi_project.development.confirmed_cases import CaseFixture
-from fastapi_project.development.plan import check_plan, read_plan
+from fastapi_module.skeleton_spec import (
+    CaseFixture,
+    SkeletonBundle,
+    SkeletonOperation,
+    SkeletonPackage,
+)
 from fastapi_template.template.files import safe_path
 from pydantic import TypeAdapter
 
@@ -85,14 +88,6 @@ def support_files(project: Path, package: SkeletonPackage) -> dict[Path, str]:
     files: dict[Path, str] = {}
     for name in ("contract", "sql", "tables"):
         files[folder / "store" / (name + ".py")] = ""
-    for name, text in (
-        ("needs", "业务需求由产品独立填写，目前生成了声明骨架。"),
-        ("rules", "规则与样例由产品独立提供，尚未确认的含义保持待确认。"),
-        ("changes", "生成公开契约与模拟骨架，尚未完成真实业务实现。"),
-    ):
-        path = project / "doc" / package.name / (name + ".md")
-        if not path.exists():
-            files[path] = f"# {package.title}\n\n{text}\n"
     return files
 
 
@@ -124,15 +119,6 @@ def bundle_files(project: Path, bundle: SkeletonBundle) -> dict[Path, str]:
     for package in sorted(bundle.packages, key=lambda pkg: pkg.name):
         routers = add_route(routers, package.name)
     files[root / "app/api/routers.py"] = routers
-    index = (project / "doc/README.md").read_text()
-    rows = "".join(
-        f"| {pkg.name} | {pkg.title} | [需求]({pkg.name}/needs.md) · "
-        f"[规则]({pkg.name}/rules.md) |\n"
-        for pkg in bundle.packages
-    )
-    index = index.replace("| --- | --- | --- |\n", "| --- | --- | --- |\n" + rows, 1)
-    files[project / "doc/README.md"] = index
-    files[project / "project-plan.json"] = bundle_plan(project, bundle)
     for path, text in files.items():
         safe_path(project, path.relative_to(project).as_posix())
         if path.suffix == ".py":
@@ -239,40 +225,3 @@ def interface_test(package: SkeletonPackage) -> str:
         "    response = client.get('/openapi.json')\n    assert response.status_code == 200\n"
         f"    assert set({paths!r}) <= set(response.json()['paths'])\n"
     )
-
-
-def bundle_plan(project: Path, bundle: SkeletonBundle) -> str:
-    plan = read_plan(project) or {"schema_version": 2, "name": project.name, "lines": []}
-    plan["schema_version"] = 2
-    existing = {pkg["module"]: pkg for line in plan["lines"] for pkg in line["packages"]}
-    line = next((line for line in plan["lines"] if line["name"] == bundle.line), None)
-    if line is None:
-        line = {"name": bundle.line, "packages": []}
-        plan["lines"].append(line)
-    for package in bundle.packages:
-        if package.name in existing:
-            previous = existing[package.name]
-            if previous.get("kind", "capability") != package.kind or not {
-                op.name for op in package.operations
-            } <= set(previous["operations"]):
-                raise ValueError(
-                    f"{package.name}：骨架与已有计划的包类型或操作范围不一致，请先更新计划"
-                )
-        else:
-            line["packages"].append(
-                {
-                    "module": package.name,
-                    "title": package.title,
-                    "kind": package.kind,
-                    "operations": [op.name for op in package.operations],
-                    "dependencies": sorted(
-                        {
-                            call.operation.split(".")[0]
-                            for op in package.operations
-                            for call in op.calls
-                        }
-                    ),
-                }
-            )
-    check_plan(plan)
-    return json.dumps(plan, ensure_ascii=False, indent=2) + "\n"

@@ -8,10 +8,9 @@
 
 跨业务纯函数、数据类型与协议解析放在[工具包](../library/README.md)，通过其`public.py`复用；步骤以`calcs`声明使用的计算。工具不能访问数据库、网络、文件、时钟和随机源。公开数据与关键流程字段应有明确类型，兼容原始输入模型通过`boundary_data`标记，不把任意字典显示为完整业务契约。
 
-新建使用`uv run dev new-module customer_contact --title 客户联系 --kind capability`或`--kind workflow`；工具使用`uv run dev new-library text_formats --title 文本格式`。`dev plan`维护计划，实际依赖始终来自声明和源码；包清单由生成器读取各包标记后生成。
+新建使用`uv run dev new-module customer_contact --title 客户联系 --kind capability`或`--kind workflow`；工具使用`uv run dev new-library text_formats --title 文本格式`。依赖始终来自声明和源码；包清单由生成器读取各包标记后生成。
 
-从产品业务线到开发包的层次见[项目设计](../../doc/development.md)，分组在根目录 `project-plan.json` 里填写。
-代码保留统一的模块路径，避免改变生成器、模块导入和已有产品。开发时用 `uv run dev status --module 模块名` 一次看到本模块的操作、条件分支、计算图、源码和最近的测试情况。
+代码保留统一的模块路径，避免改变生成器、模块导入和已有产品。开发时用 `uv run dev locate --query 模块名` 找到本模块的操作、步骤和源码位置。
 开发按一项完整业务推进；迁移旧系统见[业务迁移 Skill](../../.agents/skills/fastapi-template/references/product-migration.md)。
 
 ## 每个模块的固定结构
@@ -57,7 +56,6 @@ uv run dev new-module customer_contact --title 客户联系人
 | 只从 `shared.public` 使用框架，只导入其他模块的 `public.py` | 模块内部可以随意重构，不影响别人 |
 | 不导入 fastapi、httpx 等 HTTP 库；数据库库只在 `store/` 中使用 | HTTP 处理在 app/api，数据访问在 store，各管各的 |
 | 每个字段写清含义，可空字段写清空值含义 | 人和 AI 都不用猜 |
-| 计算规则写进 `doc/模块名/rules.md` 并编号，代码中用 `rule="R-xx"` 引用 | 字段来源能追到业务规则，业务变化时知道该改哪里 |
 | 表名以模块名开头，只由本模块读写 | 每份数据有唯一的所有者 |
 | 存储实现的构造参数只用约定名称：`db` 本模块数据库、`legacy` 旧系统只读库、`remote` 外部接口、`files` 文件存储、`cache` 缓存、`caller` 调用者身份、`vault` 字段加密 | 框架按参数名注入，名字写错启动时就报错；数据库连接只在需要 `db` 时才打开 |
 | 多组织数据的表用 `org_column()`，每层查询都写 `org_id == caller.org_id`；只给负责人看的数据用 `owner_column(see_all="权限")` | 漏写组织或负责人条件时，数据库入口直接报错，不会串数据 |

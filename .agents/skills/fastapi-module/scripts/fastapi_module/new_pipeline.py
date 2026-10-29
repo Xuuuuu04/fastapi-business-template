@@ -100,20 +100,7 @@ def generate(
     module: str, name: str, title: str, stages: list[str], wait: str, preview: bool = False
 ) -> list[str]:
     values = changes(module, name, title, stages, wait)
-    docs = [
-        PROJECT / "AGENTS.md",
-        PROJECT / "project-plan.json",
-        PROJECT / "doc/api/openapi.json",
-        PROJECT / "doc/api/index.md",
-        PROJECT / "doc" / module / "flows.md",
-        PROJECT / ".agents/records/business-state/system_ops.md",
-        PROJECT / ".agents/records/business-state/system_ops.json",
-    ]
-    docs += [
-        PROJECT / ".agents/records/business-state" / f"{path.parent.name}.{suffix}"
-        for path in (PROJECT / "server/service").glob("*/module.py")
-        for suffix in ("md", "json")
-    ]
+    docs = [PROJECT / "doc/api/openapi.json"]
     before = snapshot([*values, *docs])
     files = write(values, preview=preview)
     if not preview:

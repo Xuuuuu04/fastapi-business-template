@@ -22,7 +22,6 @@ MANUAL_FILES = (
     "server/migrations/versions",
     "AGENTS.md",
     "CLAUDE.md",
-    "doc/README.md",
     "server/README.md",
     "server/service/README.md",
     "server/tests/README.md",

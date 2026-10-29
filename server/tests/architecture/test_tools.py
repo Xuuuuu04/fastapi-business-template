@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from fastapi_check.quality.rules import PROJECT
-from fastapi_docs.api_doc import api_markdown, docs_app
+from fastapi_docs.openapi import openapi_text
 from fastapi_migration.compare_api import compare
 
 from shared.modules.validation.framework_lock import differences, digests
@@ -35,10 +35,8 @@ def test_compare_api() -> None:
     assert compare(before, before) == []
 
 
-def test_api_markdown() -> None:
-    schema, text = api_markdown(docs_app())
-    assert "/health/live" in schema["paths"]
-    assert "接口清单" in text and "/health/live" in text
+def test_openapi_text() -> None:
+    assert "/health/live" in json.loads(openapi_text())["paths"]
 
 
 def test_framework_lock(tmp_path: Path) -> None:
@@ -87,30 +85,17 @@ def test_new_project_path(tmp_path: Path) -> None:
         "APP_TEST_WORKERS": "2",
     }
     steps = [
-        [
-            "../.agents/skills/fastapi-module/scripts/run_module.py",
-            "new_module",
-            "customer_contact",
-            "--title",
-            "客户联系人",
-        ],
+        ["fastapi_dev.main", "new-module", "customer_contact", "--title", "客户联系人"],
         ["alembic", "upgrade", "head"],
         ["alembic", "revision", "--autogenerate", "-m", "add customer_contact tables"],
         ["ruff", "format", "--quiet", "migrations"],
-        ["../.agents/skills/fastapi-docs/scripts/run_docs.py", "export_docs"],
-        [
-            ("../.agents/skills/fastapi-check/scripts/run_check.py"),
-            "check",
-            "--module",
-            "customer_contact",
-            "--workers",
-            "0",
-        ],
+        ["fastapi_dev.main", "docs"],
+        ["fastapi_dev.main", "check", "--module", "customer_contact", "--workers", "0"],
         ["pytest", "-q", "-p", "no:cacheprovider", "--dist=load", "--maxschedchunk=2", "-n", "2"],
     ]
     for step in steps:
         done = subprocess.run(
-            [sys.executable, *step] if step[0].endswith(".py") else [sys.executable, "-m", *step],
+            [sys.executable, "-m", *step],
             cwd=copy / "server",
             env=env,
             capture_output=True,

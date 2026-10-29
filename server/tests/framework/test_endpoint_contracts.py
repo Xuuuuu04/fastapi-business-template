@@ -4,7 +4,6 @@ from pathlib import Path
 
 import httpx2
 import pytest
-from fastapi_project.development.status import operation_status
 
 from app.setup.build import build
 from shared.access.caller import SYSTEM
@@ -60,8 +59,6 @@ async def test_typed_call_and_graphs(tmp_path: Path, operation: object) -> None:
         assert call.outcome == "ok" and call.elapsed_ms >= 0
         assert call.endpoint in run_graph([record])
         assert call.endpoint in flow_graph(services.catalog.binding(operation))
-        view = operation_status(services.catalog, operation.name, [])
-        assert view["endpoints"][0]["name"] == call.endpoint
     finally:
         await services.close()
 

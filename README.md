@@ -4,7 +4,7 @@
 
 - 项目入口：[AGENTS.md](AGENTS.md)
 - 使用、开发与迁移方法：[模板使用 Skill](.agents/skills/fastapi-guide/SKILL.md)
-- 产品业务与生成文档：[doc/](doc/README.md)
+- 接口契约：[doc/api/openapi.json](doc/api/openapi.json)
 - 服务配置与启动：[server/](server/README.md)
 - 版本变化：[CHANGELOG.md](CHANGELOG.md)
 

@@ -57,7 +57,7 @@ def steps(selection: Selection | None = None) -> list[tuple[str, list[str]]]:
         ("代码格式", ["ruff", "format", "--check", *files]),
         ("类型检查", ["mypy", *typed]),
         (
-            "生成文档",
+            "接口文档",
             ["-m", "fastapi_dev.main", "docs", "--check"],
         ),
         ("模块测试" if selection.modules else "默认测试", tests),
@@ -152,8 +152,8 @@ def run_static_checks(
 ) -> tuple[list[tuple[str, bool]], dict[str, float], list[str]]:
     timings: dict[str, float] = {}
     rules = check_development(env.get("APP_DEVELOPMENT_DELIVERY") == "1")
-    results = [("迁移表归属", migration_check()), ("规则与实现状态", not rules)]
-    problems = [f"规则与实现状态：{text}" for text in rules]
+    results = [("迁移表归属", migration_check()), ("实现状态", not rules)]
+    problems = [f"实现状态：{text}" for text in rules]
     for title, command in selected[:-1]:
         start = perf_counter()
         results.append((title, run(title, command, env)))
@@ -264,7 +264,7 @@ def main() -> None:
         return
     print(f"检查范围：{'、'.join(selection.modules) or '全部登记模块'}", flush=True)
     if selection.quick:
-        print("快速调试：未执行完整类型、生成文档及整合检查，不能代替包验收。", flush=True)
+        print("快速调试：未执行完整类型、接口文档及整合检查，不能代替包验收。", flush=True)
     results = execute(
         selection,
         args.postgres,

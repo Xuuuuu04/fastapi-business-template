@@ -5,7 +5,6 @@ from typing import Any
 import pytest
 from fastapi_check import check
 from fastapi_project.development.selection import Selection
-from fastapi_project.development.status import test_status as package_test_status
 
 
 @pytest.fixture
@@ -60,22 +59,7 @@ def test_quick_execution_records_non_acceptance_scope(recording: dict[str, Any])
     assert record["scope"]["kind"] == "quick"
     assert len(recording["runs"]) == 3
     assert recording["runs"][-1][2]["APP_DEVELOPMENT_MODULES"] == "[]"
-    assert not any(title in record["checks"] for title in ("类型检查", "生成文档"))
-
-
-def test_quick_success_does_not_replace_formal_failure() -> None:
-    formal = {
-        "fingerprints": {"sample_records": "v1"},
-        "source_changed": False,
-        "finished_at": "first",
-        "scope": {"kind": "module"},
-        "passed": False,
-        "suites": [{"database": "sqlite", "exit_code": 1, "cases": []}],
-    }
-    quick = {**formal, "finished_at": "later", "scope": {"kind": "quick"}, "passed": True}
-    status, cases = package_test_status([formal, quick], "sample_records", "v1")
-    assert status["latest"]["sqlite"]["checks_passed"] is False
-    assert cases == []
+    assert not any(title in record["checks"] for title in ("类型检查", "接口文档"))
 
 
 def test_missing_test_result_is_failure(monkeypatch: pytest.MonkeyPatch) -> None:

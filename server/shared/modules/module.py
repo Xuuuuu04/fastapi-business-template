@@ -44,7 +44,3 @@ class Module:
     read_dependencies: tuple[str, ...] = ()
     boundary_data: tuple[type[Data], ...] = ()
     providers: tuple[ProviderSpec, ...] = ()
-
-    @property
-    def doc(self) -> str:
-        return f"doc/{self.name}"

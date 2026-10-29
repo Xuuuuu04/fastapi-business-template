@@ -3,8 +3,6 @@ import inspect
 from pathlib import Path
 from typing import Any
 
-from fastapi_docs.progress_doc import RULE_HEADING
-from fastapi_project.development.glossary import match_terms
 from pydantic import BaseModel
 
 from shared.data.fields import nested_models, notes_of
@@ -50,18 +48,7 @@ def field_terms(model: type[BaseModel], seen: set[type] | None = None) -> list[s
     return terms
 
 
-def rule_details(project: Path, module: str) -> dict[str, dict[str, str]]:
-    path = project / "doc" / module / "rules.md"
-    found = {}
-    for line, text in enumerate(path.read_text().splitlines() if path.exists() else (), 1):
-        match = RULE_HEADING.match(text)
-        if match:
-            name, title = match.groups()
-            found[name] = {"id": name, "title": title, "source": f"doc/{module}/rules.md:{line}"}
-    return found
-
-
-def operation_terms(binding: Binding, rules: dict, routes: list[dict]) -> list[str]:
+def operation_terms(binding: Binding, routes: list[dict]) -> list[str]:
     module, item, flow = binding.module, binding.contract, binding.flow
     terms = [module.name, module.title, *module.aliases, item.name, item.title, *item.aliases]
     terms += [
@@ -73,7 +60,6 @@ def operation_terms(binding: Binding, rules: dict, routes: list[dict]) -> list[s
     terms += [table.name for table in module.tables]
     for part in flow.steps:
         terms += [part.title, part.rule, f"{module.name}.{part.rule}"]
-        terms += [rules.get(part.rule, {}).get("title", "")]
     terms += [route["path"] for route in routes]
     terms += [s.name + " " + s.title for s in module.schedules if s.contract is item]
     terms += [j.contract.name + " " + j.contract.title for j in module.jobs if j.contract is item]
@@ -89,7 +75,7 @@ def bounded(values: list) -> dict[str, Any]:
     return {"items": values[:DETAIL_LIMIT], "omitted": max(0, len(values) - DETAIL_LIMIT)}
 
 
-def result_of(binding: Binding, project: Path, rules: dict, routes: list[dict]) -> dict[str, Any]:
+def result_of(binding: Binding, project: Path, routes: list[dict]) -> dict[str, Any]:
     module, item = binding.module, binding.contract
     steps = [
         {"name": p.name, "title": p.title, "source": f"server/{p.source}"}
@@ -123,10 +109,8 @@ def result_of(binding: Binding, project: Path, rules: dict, routes: list[dict]) 
         ),
         "tables": bounded([t.name for t in module.tables]),
         "table_relation": "模块归属；具体步骤实际访问未知",
-        "rules": bounded(
-            [rules.get(r, {"id": r, "title": "未知", "source": "未知"}) for r in used]
-        ),
-        "next": COMMAND + f"status --operation {item.name} --json",
+        "rules": bounded(used),
+        "next": COMMAND + f"check --module {module.name}",
     }
 
 
@@ -141,33 +125,21 @@ def locate(
     if not query or not 1 <= limit <= 100:
         raise ValueError("query 不能为空，limit 必须在 1 到 100 之间")
     routes = routes or {}
-    glossary = match_terms(project, query)
-    targeted = {operation for term in glossary for operation in term.operations}
-    rules = {name: rule_details(project, name) for name in catalog.modules}
     matches = []
     for binding in catalog.bindings.values():
-        terms = operation_terms(
-            binding, rules[binding.module.name], routes.get(binding.contract.name, [])
-        )
+        terms = operation_terms(binding, routes.get(binding.contract.name, []))
         folded = [term.casefold() for term in terms if term]
-        if binding.contract.name in targeted or any(query in term for term in folded):
+        if any(query in term for term in folded):
             matches.append((query not in folded, binding.contract.name, binding))
     matches.sort(key=lambda match: match[:2])
     results = [
-        result_of(b, project, rules[b.module.name], routes.get(b.contract.name, []))
-        for _, _, b in matches[:limit]
+        result_of(b, project, routes.get(b.contract.name, [])) for _, _, b in matches[:limit]
     ]
     for result, (_, _, binding) in zip(results, matches[:limit], strict=True):
-        terms = operation_terms(
-            binding, rules[binding.module.name], routes.get(binding.contract.name, [])
-        )
+        terms = operation_terms(binding, routes.get(binding.contract.name, []))
         result["matched"] = bounded(list(dict.fromkeys(t for t in terms if query in t.casefold())))
     return {
         "query": query,
-        "glossary": {
-            "items": [term.model_dump(mode="json") for term in glossary[:limit]],
-            "omitted": max(0, len(glossary) - limit),
-        },
         "limit": limit,
         "total": len(matches),
         "omitted": max(0, len(matches) - limit),

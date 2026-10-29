@@ -56,7 +56,7 @@ Schedule(
 
 daily 是[flow 说明](../flow/README.md)里已声明的 Pipeline。Wait 操作输出 ready 布尔值；每次只检查一次，等待由框架推进。某个汇算 Stage 很大时可以用分段的 JobPlan，段游标的 Data 会进入声明兼容检查。不要在普通任务里等待外部数据，也不要在一个事务里串起全部阶段；外部结果未知时先人工核实，不盲目重排。
 
-完整独立样例和原件演练见 tests/framework/drill_sample.py、[演练说明](../drills/README.md)。声明和测试样例通过不代表真实业务完成；要按真实规模演练整条链并核对结果，再补局部细节。业务现状用 `uv run dev business-state` 生成，保留手写的业务判断和下一步。
+完整独立样例和原件演练见 tests/framework/drill_sample.py、[演练说明](../drills/README.md)。声明和测试样例通过不代表真实业务完成；要按真实规模演练整条链并核对结果，再补局部细节。
 
 ## 显式分段提交（2.1）
 

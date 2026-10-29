@@ -1,6 +1,5 @@
 import argparse
 import json
-import re
 import subprocess
 from collections.abc import Iterable
 from dataclasses import asdict
@@ -8,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from fastapi_check.quality.rules import PROJECT
-from fastapi_docs.progress_doc import PENDING, RULE_HEADING
 from fastapi_migration.compare_api import compare
 from fastapi_project.development.impact import (
     framework_files,
@@ -20,11 +18,8 @@ from fastapi_project.development.impact import (
 from app.setup.application import application, application_modules
 from shared.modules.catalog import Catalog
 
-OPERATION_HEADING = re.compile(r"^## .+（([\w.]+)）$")
-TOP_HEADING = re.compile(r"^#{1,2} ")
 AREAS = (
     ("server/service/", "代码"),
-    ("doc/", "业务文档"),
     ("server/app/api/v1/", "接口"),
     ("server/tests/", "测试"),
 )
@@ -58,28 +53,6 @@ class Repo:
         return file.read_text(encoding="utf-8") if file.exists() else ""
 
 
-def sections(text: str, heading: re.Pattern[str]) -> dict[str, str]:
-    found: dict[str, str] = {}
-    current = ""
-    for line in text.splitlines():
-        match = heading.match(line)
-        if match:
-            current = match.group(1)
-        elif TOP_HEADING.match(line):
-            current = ""
-        if current:
-            found[current] = found.get(current, "") + line + "\n"
-    return found
-
-
-def section_changes(before: dict[str, str], after: dict[str, str]) -> list[str]:
-    lines = [f"新增 {key}" for key in after if key not in before]
-    lines += [f"删除 {key}" for key in before if key not in after]
-    changed = [key for key in after if key in before and before[key].strip() != after[key].strip()]
-    lines += [f"修改 {key}" for key in changed]
-    return lines
-
-
 def framework_part(files: list[str]) -> list[str]:
     locked = framework_files(files)
     if not locked:
@@ -109,29 +82,6 @@ def belongs(path: str, name: str) -> bool:
     return owner is not None and owner[0] == name
 
 
-def rules_part(repo: Repo, base: str, files: list[str]) -> list[str]:
-    lines = []
-    for path in files:
-        if not path.endswith("/rules.md") or not path.startswith("doc/"):
-            continue
-        before, after = repo.base_text(base, path), repo.head_text(path)
-        changes = section_changes(sections(before, RULE_HEADING), sections(after, RULE_HEADING))
-        waiting = f"待确认 {before.count(PENDING)} → {after.count(PENDING)} 处"
-        lines.append(f"- `{path}`：{'、'.join(changes) or '只改了规则以外的内容'}；{waiting}")
-    return lines or ["没有改动业务规则。"]
-
-
-def flows_part(repo: Repo, base: str, files: list[str]) -> list[str]:
-    lines = []
-    for path in files:
-        if path.startswith("doc/") and path.endswith("/flows.md"):
-            before = sections(repo.base_text(base, path), OPERATION_HEADING)
-            after = sections(repo.head_text(path), OPERATION_HEADING)
-            changes = section_changes(before, after)
-            lines.append(f"- `{path}`：{'、'.join(changes) or '只改了数据模型或数据表'}")
-    return lines or ["没有操作流程变化。"]
-
-
 def api_part(repo: Repo, base: str) -> list[str]:
     path = "doc/api/openapi.json"
     before = repo.base_text(base, path)
@@ -159,8 +109,6 @@ def report_data(
     parts = {
         "框架文件": framework_part(files),
         "涉及的模块": modules_part(files, catalog.modules),
-        "业务规则与待确认": rules_part(repo, base, files),
-        "操作流程": flows_part(repo, base, files),
         "接口": api_part(repo, base),
         "数据库迁移": migrations_part(files),
         "检查范围": scope_markdown(scope),

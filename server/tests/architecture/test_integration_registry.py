@@ -35,7 +35,6 @@ def test_router_rebuild_preserves_system_logic(tmp_path: Path) -> None:
     text = result.read_text()
     assert "sample_a.router" in text and "sample_b.router" in text
     assert "health.router" in text and "def routers_for" in text
-    assert "# 系统接口始终可用" in text
     with pytest.raises(ValueError, match="自定义"):
         regenerate_routers(
             tmp_path, [left.replace("sample_a.router", "sample_a.special_router"), right]

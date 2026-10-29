@@ -9,22 +9,12 @@ COMMANDS = {
     "pin": "fastapi_project.retention",
     "gc": "fastapi_project.retention",
     "merge": "fastapi_project.integration",
-    "panel": "fastapi_project.panel",
     "skeleton": "fastapi_module.skeleton",
-    "start": "fastapi_dev.tasks",
-    "finish": "fastapi_dev.tasks",
-    "ask-contract": "fastapi_dev.tasks",
-    "review-pack": "fastapi_dev.tasks",
-    "glossary": "fastapi_dev.glossary",
-    "rules": "fastapi_dev.rules",
-    "plan": "fastapi_dev.plan",
     "new-library": "fastapi_module.new_library",
     "check": "fastapi_check.check",
-    "status": "fastapi_project.project",
     "locate": "fastapi_project.locate",
     "impact": "fastapi_project.impact",
-    "business-state": "fastapi_project.business_state",
-    "docs": "fastapi_docs.export_docs",
+    "docs": "fastapi_docs.openapi",
     "diagnose": "fastapi_operations.diagnose",
     "jobs": "fastapi_operations.jobs",
     "pipelines": "fastapi_operations.pipelines",
@@ -74,8 +64,6 @@ def main() -> None:
             parser.error("inspect没有额外参数")
         inspect_application()
         return
-    if arguments.command in {"start", "finish", "ask-contract", "review-pack"}:
-        remaining = [arguments.command, *remaining]
     sys.argv = ["dev " + arguments.command, *remaining]
     runpy.run_module(COMMANDS[arguments.command], run_name="__main__")
 

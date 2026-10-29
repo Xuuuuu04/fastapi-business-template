@@ -1,7 +1,6 @@
 import argparse
 import ast
 import json
-import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -35,11 +34,7 @@ def changes(
     folder = validate(module, name)
     public = read(folder / "public.py")
     check_new_name(public, module, name)
-    rules = PROJECT / "doc" / module / "rules.md"
-    text = read(rules)
-    numbers = [int(value) for value in re.findall(r"^### R-(\d+)", text, re.MULTILINE)]
-    rule = f"R-{max(numbers, default=0) + 1:02}"
-    models, input, output, invalid = templates.data(name, module, rule, state)
+    models, input, output, invalid = templates.data(name, module, state)
     kind = camel(name)
     data_path = folder / "data.py"
     generated = {data_path: append(read(data_path), models)}
@@ -55,7 +50,7 @@ def changes(
     )
     public = add_import(public, f"from service.{module}.data import {input}, {output}, {invalid}")
     generated[folder / "public.py"] = append(public, declaration)
-    generated |= implementation_files(module, name, title, kind, output, invalid, rule, read)
+    generated |= implementation_files(module, name, title, kind, output, invalid, read)
     registration = folder / "module.py"
     generated[registration] = extend_module(
         read(registration),
@@ -63,7 +58,7 @@ def changes(
         f"public.{name}: flow.{name}_flow",
         mapping=True,
     )
-    generated |= supporting_files(module, name, title, input, invalid, rule, read)
+    generated |= supporting_files(module, name, title, input, invalid, read)
     if http:
         generated |= route(module, name, title, input, output)
     return generated
@@ -76,13 +71,12 @@ def implementation_files(
     kind: str,
     output: str,
     invalid: str,
-    rule: str,
     read: Callable[[Path], str],
 ) -> dict[Path, str]:
     folder = ROOT / "service" / module
     generated: dict[Path, str] = {}
     step = folder / "steps" / f"build_{name}.py"
-    generated[step] = templates.step_code(module, name, rule, output, invalid)
+    generated[step] = templates.step_code(module, name, output, invalid)
     generated[folder / "calc" / f"{name}.py"] = templates.calc_code()
     if not (folder / "calc" / "README.md").exists():
         generated[folder / "calc" / "README.md"] = (
@@ -106,17 +100,13 @@ def supporting_files(
     title: str,
     input: str,
     invalid: str,
-    rule: str,
     read: Callable[[Path], str],
 ) -> dict[Path, str]:
     folder = ROOT / "service" / module
-    rules = PROJECT / "doc" / module / "rules.md"
-    text = read(rules)
     generated: dict[Path, str] = {}
-    generated[rules] = append(text, rule_doc(rule, module, title))
     tests = ROOT / "tests/modules" / module
     generated[tests / f"test_calc_{name}.py"] = templates.calc_tests(module, name)
-    generated[tests / f"test_{name}.py"] = templates.tests(module, name, input, invalid, rule)
+    generated[tests / f"test_{name}.py"] = templates.tests(module, name, input, invalid)
     fixture = tests / "conftest.py"
     if not fixture.exists() and not _has_fixture(read, fixture):
         generated[fixture] = templates.fixture()
@@ -136,18 +126,6 @@ def _has_fixture(read: Callable[[Path], str], path: Path) -> bool:
         return False
 
 
-def rule_doc(rule: str, module: str, title: str) -> str:
-    return f"""### {rule} {title}生成样例
-
-生成占位：样例文本去掉首尾空白，空文本拒绝；正式业务判断待确认，需替换本规则与样例。
-
-| 样例编号 | 情况 | 结果 |
-| --- | --- | --- |
-| {rule}-C01 | 文本带首尾空白 | 去掉空白后返回 |
-| {rule}-C02 | 全空白 | 对应规则异常 |
-"""
-
-
 def route(module: str, name: str, title: str, input: str, output: str) -> dict[Path, str]:
     path = ROOT / "app/api/v1" / f"{module}.py"
     if not path.is_file():
@@ -165,20 +143,7 @@ def generate(
     module: str, name: str, title: str, *, http: bool = False, preview: bool = False
 ) -> list[str]:
     values = changes(module, name, title, http=http)
-    docs = [
-        PROJECT / "AGENTS.md",
-        PROJECT / "project-plan.json",
-        PROJECT / "doc/api/openapi.json",
-        PROJECT / "doc/api/index.md",
-        PROJECT / "doc" / module / "flows.md",
-        PROJECT / ".agents/records/business-state/system_ops.md",
-        PROJECT / ".agents/records/business-state/system_ops.json",
-    ]
-    docs += [
-        PROJECT / ".agents/records/business-state" / f"{path.parent.name}.{suffix}"
-        for path in (ROOT / "service").glob("*/module.py")
-        for suffix in ("md", "json")
-    ]
+    docs = [PROJECT / "doc/api/openapi.json"]
     before = snapshot([*values, *docs])
     written = write(values, preview=preview)
     if not preview:
@@ -204,11 +169,11 @@ def update_docs() -> None:
         check=False,
     )
     if result.returncode:
-        raise ValueError("生成源码已保存，文档登记失败：" + result.stdout + result.stderr)
+        raise ValueError("生成源码已保存，openapi.json 更新失败：" + result.stdout + result.stderr)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="新增操作、可选HTTP和短规则样例")
+    parser = argparse.ArgumentParser(description="新增操作和可选HTTP")
     parser.add_argument("module")
     parser.add_argument("name")
     parser.add_argument("--title", required=True)

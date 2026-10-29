@@ -5,7 +5,7 @@ description: 第一次接触本 FastAPI 模板、启动项目或规划开发顺�
 
 # 模板入门
 
-找不到该改哪里时，先在 `server/` 下执行 `uv run dev locate --query "业务词或旧接口路径" --limit 10 --json`，再按结果执行 `uv run dev status --operation 模块.操作 --json`。定位只读本地声明和规则文档，不访问数据库；旧路径如果没有保留下来，它们的关系就是未知的。
+找不到该改哪里时，先在 `server/` 下执行 `uv run dev locate --query "业务词或旧接口路径" --limit 10 --json`，按结果里的源码位置展开。定位只读本地声明，不访问数据库；旧路径如果没有保留下来，它们的关系就是未知的。
 
 ## 项目结构
 
@@ -22,12 +22,12 @@ description: 第一次接触本 FastAPI 模板、启动项目或规划开发顺�
 
 ## 开始之前
 
-1. 在项目根目录读 `AGENTS.md`、`project-plan.json` 和 `doc/README.md`，只展开和当前业务相关的文档。
+1. 在项目根目录读 `AGENTS.md`，再用 `dev locate` 找到和当前业务相关的代码。
 2. 先做出一项能检查、能使用的完整业务。一项业务内部按依赖先后安排就够了，不需要整个项目先把底层全做完再往上做。
 
 ## 日常开发
 
-在 `server/` 下，先 `uv run dev start --package 包 --cases 样例` 确认任务与独立样例，实现后 `uv run dev check --module 包` 检查，最后 `uv run dev finish --task 编号` 留下完成证据。交付用 `uv run dev check --delivery` 强制重新执行，数据库选择见 check Skill。
+在 `server/` 下，实现后用 `uv run dev check --module 包` 检查。交付用 `uv run dev check --delivery` 强制重新执行，数据库选择见 check Skill。
 
 ## 启动
 

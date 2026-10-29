@@ -1,7 +1,7 @@
 from fastapi_module.new_module import camel
 
 
-def data(name: str, module: str, rule: str, state: str = "") -> tuple[str, str, str, str]:
+def data(name: str, module: str, state: str = "") -> tuple[str, str, str, str]:
     kind = camel(name)
     input, output, work, invalid = (
         kind + "Input",
@@ -32,42 +32,40 @@ class {work}(WorkData):
     return models, state or input, state or output, invalid
 
 
-def step_code(module: str, name: str, rule: str, output: str, invalid: str) -> str:
+def step_code(module: str, name: str, output: str, invalid: str) -> str:
     kind = camel(name)
-    return f'''from service.{module}.calc.{name} import normalize_text
+    return f"""from service.{module}.calc.{name} import normalize_text
 from service.{module}.data import {kind}Work, {output}, {invalid}
 from shared.public import step
 
 
-@step("整理样例输入", reads=["text"], writes=["result"], rule="{rule}", calcs=[normalize_text])
+@step("整理样例输入", reads=["text"], writes=["result"], calcs=[normalize_text])
 def build_{name}(data: {kind}Work) -> None:
     value = normalize_text(data.text)
     if not value:
         raise {invalid}()
     data.result = {output}(text=value)
-'''
+"""
 
 
-def tests(module: str, name: str, input: str, invalid: str, rule: str) -> str:
-    return f'''import pytest
+def tests(module: str, name: str, input: str, invalid: str) -> str:
+    return f"""import pytest
 from service.{module} import public
 from shared.access.caller import SYSTEM
 
 pytestmark = pytest.mark.anyio
 
 
-@pytest.mark.rule_case("{module}.{rule}-C01")
 async def test_normal(operation_services) -> None:
     result = await operation_services.runtime.run(
         public.{name}, public.{input}(text=" 样例 "), caller=SYSTEM)
     assert result.text == "样例"
 
 
-@pytest.mark.rule_case("{module}.{rule}-C02")
 async def test_invalid(operation_services) -> None:
     with pytest.raises(public.{invalid}):
         await operation_services.runtime.run(public.{name}, public.{input}(text=" "), caller=SYSTEM)
-'''
+"""
 
 
 def fixture() -> str:

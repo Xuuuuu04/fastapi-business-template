@@ -5,22 +5,9 @@ description: 在本项目新增业务包，或把已有业务包调整成固定�
 
 # 业务包开发
 
-## 开工先读业务现状
+## 第一步：先问清业务
 
-开工先读 `.agents/records/business-state/模块名.md` 的生成摘要和手写判断，不要先展开同名 JSON。生成部分由命令维护，内容包括：模块、普通和分段任务、流程、定时入口、最近运行、逾期和待确认；手写部分只放业务判断、外部依赖、下一步。未知保持未知；登记或历史成功不等于当前业务验收。
-
-```bash
-# 首次生成，或源码/声明变化后重新生成（不读数据库，运行状态未知）
-uv run dev business-state --module 模块名
-# 有授权且确认当前数据库后，收工时刷新真实观察
-uv run dev business-state --module 模块名 --runs
-```
-
-收工时先更新手写部分再刷新生成部分，最后跑检查。生成的源码、依赖摘要或声明变了，生成超过 24 小时，或摘要被手改，都会报过期；check 只比较、不刷新。`dev docs` 会初始化或更新过期的声明状态，但不访问数据库；要实际运行证据另用 `--runs`。记录只在本机，不提交、也不带入模板副本；新代理或新机器首次生成，不能把本机旧观察当成部署状态。
-
-## 第一步：先写业务文档
-
-在 `doc/模块名/needs.md` 写这个业务的用途，在 `rules.md` 写规则、异常和确认样例。业务含义还没定的地方标"待确认"，不要自己补。
+业务含义还没定的地方先问用户，不要自己补。
 
 ## 先搭整条链的模拟骨架
 
@@ -41,11 +28,11 @@ uv run dev business-state --module 模块名 --runs
 }
 ```
 
-在 `server/` 执行 `uv run dev skeleton --init --spec ../skeleton.json`，自动生成独立样例和 rules.md，已有文件不覆盖。填写 `doc/order_shipping/cases/order_shipping.R-01-C01.json` 的业务值（如 quantity=2、amount=200）与规则；编号和测试引用已经填好。再运行 `uv run dev skeleton --spec ../skeleton.json --preview`，确认后去掉 `--preview` 生成。
+在 `server/` 执行 `uv run dev skeleton --init --spec ../skeleton.json`，自动生成独立样例，已有文件不覆盖。填写 `doc/order_shipping/cases/order_shipping.R-01-C01.json` 的业务值（如 quantity=2、amount=200）；编号和测试引用已经填好。再运行 `uv run dev skeleton --spec ../skeleton.json --preview`，确认后去掉 `--preview` 生成。
 
-随后 `dev start --package order_shipping --cases R-01-C01` 开任务卡，替换本包模拟步骤并设置 simulated=False，`dev docs` 后 `dev finish --task 编号` 收工。本包必须真实实现，兄弟包仍模拟只提示；整条相关链测试仍必须通过，最终 `dev check --delivery` 才要求全部为真实实现。样例占位不能当作确认业务值。字段、权限、调用和样例出错时，生成之前逐项报告，不留下半个业务包。
+随后替换本包模拟步骤并设置 simulated=False，运行 `dev check --module order_shipping`；整条相关链测试必须通过，`dev check --delivery` 要求全部为真实实现。样例占位不能当作确认业务值。字段、权限、调用和样例出错时，生成之前逐项报告，不留下半个业务包。
 
-流程包在 `calls[].input` 和 `returns` 里用 `input.字段` 或 `包.操作.字段` 写明每个值的来源。生成的调用步骤按被调用的操作命名，例如调用 `order_pricing.quote` 的步骤叫 `fetch_order_pricing_quote`，产出字段叫 `order_pricing_quote`；样例 `observations` 的 `step` 和 `field` 照这个名字填写。三包连接示例见 `server/tests/framework/skeleton_sample.py`，命令与开发说明见 [填空开发](../fastapi-project/references/task-development.md)。
+流程包在 `calls[].input` 和 `returns` 里用 `input.字段` 或 `包.操作.字段` 写明每个值的来源。生成的调用步骤按被调用的操作命名，例如调用 `order_pricing.quote` 的步骤叫 `fetch_order_pricing_quote`，产出字段叫 `order_pricing_quote`；样例 `observations` 的 `step` 和 `field` 照这个名字填写。三包连接示例见 `server/tests/framework/skeleton_sample.py`。
 
 ## 生成新包
 
@@ -110,7 +97,7 @@ uv run dev new-pipeline customer_contact daily --title 每日流程 --stages sel
 - 一项业务需要的几个包，尽早放在同一份代码里一起运行，不要各写各的最后再合。
 - 新增数据表：先把隔离数据库升级到当前最新迁移，再生成增量迁移并人工检查。已有数据库的迁移历史不要替换。
 - 检查范围：调试用 `--quick --module`，几个包一起改就列多个 `--module`，整批交付用完整检查（见 `fastapi-check`）。
-- 源码格式整理、迁移审查之后统一导出文档；收工时更新业务现状的手写部分，按授权用 `dev business-state --runs` 刷新生成部分（没有数据库证据就保持未知），最后检查过期。不要手改生成区域。
+- 源码格式整理、迁移审查之后运行 `uv run dev docs` 更新 openapi.json。
 
 ## 相关
 

@@ -14,7 +14,6 @@ ENTRIES = (
     "CHANGELOG.md",
     "server",
     "doc",
-    "project-plan.json",
 )
 IGNORED = (
     ".git",
@@ -87,11 +86,10 @@ def product_entry(target: Path, name: str) -> None:
     )
     write(
         target / "README.md",
-        f"# {name}\n\n业务计划见 [project-plan.json](project-plan.json)，"
-        "开发入口见 [AGENTS.md](AGENTS.md)。\n\n```bash\ncd server\nuv sync\n"
+        f"# {name}\n\n开发入口见 [AGENTS.md](AGENTS.md)。\n\n```bash\ncd server\nuv sync\n"
         "cp .env.example .env\nuv run alembic upgrade head\n"
         "uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log\n```\n\n"
-        "开发摘要：`uv run dev status --summary --json`；完整检查：`uv run dev check`。\n"
+        "完整检查：`uv run dev check`。\n"
         "框架来源见 [template-source.json](template-source.json)，"
         "更新方法见 [UPGRADING](.agents/skills/fastapi-template/references/upgrading.md)。\n",
     )
@@ -100,23 +98,10 @@ def product_entry(target: Path, name: str) -> None:
         f"# {name}：版本记录\n\n## 0.1.0\n\n从通用后端模板初始化，尚未完成产品业务。"
         "框架来源见 template-source.json。\n",
     )
-    write(
-        target / "project-plan.json",
-        json.dumps({"schema_version": 1, "name": name, "lines": []}, ensure_ascii=False, indent=2)
-        + "\n",
-    )
-    write(
-        target / "doc/tasks.md",
-        "# 任务清单\n\n- [ ] 产品：填写业务线与开发包，生成所需业务模块\n"
-        "- [ ] 上线前：按实际环境验证数据库、权限、容量和恢复过程\n",
-    )
     agents = (target / "AGENTS.md").read_text(encoding="utf-8")
     end = agents.index("## 怎么运行")
     agents = (
-        f"# {name}\n\n"
-        + f"## 这个项目是什么\n\n- 产品：{name}\n- 使用者：（待填写）\n"
-        + "- 主要模块：见 [doc/README.md](doc/README.md)；"
-        "预先设计见 [project-plan.json](project-plan.json)\n\n"
+        f"# {name}\n\n" + f"## 这个项目是什么\n\n- 产品：{name}\n- 使用者：（待填写）\n\n"
         "业务模块由产品按需要生成，规则须按本产品确认。\n\n" + agents[end:]
     )
     write(target / "AGENTS.md", agents)

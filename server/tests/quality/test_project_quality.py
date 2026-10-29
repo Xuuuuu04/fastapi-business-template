@@ -2,7 +2,7 @@ import json
 import os
 
 from fastapi_check.quality.blocking import check_blocking
-from fastapi_check.quality.docs import check_business_docs, check_writing_style
+from fastapi_check.quality.docs import check_writing_style
 from fastapi_check.quality.files import check_files
 from fastapi_check.quality.naming import check_naming
 from fastapi_check.quality.readmes import check_readmes
@@ -45,11 +45,6 @@ def test_readmes() -> None:
         name: [item.name for item in module.provides] for name, module in catalog.modules.items()
     }
     problems = scoped(check_readmes(contracts=names))
-    assert problems == [], listed(problems)
-
-
-def test_business_docs() -> None:
-    problems = scoped(check_business_docs(Catalog(MODULES)))
     assert problems == [], listed(problems)
 
 

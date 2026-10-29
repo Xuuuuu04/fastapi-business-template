@@ -1,4 +1,3 @@
-import ast
 import json
 import os
 import shutil
@@ -24,25 +23,6 @@ def test_dev_inspect_ignores_real_environment() -> None:
     description = json.loads(result.stdout)
     assert description["modules"] == [] and description["framework_version"] == "3.2.0"
     assert "invalid-live" not in result.stdout
-
-
-def test_every_compat_command_has_dev_entry() -> None:
-    from fastapi_dev.main import COMMANDS
-
-    parts = {"fastapi_docs.api_doc", "fastapi_docs.flow_doc", "fastapi_docs.progress_doc"}
-    missing = []
-    for runner in sorted((ROOT.parent / ".agents/skills").glob("*/scripts/run_*.py")):
-        package = "fastapi_" + runner.stem.removeprefix("run_")
-        listed = next(
-            node.value
-            for node in ast.parse(runner.read_text(encoding="utf-8")).body
-            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "COMMANDS"
-        )
-        for command in ast.literal_eval(listed):
-            target = f"{package}.{command}"
-            if target not in COMMANDS.values() and target not in parts:
-                missing.append(f"{runner.name} {command}")
-    assert missing == []
 
 
 def test_unknown_dev_command_fails_before_bootstrap(tmp_path: Path) -> None:

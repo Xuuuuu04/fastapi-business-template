@@ -105,18 +105,12 @@ def verify_atomic_preview(copy: Path, spec: Path, entry: list[str], env: dict[st
     assert preview["preview"] and before == snapshot(copy)
 
 
-def verify_parallel_finish(copy: Path, entry: list[str], env: dict[str, str]) -> None:
-    card = json.loads(
-        run(copy, [*entry, "start", "--package", "sample_counts", "--cases", "R-01-C01"], env)
-    )
+def verify_partial_implementation(copy: Path, entry: list[str], env: dict[str, str]) -> None:
     implement(copy, only="sample_counts")
     run(copy, ["-m", "ruff", "check", "service", "--fix"], env)
     run(copy, ["-m", "ruff", "format", "service"], env)
     run(copy, [*entry, "docs"], env)
-    finished = run(copy, [*entry, "finish", "--task", card["id"]], env)
-    result = json.loads(finished[finished.rfind("\n{") + 1 :])
-    assert result["state"] == "complete"
-    assert any("sample_sources.load" in notice for notice in result["notices"])
+    run(copy, [*entry, "check", "--module", "sample_counts", "--workers", "0"], env)
     delivery = subprocess.run(
         [
             sys.executable,
@@ -156,7 +150,7 @@ def test_three_package_skeleton_to_real_with_error_position(tmp_path: Path) -> N
     assert "992233" not in service and "496116" not in service
     tests = ["-m", "pytest", "-q", "tests/modules", "tests/integration/sample_chain"]
     run(copy, tests, env)
-    verify_parallel_finish(copy, entry, env)
+    verify_partial_implementation(copy, entry, env)
     implement(copy, wrong=True)
     import subprocess
     import sys

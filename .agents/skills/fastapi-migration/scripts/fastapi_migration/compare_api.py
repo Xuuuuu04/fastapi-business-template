@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from fastapi_docs.api_doc import METHODS
+METHODS = ("get", "post", "put", "patch", "delete")
 
 
 def operations(schema: dict[str, Any]) -> dict[str, Any]:

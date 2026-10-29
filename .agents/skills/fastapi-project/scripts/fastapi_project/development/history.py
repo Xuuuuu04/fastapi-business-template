@@ -4,8 +4,6 @@ from typing import Any
 
 from fastapi_project.development.check_index import read_records
 from fastapi_project.development.check_storage import load_cases, save_record
-from fastapi_project.development.ledger import read_ledger, scoped_digest
-from fastapi_project.development.ledger_models import RuleLedger
 from fastapi_project.development.versions import (
     EXCLUDED,
     REGISTRATIONS,
@@ -21,7 +19,6 @@ from shared.modules.libraries import library_closure, library_links, library_spe
 
 COMMON = (
     "devtools",
-    "../doc/glossary.json",
     "shared",
     "../.agents/skills",
     "app",
@@ -74,9 +71,7 @@ def module_paths(project: Path, name: str) -> list[Path]:
     closure = library_closure(name, library_links(server), libraries)
     return [
         server / "service" / name,
-        project / "doc" / name / "rules.md",
         project / "doc" / name / "cases",
-        project / "doc" / name / "needs.md",
         server / "tests/modules" / name,
         server / "tests/integration" / name,
         *[server / "library" / library for library in sorted(closure)],
@@ -116,13 +111,9 @@ def _module_digest(
     owned: dict[str, list[Path]],
     reader: Reader,
     registrations: dict[str, bytes],
-    ledger: RuleLedger,
 ) -> str:
     digest = hashlib.sha256()
     digest.update(b"common\0" + common.encode() + b"\0")
-    digest.update(
-        b"rules\0" + scoped_digest(ledger, dependency_modules(name, links)).encode() + b"\0"
-    )
     files: set[Path] = set()
     for dependency in dependency_modules(name, links):
         digest.update(
@@ -153,11 +144,8 @@ def fingerprints(
     )
     common = _common_digest(project, reader, {path for paths in owned.values() for path in paths})
     registrations = registration_parts(reader, project)
-    ledger = read_ledger(project)
     return {
-        name: _module_digest(
-            project, name, links or {}, common, owned, reader, registrations, ledger
-        )
+        name: _module_digest(project, name, links or {}, common, owned, reader, registrations)
         for name in modules
     }
 

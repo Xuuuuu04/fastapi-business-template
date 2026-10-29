@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from string import Template
 
-from fastapi_check.quality.rules import PROJECT, ROOT, VAGUE_NAMES
+from fastapi_check.quality.rules import ROOT, VAGUE_NAMES
 from fastapi_module.registry import write_registry
 
 TEMPLATES = Path(__file__).resolve().parents[2] / "assets/templates"
@@ -32,9 +32,6 @@ def targets(name: str) -> dict[str, Path]:
         "service/store/contract.py.txt": service / "store" / "contract.py",
         "service/store/sql.py.txt": service / "store" / "sql.py",
         "service/store/tables.py.txt": service / "store" / "tables.py",
-        "doc/needs.md.txt": PROJECT / "doc" / name / "needs.md",
-        "doc/rules.md.txt": PROJECT / "doc" / name / "rules.md",
-        "doc/changes.md.txt": PROJECT / "doc" / name / "changes.md",
         "tests/test_steps.py.txt": ROOT / "tests" / "modules" / name / "test_records.py",
         "tests/test_api.py.txt": ROOT / "tests" / "integration" / name / "test_records.py",
         "api/routes.py.txt": ROOT / "app" / "api" / "v1" / f"{name}.py",
@@ -69,7 +66,6 @@ def register(name: str, title: str) -> list[Path]:
     write_registry(ROOT)
     routers = ROOT / "app" / "api" / "routers.py"
     routers.write_text(add_route(routers.read_text(encoding="utf-8"), name), encoding="utf-8")
-    add_doc_row(name, title)
     return [catalog, routers]
 
 
@@ -107,24 +103,6 @@ def append_item(text: str, head: str, item: str) -> str:
     return text[: match.start()] + f"{head} = [\n{body}]" + text[match.end() :]
 
 
-def add_doc_row(name: str, title: str) -> None:
-    index = PROJECT / "doc" / "README.md"
-    lines = index.read_text(encoding="utf-8").splitlines()
-    start = lines.index("## 模块")
-    end = next(i for i in range(start + 3, len(lines)) if not lines[i].startswith("|"))
-    links = " · ".join(
-        f"[{label}]({name}/{file})"
-        for label, file in (
-            ("需求", "needs.md"),
-            ("规则", "rules.md"),
-            ("变化", "changes.md"),
-            ("流程", "flows.md"),
-        )
-    )
-    lines.insert(end, f"| {name} | {title} | {links} |")
-    index.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
 def camel(name: str) -> str:
     return "".join(part.capitalize() for part in name.split("_"))
 
@@ -148,10 +126,10 @@ def set_kind(name: str, kind: str) -> None:
 
 def next_steps(name: str) -> list[str]:
     return [
-        f"1. 在 doc/{name}/needs.md 和 rules.md 写清真实业务，再按业务修改 service/{name}",
+        f"1. 按真实业务修改 service/{name}",
         "2. uv run alembic upgrade head（本地数据库需要先到最新版本才能比较出新表）",
         f'   uv run alembic revision --autogenerate -m "add {name} tables"，检查生成的迁移',
-        "3. uv run dev docs",
+        "3. uv run dev docs（更新 openapi.json）",
         f"4. uv run dev check --module {name}（先检查本模块）",
         "5. uv run dev check（交付前检查全部模块）",
     ]

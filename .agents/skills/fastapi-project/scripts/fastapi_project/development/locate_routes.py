@@ -1,9 +1,13 @@
 import ast
 import importlib
+import inspect
+import textwrap
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 from shared.flow.step import source_of
+from shared.modules.contract import Contract
 
 
 def local_routes() -> dict[str, list[dict[str, Any]]]:
@@ -61,7 +65,6 @@ def registered_routers(declaration: ast.expr | None, imports: dict) -> list[Any]
 
 def route_details(app: Any) -> dict[str, list[dict[str, Any]]]:
     from fastapi.routing import APIRoute, iter_route_contexts
-    from fastapi_docs.flow_doc import contracts_used
 
     found: dict[str, list[dict[str, Any]]] = {}
     for route in iter_route_contexts(app.routes):
@@ -76,3 +79,19 @@ def route_details(app: Any) -> dict[str, list[dict[str, Any]]]:
                 }
             )
     return found
+
+
+def contracts_used(endpoint: Any) -> set[str]:
+    tree = ast.parse(textwrap.dedent(inspect.getsource(endpoint)))
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            item = endpoint.__globals__.get(node.id)
+            if isinstance(item, Contract):
+                names.add(item.name)
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            owner = endpoint.__globals__.get(node.value.id)
+            item = getattr(owner, node.attr, None) if isinstance(owner, ModuleType) else None
+            if isinstance(item, Contract):
+                names.add(item.name)
+    return names

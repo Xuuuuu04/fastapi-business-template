@@ -107,7 +107,7 @@ def test_reverse_transitive_calls_and_background(catalog: Catalog, leaf: str) ->
 @pytest.mark.parametrize(
     "path",
     [
-        "doc/gamma/rules.md",
+        "doc/gamma/cases/c.json",
         "server/tests/modules/gamma/test_rules.py",
         "server/tests/integration/gamma/test_api.py",
         "server/app/api/v1/gamma.py",
@@ -147,7 +147,7 @@ def test_shared_changes_check_all_registered(catalog: Catalog, path: str) -> Non
     "path",
     [
         "server/service/future/public.py",
-        "doc/future/rules.md",
+        "doc/future/cases/c.json",
         "server/tests/modules/future/test_rules.py",
     ],
 )
@@ -171,7 +171,7 @@ def test_unrelated_paths_and_no_changes(catalog: Catalog) -> None:
 
 
 def test_multiple_direct_changes_are_stable(catalog: Catalog) -> None:
-    paths = ["doc/beta/rules.md", "doc/gamma/rules.md", "doc/gamma/rules.md"]
+    paths = ["doc/beta/cases/c.json", "doc/gamma/cases/c.json", "doc/gamma/cases/c.json"]
     scope = impact_scope(paths, catalog)
     assert scope.direct == ["beta", "gamma"]
     assert scope.dependents == ["alpha", "background"]
@@ -182,8 +182,7 @@ def test_multiple_direct_changes_are_stable(catalog: Catalog) -> None:
 def repo(tmp_path: Path) -> Repo:
     result = Repo(tmp_path)
     write(tmp_path / "server/service/gamma/public.py", "BEFORE = 1\n")
-    write(tmp_path / "doc/gamma/rules.md", "### R-01 规则\n已确认。\n")
-    write(tmp_path / "doc/gamma/flows.md", "## 丙（gamma.run）\n旧流程\n")
+    write(tmp_path / "doc/gamma/cases/c.json", "{}\n")
     write(tmp_path / "doc/api/openapi.json", json.dumps({"paths": {"/old": {"get": {}}}}))
     result.git("init", "-q", "-b", "main")
     result.git("add", "-A")
@@ -201,10 +200,9 @@ def repo(tmp_path: Path) -> Repo:
 
 
 def test_git_report_preserves_all_sections_and_stable_json(repo: Repo, catalog: Catalog) -> None:
-    write(repo.root / "doc/gamma/rules.md", "### R-01 规则\n待确认。\n")
-    write(repo.root / "doc/gamma/flows.md", "## 丙（gamma.run）\n新流程\n")
+    write(repo.root / "doc/gamma/cases/c.json", '{"changed": true}\n')
     write(repo.root / "doc/api/openapi.json", json.dumps({"paths": {}}))
-    write(repo.root / "server/migrations/versions/new.py", "# 临时迁移样例\n")
+    write(repo.root / "server/migrations/versions/new.py", "REVISION = 1\n")
     data = report_data("main", catalog, repo, ["beta"])
     assert data["schema_version"] == 1 and data["base"] == "main"
     assert data["direct"] == ["gamma"] and data["full_check"]
@@ -229,13 +227,10 @@ def test_git_report_preserves_all_sections_and_stable_json(repo: Repo, catalog: 
     }
     assert json.loads(json.dumps(data, ensure_ascii=False)) == data
     text = report("main", catalog, repo)
-    assert "修改 R-01；待确认 0 → 1 处" in text and "修改 gamma.run" in text
     assert "删除接口：GET /old" in text and "new.py" in text
     assert list(data["sections"]) == [
         "框架文件",
         "涉及的模块",
-        "业务规则与待确认",
-        "操作流程",
         "接口",
         "数据库迁移",
         "检查范围",
@@ -245,12 +240,12 @@ def test_git_report_preserves_all_sections_and_stable_json(repo: Repo, catalog: 
 def test_git_rename_and_untracked_paths(repo: Repo, catalog: Catalog) -> None:
     (repo.root / "server/service/unrelated").mkdir()
     repo.git("mv", "server/service/gamma/public.py", "server/service/unrelated/renamed.py")
-    repo.git("rm", "doc/gamma/rules.md")
+    repo.git("rm", "doc/gamma/cases/c.json")
     write(repo.root / "server/service/future/public.py", "NEW = 1\n")
     data = report_data("main", catalog, repo)
     assert "server/service/gamma/public.py" in data["files"]
     assert "server/service/unrelated/renamed.py" in data["files"]
-    assert "doc/gamma/rules.md" in data["files"]
+    assert "doc/gamma/cases/c.json" in data["files"]
     assert data["direct"] == ["future", "gamma", "unrelated"] and data["unknown"] == ["future"]
     assert "| future | 代码 |" in report("main", catalog, repo)
 

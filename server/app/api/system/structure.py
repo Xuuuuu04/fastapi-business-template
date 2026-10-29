@@ -35,7 +35,6 @@ async def modules(request: Request, caller: CallerDep) -> dict[str, Any]:
                 "name": module.name,
                 "title": module.title,
                 "version": module.version,
-                "doc": module.doc,
                 "operations": operations,
                 "identity": module.identity.name if module.identity is not None else None,
                 "identity_header": module.identity_header,
@@ -67,7 +66,6 @@ async def flow(name: str, request: Request, caller: CallerDep) -> dict[str, Any]
         "name": name,
         "title": binding.contract.title,
         "module": binding.module.name,
-        "doc": binding.module.doc,
         "graph": flow_graph(binding),
         "fields": fields,
         "steps": [

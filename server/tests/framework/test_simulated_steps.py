@@ -2,7 +2,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from fastapi_check.quality.docs import check_development_rules
+from fastapi_check.development_rules import simulated_steps
 from fastapi_project.development.check_assets import compact_case
 
 from app.setup.build import build
@@ -69,11 +69,5 @@ def test_production_build_rejects_skeleton(tmp_path: Path) -> None:
         build(settings, modules=[skeleton_module()])
 
 
-def test_delivery_refuses_mock_implementation(tmp_path: Path, monkeypatch) -> None:
-    catalog = Catalog([skeleton_module()])
-    monkeypatch.setenv("APP_DEVELOPMENT_DELIVERY", "1")
-    assert any(
-        p.rule == "simulated_implementation" for p in check_development_rules(catalog, tmp_path)
-    )
-    monkeypatch.setenv("APP_DEVELOPMENT_DELIVERY", "0")
-    assert not check_development_rules(catalog, tmp_path)
+def test_delivery_refuses_mock_implementation() -> None:
+    assert any("模拟骨架" in text for text in simulated_steps(Catalog([skeleton_module()])))

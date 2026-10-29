@@ -16,17 +16,15 @@ def test_copy_retains_skills_and_uses_product_paths(tmp_path: Path) -> None:
     target = tmp_path / "product"
     initialize(PROJECT, target, "独立产品")
     assert sorted(path.name for path in (target / ".agents").iterdir()) == ["skills"]
-    command = target / ".agents/skills/fastapi-project/scripts/run_project.py"
     result = subprocess.run(
-        [sys.executable, str(command), "project", "--summary", "--json"],
-        cwd=tmp_path,
+        [sys.executable, "-m", "fastapi_dev.main", "inspect"],
+        cwd=target / "server",
         text=True,
         capture_output=True,
         check=False,
     )
     assert result.returncode == 0, result.stderr
-    status = json.loads(result.stdout)
-    assert status["name"] == "独立产品" and status["check_rounds"] == 0
+    assert json.loads(result.stdout)["modules"] == []
 
 
 def test_upgrade_removes_old_tools_and_copies_skills(tmp_path: Path) -> None:
@@ -37,7 +35,7 @@ def test_upgrade_removes_old_tools_and_copies_skills(tmp_path: Path) -> None:
     for project in (base, target):
         (project / "server/tools").mkdir()
         (project / "server/tools/check.py").write_text("VERSION = 1\n")
-    skill = ".agents/skills/fastapi-check/scripts/run_check.py"
+    skill = ".agents/skills/fastapi-check/scripts/fastapi_check/check.py"
     (source / skill).parent.mkdir(parents=True)
     (source / skill).write_text("VERSION = 2\n")
     save_provenance(target, base)

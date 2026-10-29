@@ -46,8 +46,8 @@ def test_new_operation_and_pipeline_check_without_manual_edits(tmp_path: Path) -
     initialize(PROJECT, copy, "生成器独立样例")
     env = subprocess_environment()
     env |= {COPY_FLAG: "1", "APP_DATABASE_URL": f"sqlite+aiosqlite:///{tmp_path}/baseline.db"}
-    runner = "../.agents/skills/fastapi-module/scripts/run_module.py"
-    run(copy, [runner, "new_module", "sample_operations", "--title", "独立样例"], env)
+    dev = ["-m", "fastapi_dev.main"]
+    run(copy, [*dev, "new-module", "sample_operations", "--title", "独立样例"], env)
     run(copy, ["-m", "alembic", "upgrade", "head"], env)
     run(
         copy, ["-m", "alembic", "revision", "--autogenerate", "-m", "existing module baseline"], env
@@ -57,8 +57,8 @@ def test_new_operation_and_pipeline_check_without_manual_edits(tmp_path: Path) -
     run(
         copy,
         [
-            runner,
-            "new_operation",
+            *dev,
+            "new-operation",
             "sample_operations",
             "normalize_text",
             "--title",
@@ -71,8 +71,8 @@ def test_new_operation_and_pipeline_check_without_manual_edits(tmp_path: Path) -
     result = run(
         copy,
         [
-            runner,
-            "new_operation",
+            *dev,
+            "new-operation",
             "sample_operations",
             "normalize_text",
             "--title",
@@ -85,7 +85,6 @@ def test_new_operation_and_pipeline_check_without_manual_edits(tmp_path: Path) -
     after = snapshot(copy)
     changed = {name for name, value in after.items() if before.get(name) != value}
     assert reported == changed
-    run(copy, [runner, "new_pipeline", "sample_operations", "daily", "--title", "阶段样例"], env)
-    checker = "../.agents/skills/fastapi-check/scripts/run_check.py"
-    result = run(copy, [checker, "check", "--module", "sample_operations", "--workers", "0"], env)
+    run(copy, [*dev, "new-pipeline", "sample_operations", "daily", "--title", "阶段样例"], env)
+    result = run(copy, [*dev, "check", "--module", "sample_operations", "--workers", "0"], env)
     assert "通过  模块测试" in result and "失败  " not in result

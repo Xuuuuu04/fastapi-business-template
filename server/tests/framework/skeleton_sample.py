@@ -44,7 +44,7 @@ def specification() -> dict:
                 "operations": [operation],
             }
         )
-    return json.loads(json.dumps({"line": "合成计算链", "packages": packages}))
+    return json.loads(json.dumps({"packages": packages}))
 
 
 def write_inputs(project: Path) -> Path:
@@ -72,11 +72,6 @@ def write_inputs(project: Path) -> Path:
             }
             case["observations"] = [{"point": point, "value": {"value": expected}}]
         case_path.write_text(json.dumps(case))
-        (folder / "rules.md").write_text(
-            "# 合成规则\n\n### R-01 合成计算\n\n独立合成样例，不是人类业务验收。\n\n"
-            "| 样例编号 | 输入 | 结果 |\n| --- | --- | --- |\n"
-            f"| R-01-C01 | {input} | {expected} |\n"
-        )
     spec = project / "skeleton-spec.json"
     spec.write_text(json.dumps(specification(), ensure_ascii=False, indent=2))
     return spec

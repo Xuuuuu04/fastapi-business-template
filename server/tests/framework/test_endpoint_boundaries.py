@@ -141,16 +141,6 @@ def test_dynamic_call_without_declaration() -> None:
         Catalog([dynamic])
 
 
-def test_protocol_docs_share_models() -> None:
-    from fastapi_docs.flow_doc import model_name, module_doc
-
-    text = module_doc(Catalog([module]), module.name, {})
-    assert "## 上游接口" in text and read_endpoint.name in text
-    assert text.count(f"### {model_name(Request)}") == 1
-    assert text.count(f"### {model_name(Receipt)}") == 1
-    assert "### 上游数据" not in text
-
-
 def test_legacy_declaration_shape_is_unchanged() -> None:
     from shared.modules.digest import module_shape
 

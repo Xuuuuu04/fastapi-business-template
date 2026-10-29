@@ -2,8 +2,6 @@ from pathlib import Path
 from typing import Any
 
 from fastapi_check.quality.blocking import check_blocking
-from fastapi_check.quality.docs import check_files as check_doc_files
-from fastapi_check.quality.docs import check_rule_ids
 from fastapi_check.quality.files import check_files
 from fastapi_check.quality.naming import check_naming
 from fastapi_check.quality.readmes import check_readmes
@@ -111,14 +109,6 @@ def test_readme_rules(tmp_path: Path) -> None:
     write(tmp_path, "service/order_desk/README.md", "# 订单台\n\n## 用途\n\n只写了用途。\n")
     rules = rules_of(check_readmes(tmp_path, {"order_desk": ["order_desk.create_order"]}))
     assert {"readme_missing", "readme_section", "readme_operation"} <= rules
-
-
-def test_business_doc_rules(tmp_path: Path) -> None:
-    folder = tmp_path / "doc" / "sample_calc"
-    write(tmp_path, "doc/sample_calc/rules.md", "# 规则\n\n### R-01 会员优惠\n")
-    assert rules_of(check_doc_files(folder, tmp_path)) == {"doc_missing"}
-    problems = check_rule_ids(Catalog([calc_module]), "sample_calc", folder / "rules.md", tmp_path)
-    assert [item.rule for item in problems] == ["rule_missing"] and "R-02" in problems[0].message
 
 
 def test_unlisted_module(tmp_path: Path) -> None:

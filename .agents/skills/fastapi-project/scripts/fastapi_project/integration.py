@@ -53,23 +53,6 @@ def validation(project: Path, tree: Path, postgres: str, *, workers: int = 4) ->
     }
 
 
-def refresh(project: Path, report: dict) -> None:
-    if not report["applied"]:
-        return
-    result = subprocess.run(
-        [sys.executable, "-c", "from fastapi_dev.main import main; main()", "panel"],
-        cwd=project / "server",
-        env=clean_environment(),
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode:
-        report["panel_error"] = "源码已经应用，但面板刷新失败，请运行dev panel核对原件"
-    else:
-        report["panel"] = "out/panel/index.html"
-    save_report(project, report)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("branch")
@@ -83,9 +66,10 @@ def main() -> None:
         resolve,
         preview=args.preview,
     )
-    refresh(PROJECT, report)
+    if report["applied"]:
+        save_report(PROJECT, report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    if report.get("error") or report.get("panel_error"):
+    if report.get("error"):
         raise SystemExit(1)
 
 

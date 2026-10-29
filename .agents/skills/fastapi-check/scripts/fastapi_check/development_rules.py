@@ -1,13 +1,17 @@
-from fastapi_check.quality.docs import check_development_rules
-from fastapi_check.quality.rules import PROJECT
-
 from app.setup.application import application_modules
 from shared.modules.catalog import Catalog
 
 
+def simulated_steps(catalog: Catalog) -> list[str]:
+    return [
+        f"service/{binding.module.name}：交付不能包含模拟骨架：{binding.contract.name}"
+        for binding in catalog.bindings.values()
+        if any(part.simulated for part in binding.flow.steps)
+    ]
+
+
 def check_development(delivery: bool) -> list[str]:
-    problems = check_development_rules(Catalog(application_modules()), PROJECT, delivery=delivery)
-    texts = [problem.text() for problem in problems]
+    texts = simulated_steps(Catalog(application_modules())) if delivery else []
     for text in texts:
         print(text, flush=True)
     return texts

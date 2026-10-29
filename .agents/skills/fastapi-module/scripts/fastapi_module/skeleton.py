@@ -10,7 +10,6 @@ from fastapi_module.new_operation import update_docs
 from fastapi_module.registry import registry_text
 from fastapi_module.skeleton_files import bundle_files
 from fastapi_module.skeleton_spec import SkeletonBundle, SkeletonPackage
-from fastapi_project.development.task_models import source_snapshot
 from fastapi_template.template.files import safe_path
 
 
@@ -44,16 +43,11 @@ def generate(project: Path, spec: Path, *, preview: bool = False) -> list[str]:
     bundle = SkeletonBundle.model_validate_json(spec.read_bytes())
     check_registry(project)
     files = bundle_files(project, bundle)
-    before = source_snapshot(project)
     written = write(files, preview=preview)
-    if preview:
-        return written
-    tidy(list(files))
-    update_docs()
-    after = source_snapshot(project)
-    return sorted(
-        name for name in before.keys() | after.keys() if before.get(name) != after.get(name)
-    )
+    if not preview:
+        tidy(list(files))
+        update_docs()
+    return written
 
 
 def existing_cases(project: Path, folder: Path) -> set[str]:
@@ -65,15 +59,6 @@ def existing_cases(project: Path, folder: Path) -> set[str]:
         except (ValueError, KeyError) as error:
             raise ValueError(f"{path.relative_to(project)}：无法读取已有样例编号") from error
     return existing
-
-
-def rules_template(package: SkeletonPackage) -> str:
-    ids = sorted(
-        {case.split(".")[1].split("-C")[0] for op in package.operations for case in op.cases}
-    )
-    return f"# {package.title}\n\n" + "\n".join(
-        f"### {identity} 待填写规则\n\n待确认：请填写业务条件与异常。\n" for identity in ids
-    )
 
 
 def case_templates(project: Path, package: SkeletonPackage) -> dict[Path, str]:
@@ -90,9 +75,6 @@ def case_templates(project: Path, package: SkeletonPackage) -> dict[Path, str]:
     files = {}
     folder = project / "doc" / package.name / "cases"
     existing = existing_cases(project, folder)
-    rules = project / "doc" / package.name / "rules.md"
-    if not rules.exists():
-        files[rules] = rules_template(package)
     for operation in package.operations:
         for identity in operation.cases:
             path = folder / (identity + ".json")
@@ -155,10 +137,10 @@ def main() -> None:
                 "preview": args.preview,
                 "files": files,
                 "implementation": "case_templates" if args.init else "skeleton",
-                "next": "填写 doc/包名/cases/*.json 的业务值和 rules.md 后运行 "
+                "next": "填写 doc/包名/cases/*.json 的业务值后运行 "
                 + f"uv run dev skeleton --spec {args.spec}"
                 if args.init
-                else "uv run dev start --package 包名 --cases R-01-C01",
+                else "uv run dev check --module 包名",
             },
             ensure_ascii=False,
             indent=2,

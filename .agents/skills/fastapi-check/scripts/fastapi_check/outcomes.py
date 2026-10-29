@@ -8,7 +8,7 @@ NEXT_STEPS = {
     "代码风格": "请对上方列出的文件运行 uv run ruff check --fix，再处理剩余问题",
     "代码格式": "请对上方列出的文件运行 uv run ruff format",
     "类型检查": "请按上方 mypy 输出修正类型",
-    "生成文档": "文档已过期，请运行 uv run dev docs",
+    "接口文档": "openapi.json 已过期，请运行 uv run dev docs",
 }
 
 

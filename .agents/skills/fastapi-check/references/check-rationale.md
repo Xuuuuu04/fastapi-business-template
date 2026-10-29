@@ -12,11 +12,8 @@
 | `module_name`、`name_format`、`name_vague`、`step_name`、`condition_name` | 名称参与项目图、操作与源码定位；只有对应的命名或定位机制已经迁移才能替换。 |
 | `readme_missing`、`readme_lines`、`readme_operation`、`readme_section` | 目录职责和公开操作供接手者发现；替代入口必须覆盖同一目录及实际公开操作。 |
 | `missing_module`、`not_listed`、`not_exposed`、`unused` | 模块登记、实际HTTP/后台入口与内部调用相互核对；不能用登记数量代替可调用性。 |
-| `doc_missing`、`doc_index`、`doc_lines`、`rule_missing` | 需求、规则、变化和目录需要共同维护；只有明确取消相应业务资料责任时才能删除。 |
-| `doc_generated` | API、流程、账本生成段和入口摘要必须匹配当前声明；新生成器须有真实过期和手写保留反例。 |
-| `confirmed_case`、`simulated_implementation` | 防止修改已确认预期或把模拟骨架作为完成；确认修订和原话依据不能被替代为测试成功。 |
-| `ledger_recovery` | 写入中断必须恢复明确原件，不能读取半份规则；只有替代存储证明异常和进程退出恢复后才可退役。 |
-| `glossary_target`、`writing_style` | 统一业务词和可读说明；词义变更必须连同实际操作、规则与文档适配。 |
+| 实现状态（交付） | 交付检查不允许模拟骨架，防止把占位实现当成完成。 |
+| `writing_style` | Skill 和 README 写给人看，不用公文腔和未翻译的英文。 |
 | `unused_exception` | 例外失效后自动清理，避免长期放宽范围；没有例外时保持为空。 |
 
 ## 检查流程与运行约束
