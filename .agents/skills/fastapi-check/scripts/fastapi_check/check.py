@@ -88,7 +88,8 @@ def arguments() -> argparse.Namespace:
 def steps(selection: Selection) -> list[tuple[str, list[str]]]:
     tests = ["-m", "pytest", "-q", "--durations=10"]
     for module in selection.modules:
-        tests += [f"tests/modules/{module}", f"tests/integration/{module}"]
+        folders = (f"tests/modules/{module}", f"tests/integration/{module}")
+        tests += [folder for folder in folders if (ROOT / folder).is_dir()]
     files = module_files(selection.modules) if selection.modules else [".", "../.agents/skills"]
     if not files:
         raise ValueError("所选模块没有可检查的 Python 文件")

@@ -24,6 +24,7 @@ def target() -> tuple[str, str]:
 def update(folder: str) -> str:
     return (
         f"cd {shlex.quote(folder)} && git pull --ff-only && cd server && "
+        "echo 服务器提交 $(git rev-parse --short HEAD) && "
         "APP_CODE_VERSION=$(git rev-parse --short HEAD) "
         "docker compose -f deploy/compose.yaml --env-file .env up -d --build"
     )
@@ -41,8 +42,7 @@ def main() -> None:
     step("推送代码", ["git", "push"])
     step("服务器拉取并重启", ["ssh", host, update(folder)])
     step("等服务就绪", ["ssh", host, READY])
-    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True)
-    print(f"已上线 {commit.stdout.strip()}")
+    print("部署完成")
 
 
 if __name__ == "__main__":

@@ -110,13 +110,21 @@ def dependent_reasons(catalog: Catalog, direct: Iterable[str]) -> dict[str, list
     return {name: sorted(items) for name, items in sorted(reasons.items())}
 
 
+def code_paths(files: Iterable[str]) -> list[str]:
+    return sorted(
+        path
+        for path in set(files)
+        if not any(path == item or path.startswith(item + "/") for item in PRODUCT_FILES)
+    )
+
+
 def impact_scope(
     files: Iterable[str],
     catalog: Catalog,
     disabled_modules: Iterable[str] = (),
     root: Path = ROOT,
 ) -> ImpactScope:
-    paths = sorted(set(files) - PRODUCT_FILES)
+    paths = code_paths(files)
     registered = sorted(catalog.modules)
     direct_reasons: dict[str, list[str]] = {}
     unmapped = []

@@ -2,7 +2,7 @@
 
 业务包只从 `shared.public` 导入框架，只导入别的包的 `public.py` 和 `library.工具包.public`；不导入 fastapi、httpx 等 HTTP 库，SQLAlchemy 只在 `store/` 里用。违反时启动和检查都会报错。模板没有预置业务包，每节末尾列出的 `server/tests/framework/` 下的文件就是完整可运行的例子。
 
-路由文件在 `app/api/v1/包名.py`，接口多时拆成 `包名_主题.py`。路由只做参数转换并 `await run(操作, 输入)`，可以用 `app.api.runner` 的 `RunDep`、`FailureLimit` 和 `app.api.replies` 的 `responses_for`。
+路由文件在 `app/api/v1/包名.py`，接口多时拆成 `包名_主题.py`，拆出来的 router 要加进 `app/api/routers.py` 的 `MODULE_ROUTERS`。删除类接口写 `@router.delete(..., status_code=204)`，函数返回 `None`。路由只做参数转换并 `await run(操作, 输入)`，可以用 `app.api.runner` 的 `RunDep`、`FailureLimit` 和 `app.api.replies` 的 `responses_for`。
 
 ## 声明
 
@@ -35,7 +35,7 @@ create_quote = contract(
 
 - 名称是 `包名.动作`；`access` 只能是 `public`、`signed_in` 或以本包名开头的权限。
 - `effect` 必须写。`"query"` 操作的步骤不能保存、不能登记任务、不能调写入类上游接口，也不能调用 command 操作。
-- 可选：`timeout`（秒，默认 30）、`audit=True`（写操作记录）、`stream=True`、`query_budget`、`aliases`（业务别名和旧路径，供 `dev locate` 检索）。
+- 可选：`entry=False`（内部操作，只给本包或别的操作调用，不需要 HTTP 或后台入口）、`timeout`（秒，默认 30）、`audit=True`（写操作记录）、`stream=True`、`query_budget`、`aliases`（业务别名和旧路径，供 `dev locate` 检索）。
 
 步骤和流程写在 steps/ 和 flow.py：
 
@@ -83,13 +83,13 @@ module = Module(
 
 - 流程包（workflow）不能有表。能力包跨包只能调对方的 query 操作，并在 `read_dependencies` 写明对方包名；跨包写入放到流程包。
 - 按需登记 `remotes`、`endpoints`、`prompts`、`jobs`、`schedules`、`pipelines`、`providers`、`aliases`。步骤用到而模块没登记的，启动时报错。
-- 改规则或数据格式时升级 `version`；已排队的旧版本任务会停下等人工确认。
+- 改规则或数据格式时升级 `version`；已排队的旧版本任务会停下，处理方法见 fastapi-operations。
 
 单独测一个步骤用 `shared.flow.testing` 的 `try_step(步骤, Work类, 字段=值)`，异步步骤用 `try_step_async`。例子：`sample_modules.py`、`test_step_rules.py`、`test_injection.py`、`test_package_policy.py`。
 
 ## 存储
 
-SQL 只写在 `store/`：`contract.py` 用 Protocol 声明方法和返回的 Data，`sql.py` 实现，`tables.py` 用 `metadata` 定义表。表名以包名开头，时间列用 `UtcTime()`，金额列用 `ExactNumber(18, 2)`，按组织隔离的表加 `org_column()`，按负责人隔离加 `owner_column(see_all="权限名")`。存储构造参数只能用这些名字：`db`、`legacy`（旧系统只读库）、`remote`、`files`、`cache`、`caller`、`vault`。
+SQL 只写在 `store/`：`contract.py` 用 Protocol 声明方法和返回的 Data，`sql.py` 实现，`tables.py` 用 `metadata` 定义表。表名以包名开头，时间列用 `UtcTime()`，金额列用 `ExactNumber(18, 2)`，按组织隔离的表加 `org_column()`，按负责人隔离加 `owner_column(see_all="权限名")`。存储构造参数只能用这些名字：`db`、`legacy`（旧系统只读库）、`remote`、`files`、`cache`、`caller`、`vault`。存储要抛的业务错误（比如下面的 `QuoteExists`）定义在 `store/contract.py`，因为 store 不能导入本包的 `data.py`。
 
 ```python
 class SqlQuoteStore:
@@ -124,7 +124,7 @@ class SqlQuoteStore:
 - 带 `org_column()` 的表，每一层查询（子查询、别名、更新关联的表）都要写 `表.c.org_id == caller.org_id`。只认 `列 == 值`，`in_`、`or_` 里缺条件或无法判断的语句会被拒绝。`owner_column` 同理，没有 see_all 权限的调用者每层写 `owner_id == caller.id`。
 - 按读到的值决定写入（扣库存、状态流转）时，在保存步骤里 `first_for_update`，或用 `change_or_fail(update(...).where(表.c.状态 == 读到的状态), 错误())`。不要在只读步骤读、再在保存步骤无条件写。
 - 查询额度：contract 写 `query_budget=QueryBudget(queries=20, rows=5000, bytes=64000, repeated=20)`。没写的用宽松默认值（1000 次、100000 行、64000000 字节、同一函数 100 次），超了只警告；写了之后测试环境超额就失败并回滚，生产只记录。
-- 新增表后，先 `uv run alembic upgrade head`，再 `uv run alembic revision --autogenerate -m "说明"`，人工检查生成的文件。只保留不修改的外部表登记在 `Module(external_tables=...)`，产品维护但已不在代码里的历史表登记在 `owned_tables`。旧系统的表定义放 `server/legacy/`，用 `legacy.schema` 的 `legacy_metadata`，不进迁移；存储构造参数写 `legacy` 拿到 `APP_LEGACY_DATABASE_URL` 的只读入口。
+- 新增表的迁移步骤见 SKILL.md“生成命令”。只保留不修改的外部表登记在 `Module(external_tables=...)`，产品维护但已不在代码里的历史表登记在 `owned_tables`。旧系统的表定义放 `server/legacy/`，用 `legacy.schema` 的 `legacy_metadata`，不进迁移；存储构造参数写 `legacy` 拿到 `APP_LEGACY_DATABASE_URL` 的只读入口。
 
 例子：`test_conditional_change.py`、`test_bulk_insert.py`、`test_owner_scope.py`、`test_common_services.py`、`query_budget_sample.py`、`test_legacy_database.py`。
 
@@ -149,7 +149,7 @@ class QuoteInvalid(BusinessError):
 
 | JobPlan 参数 | 含义 |
 | --- | --- |
-| `retry=Retry(3, (10, 60, 300))` | 暂时故障和超时的重试次数与每次等待秒数 |
+| `retry=Retry(3, (10, 60, 300))` | 暂时故障和超时的重试次数与每次等待秒数；不写就不重试 |
 | `repeat_safe=True` | 期限过期后自动重排；必须来自真实的幂等规则，不因为任务短就写 |
 | `max_queued`、`lease_seconds` | 排队上限（1000）、租约秒数（60） |
 | `serial=SerialKey("conversation", "session_id")` | 同组织同业务键的任务跨 worker 串行 |
@@ -157,7 +157,7 @@ class QuoteInvalid(BusinessError):
 | `queue_timeout`、`attempt_timeout`、`valid_until_field` | 排队预算、单次尝试预算、输入里的有效期字段 |
 | `revalidate=查询操作` | 执行前用同一输入调这个 query 操作（输出 `Validity`）核对身份或状态 |
 
-定时：`Schedule("daily", "每日汇总", public.summarize, SummaryInput(), daily_at=time(2, 0))`，或 `every=timedelta(...)`。`org_ids=("alpha",)` 限定组织，`org_ids=()` 是只跑一次的全局任务，`slot_input_field="字段路径"` 把实际时段写进输入。
+定时：`Schedule("daily", "每日汇总", public.summarize, SummaryInput(), daily_at=time(2, 0))`，或 `every=timedelta(...)`。时区默认 `Asia/Shanghai`，用 `zone=` 改。`org_ids=("alpha",)` 限定组织，`org_ids=()` 是只跑一次的全局任务，不写就用 `APP_SCHEDULE_ORG_IDS`；`slot_input_field="字段路径"` 把实际时段写进输入。
 
 分段提交用于固定范围的大批数据，每批独立提交。JobPlan 写 `segmented=True, repeat_safe=True, cursor=游标Data`，读取步骤从 `checkpoint.cursor.get("after", 0)` 取起点，最后一个步骤声明提交点：
 
@@ -171,15 +171,15 @@ def commit_batch(data: BatchWork, checkpoint: Checkpoint) -> None:
 ```
 
 - 游标是不超过 16 KiB 的 JSON 字典，只放位置。每批只能声明一次提交点，并且必须推进。输入范围固定，游标格式变了要升级模块版本。
-- 单批耗时要小于部署停止宽限（Compose 默认 30 秒）和 `APP_JOB_SHUTDOWN_SECONDS`（默认 20 秒）中较小的那个，并留出提交时间。
-- 分段任务里的外部写入回滚不掉，发送后失败会停在"结果待确认"，人工核对后才 `jobs requeue`。固定来源导入加 `import_plan=ImportPlan(...)`，最后一批提交前自动对账。
+- 单批耗时的上限见 fastapi-operations 的运行参考“compose 部署”。
+- 分段任务里的外部写入回滚不掉，发送后失败会停在“结果待确认”，处理方法见 fastapi-operations。固定来源导入加 `import_plan=ImportPlan(...)`，最后一批提交前自动对账。
 - 上游明确要求等待（如 429）时抛 `RetryLater(60, resource="model")`，不消耗重试次数。用户登记的任务沿用登记时的身份，要求撤权立即生效的，执行步骤要重新读用户状态。SQLite 只能跑一个 worker。
 
 例子：`test_jobs.py`、`segment_sample.py`、`test_segmented_jobs.py`、`import_sample.py`、`test_job_limits.py`、`test_job_defer.py`、`test_job_revalidation.py`、`test_schedule_organizations.py`。
 
 ## 多阶段流程
 
-采集、等待、汇算、发布需要各自的事务和恢复点时用 Pipeline。每个阶段引用一个已登记的公开操作，并有自己的 JobPlan；定时只登记首入口 `pipeline.start`。
+采集、等待、汇算、发布需要各自的事务和恢复点时用 Pipeline。每个阶段引用一个已登记的公开操作，并有自己的 JobPlan；定时只登记首入口 `pipeline.start`，它的权限默认是 `包名.run`，用 `Pipeline(..., access=...)` 改。
 
 ```python
 daily = Pipeline(
@@ -257,12 +257,12 @@ async def ask_text(data: TextWork, model: Model) -> None:
 ```
 
 - 提示词文件放包的 `prompts/`，变量写 `{name}`，缺少或多出都报错；改内容就改 `version`。模块登记 `prompts=(describe,)`。
-- 结构化结果用 `await model.ask_data(提示词, 输出Data, 变量=值)`。重试、并发、熔断由入口处理；保存步骤之后不能再调大模型。
+- 结构化结果用 `await model.ask_data(提示词, 输出Data, 变量=值)`。重试、并发、熔断由框架的模型调用服务处理；保存步骤之后不能再调大模型。
 - 本地和测试没配模型时用模拟回复；生产声明了提示词却没配模型会拒绝启动。例子：`sample_modules.py` 的 `ask_text`、`test_model_calls.py`。
 
 ## 权限与身份
 
-- 操作级权限写在 contract 的 `access`，框架调用前检查：匿名 401，缺权限 403。权限写法：`public`、`signed_in`、`*`、`包名.动作`、`包名.*`。
+- 操作级权限写在 contract 的 `access`，框架调用前检查：匿名 401，缺权限 403。`access` 写 `public`、`signed_in` 或 `包名.动作`；调用者持有的权限还可以是 `*`（全部）和 `包名.*`（本包全部）。
 - 资源级权限在步骤里查：参数写 `caller: Caller`，`caller.can("quote.approve")` 不满足就 `raise NotAllowed()`。数据隔离用存储一节的 `org_column`、`owner_column`。身份只来自已验证的凭据，不用请求正文里自报的身份。
 - 字段加密：存储构造参数写 `vault: Vault`，写库前 `vault.encrypt(文字)`，读出后 `vault.decrypt(...)`，密钥在 `APP_DATA_KEYS`。例子：`test_vault.py`。
 - 旧系统用自定义请求头传会话时，写 `Module(identity=解析操作, identity_header="X-Legacy-Token", identity_token="opaque")`。例子：`identity_sample.py`、`test_identity_declaration.py`。账号登录见 `frontend-interface.md`。

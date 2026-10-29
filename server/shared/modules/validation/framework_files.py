@@ -26,5 +26,9 @@ FRAMEWORK = (
     "pyproject.toml",
     "alembic.ini",
 )
-REGISTRATION = ("app/setup/catalog.py", "../.agents/skills/fastapi-business/business.md")
+REGISTRATION = (
+    "app/setup/catalog.py",
+    "../.agents/skills/fastapi-business/business.md",
+    "../.agents/skills/fastapi-business/business",
+)
 SUFFIXES = (".py", ".md", ".mako", ".toml", ".ini", ".txt", ".html", ".js", ".css", ".json")

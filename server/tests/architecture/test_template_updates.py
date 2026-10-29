@@ -183,5 +183,6 @@ def write(root: Path, name: str, content: str) -> None:
 def test_business_document_stays_with_product(tmp_path: Path) -> None:
     write(tmp_path, ".agents/skills/fastapi-business/SKILL.md", "# 业务\n")
     write(tmp_path, ".agents/skills/fastapi-business/business.md", "# 产品业务\n")
+    write(tmp_path, ".agents/skills/fastapi-business/business/order.md", "# 订单\n")
     files = managed_files(tmp_path, Manifest(("../.agents/skills",), REGISTRATION, (".md",)))
     assert list(files) == [".agents/skills/fastapi-business/SKILL.md"]

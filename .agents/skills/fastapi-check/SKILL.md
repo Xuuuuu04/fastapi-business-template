@@ -1,11 +1,11 @@
 ---
 name: fastapi-check
-description: 改完代码要验证、准备提交、或检查和测试报错时读，按这里选检查范围、看失败报告、写测试。部署和线上排查看 fastapi-operations。
+description: 改完代码要验证、准备提交、或检查和测试报错时读，按这里选检查范围、看失败报告、写测试。部署上线、查线上运行时不用读。
 ---
 
 # 检查和测试
 
-`uv run dev check` 只做两件事：静态检查（风格、格式、类型、接口文档、代码规则）和跑测试。每次都真跑，不复制项目，也不沿用上次结果。命令在 `server/` 执行。
+`uv run dev check` 只做两件事：静态检查（风格、格式、类型、接口文档、代码规则）和跑测试。命令在 `server/` 执行。
 
 ## 选范围
 
@@ -31,7 +31,11 @@ description: 改完代码要验证、准备提交、或检查和测试报错时�
 | `file_lines`、`function_lines`、`nesting` | 文件超过 300 行、函数超过 50 行、嵌套超过 4 层，按用途拆开 |
 | `blocking_call` | 异步代码里调用了同步等待 |
 | `module_name`、`name_format`、`name_vague`、`step_name`、`condition_name` | 名字格式不对或太含糊（如 utils、helper） |
-| `not_listed`、`missing_module`、`not_exposed`、`unused` | 模块登记和实际的包、入口、调用对不上 |
+| `not_listed`、`missing_module`、`not_exposed`、`unused` | 模块登记和实际的包、入口、调用对不上；只给别的操作调用的写 `entry=False` |
+| `import_shared`、`import_web`、`import_database`、`import_module`、`import_layer`、`import_library`、`import_relative`、`import_dynamic`、`import_direction` | 导入越界，规则见 fastapi-module“包里放什么”下的依赖方向 |
+| `calc_dependency`、`calc_purity` | calc 用了不纯的导入或调用 |
+| `library_layout`、`library_exports`、`library_declaration` | 工具包的结构、`exports` 和 `__all__` 对不上 |
+| `unused_exception` | `rules.py` 里登记的例外已经用不上，删掉它 |
 | `writing_style` | Skill 文字里有公文腔 |
 
 检查没过就改代码，不改阈值、不改 `tests/architecture` 和 `tests/quality` 的断言、不跳过测试。

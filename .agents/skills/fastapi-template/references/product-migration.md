@@ -23,7 +23,7 @@ uv run dev new-pipeline report daily --title 经营日报 --stages collect,wait,
 | 旧函数的情况 | 怎么处理 |
 | --- | --- |
 | 正确、独立，只接收数据返回结果 | 只迁当前业务用到的，放进 `calc/` 或 `steps/`，由正式步骤调用 |
-| 查库、请求外部、计算、提交混在一起 | 拆开：读取和外部动作放 `store/`，计算放步骤或 calc，保存交给框架的事务 |
+| 查库、请求外部、计算、提交混在一起 | 拆开：读写库放 `store/`，外部调用放步骤（见 fastapi-module 框架用法“外部调用”），计算放 calc，保存交给框架的事务 |
 | 重复、没用、这期不需要 | 不迁 |
 | 已知有错，或拆开比重写还贵 | 和用户确认规则后，按确认的样例重写 |
 
@@ -56,7 +56,7 @@ job = JobPlan(load, segmented=True, repeat_safe=True, import_plan=import_plan)
 ## 比较新旧结果
 
 - 用固定输入比较新旧输出，金额、单位、空值、边界、异常都要有明确预期。旧结果对不对，看确认过的业务规则。
-- 比较接口：`uv run dev compare-api --before /旧/openapi.json --after ../doc/api/openapi.json`。
+- 用 `dev compare-api` 比较新旧两份接口文档。
 - 接口对上了还要把旧页面真正接上，完成查看、下载这些操作。
 
 ## 记录和切换

@@ -3,8 +3,7 @@ import asyncio
 import json
 from typing import Any
 
-from app.setup.catalog import MODULES
-from shared.config.settings import Settings
+from app.setup.application import application, application_modules
 from shared.db.database import Database
 from shared.modules.catalog import Catalog
 from shared.pipelines.member_views import listing as list_members
@@ -13,7 +12,7 @@ from shared.pipelines.views import detail, list_runs
 
 
 async def run(args: argparse.Namespace) -> None:
-    database = Database(Settings().database_url)
+    database = Database(application().settings().database_url)
     result: Any
     try:
         if args.command == "list":
@@ -29,7 +28,7 @@ async def run(args: argparse.Namespace) -> None:
         else:
             result = await resume(
                 database,
-                Catalog(MODULES),
+                Catalog(application_modules()),
                 args.run_id,
                 accept_schema=args.accept_schema,
                 confirm_unknown=args.confirm_unknown,

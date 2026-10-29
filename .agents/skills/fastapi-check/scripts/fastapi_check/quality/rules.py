@@ -81,8 +81,6 @@ STEP_VERBS = frozenset(
 CONDITION_WORDS = frozenset({"is", "has", "can", "needs", "should"})
 
 
-BUSINESS_DOCS = ("needs.md", "rules.md", "changes.md")
-
 BLOCKING_CALLS = frozenset(
     {
         "time.sleep",

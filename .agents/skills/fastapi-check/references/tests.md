@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `modules/包名/test_calc*.py`、`unit/` | pure | 不碰数据库、网络、文件的纯计算和公开数据 |
 | `modules/包名/` 其余文件 | module | 本包步骤和业务规则，用确认过的样例 |
-| `integration/包名/`、`flows/` | flow | 从真实应用工厂和 HTTP 入口走完整流程，含权限和非法输入 |
+| `integration/包名/` | flow | 从真实应用工厂和 HTTP 入口走完整流程，含权限和非法输入 |
 | `framework/` | framework | 框架自身和各机制的独立样例，含故意写错的反例 |
 | `architecture/`、`quality/`、`security/`、`recovery/`、`contracts/` | framework | 依赖方向与迁移一致性、代码和文档规则、身份与生产配置、断连与重启、可替换实现的同一组约定 |
 | `load/`、`browser/`、`temp/` | 不在默认运行里 | 压力测试、浏览器检查、临时复现脚本 |
@@ -36,7 +36,7 @@
 ## 手动测试
 
 ```bash
-uv run python -m tests.load.run --port 8000 --key 服务密钥 --count 500 --workers 20
+uv run python -m tests.load.run --port 8000 --key 服务密钥 --path /api/v1/要压的接口 --count 500 --workers 20
 uv run --with playwright python -m playwright install chromium
 uv run --with playwright python -m tests.browser.run --port 8000 --output out/browser
 ```

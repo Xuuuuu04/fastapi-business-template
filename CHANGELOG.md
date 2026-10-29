@@ -22,6 +22,8 @@
 - 新增 `uv run dev deploy`：`git push`，ssh 到 `DEPLOY_HOST` 在 `DEPLOY_DIR` 里 `git pull` 后 `docker compose up -d --build`，等 `/health/ready`。不备份、不回滚。
 - Skill 重组成五个：fastapi-business（新增，查业务、`dev locate`、业务文档 `business.md`）、fastapi-module（开发风格并入）、fastapi-check（含 `dev docs` 和 `--affected` 选包）、fastapi-operations、fastapi-template（含 `dev compare-api`）。删除 fastapi-guide 和只放脚本的 fastapi-project、fastapi-docs、fastapi-migration。业务文档由代理在业务做完后审阅差异手工更新，升级框架不覆盖它。
 - 删除 `dev adopt-modules`、升级工具的 `--recovery-proof`、写入失败时的回退，以及读取旧清单 `framework_lock.py` 的兼容。
+- 部署相关：compose 的数据库端口绑定 `127.0.0.1:5432`，方便在服务器上用 `uv run dev` 查生产任务；`dev deploy` 打印服务器上实际的提交号；删除 Dependabot（单人直接推主干，不走 PR）。
+- `dev check --module` 只传存在的测试目录（流程包没有 `tests/modules/包名`）；`dev pipelines` 按产品组装读取模块和配置；`dev locate` 去掉没用的 `--json`；`check --affected` 遇到只改业务文档时不跑检查。
 - 新增 `@step(placeholder=True)`：生成器产出的样例步骤都带这个标记，`dev check --delivery` 遇到占位或模拟步骤就报错，换成真实实现后删掉标记。
 - 依赖方向只剩严格模式：删除 `APP_MODULE_DEPENDENCIES_STRICT` 和只警告的模式，`module.json` 只认 `"dependencies": "strict"`。流程包也不许登记 `owned_tables`、`external_tables`。
 - `new-pipeline` 只给等待阶段写 `repeat_safe=True`，其他阶段默认不可重复执行；不再往 `doc/` 生成演练配置。`check --quick` 也跑注释、文档字符串、try 等质量规则。

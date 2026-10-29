@@ -94,7 +94,10 @@ def managed_files(project: Path, listing: Manifest | None = None) -> dict[str, b
             if (
                 path.suffix in listing.suffixes
                 and "__pycache__" not in path.parts
-                and name not in {project_path(item) for item in listing.registration}
+                and not any(
+                    name == product or name.startswith(product + "/")
+                    for product in map(project_path, listing.registration)
+                )
             ):
                 checked = safe_path(project, name)
                 if checked.is_file():

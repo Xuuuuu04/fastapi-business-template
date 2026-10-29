@@ -30,7 +30,7 @@ def test_push_update_and_wait(monkeypatch: pytest.MonkeyPatch) -> None:
     recorder = Recorder()
     monkeypatch.setattr(subprocess, "run", recorder)
     deploy.main()
-    push, update, ready, _ = recorder.commands
+    push, update, ready = recorder.commands
     assert push == ["git", "push"]
     assert update[:2] == ["ssh", "prod"] and "cd /srv/app && git pull" in update[2]
     assert ready[:2] == ["ssh", "prod"] and "/health/ready" in ready[2]

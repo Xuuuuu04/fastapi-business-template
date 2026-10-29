@@ -10,40 +10,38 @@
 
 ## 生产配置
 
-`APP_ENV=production` 时，下面任何一项不满足，服务拒绝启动：
+`APP_ENV=production` 时配置不合格，服务拒绝启动。服务器的 `server/.env` 要写：
 
 | 配置 | 要求 |
 | --- | --- |
-| `APP_DATABASE_URL` | PostgreSQL |
-| `APP_DEV_CALLER` | 关闭 |
-| `APP_RUN_RECORDS` | `database` |
+| `DATABASE_PASSWORD` | 数据库密码，compose 用它建库和拼连接地址 |
 | `APP_API_KEYS` | 至少一把，用 `dev make-key` 生成，只存摘要 |
-| `APP_CODE_VERSION` | 部署的提交号，`dev deploy` 自动传入 |
 | `APP_JWT_SECRET` | 独立随机，至少 32 个字符；换密钥时旧的放进 `APP_JWT_PREVIOUS_SECRETS` |
-| `APP_DATA_KEYS` | 有存储用 `vault` 时必须独立设置，至少 32 个字符；新密钥放第一位 |
-| 模型配置、`APP_REMOTES` | 声明了提示词或外部系统就必须配置 |
+| `APP_DATA_KEYS` | 存储用了 `vault` 或产品登记了 `providers` 时必须写，每把至少 32 个字符，新密钥放第一位 |
+| 模型配置、`APP_REMOTES` | 声明了提示词或外部系统就必须写 |
 
-其他要按目标环境确认的配置：
+`APP_ENV`、`APP_DATABASE_URL`、`APP_RUN_RECORDS`、`APP_CODE_VERSION` 和文件目录由 `deploy/compose.yaml` 设好，不用写。
 
-- 公开访问：`FORWARDED_ALLOW_IPS` 只写实际代理地址；HTTPS 确认后再设 `APP_HSTS_SECONDS`；明确设置 `APP_CORS`、`APP_DOCS`。`APP_CONSOLE` 在生产默认关闭，其他环境默认打开。
-- 容量：各进程 `APP_DATABASE_POOL_SIZE` 之和要低于 PostgreSQL 的 `max_connections` 并留余量。`APP_MAX_INFLIGHT`、`APP_JOB_CONCURRENCY`、`APP_HEAVY_CONCURRENCY`（默认每进程 4）、模型和外部并发按实测设置。
-- 多实例：要用 PostgreSQL；共用 Redis（`APP_CACHE_URL`）才能共享限流计数；本地文件要共用卷，或改用 S3。SQLite 只能跑一个 worker。
-- 多组织定时用 `APP_SCHEDULE_ORG_IDS=["alpha","beta"]`。产品自己的 PostgreSQL 行级策略用 `APP_DATABASE_ORG_SETTING`，策略和角色由产品迁移创建并另行验证。
+按实际环境再确认：
+
+- 公开访问：`FORWARDED_ALLOW_IPS` 只写实际代理地址；HTTPS 确认后再设 `APP_HSTS_SECONDS`；明确设置 `APP_CORS`、`APP_DOCS`。`APP_CONSOLE` 在生产默认关闭。
+- 容量：各进程 `APP_DATABASE_POOL_SIZE` 之和要低于 PostgreSQL 的 `max_connections`。`APP_MAX_INFLIGHT`、`APP_JOB_CONCURRENCY`、`APP_HEAVY_CONCURRENCY`（默认每进程 4）、模型和外部并发按实测设置。
+- 多实例：共用 Redis（`APP_CACHE_URL`）才能共享限流计数；本地文件要共用卷，或改用 S3。SQLite 只能跑一个 worker。
+- 多组织定时用 `APP_SCHEDULE_ORG_IDS=["alpha","beta"]`。PostgreSQL 行级策略用 `APP_DATABASE_ORG_SETTING`，策略和角色由产品迁移创建。
 - `APP_DISABLED_MODULES` 关闭模块入口，不撤销表归属，也不跳过结构检查。
 
-## 单机部署
+## compose 部署
 
-日常用 `uv run dev deploy`（见 [SKILL](../SKILL.md)“发布上线”）。它在服务器上执行的就是 `docker compose -f deploy/compose.yaml --env-file .env up -d --build`，再等 `/health/ready`。
+`deploy/compose.yaml` 有数据库、迁移、接口、worker 四个服务，用同一个镜像和同一份配置。
 
-- `migrate` 服务先执行迁移，接口和 worker 不自己改表。接口端口只绑定宿主机 `127.0.0.1:8000`，对外要配 HTTPS 反向代理，前端和 `/api` 放同一域名。
-- worker 健康：设置 `APP_JOB_HEALTH_FILE`（放 worker 自己的临时目录），用 `python -m app.setup.worker_health` 检查，默认 60 秒内有更新才算健康。显示 unhealthy 时 Docker 不会自动重启。
-- 停止：worker 先等在途任务 `APP_JOB_SHUTDOWN_SECONDS`（默认 20 秒），超时再取消并清理。容器的 `stop_grace_period`（模板 30 秒）要比它长，否则清理会被强杀打断。
+- `migrate` 服务执行 `alembic upgrade head`，接口和 worker 等它成功后才启动。`/health/ready` 会核对数据库版本和代码是否一致。
+- 接口端口只绑定宿主机 `127.0.0.1:8000`，数据库只绑定 `127.0.0.1:5432`。对外要配 HTTPS 反向代理，前端和 `/api` 放同一域名。
+- worker 健康：compose 设了 `APP_JOB_HEALTH_FILE`，用 `python -m app.setup.worker_health` 检查，默认 60 秒内有更新才算健康。显示 unhealthy 时 Docker 不会自动重启。
+- 停止：worker 先等在途任务 `APP_JOB_SHUTDOWN_SECONDS`（默认 20 秒），超时再取消并清理。compose 的 `stop_grace_period` 设为 30 秒，要比它长。分段任务每批的耗时要小于这两个值中较小的那个。
 
 ## 迁移
 
-- compose 的 `migrate` 服务执行 `alembic upgrade head`。`/health/ready` 会核对数据库版本和代码是否一致。
-- 模板初始迁移 `7e03c1a0b624` 只用于全新数据库。已有产品保留自己的迁移链。
-- 迁移里的删除、改名、改类型默认只警告。逐条整理好历史表归属（`APP_OWNED_TABLES`、`APP_EXTERNAL_TABLES` 或模块的同名登记）后，设 `APP_MIGRATION_STRICT=true` 把警告变成错误。
+- 迁移只能改本产品登记的表：模块 `tables`、`owned_tables` 或 `APP_OWNED_TABLES`；`external_tables` 和 `APP_EXTERNAL_TABLES` 里的表只读。删除、改名、改类型未登记的表默认只警告，`APP_MIGRATION_STRICT=true` 时报错。
 
 ## 运行记录和日志
 
@@ -51,7 +49,7 @@
 - 记录可能丢失或过期清理，业务结果以业务表和任务表为准。超过五分钟没有上报的运行显示"失去联系"，这不能证明失败，要再查任务和业务数据。
 - 日志在生产是一行一条 JSON，带请求编号，不含请求正文、密钥和业务原文；意外异常只有类型和文件行号。`APP_OTEL_ENDPOINT` 配置后导出跨度。
 
-## 用系统接口逐层查一次运行
+## 用系统接口查一次运行
 
 起点是错误响应里的 `run_id`，或响应头的 `X-Request-ID`、`X-Run-ID`。没有 `X-Run-ID` 说明请求没进入登记的操作（认证失败、路由不存在），按请求编号查日志。`/system/console` 页面展示同样的数据。
 
@@ -78,5 +76,5 @@ uv run dev pipelines members 流程编号 阶段名
 uv run dev diagnose budgets --runtime-config
 ```
 
-- `jobs resource` 改跨 worker 的资源额度，先停旧 worker、等在途位置结束再执行。`jobs cancel` 只能取消还没开始的任务。
+- `jobs resource` 改跨 worker 的资源额度，先停旧 worker、等在途位置结束再执行。
 - `diagnose budgets` 离线列出排队、执行、外部调用、有效期等各类预算和声明位置；加 `--runtime-config` 才读取运行配置，不连数据库。

@@ -1,6 +1,6 @@
 ---
 name: fastapi-module
-description: 在本项目新建或修改业务代码（业务包、操作、步骤、存储、后台任务、多阶段流程、路由）时先读并照做，开发风格和每种写法都只有这里一种。只想弄清业务含义看 fastapi-business；跑检查看 fastapi-check。
+description: 在本项目新建或修改业务代码（业务包、操作、步骤、存储、后台任务、多阶段流程、路由）时先读并照做，本项目每种写法只有这里这一种。只查业务含义、只跑检查、只做发布时不用读。
 ---
 
 # 写业务代码
@@ -38,6 +38,7 @@ description: 在本项目新建或修改业务代码（业务包、操作、步�
 
 - 生成的步骤带 `placeholder=True`，换成真实实现后删掉这个标记；`dev check --delivery` 不放过占位步骤。
 - 每个新操作带一个正常样例和一个规则异常样例，预期值要换成和用户确认过的业务样例。
+- 工具包的 `module.json` 列出 `exports`，和 `public.py` 的 `__all__` 一致；加函数时两处一起改。
 - 新增数据表：先 `uv run alembic upgrade head`，再 `uv run alembic revision --autogenerate -m "说明"`，人工看一遍生成的迁移。已有数据库的迁移历史不改。
 
 ## 包里放什么
@@ -51,6 +52,7 @@ description: 在本项目新建或修改业务代码（业务包、操作、步�
 | `calc/` | 可选，只接收参数、返回结果的纯函数 |
 | `store/` | `contract.py` 声明存储方法，`sql.py` 实现，`tables.py` 定义表；SQL 只写在这里 |
 | `module.py` | 登记操作、表、后台任务、定时和多阶段流程 |
+| `module.json` | 包的类型 `kind`，和 `Module(kind=...)` 一致，改类型两处一起改 |
 | `prompts/` | 可选，大模型提示词 |
 
 包内依赖方向：步骤可以用 calc、data、其他步骤和 `store.contract`；store 只用 store 和 calc；calc 只用本包 calc、纯计算的标准库和 `shared.public` 的纯数据和错误类型。需要时间、随机值或外部数据时，由步骤取得后传给 calc，并在步骤上登记 `@step(..., calcs=[函数])`。违反方向时启动和检查都直接报错。

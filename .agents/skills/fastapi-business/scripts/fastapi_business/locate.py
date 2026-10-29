@@ -11,7 +11,6 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--query", required=True)
     parser.add_argument("--limit", type=int, default=10)
-    parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     if not args.query.strip() or not 1 <= args.limit <= 100:
         parser.error("query 不能为空，limit 必须在 1 到 100 之间")

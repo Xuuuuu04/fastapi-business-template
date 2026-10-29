@@ -1,6 +1,6 @@
 # 升级框架
 
-更新工具只比较框架文件（清单在 `server/shared/modules/validation/framework_files.py`），不要求产品和模板有共同的 Git 历史。业务包、模块登记、环境配置、依赖版本、迁移历史和业务文档都由产品自己保留。
+更新工具只比较框架文件（清单在 `server/shared/modules/validation/framework_files.py`），不要求产品和模板有共同的 Git 历史。业务包、模块登记、环境配置、依赖版本、迁移历史和业务文档由产品自己维护，工具不碰。
 
 ## 一、准备旧模板和新模板
 

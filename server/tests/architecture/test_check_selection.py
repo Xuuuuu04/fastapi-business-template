@@ -24,6 +24,9 @@ def test_multi_package_plan_runs_common_checks_once(
     names = module_names(["sample_accounts,sample_records", "sample_records"])
     assert names == ("sample_accounts", "sample_records")
     monkeypatch.setattr("fastapi_check.check.module_files", lambda names: ["sample.py"])
+    for folder in ("modules/sample_records", "integration/sample_accounts"):
+        (tmp_path / "tests" / folder).mkdir(parents=True)
+    monkeypatch.setattr("fastapi_check.check.ROOT", tmp_path)
     plan = steps(Selection(names))
     assert [title for title, _ in plan] == [
         "代码风格",
@@ -35,6 +38,7 @@ def test_multi_package_plan_runs_common_checks_once(
     command = plan[-1][1]
     assert command.count("tests/modules/sample_records") == 1
     assert "tests/integration/sample_accounts" in command
+    assert "tests/modules/sample_accounts" not in command
     assert all(test in command for test in INTEGRITY)
     assert QUALITY in command
     assert plan[0][1] == ["ruff", "check", "sample.py"]
