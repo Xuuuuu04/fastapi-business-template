@@ -5,7 +5,9 @@ from pathlib import Path
 
 from fastapi_check.quality.report import Problem, files_under, relative
 from fastapi_check.quality.rules import (
+    BUSINESS_DIRS,
     CODE_DIRS,
+    FRAMEWORK_TESTS,
     MAX_FILE_LINES,
     MAX_FUNCTION_LINES,
     MAX_NESTING,
@@ -16,6 +18,7 @@ NESTED = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith, ast
 Function = ast.FunctionDef | ast.AsyncFunctionDef
 DOCUMENTED = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 NO_TEXT = "用名字、类型和测试说清意图；修改原因写进提交说明"
+NO_CATCH = "按错误种类直接 raise；唯一冲突用 Db 的 conflict=，失败次数限制用 run(..., limits=)"
 
 
 def check_files(root: Path = ROOT) -> list[Problem]:
@@ -31,6 +34,8 @@ def check_file(path: Path, root: Path = ROOT) -> list[Problem]:
     lines = source.splitlines()
     tree = ast.parse(source)
     problems = check_comments(name, source) + check_docstrings(name, tree)
+    if name.startswith(BUSINESS_DIRS) and not name.startswith(FRAMEWORK_TESTS):
+        problems += check_catching(name, tree)
     if len(lines) > MAX_FILE_LINES:
         problems.append(
             Problem(
@@ -61,6 +66,16 @@ def check_docstrings(name: str, tree: ast.Module) -> list[Problem]:
         Problem(name, node.body[0].lineno, "docstring", "代码里不写文档字符串", NO_TEXT)
         for node in ast.walk(tree)
         if isinstance(node, DOCUMENTED) and node.body and is_docstring(node.body[0])
+    ]
+
+
+def check_catching(name: str, tree: ast.Module) -> list[Problem]:
+    return [
+        Problem(name, node.lineno, "catch", "业务代码不接住错误", NO_CATCH)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Try | ast.TryStar)
+        or (isinstance(node, ast.Name) and node.id == "suppress")
+        or (isinstance(node, ast.Attribute) and node.attr == "suppress")
     ]
 
 

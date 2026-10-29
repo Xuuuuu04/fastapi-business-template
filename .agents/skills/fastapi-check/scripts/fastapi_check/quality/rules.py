@@ -11,7 +11,18 @@ MAX_MODULE_README_LINES = 120
 MAX_README_LINES = 150
 MAX_BUSINESS_DOC_LINES = 200
 
-CODE_DIRS = ("app", "service", "shared", "../.agents/skills", "devtools", "tests", "deploy")
+CODE_DIRS = (
+    "app",
+    "service",
+    "library",
+    "shared",
+    "../.agents/skills",
+    "devtools",
+    "tests",
+    "deploy",
+)
+BUSINESS_DIRS = ("service/", "library/", "app/api/v1/", "tests/modules/", "tests/integration/")
+FRAMEWORK_TESTS = ("tests/integration/system/",)
 README_DIRS = ("app", "service", "shared", "devtools", "tests", "deploy", "migrations")
 SKIP_PARTS = ("__pycache__", ".venv", "versions", "temp")
 

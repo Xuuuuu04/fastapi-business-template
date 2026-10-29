@@ -2,8 +2,7 @@ from collections.abc import Collection
 
 from fastapi import APIRouter
 
-from app.api.system import audit, console, health, jobs, pipelines, runs, structure
-from app.api.v1 import stream
+from app.api.system import audit, console, health, jobs, pipelines, runs, stream, structure
 
 ROUTERS: list[APIRouter] = [
     health.router,

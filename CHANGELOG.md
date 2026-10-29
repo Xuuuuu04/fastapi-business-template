@@ -13,6 +13,8 @@
 - 删除 `dev skeleton`（按规格生成多包骨架）、`dev merge`（本机分支整合）、`dev impact`（改动影响报告）、`dev pin/gc`（检查证据保留与清理），以及复制整个模板再重跑全部测试的端到端测试。`check --affected` 仍按改动选包。
 - 删除 `framework.lock` 和 `dev framework-lock`：不再给框架文件算摘要，服务启动也不再因摘要不一致拒绝启动。框架文件清单改放在 `shared/modules/validation/framework_files.py`（`FRAMEWORK`），升级工具和 `check --affected` 读它；升级时仍能读旧模板的 `framework_lock.py`。`template-source.json` 不再记 `framework_lock` 字段。
 - 运行记录不再计算和保存整份源码的哈希（`source_version`）；读取旧记录时自动忽略这个字段。
+- 业务代码（`service/`、`library/`、`app/api/v1/` 及其测试）禁止 try/except 和 `contextlib.suppress`，新检查规则 `catch`。框架补两种写法代替原来要自己接住错误的场景：`Db.one/change(..., conflict=业务错误())` 只把唯一冲突换成声明的业务错误；路由 `run(..., limits=(FailureLimit(...),))` 统一做失败计数、超限 429、成功清零。账号包预设改用这两种写法，去掉了两处 try。
+- 通用流式接口 `stream.py` 从 `app/api/v1/` 挪到 `app/api/system/`（框架代码），URL 不变。
 - 已有产品接入：升级后旧代码的注释会被新检查报出，用同样的方式删除；意图改用名字、类型、`meaning()` 和测试表达，修改原因写进提交说明。
 
 ## 3.2.0（2026-10-14）

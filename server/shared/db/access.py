@@ -16,6 +16,7 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.sql import ClauseElement, visitors
 
@@ -77,11 +78,13 @@ class Db:
             await attach(self._connection, self._record, statement, call)
             return row
 
-    async def one(self, statement: Executable) -> RowMapping:
+    async def one(
+        self, statement: Executable, *, conflict: BusinessError | None = None
+    ) -> RowMapping:
         with query_record(self._record, statement, "one", self._target) as call:
             self._check(statement)
             await self._bind_org()
-            row = (await self._connection.execute(statement)).mappings().one()
+            row = (await self._execute(statement, conflict)).mappings().one()
             if call is not None:
                 call.rows = 1
                 call.bytes = rows_bytes([row])
@@ -98,13 +101,11 @@ class Db:
             await attach(self._connection, self._record, statement, call)
             return value
 
-    async def change(self, statement: Executable) -> int:
+    async def change(self, statement: Executable, *, conflict: BusinessError | None = None) -> int:
         with query_record(self._record, statement, "change", self._target) as call:
             self._check(statement)
             await self._bind_org()
-            result = await self._connection.execute(
-                statement, execution_options={"preserve_rowcount": True}
-            )
+            result = await self._execute(statement, conflict, {"preserve_rowcount": True})
             count = int(getattr(result, "rowcount", 0) or 0)
             if call is not None:
                 call.rows = count if count >= 0 else None
@@ -171,6 +172,19 @@ class Db:
                 f"步骤“{self._place}”加锁读取需要声明 saves=True，读和写要在同一事务中"
             )
         return await self.all(statement.with_for_update())
+
+    async def _execute(
+        self,
+        statement: Executable,
+        conflict: BusinessError | None,
+        options: dict[str, Any] | None = None,
+    ) -> Any:
+        try:
+            return await self._connection.execute(statement, execution_options=options)
+        except IntegrityError as error:
+            if conflict is not None and unique_violation(error):
+                raise conflict from None
+            raise
 
     async def change_or_fail(self, statement: Executable, missing: BusinessError) -> int:
         count = await self.change(statement)
@@ -241,3 +255,8 @@ def type_of(key: ColumnElement[Any]) -> Callable[[str], Any]:
             raise InvalidInput(f"after 位置 {text} 格式不对") from None
 
     return convert
+
+
+def unique_violation(error: IntegrityError) -> bool:
+    state = getattr(error.orig, "sqlstate", None)
+    return state == "23505" or "UNIQUE constraint failed" in str(error.orig)

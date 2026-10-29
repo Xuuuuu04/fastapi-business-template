@@ -42,6 +42,22 @@ def test_comments_and_docstrings(tmp_path: Path) -> None:
     ]
 
 
+def test_business_code_does_not_catch(tmp_path: Path) -> None:
+    guarded = "def run():\n    try:\n        return 1\n    except ValueError:\n        return 0\n"
+    silenced = (
+        "import contextlib\n\n\ndef run():\n    with contextlib.suppress(KeyError):\n        pass\n"
+    )
+    write(tmp_path, "service/order_desk/steps/build_total.py", guarded)
+    write(tmp_path, "app/api/v1/order_desk.py", silenced)
+    write(tmp_path, "tests/integration/system/test_health.py", guarded)
+    write(tmp_path, "shared/flow/runner.py", guarded)
+    found = sorted((problem.path, problem.line) for problem in check_files(tmp_path))
+    assert found == [
+        ("app/api/v1/order_desk.py", 5),
+        ("service/order_desk/steps/build_total.py", 2),
+    ]
+
+
 def test_plain_code_passes(tmp_path: Path) -> None:
     text = "@dataclass\nclass UserInput:\n    name: str\n\n\ndef run_task():\n    return 1\n"
     write(tmp_path, "app/user_data.py", text)

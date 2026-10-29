@@ -1,14 +1,12 @@
-import hashlib
-
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from app.api.replies import responses_for
-from app.api.runner import RunDep
+from app.api.runner import FailureLimit, RunDep
 from service.$name import public as $name
 from shared.access.caller import Caller
 from shared.access.tokens import issue_token
-from shared.errors.framework import TooManyRequests
+from shared.config.settings import Settings
 
 router = APIRouter(prefix="/api/v1/access", tags=["$title"])
 FAILURE_SECONDS = 900
@@ -30,19 +28,7 @@ class LoginReply(BaseModel):
 )
 async def login(body: $name.LoginInput, request: Request, run: RunDep) -> LoginReply:
     settings = request.app.state.settings
-    cache = request.app.state.services.cache
-    limits = failure_limits(body, request)
-    for key, limit in limits.items():
-        if int(await cache.get(key) or 0) >= limit:
-            raise TooManyRequests("登录失败次数过多，请十五分钟后再试")
-    try:
-        account = await run($name.login, body)
-    except $name.LoginFailed:
-        for key in limits:
-            await cache.incr(key, FAILURE_SECONDS)
-        raise
-    for key in limits:
-        await cache.delete(key)
+    account = await run($name.login, body, limits=login_limits(settings))
     caller = Caller(
         str(account.user_id), "user", account.username, frozenset(account.permissions), account.org_id
     )
@@ -56,18 +42,28 @@ async def login(body: $name.LoginInput, request: Request, run: RunDep) -> LoginR
     return LoginReply(access_token=token, expires_in=settings.token_minutes * 60, org_id=account.org_id)
 
 
-def failure_limits(body: $name.LoginInput, request: Request) -> dict[str, int]:
-    settings = request.app.state.settings
-    source = request.client.host if request.client else "unknown"
-    account = f"{body.org_code}:{body.username}"
-    return {
-        failure_key("source", f"{account}:{source}"): settings.login_failure_limit,
-        failure_key("account", account): settings.login_account_failure_limit,
-    }
-
-
-def failure_key(kind: str, text: str) -> str:
-    return f"login-failed:{kind}:{hashlib.sha256(text.encode()).hexdigest()}"
+def login_limits(settings: Settings) -> tuple[FailureLimit, ...]:
+    failed = ($name.LoginFailed,)
+    fields = ("org_code", "username")
+    message = "登录失败次数过多，请十五分钟后再试"
+    by_source = FailureLimit(
+        "login-source",
+        fields,
+        settings.login_failure_limit,
+        FAILURE_SECONDS,
+        failed,
+        per_source=True,
+        message=message,
+    )
+    by_account = FailureLimit(
+        "login-account",
+        fields,
+        settings.login_account_failure_limit,
+        FAILURE_SECONDS,
+        failed,
+        message=message,
+    )
+    return by_source, by_account
 
 
 @router.post(

@@ -1,8 +1,8 @@
 import json
 
 from sqlalchemy import RowMapping, insert, select
-from sqlalchemy.exc import IntegrityError
 
+from service.$name.data import AccountExists
 from service.$name.store.contract import StoredAccount
 from service.$name.store.tables import accounts
 from shared.public import Db
@@ -21,18 +21,15 @@ class Sql${Camel}Store:
 
     async def add(
         self, org_id: str, username: str, password_hash: str, permissions: list[str]
-    ) -> StoredAccount | None:
+    ) -> StoredAccount:
         values = {
             "org_id": org_id,
             "username": username,
             "password_hash": password_hash,
             "permissions": json.dumps(sorted(set(permissions))),
         }
-        try:
-            row = await self.db.one(insert(accounts).values(**values).returning(accounts))
-        except IntegrityError:
-            return None
-        return account_of(row)
+        statement = insert(accounts).values(**values).returning(accounts)
+        return account_of(await self.db.one(statement, conflict=AccountExists()))
 
 
 def account_of(row: RowMapping) -> StoredAccount:

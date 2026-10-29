@@ -13,6 +13,7 @@
 | GET /api/system/runtime | 内存、在途请求、连接池、运行记录缓冲、任务数量 | system.diagnostics |
 | GET /api/jobs/{任务编号} | 查看自己登记的任务 | 登记者本人或 system.jobs |
 | GET /api/system/jobs | 列出任务 | system.jobs |
+| POST /api/v1/stream/{操作名} | 以事件流执行声明了 stream 的操作 | 操作自己的权限 |
 
 | GET /api/system/pipelines | 组织内流程摘要和阶段声明 | system.diagnostics |
 | GET /api/system/pipelines/{编号} | 阶段状态、耗时、版本、运行记录与整条运行图 | system.diagnostics |

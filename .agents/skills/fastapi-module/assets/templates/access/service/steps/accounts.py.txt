@@ -1,6 +1,6 @@
 import secrets
 
-from service.$name.data import AccountExists, AccountView, CreateWork, GrantDenied
+from service.$name.data import AccountView, CreateWork, GrantDenied
 from service.$name.steps.passwords import hash_password
 from service.$name.store.contract import ${Camel}Store
 from shared.public import Caller, step
@@ -32,11 +32,7 @@ def build_password_hash(data: CreateWork) -> None:
     saves=True,
 )
 async def save_account(data: CreateWork, store: ${Camel}Store) -> None:
-    if await store.find(data.org_id, data.username) is not None:
-        raise AccountExists()
     saved = await store.add(data.org_id, data.username, data.password_hash, data.permissions)
-    if saved is None:
-        raise AccountExists()
     data.result = AccountView(
         user_id=saved.id,
         org_id=saved.org_id,

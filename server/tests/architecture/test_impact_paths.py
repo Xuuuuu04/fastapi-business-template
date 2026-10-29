@@ -9,7 +9,7 @@ from tests.architecture.sample_catalog import MODULES
     "path",
     [
         "server/app/api/v1/README.md",
-        "server/app/api/v1/stream.py",
+        "server/app/api/system/stream.py",
         "server/tests/integration/system/test_console.py",
         "server/tests/recovery/test_concurrency.py",
         "server/tests/security/test_security.py",
