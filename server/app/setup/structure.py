@@ -3,7 +3,7 @@ from pathlib import Path
 
 from shared.errors.framework import ConfigError
 from shared.flow.step import Condition, Step
-from shared.modules.layout import check_layout, declared_kind
+from shared.modules.layout import check_layout, check_marker, declared_kind
 from shared.modules.module import Module
 from shared.modules.validation.imports import check_imports
 
@@ -16,7 +16,8 @@ def check_structure(modules: Sequence[Module], root: Path = ROOT) -> None:
     problems += [
         f"service/{module.name}：module.json 写的是 {kind}，module.py 写的是 {module.kind}"
         for module in modules
-        if (kind := declared_kind(root / "service" / module.name)) and kind != module.kind
+        if not check_marker(folder := root / "service" / module.name)
+        and (kind := declared_kind(folder)) != module.kind
     ]
     problems += [problem.text() for problem in check_imports(root)]
     if problems:

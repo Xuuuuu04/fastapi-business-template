@@ -77,7 +77,7 @@ def build(
     registered = list(specification.modules) if specification.modules is not None else MODULES
     if modules is None:
         check_structure(registered)
-        migration_errors = check_migrations(ROOT, registered, settings)
+        migration_errors = check_migrations(ROOT, registered)
         if migration_errors:
             raise ConfigError(migration_errors)
     selected = enabled_modules(settings, registered) if modules is None else modules

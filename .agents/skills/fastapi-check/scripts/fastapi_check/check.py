@@ -139,11 +139,10 @@ def run(title: str, command: list[str], env: dict[str, str]) -> bool:
 
 
 def migration_check() -> bool:
-    from app.setup.application import application
     from app.setup.catalog import MODULES
     from shared.db.ownership import check_migrations
 
-    errors = check_migrations(ROOT, MODULES, application().settings("test"))
+    errors = check_migrations(ROOT, MODULES)
     for error in errors:
         print(error, flush=True)
     return not errors

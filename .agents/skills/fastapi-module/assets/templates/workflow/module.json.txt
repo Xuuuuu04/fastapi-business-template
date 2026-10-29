@@ -2,6 +2,5 @@
   "schema_version": 1,
   "layout": "standard",
   "module": "$name",
-  "kind": "workflow",
-  "dependencies": "strict"
+  "kind": "workflow"
 }
