@@ -17,11 +17,9 @@ branch_labels: str | Sequence[str] | None = ${repr(branch_labels)}
 depends_on: str | Sequence[str] | None = ${repr(depends_on)}
 
 
-# 升级到本版本。
 def upgrade() -> None:
     ${upgrades if upgrades else "pass"}
 
 
-# 回退到上一版本。
 def downgrade() -> None:
     ${downgrades if downgrades else "pass"}

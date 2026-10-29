@@ -9,8 +9,6 @@ from sqlalchemy import Table
 from shared.config.settings import Settings
 from shared.modules.module import Module
 
-RETIRED = frozenset({"system_ops_state"})
-
 
 @dataclass(frozen=True)
 class TableOwnership:
@@ -53,7 +51,6 @@ def ownership(modules: Sequence[Module], settings: Settings) -> TableOwnership:
         for value in vars(source).values()
         if isinstance(value, Table)
     }
-    owned.update(RETIRED)
     owned.update(settings.owned_tables)
     external = set(settings.external_tables)
     for module in modules:
