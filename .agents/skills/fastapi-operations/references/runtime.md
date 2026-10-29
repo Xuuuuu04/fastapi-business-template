@@ -1,12 +1,12 @@
 # 运行与运维
 
-命令都在 `server/` 执行。部署、改生产配置、开启会删除数据的运维功能，都要先有用户授权。
+命令都在 `server/` 执行。
 
 ## 进程
 
-- 接口进程：`uv run uvicorn app.setup.web:create_app --factory`。worker：`uv run python -m app.setup.worker`。两者用同一个 `build()` 组装，启动日志里的模块目录摘要（digest）相同。`uv run dev inspect` 显示产品实际组装了哪些模块、路由、worker 和供应商。
+- 接口进程：`uv run uvicorn app.setup.web:create_app --factory`。worker：`uv run python -m app.setup.worker`。两者用同一个 `build()` 组装。`uv run dev inspect` 显示产品实际组装了哪些模块、路由、worker 和供应商。
 - 启动时检查全部登记包的结构和生产配置，不合格就拒绝启动。创建服务时不连数据库，也不自动迁移。
-- 任务表就是队列。没有 worker 运行时，后台任务、定时计划、多阶段流程和内置运维都不会推进。
+- 任务表就是队列。没有 worker 运行时，后台任务、定时计划和多阶段流程都不会推进。
 
 ## 生产配置
 
@@ -33,33 +33,18 @@
 
 ## 单机部署
 
-```bash
-docker compose -f deploy/compose.yaml --env-file .env up -d --build
-docker compose -f deploy/compose.yaml --env-file .env exec -T api python -m deploy.check_env
-curl --fail http://127.0.0.1:8000/health/ready
-```
+日常用 `uv run dev deploy`（见 [SKILL](../SKILL.md)“发布部署”）。它在服务器上执行的就是 `docker compose -f deploy/compose.yaml --env-file .env up -d --build`，再等 `/health/ready`。
 
 - `migrate` 服务先执行迁移，接口和 worker 不自己改表。接口端口只绑定宿主机 `127.0.0.1:8000`，对外要配 HTTPS 反向代理，前端和 `/api` 放同一域名。
-- `check_env` 和 `/health/ready` 只说明配置、数据库和迁移版本正常，不代表业务、外部服务或公开访问已经验收。
+- `/health/ready` 只说明配置、数据库和迁移版本正常，不代表业务已经验收。
 - worker 健康：设置 `APP_JOB_HEALTH_FILE`（放 worker 自己的临时目录），用 `python -m app.setup.worker_health` 检查，默认 60 秒内有更新才算健康。显示 unhealthy 时 Docker 不会自动重启，告警要另外安排。
 - 停止：worker 先等在途任务 `APP_JOB_SHUTDOWN_SECONDS`（默认 20 秒），超时再取消并清理。容器的 `stop_grace_period`（模板 30 秒）要比它长，否则清理会被强杀打断。
 
 ## 迁移
 
 - 部署时执行 `uv run alembic upgrade head`。`/health/ready` 会核对数据库版本和代码是否一致。
-- 模板初始迁移 `7e03c1a0b624` 只用于全新数据库。已有产品保留自己的迁移链，先在隔离库迁移并验证恢复，再部署。
+- 模板初始迁移 `7e03c1a0b624` 只用于全新数据库。已有产品保留自己的迁移链。
 - 迁移里的删除、改名、改类型默认只警告。逐条整理好历史表归属（`APP_OWNED_TABLES`、`APP_EXTERNAL_TABLES` 或模块的同名登记）后，设 `APP_MIGRATION_STRICT=true` 把警告变成错误。
-
-## 内置运维
-
-`APP_OPERATIONS`（JSON）开启，默认全部关闭；开启后必须运行 worker，并先执行迁移建出 `system_ops_state` 表。配置示例和验证步骤见 `deploy/backup.md`，先在授权的隔离库和目录里用 `uv run python -m pytest tests/framework/test_builtin_operations.py -q` 验证。
-
-| 功能 | 做什么 | 要注意 |
-| --- | --- | --- |
-| `backup` | 归档数据库和正式文件，再在新库新目录恢复并比对行数、迁移版本、文件摘要和 ready | 只有 `verified.json` 才说明可恢复；PostgreSQL 需要同主版本的 `pg_dump`/`pg_restore` 和建临时库权限 |
-| `retention` | 分段清理已完成的流程、任务、运行记录、操作记录、临时上传和配置的原件前缀 | 待确认任务和未完成流程不删；原件前缀至少两段，期限要长于最长人工恢复时间 |
-| `capacity` | 观察磁盘和数据库大小，超阈值每天提醒一次 | `pause_noncritical` 只暂停 `critical=False` 任务的新领取 |
-| `notifications` | 用 Webhook 发提醒（generic、wecom、feishu） | 至少发一次，可能重复；pending 不代表已送达 |
 
 ## 运行记录和日志
 
@@ -96,4 +81,3 @@ uv run dev diagnose budgets --runtime-config
 
 - `jobs resource` 改跨 worker 的资源额度，先停旧 worker、等在途位置结束再执行。`jobs cancel` 只能取消还没开始的任务。
 - `diagnose budgets` 离线列出排队、执行、外部调用、有效期等各类预算和声明位置；加 `--runtime-config` 才读取运行配置，不连数据库。
-- 演练配置 JSON 写 `pipeline`、`org_id`、`scale`、`timeout_seconds`、`replay`（按外部系统列出 method、path、params、file、sha256、status，或用 `endpoint` 名称），可选 `seed`（表名和 JSONL 文件）。回放没覆盖到的请求会失败；`scale` 不代表实际处理了那么多行。例子见 `tests/framework/test_pipeline_drill.py`。

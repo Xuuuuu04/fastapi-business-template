@@ -7,7 +7,6 @@ from shared.jobs.limits import ResourceLimit
 from shared.jobs.resources import acquire
 from shared.jobs.submission import release
 from shared.jobs.tables import jobs
-from shared.operations.capacity import capacity_filter
 
 if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
@@ -17,7 +16,7 @@ async def take(queue: "JobQueue", connection: AsyncConnection, now: float) -> di
     from shared.jobs.queue import READY, ticket_columns
 
     await expire_ready(connection, now)
-    rows = await candidates(queue, connection, now)
+    rows = await candidates(connection, now)
     for candidate in rows:
         row = await lock_candidate(connection, candidate["id"], now)
         if row is None:
@@ -116,7 +115,7 @@ async def expire_ready(connection: AsyncConnection, now: float) -> None:
         await expired(connection, row, now)
 
 
-async def candidates(queue: "JobQueue", connection: AsyncConnection, now: float) -> list[Any]:
+async def candidates(connection: AsyncConnection, now: float) -> list[Any]:
     from shared.jobs.queue import READY
 
     pick = (
@@ -138,7 +137,6 @@ async def candidates(queue: "JobQueue", connection: AsyncConnection, now: float)
         .order_by(jobs.c.run_after, jobs.c.created_at, jobs.c.id)
         .limit(32)
     )
-    pick = await capacity_filter(queue, connection, pick)
     return list((await connection.execute(pick)).mappings().all())
 
 

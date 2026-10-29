@@ -92,10 +92,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not services.recorder.store.immediate:
         flushing = asyncio.create_task(services.recorder.run_forever())
     log.info(
-        "server_started env=%s modules=%s digest=%s code=%s",
+        "server_started env=%s modules=%s code=%s",
         settings.env,
         ",".join(services.catalog.modules),
-        services.catalog.digest,
         settings.code_version,
     )
     try:

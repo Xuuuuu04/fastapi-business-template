@@ -40,7 +40,6 @@ class WorkerOptions:
     poll_seconds: float = 1.0
     shutdown_seconds: float = 20.0
     record_days: int = 14
-    managed_retention: bool = False
     health_file: str = ""
     schedule_org_id: str = ""
     schedule_org_ids: tuple[str, ...] = ()
@@ -92,7 +91,7 @@ class Worker:
             if now >= next_reclaim:
                 await guarded("reclaim", self.queue.reclaim(now), self.failed_cycle)
                 next_reclaim = now + RECLAIM_SECONDS
-            if now >= next_clean and not self.options.managed_retention:
+            if now >= next_clean:
                 cutoff = now - self.options.record_days * 86400
                 await guarded("clean", self.runtime.recorder.store.clean(cutoff), self.failed_cycle)
                 next_clean = now + CLEAN_SECONDS

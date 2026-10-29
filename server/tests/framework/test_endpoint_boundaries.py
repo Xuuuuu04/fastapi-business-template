@@ -139,10 +139,3 @@ def test_dynamic_call_without_declaration() -> None:
     )
     with pytest.raises(DeclarationError, match="未知（动态选择）"):
         Catalog([dynamic])
-
-
-def test_legacy_declaration_shape_is_unchanged() -> None:
-    from shared.modules.digest import module_shape
-
-    assert "endpoints" not in module_shape(price_module)
-    assert "step_endpoints" not in module_shape(price_module)

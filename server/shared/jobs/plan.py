@@ -29,7 +29,6 @@ class JobPlan:
     lease_seconds: float = 60.0
     segmented: bool = False
     cursor: type[Data] | None = None
-    critical: bool = True
     import_plan: ImportPlan | None = None
     serial: SerialKey | None = None
     resources: tuple[ResourceLimit, ...] = ()

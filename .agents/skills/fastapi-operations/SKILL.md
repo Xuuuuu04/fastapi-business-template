@@ -1,6 +1,6 @@
 ---
 name: fastapi-operations
-description: 查看运行报告、手动处理后台任务、生成服务密钥时使用。不负责业务迁移，也不代表有发布授权。
+description: 发布部署、查看运行报告、手动处理后台任务、生成服务密钥时使用。不负责业务迁移。
 ---
 
 # 系统操作
@@ -13,9 +13,20 @@ uv run dev diagnose run 运行编号
 uv run dev jobs list
 uv run dev jobs show 任务编号
 uv run dev make-key --name 服务名 --org-id 组织 --permissions 权限
+uv run dev deploy
 ```
 
-部署、生产配置、迁移、内置运维，以及用系统接口一层层查一次运行，见[运行与运维](references/runtime.md)。
+生产配置、迁移，以及用系统接口一层层查一次运行，见[运行与运维](references/runtime.md)。
+
+## 发布部署
+
+单人开发直接推到主干，不走 PR。`uv run dev deploy` 依次做三件事，哪一步失败就停下报错：
+
+1. `git push` 推当前分支。
+2. ssh 到 `DEPLOY_HOST`，在 `DEPLOY_DIR` 里 `git pull`，再 `docker compose up -d --build`；compose 先跑迁移，再起接口和 worker，`APP_CODE_VERSION` 取服务器上的提交号。
+3. 等 `/health/ready` 返回 ready，打印上线的提交号。
+
+不备份、不回滚；要撤回就 `git revert` 后再部署一次。服务器第一次部署前手动做好：装 Docker，clone 仓库到 `DEPLOY_DIR`，在 `server/.env` 写生产配置（见[运行与运维](references/runtime.md)“生产配置”）。本机 `server/.env` 写 `DEPLOY_HOST`（ssh 能连上的主机）和 `DEPLOY_DIR`。
 
 ## 查运行情况
 
@@ -33,20 +44,6 @@ uv run dev make-key --name 服务名 --org-id 组织 --permissions 权限
 ## 多阶段流程
 
 `pipelines list --org 组织` 查看摘要，`pipelines show 编号` 查看阶段运行图和运行记录。`pipelines resume 编号 --yes` 从当前失败的阶段恢复；数据格式有变化时需要另加 `--accept-schema`，外部结果未知时需要先核实没有产生实际效果、再另加 `--confirm-unknown`。普通任务命令不能单独重排或取消流程里的某个阶段。
-
-## 隔离端到端演练
-
-演练不读取当前业务库，也不继承 .env 或真实密钥：默认用临时 SQLite；`--postgres` 只在明确授权的隔离库上创建随机 schema，结束时删除本次的 schema。
-
-```bash
-# 独立框架样例，不向产品登记业务（十万行原件）
-uv run dev drill --sample --scale 100000 --output var/development/drill
-# 产品已登记的 Pipeline，清单目录保存上游原始响应和 seed JSONL
-uv run dev drill ../doc/模块/drill_流程.json --output var/development/drill
-# 同上，增加 --postgres 'postgresql+psycopg://用户:密码@隔离主机/隔离库'
-```
-
-配置写法见[运行与运维](references/runtime.md)。命令按 module.py 里实际的 Schedule 首入口跑完整链路；回放没有覆盖到的请求会明确失败，失败或超时返回非零。report.json 列出各阶段耗时、实际提交的行数（或未知）、最慢的 SQL、采样的内存峰值和需要人工处理的地方，artifacts 保留发布的文件。报告会分别列出：使用了原件的阶段、不需要回放的阶段、没有完成的阶段。模型使用模拟提供者，建表使用登记的结构；不能据此说真实模型、生产迁移或外部发布已经验证。输出里包含业务产物，应只存放在授权的本机目录，不提交 Git。
 
 ## 生成服务密钥
 

@@ -28,7 +28,6 @@ async def serve(settings: Settings, *, application: ApplicationSpec | None = Non
         poll_seconds=settings.job_poll_seconds,
         shutdown_seconds=settings.job_shutdown_seconds,
         record_days=settings.run_record_days,
-        managed_retention=settings.operations.retention,
         health_file=settings.job_health_file,
         schedule_org_id=settings.schedule_org_id,
         schedule_org_ids=tuple(settings.schedule_org_ids),
@@ -37,8 +36,7 @@ async def serve(settings: Settings, *, application: ApplicationSpec | None = Non
     flushing = None
     if not services.recorder.store.immediate:
         flushing = asyncio.create_task(services.recorder.run_forever())
-    digest, concurrency = services.catalog.digest, options.concurrency
-    log.info("worker_started digest=%s concurrency=%s", digest, concurrency)
+    log.info("worker_started concurrency=%s", options.concurrency)
     try:
         async with asyncio.TaskGroup() as tasks:
             tasks.create_task(worker.run(stop), name="jobs")

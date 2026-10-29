@@ -12,9 +12,8 @@ from shared.jobs.organizations import period_key, schedule_caller
 from shared.jobs.plan import Schedule, build_slot_input
 from shared.jobs.schedule import Scheduler, latest_slot
 from shared.jobs.tables import jobs
-from shared.modules.catalog import Catalog
 from shared.public import Data, meaning
-from tests.framework.sample_modules import SlowInput, calc_module, slow
+from tests.framework.sample_modules import SlowInput, slow
 
 pytestmark = pytest.mark.anyio
 
@@ -114,18 +113,3 @@ def test_slot_input_preserves_original() -> None:
     current = datetime(2026, 10, 8, tzinfo=UTC)
     replaced = build_slot_input(timer, current)
     assert replaced.request.end == current and old.request.end.day == 1
-
-
-def test_job_and_schedule_configuration_changes_digest() -> None:
-    from shared.modules.digest import digest_of
-
-    baseline = digest_of([calc_module])
-    changed = replace(
-        calc_module, jobs=tuple(replace(plan, lease_seconds=99) for plan in calc_module.jobs)
-    )
-    assert digest_of([changed]) != baseline
-    timer = Schedule("minute", "每分钟", slow, SlowInput(mark="t"), every=timedelta(minutes=1))
-    first = replace(calc_module, schedules=(timer,))
-    second = replace(first, schedules=(replace(timer, org_ids=("alpha",)),))
-    assert digest_of([first]) != digest_of([second])
-    assert Catalog([first]).digest == digest_of([first])

@@ -51,7 +51,7 @@ class JobQueue:
         self.clock: Clock = RealClock()
 
         self.catalog, self.database = catalog, database
-        self.pipelines, self.capacity_enabled = PipelineEngine(self), False
+        self.pipelines = PipelineEngine(self)
 
     @clocked
     async def submit(

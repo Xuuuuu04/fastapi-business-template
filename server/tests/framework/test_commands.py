@@ -12,7 +12,6 @@ import pytest
 from sqlalchemy import update
 
 from app.setup.build import build
-from deploy.check_env import check_configuration
 from shared.access.caller import DEVELOPER
 from shared.access.keys import hash_key
 from shared.config.settings import Settings
@@ -26,7 +25,6 @@ from tests.framework.sample_modules import (
     outer_module,
     sample_metadata,
 )
-from tests.framework.sample_resources import file_module, secret_module
 from tests.testing_app import make_settings, reset_database_now
 
 MODULES = [calc_module, outer_module]
@@ -130,36 +128,3 @@ def test_make_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
     config = json.loads(lines[-1])
     assert config["key_sha256"] == hash_key(lines[1])
     assert (config["org_id"], config["permissions"]) == ("north", ["sample_calc.use"])
-
-
-def test_deploy_checks_enabled_modules(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.setup.build.MODULES", [file_module, secret_module])
-    settings = make_settings(
-        tmp_path,
-        env="production",
-        database_url="postgresql+psycopg://test:test@127.0.0.1/config-check-only",
-        code_version="release-test",
-        dev_caller=False,
-        run_records="database",
-        jwt_secret="independent-test-secret-with-32-characters",
-        data_keys=[],
-        disabled_modules=["sample_secrets"],
-    )
-    assert check_configuration(settings) == []
-    settings.disabled_modules = []
-    assert any("APP_DATA_KEYS" in problem for problem in check_configuration(settings))
-    settings.disabled_modules = ["sample_secrets"]
-    settings.file_storage = "s3"
-    assert check_configuration(settings) == ["APP_FILE_STORAGE=s3 时必须配置 APP_S3_BUCKET"]
-    settings.disabled_modules = ["sample_secrets", "sample_files"]
-    assert check_configuration(settings) == []
-
-
-def test_deploy_ignores_disabled_model_module(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr("app.setup.build.MODULES", MODULES)
-    settings = make_settings(tmp_path)
-    assert any("APP_MODEL_BASE_URL" in problem for problem in check_configuration(settings))
-    settings.disabled_modules = [module.name for module in MODULES]
-    assert check_configuration(settings) == []

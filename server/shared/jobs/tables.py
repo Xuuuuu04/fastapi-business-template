@@ -1,7 +1,6 @@
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, Table, Text, text
 
 from shared.db.tables import metadata
-from shared.operations import tables as operations_tables
 from shared.pipelines import tables as pipeline_tables
 
 jobs = Table(

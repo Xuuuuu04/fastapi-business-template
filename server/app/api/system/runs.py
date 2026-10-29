@@ -96,7 +96,6 @@ async def runtime(request: Request, caller: CallerDep) -> dict[str, Any]:
         "time": time.time(),
         "env": services.settings.env,
         "code_version": services.settings.code_version,
-        "catalog_digest": services.catalog.digest,
         "memory_mb": round(process.memory_info().rss / 1024 / 1024, 1),
         "threads": process.num_threads(),
         "inflight_requests": request.app.state.limits.inflight,

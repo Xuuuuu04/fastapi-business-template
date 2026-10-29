@@ -7,18 +7,16 @@ import pytest
 
 from app.setup.build import build
 from shared.access.caller import SYSTEM
-from shared.drills.replay import Replay
 from shared.errors.framework import DeclarationError, RemoteOutputInvalid, RemoteResultUnknown
 from shared.graphs.observed import run_graph
 from shared.graphs.static import flow_graph
 from shared.model_calls.providers import FakeModel
 from shared.modules.catalog import Catalog
-from shared.modules.digest import digest_of
 from shared.public import Flow
 from shared.records.models import RemoteCallRecord, run_from_dict
 from shared.remote_calls.gate import RemoteGate
 from shared.remote_calls.remote import RemoteConfig
-from shared.remote_calls.service import RemoteRequest, RemoteService
+from shared.remote_calls.service import RemoteService
 from tests.framework.endpoint_sample import (
     Receipt,
     Request,
@@ -169,7 +167,7 @@ async def test_effect_overrides_method() -> None:
         await client.close()
 
 
-def test_startup_and_digest() -> None:
+def test_startup_checks_endpoints() -> None:
     with pytest.raises(DeclarationError, match="未在Module.endpoints登记"):
         Catalog([replace(module, endpoints=())])
     duplicate = replace(read_endpoint)
@@ -181,24 +179,20 @@ def test_startup_and_digest() -> None:
         Catalog([replace(module, provides={read: flow})])
     shared = replace(module, name="shared_probe", provides={})
     Catalog([module, shared])
-    changed = replace(module, endpoints=(replace(read_endpoint, path="/new"), write_endpoint))
-    assert digest_of([module]) != digest_of([changed])
 
 
 @pytest.mark.anyio
-async def test_replay_endpoint_name(tmp_path: Path) -> None:
-    (tmp_path / "receipt.json").write_text('{"accepted": true, "count": 1}')
-    replay = Replay(
-        upstream.name, [{"endpoint": read_endpoint.name, "file": "receipt.json"}], tmp_path
-    )
-    client = RemoteService(
-        {upstream.name: RemoteConfig(base_url="https://replay.example")}, {upstream.name: replay}
-    )
+async def test_gate_passes_endpoint_name() -> None:
+    seen: list[str] = []
+
+    def respond(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request.extensions.get("endpoint", ""))
+        return httpx2.Response(200, json={"accepted": True, "count": 1})
+
+    client = service(respond)
     try:
         gate = RemoteGate(client, (upstream,), [], "测试", endpoints=(read_endpoint,))
         reply = await gate.call(upstream, read_endpoint, Request(sku="x"))
-        assert reply.data.count == 1 and replay.used[0]["endpoint"] == read_endpoint.name
-        with pytest.raises(Exception, match="回放未覆盖"):
-            await client.send(upstream, RemoteRequest("POST", "/read", effect="read"), [])
+        assert reply.data.count == 1 and seen == [read_endpoint.name]
     finally:
         await client.close()

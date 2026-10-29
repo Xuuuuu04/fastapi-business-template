@@ -1,6 +1,6 @@
 # 单机部署的组合配置：PostgreSQL、迁移、接口、worker，四者使用同一个镜像和同一份配置。
 # 在 server/ 目录执行：docker compose -f deploy/compose.yaml --env-file .env up -d --build
-# .env 中需要设置 DATABASE_PASSWORD，以及 APP_API_KEYS、APP_CODE_VERSION 等生产配置（见 .env.example）。
+# .env 中需要设置 DATABASE_PASSWORD 和 APP_API_KEYS 等生产配置（见 .env.example）；APP_CODE_VERSION 由 dev deploy 按提交号传入。
 x-app: &app
   image: template-server:latest
   build:
@@ -11,6 +11,7 @@ x-app: &app
     APP_ENV: production
     APP_DATABASE_URL: postgresql+psycopg://app:${DATABASE_PASSWORD:?请在 .env 中设置 DATABASE_PASSWORD}@database:5432/app
     APP_RUN_RECORDS: database
+    APP_CODE_VERSION: ${APP_CODE_VERSION:-}
     APP_FILE_ROOT: /app/var/files
     APP_UPLOAD_ROOT: /app/var/uploads
     # 信任哪些反向代理传来的 X-Forwarded-For；不设置时只信任容器内的 127.0.0.1，

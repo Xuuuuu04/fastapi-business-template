@@ -9,7 +9,6 @@ from shared.jobs.plan import JobPlan, Schedule
 from shared.model_calls.prompt import Prompt
 from shared.modules.checks import check_catalog
 from shared.modules.contract import Contract
-from shared.modules.digest import digest_of
 from shared.modules.module import Module
 from shared.pipelines.plan import stages_of
 from shared.pipelines.registration import check_pipelines, expand
@@ -55,7 +54,6 @@ class Catalog:
         self.by_name = {item.name: binding for item, binding in self.bindings.items()}
         self.plans = {plan.contract.name: plan for module in modules for plan in module.jobs}
         self.schedules: list[Schedule] = [s for module in modules for s in module.schedules]
-        self.digest = digest_of(modules)
 
     def binding(self, item: Contract[Any, Any]) -> Binding:
         found = self.bindings.get(item)

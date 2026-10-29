@@ -44,7 +44,7 @@ uv run dev new-operation customer_contact normalize_text --title 整理文本 --
 uv run dev new-pipeline customer_contact daily --title 每日流程 --stages select,collect,wait,publish --wait wait
 ```
 
-在已符合标准结构的模块里生成时，会一次登记 public/data/flow/步骤、可选的 HTTP、规则占位和短测试；每个操作默认生成一个正常样例和一个规则异常样例，共用目录夹具。`--preview` 只预览不写入，报告会列出实际会改的源码和文档。普通操作默认保持普通事务；新流程会生成公开阶段、Wait、后台计划、首阶段定时和演练配置。
+在已符合标准结构的模块里生成时，会一次登记 public/data/flow/步骤、可选的 HTTP、规则占位和短测试；每个操作默认生成一个正常样例和一个规则异常样例，共用目录夹具。`--preview` 只预览不写入，报告会列出实际会改的源码和文档。普通操作默认保持普通事务；新流程会生成公开阶段、Wait、后台计划和首阶段定时。
 
 生成的文本整理规则只是占位，不代表真实业务完成。先改需求、规则和 Data，再补各阶段的实现和样例。旧模块已有基线迁移时，新增操作不需要再建表；新表仍然单独迁移。add_field 暂未提供；字段变更会检查 reads/writes、接口和文档。
 
@@ -54,7 +54,7 @@ uv run dev new-pipeline customer_contact daily --title 每日流程 --stages sel
 - 分段提交：固定来源的大批数据，每批可以独立生效。例：`JobPlan(parse_rows, segmented=True, repeat_safe=True, cursor=Cursor)`；保存步骤每 5000 条推进一次 `checkpoint.advance({"after": next_id}, rows=count)`，最后 finish。游标 Data 与范围要明确，不能把正文塞进游标。
 - 多阶段：采集、等待、汇算、发布各自需要独立事务和失败恢复。例：`Pipeline("report.daily", "日报", Begin, (Stage("collect", collect), Wait("wait", ready), Stage("sum", aggregate), Stage("publish", publish)))`；在 module.py 登记 pipelines 和各阶段的 provides/jobs、Schedule 首入口。汇算阶段很大时再使用分段，不要在步骤里循环 sleep。
 
-以上是已定义 Data/操作的登记片段，完整独立样例见 server/tests/framework/drill_sample.py。用 `dev new-pipeline` 先搭整条链，再逐阶段替换占位实现；真实规模原件回放跑通全链之后，再补局部细节；生成的样例不算业务完成。细节见[框架用法](references/framework.md)。
+以上是已定义 Data/操作的登记片段，完整样例见 server/tests/framework/pipeline_sample.py。用 `dev new-pipeline` 先搭整条链，再逐阶段替换占位实现；生成的样例不算业务完成。细节见[框架用法](references/framework.md)。
 
 ## 包内的文件分工
 

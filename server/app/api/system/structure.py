@@ -50,7 +50,6 @@ async def modules(request: Request, caller: CallerDep) -> dict[str, Any]:
             }
         )
     return {
-        "digest": catalog.digest,
         "modules": items,
         "links": catalog.links(),
         "graph": module_graph(catalog),

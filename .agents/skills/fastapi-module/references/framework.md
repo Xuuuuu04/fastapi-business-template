@@ -151,7 +151,7 @@ class QuoteInvalid(BusinessError):
 | --- | --- |
 | `retry=Retry(3, (10, 60, 300))` | 暂时故障和超时的重试次数与每次等待秒数 |
 | `repeat_safe=True` | 期限过期后自动重排；必须来自真实的幂等规则，不因为任务短就写 |
-| `max_queued`、`lease_seconds`、`critical=False` | 排队上限（1000）、租约秒数（60）、容量不足时允许暂停 |
+| `max_queued`、`lease_seconds` | 排队上限（1000）、租约秒数（60） |
 | `serial=SerialKey("conversation", "session_id")` | 同组织同业务键的任务跨 worker 串行 |
 | `resources=(ResourceLimit("model", concurrency=4, cooldown=10),)` | 跨 worker 的并发位置和执行间隔 |
 | `queue_timeout`、`attempt_timeout`、`valid_until_field` | 排队预算、单次尝试预算、输入里的有效期字段 |
@@ -208,7 +208,7 @@ start = Schedule(
 - 扇出：`FanOut("名称", 规划操作, stages=(...), join=All() 或 Ratio(0.9), max_parallel=8)`。规划步骤 `pipeline.add_members([Member(key=稳定键, input=Data)])`，汇算步骤 `pipeline.results(...)` 分页读取，固定来源用 `freeze_sources=True` 和 `pipeline.source(Data)`。
 - `runtime.submit(pipeline.start, ...)` 返回流程编号，不是任务编号。
 
-例子：`pipeline_sample.py`、`test_pipelines.py`、`fanout_sample.py`、`test_fanout.py`、`drill_sample.py`、`test_pipeline_overdue.py`。
+例子：`pipeline_sample.py`、`test_pipelines.py`、`fanout_sample.py`、`test_fanout.py`、`test_pipeline_overdue.py`。
 
 ## 外部调用
 

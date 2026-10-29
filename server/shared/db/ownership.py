@@ -11,6 +11,7 @@ from shared.config.settings import Settings
 from shared.modules.module import Module
 
 log = logging.getLogger("server.migrations")
+RETIRED = frozenset({"system_ops_state"})
 
 
 @dataclass(frozen=True)
@@ -45,16 +46,16 @@ def ownership(modules: Sequence[Module], settings: Settings) -> TableOwnership:
     import shared.effects.tables as effects
     import shared.jobs.resource_tables as resources
     import shared.jobs.tables as jobs
-    import shared.operations.tables as operations
     import shared.pipelines.tables as pipelines
     import shared.records.tables as records
 
     owned = {
         value.key
-        for source in (audit, history, effects, jobs, resources, operations, pipelines, records)
+        for source in (audit, history, effects, jobs, resources, pipelines, records)
         for value in vars(source).values()
         if isinstance(value, Table)
     }
+    owned.update(RETIRED)
     owned.update(settings.owned_tables)
     external = set(settings.external_tables)
     for module in modules:

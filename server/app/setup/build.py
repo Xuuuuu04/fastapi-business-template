@@ -7,7 +7,6 @@ from app.setup.application import application as declared_application
 from app.setup.catalog import MODULES
 from app.setup.effects import effect_service, with_effects
 from app.setup.files import file_components
-from app.setup.operations import with_operations
 from app.setup.structure import ROOT, check_structure
 from app.setup.timing import bind_clock
 from shared.access.vault import Vault
@@ -118,7 +117,7 @@ def build(
 def product_catalog(
     settings: Settings, spec: ApplicationSpec, modules: Sequence[Module]
 ) -> Catalog:
-    selected = with_effects(spec, with_operations(settings, modules))
+    selected = with_effects(spec, modules)
     from shared.scenarios.simulation import check_simulations
 
     catalog = Catalog(selected, strict_endpoints=settings.remote_endpoints_strict)
@@ -163,7 +162,6 @@ def finish_build(
     storage, uploads = file_components(settings) if "files" in needs else (None, None)
     telemetry = Telemetry(settings.otel_endpoint, settings.name)
     queue = JobQueue(catalog, database)
-    queue.capacity_enabled = settings.operations.capacity and settings.operations.pause_noncritical
     runtime = Runtime(
         catalog,
         database,

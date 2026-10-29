@@ -6,7 +6,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from shared.access.keys import ApiKeyConfig
 from shared.access.vault import LOCAL_DATA_KEY
 from shared.jobs.organizations import configured_orgs
-from shared.operations.config import OperationsConfig
 from shared.remote_calls.remote import RemoteConfig
 
 LOCAL_JWT_SECRET = "local-development-only-secret-change-me"
@@ -21,7 +20,6 @@ class Settings(BaseSettings):
     name: str = "单体后端模板"
     code_version: str = "dev"
     disabled_modules: list[str] = []
-    operations: OperationsConfig = Field(default_factory=OperationsConfig)
 
     database_url: str = "sqlite+aiosqlite:///var/local.db"
     owned_tables: list[str] = []
