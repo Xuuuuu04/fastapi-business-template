@@ -52,6 +52,7 @@ def effect_module(nested: bool, fails: bool) -> Module:
         },
         remotes=(partner,),
         endpoints=(read_record, write_record),
+        kind="capability",
         jobs=(JobPlan(run, retry=Retry(2, (0,)), segmented=True, repeat_safe=True),),
     )
 

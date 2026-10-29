@@ -41,8 +41,17 @@ write_endpoint = Endpoint(
     accepted_statuses=(409,),
     unknown_on=(202,),
 )
-read = contract("endpoint_probe.read", "读上游", input=Request, output=Receipt, access="public")
-write = contract("endpoint_probe.write", "写上游", input=Request, output=Receipt, access="public")
+read = contract(
+    "endpoint_probe.read", "读上游", input=Request, output=Receipt, access="public", effect="query"
+)
+write = contract(
+    "endpoint_probe.write",
+    "写上游",
+    input=Request,
+    output=Receipt,
+    access="public",
+    effect="command",
+)
 
 
 class Work(WorkData):
@@ -72,4 +81,5 @@ module = Module(
     },
     remotes=(upstream,),
     endpoints=(read_endpoint, write_endpoint),
+    kind="capability",
 )

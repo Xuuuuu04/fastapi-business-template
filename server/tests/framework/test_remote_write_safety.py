@@ -53,9 +53,17 @@ write_record = Endpoint(
     "write_probe.write", "POST", "/record", input=Nothing, output=Saved, effect="write"
 )
 write = contract(
-    "effect_probe.write", "调用外部系统", input=Input, output=Nothing, access="public", entry=False
+    "effect_probe.write",
+    "调用外部系统",
+    input=Input,
+    output=Nothing,
+    access="public",
+    entry=False,
+    effect="command",
 )
-run = contract("effect_probe.run", "调用后失败", input=Input, output=Nothing, access="public")
+run = contract(
+    "effect_probe.run", "调用后失败", input=Input, output=Nothing, access="public", effect="command"
+)
 
 
 @step(
@@ -99,6 +107,7 @@ async def test_job_does_not_replay_external_effect(
         },
         remotes=(partner,),
         endpoints=(read_record, write_record),
+        kind="capability",
         jobs=(JobPlan(run, retry=Retry(1, (0,))),),
     )
     settings = make_settings(tmp_path)

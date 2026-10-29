@@ -73,8 +73,12 @@ class PriceStore:
         return reply.data.price
 
 
-ask_price = contract("price_probe.ask", "询价", input=Sku, output=Price, access="public")
-cached_price = contract("price_probe.cached", "缓存询价", input=Sku, output=Price, access="public")
+ask_price = contract(
+    "price_probe.ask", "询价", input=Sku, output=Price, access="public", effect="query"
+)
+cached_price = contract(
+    "price_probe.cached", "缓存询价", input=Sku, output=Price, access="public", effect="query"
+)
 
 
 @step("询问合作方", reads=["sku"], writes=["price"], remotes=[partner], endpoints=[price_endpoint])
@@ -104,6 +108,7 @@ price_module = Module(
     store=PriceStore,
     remotes=(partner,),
     endpoints=(price_endpoint,),
+    kind="capability",
 )
 
 
@@ -167,7 +172,14 @@ async def test_store_gets_remote_and_cache(tmp_path: Path) -> None:
 
 def test_remote_declarations_are_checked() -> None:
     other = remote("other", "未登记系统")
-    save = contract("remote_order.save", "保存后询价", input=Sku, output=Price, access="public")
+    save = contract(
+        "remote_order.save",
+        "保存后询价",
+        input=Sku,
+        output=Price,
+        access="public",
+        effect="command",
+    )
 
     @step("询问未登记系统", reads=["sku"], writes=["price"], remotes=[other])
     async def ask_other(data: PriceWork, remote: RemoteClient) -> None:
@@ -181,7 +193,13 @@ def test_remote_declarations_are_checked() -> None:
         "保存后询价", work=PriceWork, result="result", steps=[save_first, ask_other, finish]
     )
     module = Module(
-        "remote_order", "顺序测试", "1", {save: flow}, store=NoteStore, remotes=(partner,)
+        "remote_order",
+        "顺序测试",
+        "1",
+        {save: flow},
+        store=NoteStore,
+        remotes=(partner,),
+        kind="capability",
     )
     with pytest.raises(DeclarationError) as caught:
         Catalog([module])

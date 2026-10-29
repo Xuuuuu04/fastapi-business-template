@@ -1,5 +1,5 @@
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
 from sqlalchemy import Table
@@ -40,7 +40,7 @@ class Module:
     aliases: tuple[str, ...] = ()
     owned_tables: tuple[str, ...] = ()
     external_tables: tuple[str, ...] = ()
-    kind: Literal["capability", "workflow"] | None = None
+    kind: Literal["capability", "workflow"] = field(kw_only=True)
     read_dependencies: tuple[str, ...] = ()
     boundary_data: tuple[type[Data], ...] = ()
     providers: tuple[ProviderSpec, ...] = ()

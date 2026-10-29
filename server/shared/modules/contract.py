@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from shared.data.models import Data
@@ -21,7 +21,7 @@ class Contract[In: Data, Out: Data]:
 
     aliases: tuple[str, ...] = ()
     query_budget: QueryBudget | None = None
-    effect: Literal["query", "command"] | None = None
+    effect: Literal["query", "command"] = field(kw_only=True)
 
     @property
     def module(self) -> str:
@@ -46,7 +46,7 @@ def contract[In: Data, Out: Data](
     stream: bool = False,
     aliases: tuple[str, ...] = (),
     query_budget: QueryBudget | None = None,
-    effect: Literal["query", "command"] | None = None,
+    effect: Literal["query", "command"],
 ) -> Contract[In, Out]:
     return Contract(
         name,

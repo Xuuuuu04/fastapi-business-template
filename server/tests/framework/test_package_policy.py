@@ -40,6 +40,7 @@ def test_query_cannot_call_command() -> None:
         "存储",
         "1",
         {write: Flow("写入", work=Work, result="result", steps=[produce])},
+        kind="capability",
     )
     second = Module(
         "read_records",
@@ -78,6 +79,7 @@ def test_capability_write_dependency_requires_workflow() -> None:
         "额度",
         "1",
         {target: Flow("额度", work=Work, result="result", steps=[produce])},
+        kind="capability",
     )
     flow = Flow("生成", work=Work, result="result", steps=[consume])
     capability = Module("report_build", "报告", "1", {source: flow}, kind="capability")
@@ -107,7 +109,7 @@ def test_opaque_data_requires_explicit_boundary() -> None:
     assert check_policy([boundary]) == []
 
 
-def test_query_rejects_own_saves_and_unknown_effect() -> None:
+def test_query_rejects_own_saves() -> None:
     read = contract(
         "view_lists.read",
         "读取",
@@ -121,14 +123,6 @@ def test_query_rejects_own_saves_and_unknown_effect() -> None:
     def save(data: Work) -> None:
         data.result = Nothing()
 
-    legacy = contract(
-        "legacy_notes.read", "旧读取", input=Nothing, output=Nothing, access="legacy_notes.read"
-    )
-
-    @step("调用旧约定", writes=["result"], uses=[legacy])
-    async def call_legacy(data: Work, call) -> None:
-        data.result = await call(legacy, Nothing())
-
     saving = Module(
         "view_lists",
         "列表",
@@ -136,38 +130,7 @@ def test_query_rejects_own_saves_and_unknown_effect() -> None:
         {read: Flow("读取", work=Work, result="result", steps=[save])},
         kind="capability",
     )
-    calling = Module(
-        "view_lists",
-        "列表",
-        "1",
-        {read: Flow("读取", work=Work, result="result", steps=[call_legacy])},
-        kind="capability",
-    )
     assert any("不能保存" in issue for issue in check_policy([saving]))
-    assert any("效果未知" in issue for issue in check_policy([calling, legacy_provider(legacy)]))
-
-
-def legacy_provider(legacy) -> Module:
-    return Module(
-        "legacy_notes",
-        "旧记录",
-        "1",
-        {legacy: Flow("读取", work=Work, result="result", steps=[produce])},
-        kind="capability",
-    )
-
-
-def test_legacy_module_without_kind_stays_compatible() -> None:
-    old = contract(
-        "legacy_notes.read", "旧读取", input=Nothing, output=Nothing, access="legacy_notes.read"
-    )
-    module = Module(
-        "legacy_notes",
-        "旧记录",
-        "1",
-        {old: Flow("读取", work=Work, result="result", steps=[produce])},
-    )
-    assert check_policy([module]) == []
 
 
 def test_read_dependencies_must_be_registered() -> None:

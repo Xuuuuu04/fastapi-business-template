@@ -21,7 +21,7 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
             if plan.revalidate is not None
             for issue in dependency_problems(module, plan.contract, plan.revalidate, kinds)
         ]
-        if module.kind not in (None, "capability", "workflow"):
+        if module.kind not in ("capability", "workflow"):
             problems.append(f"模块 {module.name} 的kind无效")
         if module.kind == "workflow" and (
             module.tables or module.owned_tables or module.external_tables
@@ -35,8 +35,6 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
         for operation, flow in module.provides.items():
             if not isinstance(flow, Flow):
                 continue
-            if module.kind and operation.effect is None:
-                problems.append(f"操作 {operation.name} 必须明确声明query或command")
             if operation.effect == "query" and any(
                 step.saves
                 or step.later
@@ -52,8 +50,7 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
                 if target in provided
                 for issue in dependency_problems(module, operation, target, kinds)
             ]
-            if module.kind:
-                problems += data_problems(module, operation, flow.work)
+            problems += data_problems(module, operation, flow.work)
     return problems
 
 
@@ -70,13 +67,13 @@ def provider_problems(module: Module) -> list[str]:
 
 
 def dependency_problems(
-    module: Module, operation: Contract, target: Contract, kinds: Mapping[str, str | None]
+    module: Module, operation: Contract, target: Contract, kinds: Mapping[str, str]
 ) -> list[str]:
     if operation.effect == "query" and target.effect != "query":
-        return [f"查询 {operation.name} 不能调用写入或效果未知的操作 {target.name}"]
+        return [f"查询 {operation.name} 不能调用写入操作 {target.name}"]
     if target.module == module.name:
         return []
-    if module.kind and kinds.get(target.module) == "workflow":
+    if kinds.get(target.module) == "workflow":
         return [f"{module.name} 不能调用流程包的操作 {target.name}；流程包只被入口调用"]
     if module.kind != "capability":
         return []
