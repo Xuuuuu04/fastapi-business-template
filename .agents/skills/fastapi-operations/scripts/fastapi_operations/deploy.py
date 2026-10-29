@@ -17,7 +17,9 @@ def target() -> tuple[str, str]:
     values = {**dotenv_values(".env"), **os.environ}
     host, folder = values.get("DEPLOY_HOST"), values.get("DEPLOY_DIR")
     if not host or not folder:
-        sys.exit("server/.env 里要写 DEPLOY_HOST（ssh 能连上的主机）和 DEPLOY_DIR（服务器上的仓库目录）")
+        sys.exit(
+            "server/.env 里要写 DEPLOY_HOST（ssh 能连上的主机）和 DEPLOY_DIR（服务器上的仓库目录）"
+        )
     return host, folder
 
 
@@ -37,7 +39,9 @@ def step(title: str, command: list[str]) -> None:
 
 
 def main() -> None:
-    argparse.ArgumentParser(description="推送当前分支，服务器拉取后重建并重启，等到服务就绪").parse_args()
+    argparse.ArgumentParser(
+        description="推送当前分支，服务器拉取后重建并重启，等到服务就绪"
+    ).parse_args()
     host, folder = target()
     step("推送代码", ["git", "push"])
     step("服务器拉取并重启", ["ssh", host, update(folder)])

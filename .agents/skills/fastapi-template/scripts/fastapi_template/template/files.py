@@ -10,9 +10,7 @@ from typing import Any
 from shared.modules.validation import framework_files
 
 SOURCE_FILE = "template-source.json"
-LIST_MODULES = (
-    ("server/shared/modules/validation/framework_files.py", "FRAMEWORK"),
-)
+LIST_MODULES = (("server/shared/modules/validation/framework_files.py", "FRAMEWORK"),)
 MANUAL_FILES = (
     "server/pyproject.toml",
     "server/uv.lock",

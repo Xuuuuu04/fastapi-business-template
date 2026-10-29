@@ -1,5 +1,6 @@
 import argparse
 import json
+
 from fastapi_business.search import locate
 from fastapi_check.quality.rules import PROJECT
 

@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from fastapi_check.quality.rules import PROJECT, ROOT
 from fastapi_check.affected.impact import impact_scope
 from fastapi_check.affected.versions import module_api_files
+from fastapi_check.quality.rules import PROJECT, ROOT
 
 from shared.modules.catalog import Catalog
 

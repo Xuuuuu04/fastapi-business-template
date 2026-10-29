@@ -4,8 +4,6 @@ import os
 import subprocess
 import sys
 
-from fastapi_check.development_rules import check_development
-from fastapi_check.quality.rules import ROOT
 from fastapi_check.affected.selection import (
     Selection,
     module_files,
@@ -13,6 +11,8 @@ from fastapi_check.affected.selection import (
     select_affected,
     validate_modules,
 )
+from fastapi_check.development_rules import check_development
+from fastapi_check.quality.rules import ROOT
 
 TYPED = ("app", "service", "library", "shared", "../.agents/skills", "devtools/src")
 INTEGRITY = (

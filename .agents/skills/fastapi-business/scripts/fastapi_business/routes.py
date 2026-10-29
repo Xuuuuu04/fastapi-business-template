@@ -2,7 +2,6 @@ import ast
 import importlib
 import inspect
 import textwrap
-from pathlib import Path
 from types import ModuleType
 from typing import Any
 
