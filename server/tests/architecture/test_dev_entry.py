@@ -6,6 +6,9 @@ from pathlib import Path
 
 from fastapi_check.quality.rules import ROOT
 
+from app.setup.application import application_modules
+from shared.application.spec import FRAMEWORK_VERSION
+
 
 def test_dev_inspect_ignores_real_environment() -> None:
     environment = {**os.environ, "APP_ENV": "production", "APP_DATABASE_URL": "invalid-live"}
@@ -18,7 +21,8 @@ def test_dev_inspect_ignores_real_environment() -> None:
     )
     assert result.returncode == 0, result.stderr
     description = json.loads(result.stdout)
-    assert description["modules"] == [] and description["framework_version"] == "4.0.0"
+    assert description["modules"] == [module.name for module in application_modules()]
+    assert description["framework_version"] == FRAMEWORK_VERSION
     assert "invalid-live" not in result.stdout
 
 

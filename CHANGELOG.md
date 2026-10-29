@@ -2,6 +2,10 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务的变化记在业务文档 `.agents/skills/fastapi-business/business.md`。
 
+## 4.0.1（2026-10-30）
+
+- 修正 `tests/architecture/test_dev_entry.py`：产品登记了业务包以后，完整检查不再因为“模块列表必须为空”而失败。
+
 ## 4.0.0（2026-10-29）
 
 不兼容旧版本：去掉了所有为老产品保留的兼容写法、开关和迁移链，用这一版请从新模板建产品。
