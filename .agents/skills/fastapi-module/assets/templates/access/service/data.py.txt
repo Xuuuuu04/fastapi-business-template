@@ -41,12 +41,6 @@ class LoginFailed(BusinessError):
     message = "组织代码、账号或口令不正确"
 
 
-class AccountExists(BusinessError):
-    code = "${name}_account_exists"
-    kind = Kind.CONFLICT
-    message = "同一组织里已经有这个账号"
-
-
 class GrantDenied(BusinessError):
     code = "${name}_grant_denied"
     kind = Kind.FORBIDDEN

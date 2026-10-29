@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from shared.public import Data, meaning
+from shared.public import BusinessError, Data, Kind, meaning
 
 
 class StoredAccount(Data):
@@ -9,6 +9,12 @@ class StoredAccount(Data):
     username: str = meaning("账号", rule="R-01")
     password_hash: str = meaning("口令摘要：随机盐和 scrypt 摘要", rule="R-02", secret=True)
     permissions: list[str] = meaning("账号拥有的权限名", rule="R-03")
+
+
+class AccountExists(BusinessError):
+    code = "${name}_account_exists"
+    kind = Kind.CONFLICT
+    message = "同一组织里已经有这个账号"
 
 
 class ${Camel}Store(Protocol):

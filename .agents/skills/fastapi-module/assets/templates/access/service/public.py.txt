@@ -1,12 +1,12 @@
 from service.$name.data import (
     Account,
-    AccountExists,
     AccountView,
     GrantDenied,
     LoginFailed,
     LoginInput,
     NewAccount,
 )
+from service.$name.store.contract import AccountExists
 from shared.public import contract
 
 login = contract(

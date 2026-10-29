@@ -2,8 +2,7 @@ import json
 
 from sqlalchemy import RowMapping, insert, select
 
-from service.$name.data import AccountExists
-from service.$name.store.contract import StoredAccount
+from service.$name.store.contract import AccountExists, StoredAccount
 from service.$name.store.tables import accounts
 from shared.public import Db
 
