@@ -2,7 +2,9 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务的变化记在业务文档 `.agents/skills/fastapi-business/business.md`。
 
-## 未发布
+## 4.0.0（2026-10-29）
+
+不兼容旧版本：去掉了所有为老产品保留的兼容写法、开关和迁移链，用这一版请从新模板建产品。
 
 - 代码里不再写注释和文档字符串：质量检查的 `file_header`、`class_comment`、`function_comment`、`comment_run`、`todo` 换成 `comment` 和 `docstring` 两条，出现任何 `#` 注释或文档字符串都报错，不登记例外。模板里 505 个 Python 文件的注释和文档字符串已删除（逐文件比对语法树，只少了这两样）；`migrations/versions` 下已发布的迁移不动。
 - 原来的 31 处 `type: ignore` 和 `noqa` 改成不需要注释的写法：`cast`、`MonkeyPatch.context()`，缺类型的第三方包放进 pyproject 的 mypy overrides，任务表登记的导入移到文件头并在 ruff per-file-ignores 登记 F401。
@@ -24,6 +26,8 @@
 - 删除 `dev adopt-modules`、升级工具的 `--recovery-proof`、写入失败时的回退，以及读取旧清单 `framework_lock.py` 的兼容。
 - 部署相关：compose 的数据库端口绑定 `127.0.0.1:5432`，方便在服务器上用 `uv run dev` 查生产任务；`dev deploy` 打印服务器上实际的提交号；删除 Dependabot（单人直接推主干，不走 PR）。
 - `dev check --module` 只传存在的测试目录（流程包没有 `tests/modules/包名`）；`dev pipelines` 按产品组装读取模块和配置；`dev locate` 去掉没用的 `--json`；`check --affected` 遇到只改业务文档时不跑检查。
+- 删除四个兼容开关，一律按严格规则走：`APP_SCHEDULE_ORG_ID`（只认 `APP_SCHEDULE_ORG_IDS`）、`APP_REMOTE_ENDPOINTS_STRICT`（外部调用只能用 `remote.call` 加已声明的 `Endpoint`，删 `remote.get/post/put/delete`）、`APP_MIGRATION_STRICT`（迁移改未登记的表直接报错）、`APP_QUERY_BUDGET_MODE`（test 环境超额就失败）。
+- 9 个框架迁移合成一个初始迁移 `40a000000001`；迁移模板不再生成注释。
 - 新增 `@step(placeholder=True)`：生成器产出的样例步骤都带这个标记，`dev check --delivery` 遇到占位或模拟步骤就报错，换成真实实现后删掉标记。
 - 依赖方向只剩严格模式：删除 `APP_MODULE_DEPENDENCIES_STRICT` 和只警告的模式，`module.json` 只认 `"dependencies": "strict"`。流程包也不许登记 `owned_tables`、`external_tables`。
 - `new-pipeline` 只给等待阶段写 `repeat_safe=True`，其他阶段默认不可重复执行；不再往 `doc/` 生成演练配置。`check --quick` 也跑注释、文档字符串、try 等质量规则。

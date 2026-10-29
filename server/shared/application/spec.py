@@ -14,7 +14,7 @@ from shared.modules.module import Module
 from shared.remote_calls.service import RemoteService
 from shared.timing.clock import Clock
 
-FRAMEWORK_VERSION = "3.2.0"
+FRAMEWORK_VERSION = "4.0.0"
 
 
 @dataclass(frozen=True)
