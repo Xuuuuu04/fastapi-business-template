@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from typing import Any
 
 STEP_KIND_TEXT = {
@@ -166,7 +166,6 @@ class RunRecord:
     writes: str = "none"
     summary: str = ""
     gaps: list[str] = field(default_factory=list)
-    source_version: str = ""
     clock_kind: str = ""
     import_report: dict[str, Any] = field(default_factory=dict)
 
@@ -196,4 +195,6 @@ def run_from_dict(data: dict[str, Any]) -> RunRecord:
         steps.append(
             StepRecord(**{**raw, "models": models, "remotes": remotes, "database": database})
         )
-    return RunRecord(**{**data, "steps": steps})
+    known = {item.name for item in fields(RunRecord)}
+    values = {key: value for key, value in data.items() if key in known}
+    return RunRecord(**{**values, "steps": steps})

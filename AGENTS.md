@@ -32,7 +32,7 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 
 - 业务规则先问清并写成测试样例，再实现。默认一个代理负责到底。
 - 能力包负责存取，流程包负责业务链，工具包只做纯计算；包间调用公开操作，SQL 只放存储，步骤声明读写字段。
-- 公共框架和开发工具由 `server/framework.lock` 保护；确需修改时说明用途、影响和验证，审查后更新摘要，不降低检查阈值。
+- 公共框架和开发工具（清单见 `server/shared/modules/validation/framework_files.py`）做业务时不改；确需修改时在提交说明里写明用途、影响和验证，不降低检查阈值。
 - 项目不生成文档，唯一的生成物是 `doc/api/openapi.json`，供前端和 compare-api 使用。检查和业务验收分开。
 - 凭据或权限不够时停下说明，不搜索其他凭据。生产写入、外部动作和切换按实际授权处理。
 - 测试失败的运行报告在 `server/var/development/failures/`，不提交、不复制进新产品。

@@ -1,10 +1,7 @@
 import json
-from pathlib import Path
 
 from fastapi_docs.openapi import openapi_text
 from fastapi_migration.compare_api import compare
-
-from shared.modules.validation.framework_lock import differences, digests
 
 COPY_FLAG = "TEMPLATE_COPY_RUN"
 
@@ -30,36 +27,3 @@ def test_compare_api() -> None:
 
 def test_openapi_text() -> None:
     assert "/health/live" in json.loads(openapi_text())["paths"]
-
-
-def test_framework_lock(tmp_path: Path) -> None:
-    assert "还没有 framework.lock" in differences(tmp_path)[0]
-    folder = tmp_path / "shared"
-    folder.mkdir()
-    (folder / "a.py").write_text("A = 1\n", encoding="utf-8")
-    (folder / "b.py").write_text("B = 1\n", encoding="utf-8")
-    (tmp_path / "framework.lock").write_text(json.dumps(digests(tmp_path)), encoding="utf-8")
-    assert differences(tmp_path) == []
-    (folder / "a.py").write_text("A = 2\n", encoding="utf-8")
-    (folder / "b.py").unlink()
-    (folder / "c.py").write_text("C = 1\n", encoding="utf-8")
-    assert differences(tmp_path) == ["新增：shared/c.py", "删除：shared/b.py", "修改：shared/a.py"]
-
-
-def test_framework_lock_pyproject(tmp_path: Path) -> None:
-    project = tmp_path / "pyproject.toml"
-    project.write_text(
-        '[project]\ndependencies = ["redis>=7,<8"]\n\n[tool.ruff]\nline-length = 100\n',
-        encoding="utf-8",
-    )
-    (tmp_path / "framework.lock").write_text(json.dumps(digests(tmp_path)), encoding="utf-8")
-    project.write_text(
-        '[project]\ndependencies = ["redis>=8,<9"]\n\n[tool.ruff]\nline-length = 100\n',
-        encoding="utf-8",
-    )
-    assert differences(tmp_path) == []
-    project.write_text(
-        '[project]\ndependencies = ["redis>=8,<9"]\n\n[tool.ruff]\nline-length = 200\n',
-        encoding="utf-8",
-    )
-    assert differences(tmp_path) == ["修改：pyproject.toml"]

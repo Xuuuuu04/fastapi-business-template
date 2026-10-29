@@ -56,7 +56,6 @@ def run_evidence(run: RunRecord) -> dict[str, Any]:
         "parent_step",
         "status",
         "code_version",
-        "source_version",
         "started_at",
         "elapsed_ms",
         "gaps",

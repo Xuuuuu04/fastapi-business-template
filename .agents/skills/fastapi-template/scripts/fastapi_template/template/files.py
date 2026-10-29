@@ -7,10 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from shared.modules.validation import framework_lock
+from shared.modules.validation import framework_files
 
 SOURCE_FILE = "template-source.json"
-LOCK_MODULE = "server/shared/modules/validation/framework_lock.py"
+LIST_MODULES = (
+    ("server/shared/modules/validation/framework_files.py", "FRAMEWORK"),
+    ("server/shared/modules/validation/framework_lock.py", "LOCKED"),
+)
 MANUAL_FILES = (
     "server/pyproject.toml",
     "server/uv.lock",
@@ -47,16 +50,22 @@ def safe_path(root: Path, name: str) -> Path:
 
 @dataclass(frozen=True)
 class Manifest:
-    locked: tuple[str, ...]
+    framework: tuple[str, ...]
     registration: tuple[str, ...]
     suffixes: tuple[str, ...]
 
 
 def manifest(template: Path) -> Manifest:
-    path = safe_path(template, LOCK_MODULE)
-    if not path.is_file():
-        return Manifest(framework_lock.LOCKED, framework_lock.REGISTRATION, framework_lock.SUFFIXES)
-    names = ("LOCKED", "REGISTRATION", "SUFFIXES")
+    found = [
+        (module, first) for module, first in LIST_MODULES if safe_path(template, module).is_file()
+    ]
+    if not found:
+        return Manifest(
+            framework_files.FRAMEWORK, framework_files.REGISTRATION, framework_files.SUFFIXES
+        )
+    module, first = found[0]
+    path = safe_path(template, module)
+    names = (first, "REGISTRATION", "SUFFIXES")
     values = {
         target.id: ast.literal_eval(node.value)
         for node in ast.parse(path.read_text(encoding="utf-8")).body
@@ -66,15 +75,15 @@ def manifest(template: Path) -> Manifest:
     }
     missing = [name for name in names if name not in values]
     if missing:
-        raise ValueError(f"{LOCK_MODULE} 缺少框架清单常量：{'、'.join(missing)}")
+        raise ValueError(f"{module} 缺少框架清单常量：{'、'.join(missing)}")
     return Manifest(*(tuple(values[name]) for name in names))
 
 
 def managed_files(project: Path, listing: Manifest | None = None) -> dict[str, bytes]:
     listing = listing or manifest(project)
     found = {}
-    locked = listing.locked
-    entries = (*locked, "tools") if (project / "server/tools").exists() else locked
+    framework = listing.framework
+    entries = (*framework, "tools") if (project / "server/tools").exists() else framework
     for entry in entries:
         if entry == "pyproject.toml":
             continue
@@ -102,12 +111,10 @@ def provenance(source: Path) -> dict[str, Any]:
             ["git", "rev-parse", "HEAD"], cwd=source, capture_output=True, text=True, check=True
         )
         revision = result.stdout.strip()
-    lock = source / "server/framework.lock"
     return {
         "schema_version": 1,
         "version": metadata["project"]["version"],
         "revision": revision,
-        "framework_lock": hashlib.sha256(lock.read_bytes()).hexdigest() if lock.is_file() else "",
         "files": {
             name: hashlib.sha256(content).hexdigest()
             for name, content in managed_files(source).items()

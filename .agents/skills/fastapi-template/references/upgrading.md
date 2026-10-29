@@ -47,11 +47,11 @@ uv run dev upgrade --target /产品目录 --base /tmp/template-old --source /tmp
 - 文件链接、或路径指到项目之外的文件会被拒绝。
 - 工具从不访问或修改数据库。
 
-冲突要人工解决，以业务规则和接口含义为准，改完重新预览。更新完成后，`template-source.json` 按新模板的清单和格式记下文件摘要和 `framework_lock`。产品自己的修改仍保留在产品文件里，下次更新继续做三份比较。
+冲突要人工解决，以业务规则和接口含义为准，改完重新预览。更新完成后，`template-source.json` 按新模板的清单记下文件摘要。产品自己的修改仍保留在产品文件里，下次更新继续做三份比较。
 
 ### 用旧工具升级过的产品
 
-3.1.1 及以前在产品自己的 `server/` 下升级过的产品，`template-source.json` 没有 `framework_lock` 字段，也没登记新版本新增的框架文件（3.1.1 是 `tests/scheduling.py` 和 `tests/template_project.py`）。产品里的旧工具下次升级会报“旧模板与 template-source.json 不一致”。照上面的做法在新模板的 `server/` 下运行就行：新工具只核对记录里登记过的文件，漏掉的文件列进 `newly_managed` 并补进产品，接收后来源记录按新格式重写。暂时不升级、只想修正来源记录时，把记录里的那个版本同时作 `--base` 和 `--source` 运行一次，确认预览后加 `--apply`。
+3.1.1 及以前在产品自己的 `server/` 下升级过的产品，`template-source.json` 没登记新版本新增的框架文件（3.1.1 是 `tests/scheduling.py` 和 `tests/template_project.py`）。产品里的旧工具下次升级会报“旧模板与 template-source.json 不一致”。照上面的做法在新模板的 `server/` 下运行就行：新工具只核对记录里登记过的文件，漏掉的文件列进 `newly_managed` 并补进产品，接收后来源记录按新格式重写。暂时不升级、只想修正来源记录时，把记录里的那个版本同时作 `--base` 和 `--source` 运行一次，确认预览后加 `--apply`。
 
 ## 三、接收之后检查
 
@@ -59,7 +59,6 @@ uv run dev upgrade --target /产品目录 --base /tmp/template-old --source /tmp
 2. 读新模板的版本说明。已有的数据库必须保留自己的迁移历史，按业务差异新增迁移，不能覆盖初始迁移再升级。模板从 1.x 升到 2.x 时，事件和后端选择有变化，需要单独适配。
 3. 第一次采用标准包结构时，在产品的 `server/` 下运行 `uv run dev adopt-modules`。目录、固定文件、步骤位置不合格的，先处理。新版增加了系统功能和新表时，还要按新表的声明生成产品自己的迁移。
 4. 审查完框架差异，在产品的 `server/` 下依次运行：
-   - `uv run dev framework-lock --update`
    - `uv run dev docs`
    - `uv run dev check`
 5. 使用 PostgreSQL 的产品，检查命令再加 `--postgres 测试数据库地址`，用真实业务包验证接口和业务样例。
@@ -69,7 +68,7 @@ uv run dev upgrade --target /产品目录 --base /tmp/template-old --source /tmp
 
 - 不改依赖和 `uv.lock`。
 - 不批准不兼容的接口，不执行数据库迁移。
-- 不改 `framework.lock`，所以框架改动仍然需要人审查。
+- 不审查框架改动本身，框架差异仍然需要人看。
 
 没有共同 Git 历史不妨碍比较文件。但旧模板找不对、业务行为已经和新版不兼容、新版新增了数据库结构，这些情况仍要人工处理。
 

@@ -31,7 +31,6 @@ def open_record(
         module=binding.module.name,
         module_version=binding.module.version,
         code_version=runtime.code_version,
-        source_version=runtime.source_version,
         clock_kind=clock_kind(runtime.clock),
         request_id=scope.request_id,
         job_id=scope.job_id,

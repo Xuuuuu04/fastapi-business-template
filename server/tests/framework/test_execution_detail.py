@@ -20,7 +20,7 @@ def test_http_run_identifies_sql_and_outputs(sample_client: TestClient) -> None:
     run_id = response.headers["x-run-id"]
     detail = client.get(f"/api/system/runs/{run_id}", headers=KEY).json()
     run = detail["runs"][0]
-    assert run["source_version"] and run["status"] == "ok"
+    assert run["status"] == "ok"
     recorded = next(part for part in run["steps"] if part["database_count"])
     assert recorded["outputs_recorded"] and recorded["outputs"]
     assert recorded["elapsed_ms"] > 0 and recorded["database_count"] == 2
@@ -77,7 +77,7 @@ async def test_development_evidence_omits_business_values(sample: Services) -> N
     assert any(step["outputs"].get("total") == "已写入数字" for step in evidence["steps"])
     assert run_from_dict(run.to_dict()) == run
     legacy = run.to_dict()
-    legacy.pop("source_version")
+    legacy["source_version"] = "removed-field"
     for step in legacy["steps"]:
         for field in (
             "outputs",
@@ -89,4 +89,4 @@ async def test_development_evidence_omits_business_values(sample: Services) -> N
         ):
             step.pop(field)
     old = run_from_dict(legacy)
-    assert old.source_version == "" and "产出未知（旧记录没有保存）" in run_graph([old])
+    assert "产出未知（旧记录没有保存）" in run_graph([old])

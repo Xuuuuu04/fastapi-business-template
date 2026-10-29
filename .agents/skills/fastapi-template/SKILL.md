@@ -28,7 +28,7 @@ uv run dev upgrade --base /旧模板 --source /新模板 --target /产品目录
 - 依赖、配置、业务登记、业务代码、迁移历史由产品自己维护，脚本不会碰。
 - 预览确认没有问题、并且改动在授权范围内，再加 `--apply` 执行。
 
-更新之后：检查改动的共同影响，生成文档，用 `fastapi-check` 更新框架摘要并运行相应的检查。
+更新之后：检查改动的共同影响，运行 `uv run dev docs` 和 `uv run dev check`。
 
 ## 迁移旧业务
 

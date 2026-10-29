@@ -19,7 +19,6 @@ from app.setup.catalog import MODULES
 from app.setup.web import create_app
 from shared.db.tables import metadata
 from shared.modules.catalog import Catalog
-from shared.modules.validation.framework_lock import differences
 from shared.modules.validation.imports import check_imports
 from tests.testing_app import KEY, database_url, make_settings
 
@@ -70,14 +69,6 @@ async def differences_from(url: str) -> list[object]:
 def compare(connection: Connection) -> list[object]:
     context = MigrationContext.configure(connection, opts={"compare_type": True})
     return list(compare_metadata(context, metadata))
-
-
-def test_framework_files_unchanged() -> None:
-    changes = differences()
-    assert changes == [], (
-        "框架文件有改动，审查后运行 shared.modules.validation.framework_lock --update：\n"
-        + "\n".join(changes)
-    )
 
 
 def test_framework_runs_without_modules(tmp_path: Path) -> None:

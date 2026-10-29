@@ -29,7 +29,6 @@ from shared.modules.catalog import Catalog
 from shared.modules.module import Module
 from shared.records.recorder import Recorder
 from shared.records.stores import MemoryRunStore, RunStore, SqlRunStore
-from shared.records.version import source_version
 from shared.remote_calls.service import RemoteService
 from shared.telemetry.service import Telemetry
 
@@ -113,8 +112,6 @@ def build(
     services.runtime.query_policy = query_policy(settings)
     services.runtime.allow_simulation = settings.env == "test"
     bind_clock(services, specification.clock or services.runtime.clock)
-    if modules is None:
-        services.runtime.source_version = source_version(ROOT)
     return services
 
 

@@ -87,7 +87,6 @@ class Runtime:
         self.telemetry = telemetry
         self.vault = vault
         self.code_version = code_version
-        self.source_version = ""
         self.step_checks = step_checks
         self.heavy = heavy or HeavySteps()
         self.query_policy = query_policy or QueryPolicy()

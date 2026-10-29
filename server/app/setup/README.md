@@ -7,7 +7,7 @@
 | [timing.py](timing.py) | 绑定统一应用时钟 |
 | [files.py](files.py) | 组装正式文件存储与上传区 |
 | [build.py](build.py) | 按配置组装数据库、运行记录、大模型服务、任务表和执行器 |
-| [structure.py](structure.py) | 创建资源前检查固定业务包、计算节点位置、依赖和框架摘要 |
+| [structure.py](structure.py) | 创建资源前检查固定业务包、计算节点位置和依赖方向 |
 | [web.py](web.py) | 创建 FastAPI 应用：`uv run uvicorn app.setup.web:create_app --factory` |
 | [worker.py](worker.py) | worker 进程：`uv run python -m app.setup.worker` |
 

@@ -8,7 +8,7 @@
 
 ## 框架改动
 
-<!-- 改了 shared/、tools/、app/setup/ 等受 framework.lock 保护的文件时，逐个写明原因；没有写“无”。 -->
+<!-- 改了 shared/、app/setup/ 等框架文件时，逐个写明原因；没有写“无”。 -->
 
 ## 检查结果
 

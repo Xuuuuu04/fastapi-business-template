@@ -26,13 +26,12 @@ uv run dev check --postgres 测试数据库地址
 - 默认用 SQLite；生产用 PostgreSQL 的，发布前加 `--postgres` 跑一次。
 - 浏览器、容量、部署是另外的检查，这个命令不包含。
 
-## 框架摘要
+## 框架文件
 
-`server/framework.lock` 记录公共代码、检查配置和项目 Skill 的内容摘要，防止它们被顺手改掉。
+`shared/modules/validation/framework_files.py` 列出哪些是框架文件（公共代码、检查配置和项目 Skill）。
 
 - 做业务时不要改这些文件。
-- 确实要改，先看实际差异，写明用途和影响，再用 `uv run dev framework-lock --update` 更新摘要。
-- 服务启动只检查运行必需的公共文件，部署时不需要带 Skill。
+- 确实要改，在提交说明里写明用途和影响，靠代码审查把关。
 
 ## 写测试的要求
 

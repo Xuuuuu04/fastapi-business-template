@@ -22,7 +22,6 @@ COMMANDS = {
     "new-project": "fastapi_template.start_project",
     "upgrade": "fastapi_template.update_framework",
     "compare-api": "fastapi_migration.compare_api",
-    "framework-lock": "fastapi_check.framework_lock",
 }
 
 

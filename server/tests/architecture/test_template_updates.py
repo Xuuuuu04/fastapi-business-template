@@ -4,13 +4,15 @@ from pathlib import Path
 
 import pytest
 from fastapi_template.template.files import (
-    LOCK_MODULE,
+    LIST_MODULES,
     check_base,
     managed_files,
     manifest,
     save_provenance,
 )
 from fastapi_template.template.merge import apply_plan, update_plan
+
+FRAMEWORK_MODULE = LIST_MODULES[0][0]
 
 
 def test_update_preserves_product_files(tmp_path: Path) -> None:
@@ -22,9 +24,7 @@ def test_update_preserves_product_files(tmp_path: Path) -> None:
         "server/service/customer_contact/flow.py": "BUSINESS = True\n",
         "server/migrations/versions/customer.py": "REVISION = 'mine'\n",
         "server/.env": "PRIVATE = keep\n",
-        "project-plan.json": "product plan",
-        "doc/tasks.md": "product tasks",
-        "server/framework.lock": "original lock",
+        "doc/notes.md": "product notes",
     }
     for name, content in protected.items():
         write(target, name, content)
@@ -121,22 +121,21 @@ def test_source_manifest_adds_newly_managed_files(
     tmp_path: Path, local: str | None, state: str | None
 ) -> None:
     base, source, target = projects(tmp_path)
-    old_lock = 'LOCKED = ("shared",)\nREGISTRATION = ()\nSUFFIXES = (".py",)\n'
+    old_lock = 'FRAMEWORK = ("shared",)\nREGISTRATION = ()\nSUFFIXES = (".py",)\n'
     new_lock = old_lock.replace('("shared",)', '("shared", "tests/helper.py")')
     for root, text in ((base, old_lock), (target, old_lock), (source, new_lock)):
-        write(root, LOCK_MODULE, text)
+        write(root, FRAMEWORK_MODULE, text)
     for root in (base, source):
         write(root, "server/tests/helper.py", "HELPER = 1\n")
     if local is not None:
         write(target, "server/tests/helper.py", local)
-    write(source, "server/framework.lock", "{}\n")
     digest = hashlib.sha256(old_lock.encode()).hexdigest()
-    origin = {"version": "2.0.0", "files": {LOCK_MODULE: digest}}
+    origin = {"version": "2.0.0", "files": {FRAMEWORK_MODULE: digest}}
     write(target, "template-source.json", json.dumps(origin))
     assert check_base(target, base, manifest(source)) == ["server/tests/helper.py"]
     changes, _ = update_plan(target, base, source)
     states = {change.name: change.state for change in changes}
-    assert states.pop(LOCK_MODULE) == "update"
+    assert states.pop(FRAMEWORK_MODULE) == "update"
     assert states.get("server/tests/helper.py") == state
     if state == "conflict":
         return
@@ -144,7 +143,6 @@ def test_source_manifest_adds_newly_managed_files(
     assert (target / "server/tests/helper.py").read_text() == "HELPER = 1\n"
     recorded = json.loads((target / "template-source.json").read_text())
     assert "server/tests/helper.py" in recorded["files"]
-    assert recorded["framework_lock"] == hashlib.sha256(b"{}\n").hexdigest()
     assert check_base(target, source) == []
 
 
@@ -177,3 +175,12 @@ def write(root: Path, name: str, content: str) -> None:
     path = root / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def test_legacy_list_module_is_read(tmp_path: Path) -> None:
+    write(
+        tmp_path,
+        LIST_MODULES[1][0],
+        'LOCKED = ("shared",)\nREGISTRATION = ()\nSUFFIXES = (".py",)\n',
+    )
+    assert manifest(tmp_path).framework == ("shared",)

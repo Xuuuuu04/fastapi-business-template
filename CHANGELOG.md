@@ -11,6 +11,8 @@
 - 生成器不再写业务文档、项目计划和规则编号；`dev locate` 只按代码声明查找，`dev impact` 去掉规则和流程文档两节，`dev merge` 只重建模块登记、路由和 openapi.json。交付检查仍拒绝模拟骨架。
 - `dev check` 只做静态检查（风格、格式、类型、接口文档、迁移归属）和跑测试：不再计算源码指纹、不存档、不沿用上次结果、不按模板工具摘要跳过测试，SQLite 和 PostgreSQL 不再并行双跑（要 PostgreSQL 时加 `--postgres`）。完整检查从约 119 秒降到 36 秒。
 - 删除 `dev skeleton`（按规格生成多包骨架）、`dev merge`（本机分支整合）、`dev impact`（改动影响报告）、`dev pin/gc`（检查证据保留与清理），以及复制整个模板再重跑全部测试的端到端测试。`check --affected` 仍按改动选包。
+- 删除 `framework.lock` 和 `dev framework-lock`：不再给框架文件算摘要，服务启动也不再因摘要不一致拒绝启动。框架文件清单改放在 `shared/modules/validation/framework_files.py`（`FRAMEWORK`），升级工具和 `check --affected` 读它；升级时仍能读旧模板的 `framework_lock.py`。`template-source.json` 不再记 `framework_lock` 字段。
+- 运行记录不再计算和保存整份源码的哈希（`source_version`）；读取旧记录时自动忽略这个字段。
 - 已有产品接入：升级后旧代码的注释会被新检查报出，用同样的方式删除；意图改用名字、类型、`meaning()` 和测试表达，修改原因写进提交说明。
 
 ## 3.2.0（2026-10-14）

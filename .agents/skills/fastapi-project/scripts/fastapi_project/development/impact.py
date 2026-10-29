@@ -8,7 +8,7 @@ from fastapi_check.quality.rules import ROOT
 
 from shared.modules.catalog import Catalog
 from shared.modules.libraries import library_links
-from shared.modules.validation.framework_lock import LOCKED
+from shared.modules.validation.framework_files import FRAMEWORK
 
 MODULE_AREAS = (
     ("server/service/", "代码"),
@@ -69,7 +69,7 @@ def framework_files(files: Iterable[str]) -> list[str]:
         if path.startswith(".agents/skills/")
         or (
             path.startswith("server/")
-            and any(path[7:] == entry or path[7:].startswith(entry + "/") for entry in LOCKED)
+            and any(path[7:] == entry or path[7:].startswith(entry + "/") for entry in FRAMEWORK)
         )
     )
 
@@ -85,8 +85,8 @@ def shared_reason(path: str, framework: set[str], modules: Iterable[str] = ()) -
         return f"公共测试改动：{path}；需检查全部登记模块"
     if path.startswith(("server/app/", "server/service/")) and module_area(path, modules) is None:
         return f"未归属模块的公共代码：{path}；保守检查全部登记模块"
-    if path in ("server/uv.lock", "server/framework.lock"):
-        return f"项目共用依赖或框架摘要改动：{path}"
+    if path == "server/uv.lock":
+        return f"项目共用依赖改动：{path}"
     return ""
 
 
