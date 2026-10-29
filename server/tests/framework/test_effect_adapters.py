@@ -1,18 +1,15 @@
 from dataclasses import replace
 from pathlib import Path
 
-import httpx2
 import pytest
 
 from shared.access.caller import SYSTEM
-from shared.effects.adapters import HttpAdapter, SdkAdapter
+from shared.effects.adapters import SdkAdapter
 from shared.effects.service import EffectService
 from shared.effects.smtp import MailInput, MailReceipt, SmtpAdapter, SmtpConfig
 from shared.effects.spec import AdapterReply
 from shared.errors.framework import RemoteResultUnknown
-from shared.public import Data, Endpoint, remote
-from shared.remote_calls.remote import RemoteConfig
-from shared.remote_calls.service import RemoteService
+from shared.public import Data
 from tests.framework.test_provider_effects import Input, Output, expire_intent, service_at
 
 pytestmark = pytest.mark.anyio
@@ -49,46 +46,6 @@ async def test_smtp_acceptance_is_not_delivery(monkeypatch) -> None:
         ("<stable-intent@fastapi.local>", [request.recipient])
     ]
     assert (await adapter.lookup(request, "stable-intent")).state == "unknown"
-
-
-async def test_http_adapter_does_not_retry_lost_reply(tmp_path: Path) -> None:
-    service, spec, _, database = await service_at(tmp_path, "http")
-    count = 0
-
-    def lose_reply(request: httpx2.Request) -> httpx2.Response:
-        nonlocal count
-        count += 1
-        raise httpx2.ReadTimeout("synthetic", request=request)
-
-    target = remote("synthetic", "合成HTTP", retries=3)
-    endpoint = Endpoint("synthetic.send", "POST", "/send", Input, Output, "write")
-    client = RemoteService(
-        {target.name: RemoteConfig(base_url="https://synthetic.invalid")},
-        {target.name: httpx2.MockTransport(lose_reply)},
-        retry_waits=(0,),
-    )
-
-    async def lookup(input: Data, key: str) -> AdapterReply:
-        return AdapterReply("accepted", Output(reference="vendor-1"), "vendor-1")
-
-    adapter = HttpAdapter(
-        client,
-        target,
-        endpoint,
-        lambda status, data: AdapterReply("accepted", data),
-        lookup,
-        account="synthetic-http",
-    )
-    service = EffectService(service.store, {spec: adapter})
-    try:
-        with pytest.raises(RemoteResultUnknown):
-            await service.call(spec, Input(message="private-body"), SYSTEM, "stable", [], [])
-        with pytest.raises(RemoteResultUnknown):
-            await service.call(spec, Input(message="private-body"), SYSTEM, "stable", [], [])
-        assert count == 1
-    finally:
-        await client.close()
-        await database.close()
 
 
 @pytest.mark.parametrize("repeat_safe", [False, True])

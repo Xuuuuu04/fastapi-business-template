@@ -65,9 +65,7 @@ def inspect_calls(func: Any, allowed: tuple[Endpoint[Any, Any], ...], place: str
         )
         if not remote:
             continue
-        if node.func.attr in ("get", "post", "put", "delete", "send"):
-            problems.append(f"{place} 只能用 remote.call 调用已声明的 Endpoint")
-        elif node.func.attr == "call":
+        if node.func.attr == "call":
             reference = (
                 node.args[1]
                 if len(node.args) > 1

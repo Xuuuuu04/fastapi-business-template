@@ -212,6 +212,11 @@ start = Schedule(
 
 ## 外部调用
 
+| 要做的事 | 只用这一种写法 |
+| --- | --- |
+| 调 HTTP 接口，读或写 | `remote.call` 加已声明的 `Endpoint` |
+| 发邮件、调第三方 SDK | `effects` 加 `ProviderSpec` |
+
 ```python
 supplier = remote("supplier", "供应商接口")
 query_price = Endpoint(
@@ -228,8 +233,9 @@ async def read_price(data: Work, remote: RemoteClient) -> None:
 - 读写安全看 `effect`（`"read"` 或 `"write"`），不看 HTTP 方法。写入遇到 5xx、408、499、超时报"结果待确认"，不自动重发；对方真支持去重时才传 `key=`。`accepted_statuses=(409,)` 让确定的 4xx 拒绝回执按 output 校验后返回，`unknown_on=(202,)` 把额外状态当作待确认。
 - 输入默认 GET/HEAD 放查询参数、其他方法放 JSON 正文。路径里有参数时写 `path_fields`，要显式分配时用 `query_fields`、`body_fields`，上传文件用 `file_fields` 并在调用时传 `files=(FilePart(...),)`。
 - 重试和熔断（连续 5 次暂时失败后暂停 30 秒）由框架做，业务不要再包重试。响应默认限制 2,000,000 字节。
+- 写事务开始后不能再调外部接口。要在保存之后通知对方，就在保存步骤里用 `later` 登记一个后台任务，由任务里的步骤去调。
 
-需要持久记录意图、事后查询原请求的外部写入（HTTP、SMTP、SDK）用 `ProviderSpec`：产品在 `app/product.py` 的 `ApplicationSpec(providers=..., adapters=...)` 组装，模块登记 `providers=(spec,)`，步骤声明 `providers=[spec]` 并用 `effects` 参数。`await effects.call(spec, 输入, key=业务键)` 在事务外立即发送；`await effects.enqueue(...)` 在保存步骤里登记，随业务提交后由 worker 发送；`await effects.perform(意图编号, lookup=True)` 只查询原请求。`repeat_safe=True` 只在供应商保证重复执行安全时写。
+发邮件和调 SDK 用 `ProviderSpec`（`transport="smtp"` 或 `"sdk"`），框架会持久记录每次发送的意图，可以事后查询原请求：产品在 `app/product.py` 的 `ApplicationSpec(providers=..., adapters=...)` 组装，适配器用 `shared.effects` 里的 `SmtpAdapter`、`SdkAdapter`；模块登记 `providers=(spec,)`，步骤声明 `providers=[spec]` 并用 `effects` 参数。`await effects.call(spec, 输入, key=业务键)` 在事务外立即发送；`await effects.enqueue(...)` 在保存步骤里登记，随业务提交后由 worker 发送；`await effects.perform(意图编号, lookup=True)` 只查询原请求。`repeat_safe=True` 只在供应商保证重复执行安全时写。
 
 例子：`endpoint_sample.py`、`test_endpoint_contracts.py`、`test_remote_write_safety.py`、`test_effect_tasks.py`、`test_provider_effects.py`、`test_effect_recovery.py`。
 

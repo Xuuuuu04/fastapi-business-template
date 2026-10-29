@@ -11,7 +11,6 @@ from shared.effects.spec import EffectAdapter, ProviderSpec
 from shared.errors.framework import ConfigError
 from shared.model_calls.providers import ModelProvider
 from shared.modules.module import Module
-from shared.remote_calls.service import RemoteService
 from shared.timing.clock import Clock
 
 FRAMEWORK_VERSION = "4.0.0"
@@ -37,7 +36,7 @@ class ApplicationSpec:
     api_setup: Callable[[Any], None] | None = None
     workers: tuple[WorkerSpec, ...] = ()
     providers: tuple[ProviderSpec, ...] = ()
-    adapters: Callable[[Settings, RemoteService], dict[ProviderSpec, EffectAdapter]] | None = None
+    adapters: Callable[[Settings], dict[ProviderSpec, EffectAdapter]] | None = None
     clock: Clock | None = None
 
     def settings(

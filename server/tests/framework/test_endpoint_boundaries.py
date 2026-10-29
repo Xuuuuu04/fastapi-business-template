@@ -12,7 +12,6 @@ from shared.modules.catalog import Catalog
 from shared.public import Flow, RemoteClient, step
 from shared.records.models import RemoteCallRecord
 from shared.remote_calls.gate import RemoteGate
-from shared.remote_calls.service import RemoteRequest
 from tests.framework.endpoint_sample import (
     Receipt,
     Request,
@@ -67,17 +66,10 @@ async def test_store_protocol(tmp_path: Path) -> None:
 
 
 @pytest.mark.anyio
-async def test_only_declared_endpoints_and_forgery() -> None:
+async def test_only_declared_endpoints() -> None:
     client = service(lambda request: httpx2.Response(200, json={"accepted": True, "count": 1}))
     gate = RemoteGate(client, (upstream,), [], "测试", endpoints=(write_endpoint,))
     try:
-        with pytest.raises(StepRuleBroken, match="只能用 remote.call"):
-            await gate.send(upstream, RemoteRequest("GET", "/read"))
-        with pytest.raises(StepRuleBroken, match="声明不一致"):
-            await gate.send(
-                upstream,
-                RemoteRequest("POST", "/write", endpoint=write_endpoint.name, effect="read"),
-            )
         with pytest.raises(StepRuleBroken, match="未声明"):
             await gate.call(upstream, read_endpoint, Request(sku="x"))
     finally:

@@ -3,8 +3,10 @@ import json
 import sys
 from collections.abc import Callable
 from decimal import Decimal
+from functools import partial
 from pathlib import Path
 
+import fastapi_check.run_operation
 import fastapi_operations.diagnose
 import fastapi_operations.jobs
 import fastapi_operations.make_key
@@ -128,3 +130,25 @@ def test_make_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
     config = json.loads(lines[-1])
     assert config["key_sha256"] == hash_key(lines[1])
     assert (config["org_id"], config["permissions"]) == ("north", ["sample_calc.use"])
+
+
+def test_run_operation_prints_result_and_report(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    asyncio.run(prepare(settings))
+    local = partial(build, modules=MODULES, provider=FakeModel())
+    monkeypatch.setattr(fastapi_check.run_operation, "build", lambda settings: local(settings))
+
+    def run_command(*args: str) -> tuple[int | str | None, str]:
+        capsys.readouterr()
+        monkeypatch.setattr(sys, "argv", ["dev run", *args])
+        with pytest.raises(SystemExit) as stopped:
+            fastapi_check.run_operation.main()
+        return stopped.value.code, capsys.readouterr().out
+
+    code, output = run_command("sample_calc.calc", "--input", '{"amount": "8"}')
+    assert code == 0 and "运行编号" in output and "成功" in output and "示例计算" in output
+    code, output = run_command("sample_calc.calc", "--input", '{"amount": "8", "fail_at": "total"}')
+    assert code == 1 and "失败" in output and "运行编号" in output
+    code, output = run_command("none.x")
+    assert code == 1 and "没有登记操作" in output

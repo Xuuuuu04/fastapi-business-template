@@ -59,12 +59,16 @@ async def test_explicit_409_capture_preserves_default_errors() -> None:
     records: list[RemoteCallRecord] = []
     try:
         received = await service.send(
-            target, RemoteRequest("POST", "/jobs", accepted_statuses=(409,)), records
+            target,
+            RemoteRequest("POST", "/jobs", "partner.jobs", "write", accepted_statuses=(409,)),
+            records,
         )
         assert received.status == 409 and received.data == {"accepted": False}
         assert records[-1].outcome == "failed" and len(calls) == 1
         with pytest.raises(RemoteRejected):
-            await service.send(target, RemoteRequest("POST", "/jobs"), records)
+            await service.send(
+                target, RemoteRequest("POST", "/jobs", "partner.jobs", "write"), records
+            )
         assert len(calls) == 2
     finally:
         await service.close()
@@ -87,7 +91,11 @@ async def test_captured_reply_does_not_clear_prior_unknown() -> None:
     try:
         with pytest.raises(RemoteResultUnknown):
             await service.send(
-                target, RemoteRequest("POST", "/jobs", key="fixed", accepted_statuses=(409,)), []
+                target,
+                RemoteRequest(
+                    "POST", "/jobs", "partner.jobs", "write", key="fixed", accepted_statuses=(409,)
+                ),
+                [],
             )
         assert count == 2
     finally:
@@ -101,7 +109,11 @@ async def test_unknown_status_cannot_be_captured(status) -> None:
     try:
         with pytest.raises(StepRuleBroken):
             await service.send(
-                target, RemoteRequest("POST", "/jobs", accepted_statuses=(status,)), []
+                target,
+                RemoteRequest(
+                    "POST", "/jobs", "partner.jobs", "write", accepted_statuses=(status,)
+                ),
+                [],
             )
     finally:
         await service.close()

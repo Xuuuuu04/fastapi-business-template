@@ -146,7 +146,9 @@ async def test_unkeyed_failed_write_stays_unknown(status: int) -> None:
     )
     try:
         with pytest.raises(RemoteResultUnknown) as caught:
-            await service.send(partner, RemoteRequest("POST", "/record"), [])
+            await service.send(
+                partner, RemoteRequest("POST", "/record", "write_probe.write", "write"), []
+            )
         assert len(calls) == 1
         assert next_state(caught.value.kind, 1, 3, lambda _: 0)[0] == "unknown"
     finally:
@@ -173,7 +175,11 @@ async def test_later_known_failure_cannot_erase_earlier_unknown(last: str) -> No
     )
     try:
         with pytest.raises(RemoteResultUnknown):
-            await service.send(partner, RemoteRequest("POST", "/record", key="stable"), [])
+            await service.send(
+                partner,
+                RemoteRequest("POST", "/record", "write_probe.write", "write", key="stable"),
+                [],
+            )
         assert calls == 2
     finally:
         await service.close()

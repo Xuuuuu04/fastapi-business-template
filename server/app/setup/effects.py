@@ -10,7 +10,6 @@ from shared.effects.spec import EffectAdapter, ProviderSpec
 from shared.effects.storage import EffectStore
 from shared.errors.framework import ConfigError
 from shared.modules.module import Module
-from shared.remote_calls.service import RemoteService
 
 
 def with_effects(spec: ApplicationSpec, modules: Sequence[Module]) -> list[Module]:
@@ -29,7 +28,6 @@ def effect_service(
     settings: Settings,
     spec: ApplicationSpec,
     database: Database,
-    remotes: RemoteService,
     bindings: dict[ProviderSpec, EffectAdapter] | None,
 ) -> EffectService | None:
     if not spec.providers:
@@ -39,7 +37,7 @@ def effect_service(
             return None
         if spec.adapters is None:
             raise ConfigError(["产品声明了ProviderSpec但没有配置适配器工厂"])
-        bindings = spec.adapters(settings, remotes)
+        bindings = spec.adapters(settings)
     if set(bindings) != set(spec.providers):
         raise ConfigError(["供应商适配器与产品ProviderSpec声明不一致"])
     if settings.env == "production" and any(adapter.simulated for adapter in bindings.values()):

@@ -52,14 +52,22 @@ async def test_remote_retry_rules() -> None:
     )
     try:
         records: list[RemoteCallRecord] = []
-        reply = await service.send(target, RemoteRequest("GET", "/items"), records)
+        reply = await service.send(
+            target, RemoteRequest("GET", "/items", "partner.list", "read"), records
+        )
         assert reply.data == {"ok": True}
         assert records[0].retries == 1
         with pytest.raises(RemoteResultUnknown):
-            await service.send(target, RemoteRequest("POST", "/items", json={"n": 1}), records)
+            await service.send(
+                target,
+                RemoteRequest("POST", "/items", "partner.add", "write", json={"n": 1}),
+                records,
+            )
         assert len(seen) == 3
         reply = await service.send(
-            target, RemoteRequest("POST", "/items", key="request-1"), records
+            target,
+            RemoteRequest("POST", "/items", "partner.add", "write", key="request-1"),
+            records,
         )
         assert reply.status == 200
         assert seen[-1].headers["Idempotency-Key"] == "request-1"
@@ -80,7 +88,7 @@ async def test_remote_write_timeout_result_unknown() -> None:
     )
     try:
         with pytest.raises(RemoteResultUnknown):
-            await service.send(target, RemoteRequest("POST", "/items"), [])
+            await service.send(target, RemoteRequest("POST", "/items", "partner.add", "write"), [])
     finally:
         await service.close()
 
@@ -102,7 +110,7 @@ async def test_remote_write_read_error_result_unknown() -> None:
     )
     try:
         with pytest.raises(RemoteResultUnknown):
-            await service.send(target, RemoteRequest("POST", "/items"), [])
+            await service.send(target, RemoteRequest("POST", "/items", "partner.add", "write"), [])
         assert attempts == 1
     finally:
         await service.close()

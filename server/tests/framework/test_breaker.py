@@ -52,12 +52,18 @@ async def test_remote_calls_stop_after_failures() -> None:
     try:
         for _ in range(4):
             with pytest.raises(RemoteUnavailable):
-                await service.send(target, RemoteRequest("GET", "/bad"), records)
+                await service.send(
+                    target, RemoteRequest("GET", "/bad", "partner.bad", "read"), records
+                )
         with pytest.raises(RemoteRejected):
-            await service.send(target, RemoteRequest("GET", "/rejected"), records)
+            await service.send(
+                target, RemoteRequest("GET", "/rejected", "partner.rejected", "read"), records
+            )
         for _ in range(7):
             with pytest.raises(RemoteUnavailable):
-                await service.send(target, RemoteRequest("GET", "/bad"), records)
+                await service.send(
+                    target, RemoteRequest("GET", "/bad", "partner.bad", "read"), records
+                )
         assert len(seen) == 4 + 1 + 5
         assert "暂停调用" in records[-1].error
     finally:

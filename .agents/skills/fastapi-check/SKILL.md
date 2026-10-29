@@ -1,6 +1,6 @@
 ---
 name: fastapi-check
-description: 改完代码要验证、准备提交、或检查和测试报错时读，按这里选检查范围、看失败报告、写测试。部署上线、查线上运行时不用读。
+description: 改完代码要验证、准备提交、或检查和测试报错时读，按这里选检查范围、真跑一次操作看运行报告、写测试。部署上线、查线上运行时不用读。
 ---
 
 # 检查和测试
@@ -19,6 +19,17 @@ description: 改完代码要验证、准备提交、或检查和测试报错时�
 | 生产用 PostgreSQL | 任意一条加 `--postgres 测试库地址`，只用专门的测试库 |
 
 从最小范围开始，改了公共代码再跑全部。`--quick` 不跑类型检查和接口文档核对。
+
+## 真跑一次看结果
+
+检查过了还要亲眼看一次真实运行。用本地 `.env` 的数据库跑一次登记的操作，打印结果和运行报告（每一步读写了什么、调了谁、停在哪）：
+
+```bash
+uv run dev run customer_contact.create_contact --input '{"name": "张三"}'
+uv run dev run customer_contact.create_contact --input-file 样例.json --org north
+```
+
+以本地开发者身份运行，拥有全部权限；`--org` 指定组织。成功退出码 0，失败 1，失败时报告写明停在哪一步、为什么。本地库要先 `uv run alembic upgrade head`。多阶段流程按阶段分别跑。
 
 ## 代码规则
 

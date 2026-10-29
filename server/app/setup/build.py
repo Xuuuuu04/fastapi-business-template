@@ -105,9 +105,7 @@ def build(
         provider = specification.model_provider(settings)
     models = model_service(settings, catalog, provider)
     services = finish_build(settings, catalog, database, recorder, models)
-    services.runtime.effects = effect_service(
-        settings, specification, database, services.remotes, effect_adapters
-    )
+    services.runtime.effects = effect_service(settings, specification, database, effect_adapters)
     services.runtime.query_policy = query_policy(settings)
     services.runtime.allow_simulation = settings.env == "test"
     bind_clock(services, specification.clock or services.runtime.clock)

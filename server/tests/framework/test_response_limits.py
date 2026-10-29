@@ -41,7 +41,13 @@ async def test_chunked_response_stops_at_limit(method: str, error: type[Exceptio
     )
     try:
         with pytest.raises(error):
-            await service.send(remote("partner", "合作方"), RemoteRequest(method, "/data"), [])
+            await service.send(
+                remote("partner", "合作方"),
+                RemoteRequest(
+                    method, "/data", "partner.data", "read" if method == "GET" else "write"
+                ),
+                [],
+            )
         assert stream.reads < 8 and stream.closed and len(calls) == 1
     finally:
         await service.close()
@@ -78,7 +84,9 @@ async def test_small_external_json_preserves_reply_contract() -> None:
         {"partner": httpx2.MockTransport(lambda request: httpx2.Response(200, json={"price": 12}))},
     )
     try:
-        reply = await service.send(remote("partner", "合作方"), RemoteRequest("GET", "/price"), [])
+        reply = await service.send(
+            remote("partner", "合作方"), RemoteRequest("GET", "/price", "partner.price", "read"), []
+        )
         assert reply.data == {"price": 12} and b"12" in reply.content and "12" in reply.text
     finally:
         await service.close()

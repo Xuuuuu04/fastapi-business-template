@@ -1,11 +1,9 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from shared.data.models import Data
 from shared.records.models import RemoteCallRecord
 from shared.remote_calls.endpoint import Endpoint
-
-SAFE_METHODS = ("GET", "HEAD")
 
 
 @dataclass(frozen=True)
@@ -28,12 +26,12 @@ class RemoteReply:
 class RemoteRequest:
     method: str
     path: str
+    endpoint: str
+    effect: Literal["read", "write"]
     params: dict[str, Any] | None = None
     json: Any = None
     key: str = ""
     accepted_statuses: tuple[int, ...] = ()
-    endpoint: str = ""
-    effect: str = ""
     unknown_on: tuple[int, ...] = ()
     protocol: Endpoint[Any, Any] | None = None
     input: Data | None = None
@@ -51,6 +49,4 @@ class RemoteRequest:
 
 
 def is_write(request: RemoteRequest) -> bool:
-    return (
-        request.effect == "write" if request.effect else request.method.upper() not in SAFE_METHODS
-    )
+    return request.effect == "write"

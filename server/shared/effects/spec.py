@@ -18,7 +18,7 @@ class ProviderSpec[In: Data, Out: Data]:
     title: str
     input: type[In]
     output: type[Out]
-    transport: Literal["http", "smtp", "sdk"]
+    transport: Literal["smtp", "sdk"]
     repeat_safe: bool = False
     timeout: float = 10.0
     concurrency: int = 8
@@ -42,7 +42,7 @@ class ProviderSpec[In: Data, Out: Data]:
         problems = []
         if not re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+", self.name):
             problems.append("ProviderSpec名称应为供应商.动作")
-        if not self.title.strip() or self.transport not in {"http", "smtp", "sdk"}:
+        if not self.title.strip() or self.transport not in {"smtp", "sdk"}:
             problems.append(f"外部效果 {self.name} 的用途或传输类型无效")
         if not math.isfinite(self.timeout) or self.timeout <= 0 or self.concurrency < 1:
             problems.append(f"外部效果 {self.name} 的预算必须为正数")

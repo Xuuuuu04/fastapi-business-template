@@ -41,9 +41,10 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 ## 日常流程
 
 1. 改代码，调试时跑 `uv run dev check --quick --module 包`。
-2. 提交前跑 `uv run dev check --module 包`；改了框架或公共代码跑 `uv run dev check`。
-3. 提交，在 `main` 上执行 `uv run dev deploy` 推送并上线。
-4. 一项业务做完，按 fastapi-business 更新业务文档。
+2. 用 `uv run dev run 操作名 --input '{...}'` 真跑一次，看运行报告对不对。
+3. 提交前跑 `uv run dev check --module 包`；改了框架或公共代码跑 `uv run dev check`。
+4. 提交，在 `main` 上执行 `uv run dev deploy` 推送并上线。
+5. 一项业务做完，按 fastapi-business 更新业务文档。
 
 ## 长期约定
 

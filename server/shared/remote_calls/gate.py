@@ -8,7 +8,7 @@ from shared.remote_calls.endpoint import Endpoint, EndpointReply
 from shared.remote_calls.remote import Remote
 from shared.remote_calls.request import FilePart
 from shared.remote_calls.serialization import request_for
-from shared.remote_calls.service import RemoteReply, RemoteRequest, RemoteService, is_write
+from shared.remote_calls.service import RemoteService
 
 
 class RemoteGate:
@@ -32,20 +32,6 @@ class RemoteGate:
         self._before_write = before_write
         self._endpoints = endpoints
 
-    async def send(self, target: Remote, request: RemoteRequest) -> RemoteReply:
-        if not request.endpoint:
-            raise StepRuleBroken("只能用 remote.call 调用已声明的 Endpoint")
-        self.check_request(request)
-        if self._transaction_started is not None and self._transaction_started():
-            raise StepRuleBroken("写入事务开始后不能调用外部接口")
-        if target not in self._allowed:
-            raise StepRuleBroken(f"“{self._place}”访问了未声明的外部系统 {target.name}")
-        if self._service is None:
-            raise StepRuleBroken("没有启用外部接口服务")
-        if self._before_write is not None and is_write(request):
-            await self._before_write()
-        return await self._service.send(target, request, self._records, self._effects)
-
     async def call[In: Data, Out: Data](
         self,
         target: Remote,
@@ -57,14 +43,14 @@ class RemoteGate:
     ) -> EndpointReply[Out]:
         if endpoint not in self._endpoints:
             raise StepRuleBroken(f"“{self._place}”调用了未声明的上游接口 {endpoint.name}")
+        if self._transaction_started is not None and self._transaction_started():
+            raise StepRuleBroken("写入事务开始后不能调用外部接口")
+        if target not in self._allowed:
+            raise StepRuleBroken(f"“{self._place}”访问了未声明的外部系统 {target.name}")
+        if self._service is None:
+            raise StepRuleBroken("没有启用外部接口服务")
+        if self._before_write is not None and endpoint.effect == "write":
+            await self._before_write()
         request = request_for(endpoint, input, key, files)
-        reply = await self.send(target, request)
+        reply = await self._service.send(target, request, self._records, self._effects)
         return EndpointReply(reply.status, reply.data)
-
-    def check_request(self, request: RemoteRequest) -> None:
-        matched = next((e for e in self._endpoints if e.name == request.endpoint), None)
-        if matched is None or request.protocol is not matched or request.input is None:
-            raise StepRuleBroken(f"上游请求 {request.endpoint} 与步骤声明不一致")
-        expected = request_for(matched, request.input, request.key, request.files)
-        if request != expected:
-            raise StepRuleBroken(f"上游请求 {request.endpoint} 与步骤声明不一致")

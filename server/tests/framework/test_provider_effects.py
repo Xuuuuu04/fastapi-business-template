@@ -60,7 +60,7 @@ async def service_at(tmp_path: Path, transport="smtp"):
     return EffectService(store, {spec: adapter}), spec, adapter, database
 
 
-@pytest.mark.parametrize("transport", ["http", "smtp", "sdk"])
+@pytest.mark.parametrize("transport", ["smtp", "sdk"])
 async def test_repeat_submission_and_encrypted_request(tmp_path: Path, transport: str) -> None:
     service, spec, adapter, database = await service_at(tmp_path, transport)
     try:
