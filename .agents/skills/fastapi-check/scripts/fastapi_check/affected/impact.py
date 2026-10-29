@@ -67,7 +67,7 @@ def framework_files(files: Iterable[str]) -> list[str]:
     return sorted(
         path
         for path in files
-        if (path.startswith(".agents/skills/") and path not in PRODUCT_FILES)
+        if path.startswith(".agents/skills/")
         or (
             path.startswith("server/")
             and any(path[7:] == entry or path[7:].startswith(entry + "/") for entry in FRAMEWORK)
@@ -116,7 +116,7 @@ def impact_scope(
     disabled_modules: Iterable[str] = (),
     root: Path = ROOT,
 ) -> ImpactScope:
-    paths = sorted(set(files))
+    paths = sorted(set(files) - PRODUCT_FILES)
     registered = sorted(catalog.modules)
     direct_reasons: dict[str, list[str]] = {}
     unmapped = []

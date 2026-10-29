@@ -129,6 +129,8 @@ def select_affected(catalog: Catalog, base: str, project: Path = PROJECT) -> Sel
         return Selection(
             reasons=(f"存在无法归属的改动，执行完整检查：{'、'.join(scope.unmapped)}",)
         )
+    if not scope.direct:
+        return Selection(unchanged=True, reasons=("改动不涉及代码；本次未执行检查。",))
     try:
         old = previous_graph(project, revision)
     except (

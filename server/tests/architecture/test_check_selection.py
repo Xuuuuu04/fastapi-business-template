@@ -155,3 +155,11 @@ def test_validation_and_local_files(tmp_path: Path) -> None:
     files = module_files(("sample_records",), tmp_path / "server")
     assert "app/api/v1/sample_records.py" in files
     assert not any("sample_accounts" in path for path in files)
+
+
+def test_business_document_change_runs_nothing(repository: Path) -> None:
+    file = repository / ".agents/skills/fastapi-business/business.md"
+    file.parent.mkdir(parents=True)
+    file.write_text("# 业务说明\n", encoding="utf-8")
+    selected = select_affected(Catalog(MODULES), "HEAD", repository)
+    assert selected.unchanged and not selected.modules

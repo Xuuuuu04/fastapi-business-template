@@ -125,7 +125,7 @@ def test_docs_tests_and_api_are_direct_changes(catalog: Catalog, path: str) -> N
 
 def test_business_document_needs_no_check(catalog: Catalog) -> None:
     scope = impact_scope([".agents/skills/fastapi-business/business.md"], catalog)
-    assert not scope.full_check and scope.affected == []
+    assert not scope.full_check and scope.affected == scope.unmapped == []
 
 
 @pytest.mark.parametrize(
