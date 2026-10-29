@@ -52,6 +52,7 @@ async def configure(services: Services):
         input=Batch,
         output=Total,
         access="fanout_sample.run",
+        effect="command",
     )
     group = replace(pipeline.stages[1], stages=(Stage("batch", batch),), join=All(), max_parallel=1)
     changed = replace(

@@ -19,9 +19,11 @@ def finish(data: Work) -> None:
 
 
 def sample_module(name: str, title: str) -> Module:
-    operation = contract(f"{name}.run", f"{title}操作", input=Empty, output=Empty, access="public")
+    operation = contract(
+        f"{name}.run", f"{title}操作", input=Empty, output=Empty, access="public", effect="command"
+    )
     flow = Flow(title, work=Work, result="result", steps=[finish])
-    return Module(name, title, "1", {operation: flow})
+    return Module(name, title, "1", {operation: flow}, kind="capability")
 
 
 @pytest.fixture

@@ -20,7 +20,12 @@ class IdentityWork(Token, WorkData):
 
 
 resolve = contract(
-    "sample_identity.resolve", "解析身份", input=Token, output=Identity, access="public"
+    "sample_identity.resolve",
+    "解析身份",
+    input=Token,
+    output=Identity,
+    access="public",
+    effect="command",
 )
 
 
@@ -41,4 +46,5 @@ module = Module(
     identity=resolve,
     identity_header="X-Legacy-Token",
     identity_token="opaque",
+    kind="capability",
 )

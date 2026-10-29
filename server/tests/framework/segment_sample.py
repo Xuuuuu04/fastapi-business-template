@@ -67,6 +67,7 @@ batch = contract(
     output=BatchResult,
     access="segment_sample.write",
     timeout=60,
+    effect="command",
 )
 
 
@@ -116,4 +117,5 @@ module = Module(
     store=BatchStore,
     tables=(source, output),
     jobs=(JobPlan(batch, retry=Retry(2, (0,)), repeat_safe=True, segmented=True, lease_seconds=3),),
+    kind="capability",
 )

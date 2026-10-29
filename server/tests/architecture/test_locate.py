@@ -20,6 +20,7 @@ price = contract(
     output=CalcResult,
     access="public",
     aliases=("change price", "/api/v1/price/old"),
+    effect="command",
 )
 price_module = Module(
     "sample_price",
@@ -28,6 +29,7 @@ price_module = Module(
     {price: calc_flow},
     store=NoteStore,
     aliases=("价格表", "price table"),
+    kind="capability",
 )
 router = APIRouter(prefix="/api/v1/price")
 
@@ -57,7 +59,12 @@ def test_business_queries(tmp_path: Path, query: str) -> None:
 def test_bounded_large_project(tmp_path: Path) -> None:
     operations = {
         contract(
-            f"sample_price.op_{n}", "价格", input=CalcInput, output=CalcResult, access="public"
+            f"sample_price.op_{n}",
+            "价格",
+            input=CalcInput,
+            output=CalcResult,
+            access="public",
+            effect="command",
         ): calc_flow
         for n in range(1000)
     }

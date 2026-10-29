@@ -105,7 +105,12 @@ def build_result(data: CalcWork) -> None:
 
 
 calc = contract(
-    "sample_calc.calc", "示例计算", input=CalcInput, output=CalcResult, access="sample_calc.use"
+    "sample_calc.calc",
+    "示例计算",
+    input=CalcInput,
+    output=CalcResult,
+    access="sample_calc.use",
+    effect="command",
 )
 calc_flow = Flow(
     "示例计算",
@@ -143,7 +148,12 @@ async def save_mark(data: SlowWork, store: NoteStore) -> None:
 
 
 slow = contract(
-    "sample_calc.slow", "慢任务", input=SlowInput, output=SlowResult, access="sample_calc.use"
+    "sample_calc.slow",
+    "慢任务",
+    input=SlowInput,
+    output=SlowResult,
+    access="sample_calc.use",
+    effect="command",
 )
 slow_flow = Flow("慢任务", work=SlowWork, result="result", steps=[wait_some, save_mark])
 hurried = contract(
@@ -153,6 +163,7 @@ hurried = contract(
     output=SlowResult,
     access="sample_calc.use",
     timeout=0.05,
+    effect="command",
 )
 
 
@@ -180,7 +191,12 @@ async def ask_text(data: TextWork, model: Model) -> None:
 
 
 explain = contract(
-    "sample_calc.explain", "说明文字", input=TextInput, output=TextResult, access="sample_calc.use"
+    "sample_calc.explain",
+    "说明文字",
+    input=TextInput,
+    output=TextResult,
+    access="sample_calc.use",
+    effect="command",
 )
 explain_flow = Flow("说明文字", work=TextWork, result="result", steps=[ask_text])
 
@@ -195,6 +211,7 @@ calc_module = Module(
         JobPlan(calc, retry=Retry(times=1, waits=(0.0,))),
         JobPlan(slow, repeat_safe=True, lease_seconds=0.3, max_queued=2),
     ),
+    kind="capability",
 )
 
 
@@ -219,7 +236,12 @@ async def call_calc(data: OuterWork, call: Call) -> None:
 
 
 outer = contract(
-    "sample_outer.run", "外层操作", input=CalcInput, output=CalcResult, access="sample_outer.use"
+    "sample_outer.run",
+    "外层操作",
+    input=CalcInput,
+    output=CalcResult,
+    access="sample_outer.use",
+    effect="command",
 )
 outer_module = Module(
     name="sample_outer",
@@ -229,4 +251,5 @@ outer_module = Module(
         outer: Flow("外层操作", work=OuterWork, result="result", steps=[save_first, call_calc])
     },
     store=NoteStore,
+    kind="workflow",
 )

@@ -19,7 +19,12 @@ from shared.public import Data, Flow, Module, WorkData, contract, meaning, remot
 from tests.testing_app import KEY, make_settings, reset_database_now
 
 remote_module = Module(
-    "sample_partner", "外部系统示例", "1", provides={}, remotes=(remote("partner", "合作方"),)
+    "sample_partner",
+    "外部系统示例",
+    "1",
+    provides={},
+    remotes=(remote("partner", "合作方"),),
+    kind="capability",
 )
 
 
@@ -48,13 +53,19 @@ def check_token(data: LoginWork) -> None:
 
 
 login = contract(
-    "secure_demo.login", "检查令牌", input=Login, output=Checked, access="secure_demo.use"
+    "secure_demo.login",
+    "检查令牌",
+    input=Login,
+    output=Checked,
+    access="secure_demo.use",
+    effect="command",
 )
 secure_module = Module(
     "secure_demo",
     "安全示例",
     "1",
     provides={login: Flow("检查令牌", work=LoginWork, result="result", steps=[check_token])},
+    kind="capability",
 )
 router = APIRouter()
 

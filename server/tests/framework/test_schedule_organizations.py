@@ -84,7 +84,12 @@ def test_slot_input_preserves_original() -> None:
     from shared.public import contract
 
     operation = contract(
-        "sample_window.run", "窗口", input=WindowInput, output=WindowInput, access="public"
+        "sample_window.run",
+        "窗口",
+        input=WindowInput,
+        output=WindowInput,
+        access="public",
+        effect="command",
     )
     old = WindowInput(request=Window(end=datetime(2026, 10, 1, tzinfo=UTC)))
     timer = Schedule(

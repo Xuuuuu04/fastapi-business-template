@@ -31,6 +31,7 @@ stream_contract = contract(
     output=StreamResult,
     access="stream_probe.use",
     stream=True,
+    effect="command",
 )
 
 
@@ -48,7 +49,9 @@ def probe_module(gate: asyncio.Event, *, full: asyncio.Event | None = None) -> M
         data.result = StreamResult(saved=saved)
 
     flow = Flow("流式测试", work=StreamWork, result="result", steps=[save_stream])
-    return Module("stream_probe", "流式测试", "1", {stream_contract: flow}, store=NoteStore)
+    return Module(
+        "stream_probe", "流式测试", "1", {stream_contract: flow}, store=NoteStore, kind="capability"
+    )
 
 
 async def prepare(services: Services, gate: asyncio.Event) -> None:
@@ -152,6 +155,7 @@ talk_contract = contract(
     output=StreamResult,
     access="talk_probe.use",
     stream=True,
+    effect="command",
 )
 
 
@@ -167,6 +171,7 @@ talk_module = Module(
     "流式讲解",
     "1",
     {talk_contract: Flow("流式讲解", work=TalkWork, result="result", steps=[talk])},
+    kind="capability",
 )
 
 

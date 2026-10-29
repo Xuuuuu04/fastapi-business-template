@@ -138,7 +138,12 @@ def runtime_module(through_store: bool) -> Module:
         data.result = Text(text=store.clean(data.text))
 
     operation = contract(
-        "sample_calc.normalize", "纯计算样例", input=Text, output=Text, access="sample_calc.run"
+        "sample_calc.normalize",
+        "纯计算样例",
+        input=Text,
+        output=Text,
+        access="sample_calc.run",
+        effect="command",
     )
     flow = Flow(
         "计算",
@@ -152,6 +157,7 @@ def runtime_module(through_store: bool) -> Module:
         "1.0",
         {operation: flow},
         store=TextStore if through_store else None,
+        kind="capability",
     )
 
 

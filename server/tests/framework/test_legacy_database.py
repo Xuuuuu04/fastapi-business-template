@@ -41,9 +41,16 @@ class OldStore:
         await self.legacy.change(insert(old_items).values(id=2, name="不应写入"))
 
 
-read_old = contract("legacy_probe.read", "读旧库", input=Nothing, output=OldItem, access="public")
+read_old = contract(
+    "legacy_probe.read", "读旧库", input=Nothing, output=OldItem, access="public", effect="command"
+)
 write_old = contract(
-    "legacy_probe.write", "试写旧库", input=Nothing, output=OldItem, access="public"
+    "legacy_probe.write",
+    "试写旧库",
+    input=Nothing,
+    output=OldItem,
+    access="public",
+    effect="command",
 )
 
 
@@ -67,6 +74,7 @@ probe = Module(
         write_old: Flow("试写旧库", work=OldWork, result="result", steps=[write_item]),
     },
     store=OldStore,
+    kind="capability",
 )
 
 

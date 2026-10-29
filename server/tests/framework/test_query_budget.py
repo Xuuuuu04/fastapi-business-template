@@ -167,6 +167,7 @@ async def test_budget_failure_rolls_back(settings: Settings) -> None:
                 provides={item: flow},
                 store=SavingStore,
                 tables=(items,),
+                kind="capability",
             )
         ]
     )
@@ -203,6 +204,7 @@ async def test_nested_operation_budget(settings: Settings) -> None:
         access="public",
         query_budget=QueryBudget(queries=1),
         aliases=("上层查询",),
+        effect="command",
     )
     from dataclasses import replace
 
