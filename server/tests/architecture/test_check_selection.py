@@ -2,9 +2,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from fastapi_check.check import INTEGRITY, QUALITY, steps
-from fastapi_check.quality.report import Problem, in_modules
-from fastapi_project.development.selection import (
+from fastapi_check.affected.selection import (
     Selection,
     affected_modules,
     module_files,
@@ -13,6 +11,8 @@ from fastapi_project.development.selection import (
     select_affected,
     validate_modules,
 )
+from fastapi_check.check import INTEGRITY, QUALITY, steps
+from fastapi_check.quality.report import Problem, in_modules
 
 from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
@@ -43,7 +43,7 @@ def test_multi_package_plan_runs_common_checks_once(
 
 def test_module_quality_keeps_only_own_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "fastapi_project.development.selection.module_files",
+        "fastapi_check.affected.selection.module_files",
         lambda names: ["app/api/v1/sample_records.py"],
     )
     own = [
@@ -99,12 +99,12 @@ def test_affected_selection_and_unknown_old_caller(
 ) -> None:
     path = repository / "server/service/sample_records/steps/files.py"
     path.write_text("VALUE = 2\n", encoding="utf-8")
-    monkeypatch.setattr("fastapi_project.development.selection.previous_graph", lambda *args: {})
+    monkeypatch.setattr("fastapi_check.affected.selection.previous_graph", lambda *args: {})
     catalog = Catalog(MODULES)
     selected = select_affected(catalog, "HEAD", repository)
     assert selected.modules == ("sample_records",)
     monkeypatch.setattr(
-        "fastapi_project.development.selection.previous_graph",
+        "fastapi_check.affected.selection.previous_graph",
         lambda *args: {"old_caller": ["sample_records"]},
     )
     selected = select_affected(catalog, "HEAD", repository)

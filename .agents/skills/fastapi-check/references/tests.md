@@ -18,22 +18,20 @@
 - 夹具在 `tests/conftest.py`：`client`（真实应用的 TestClient）、`services`（组装好的服务，可直接 `await services.runtime.run(操作, 输入, caller=...)`）、`settings`。请求头用 `tests/testing_app.py` 的 `KEY`（全部权限）和 `READER`（只读）。
 - 单个步骤用 `shared.flow.testing` 的 `try_step(步骤, Work类, 字段=值)`，返回的 `values` 是写出的字段；异步步骤用 `try_step_async(步骤, Work类, {字段: 值}, store=假存储)`。
 - 接口测试除了正常结果，还要断言错误的 `code`；需要确认停在哪一步时，用响应里的 `run_id` 查 `/api/system/runs/{run_id}`。
-- 只在 PostgreSQL 上有意义的测试（行锁、并发提交）加 `@pytest.mark.postgres_only`，没有配置 PostgreSQL 时会跳过；跳过不能算通过。
-- 不要为了让检查通过修改 quality 的阈值或 architecture 的断言，这两类失败说明结构真的变了。
+- 只在 PostgreSQL 上有意义的测试（行锁、并发提交）加 `@pytest.mark.postgres_only`，没有配置 PostgreSQL 时会跳过。
 - 临时复现脚本放 `tests/temp/`。问题查清后，能长期保护行为的改成正式测试放到对应目录，其余删除。
 
 完整跑一遍测试（不指定文件、不过滤分组）时，app 里登记的每个操作至少要被执行一次，否则整轮失败并列出没执行到的操作名。按 `--module` 跑时只核对所选的包。
 
 ## 失败时看哪里
 
-失败的测试会在输出里附上中文运行报告，并把这个测试里的全部运行和完整报告存成 `server/var/development/failures/随机名.json`。报告不保存身份和输入正文；多阶段流程的测试还会补上夹具结束前的阶段、成员、任务和租约状态。先读报告找到失败的步骤和源码行，再去读代码。这个目录不提交，也不复制进新产品。
+失败的测试会在输出里附上中文运行报告，并把这个测试里的全部运行和完整报告存成 `server/var/development/failures/随机名.json`。多阶段流程的测试还会补上阶段、成员、任务和租约状态。先读报告找到失败的步骤和源码行，再去读代码。
 
 ## 数据库
 
-- 默认用 SQLite。每个测试拿到一个新文件，从空结构快照复制；结构或迁移版本变了会自动重建快照。
-- 用 PostgreSQL：`uv run dev check --postgres 控制地址`，或直接运行 pytest 时设置 `APP_TEST_DATABASE_URL`。每个 pytest 进程会在这个地址上新建一个 `fastapi_test_随机串_进程号` 数据库，跑完只删除带本轮标记的那个库，不碰地址里原有的库。所以连接账号需要建库权限，而且只能用已授权的测试服务器。
-- Redis 和 S3 的约定测试要设置 `APP_TEST_REDIS_URL`，以及 `APP_TEST_S3_ENDPOINT`、`APP_TEST_S3_ACCESS_KEY`、`APP_TEST_S3_SECRET_KEY`（可选 `APP_TEST_S3_BUCKET`、`APP_TEST_S3_REGION`）。没设置时这些测试跳过；生产用到 Redis 或 S3 的，发布前要设置后再跑。
-- 测试进程启动时会清掉名字里含 `API_KEY`、`ACCESS_TOKEN`、`CLIENT_SECRET` 的环境变量（`APP_TEST_` 开头的除外），测试不会读到真实密钥。
+- 默认用 SQLite，每个测试拿到一个新文件。
+- 用 PostgreSQL：`uv run dev check --postgres 地址`，或直接运行 pytest 时设置 `APP_TEST_DATABASE_URL`。每个 pytest 进程在这个地址上新建一个测试库，跑完删掉，所以账号需要建库权限。
+- Redis 和 S3 的约定测试要设置 `APP_TEST_REDIS_URL`，以及 `APP_TEST_S3_ENDPOINT`、`APP_TEST_S3_ACCESS_KEY`、`APP_TEST_S3_SECRET_KEY`（可选 `APP_TEST_S3_BUCKET`、`APP_TEST_S3_REGION`），没设置时这些测试跳过。
 
 ## 手动测试
 
@@ -43,5 +41,5 @@ uv run --with playwright python -m playwright install chromium
 uv run --with playwright python -m tests.browser.run --port 8000 --output out/browser
 ```
 
-- 压力测试要先启动服务，结果只用来比较改动前后，不能当作生产容量。
-- 浏览器检查要求服务开着 `APP_DOCS=true`；设置 `APP_TEST_SERVICE_KEY` 并开 `APP_CONSOLE=true` 时还会检查运行页面。截图仍要人看一遍。
+- 压力测试要先启动服务，结果用来比较改动前后。
+- 浏览器检查要求服务开着 `APP_DOCS=true`；设置 `APP_TEST_SERVICE_KEY` 并开 `APP_CONSOLE=true` 时还会检查运行页面。

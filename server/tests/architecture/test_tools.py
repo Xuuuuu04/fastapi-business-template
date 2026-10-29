@@ -1,7 +1,7 @@
 import json
 
-from fastapi_docs.openapi import openapi_text
-from fastapi_migration.compare_api import compare
+from fastapi_check.openapi import openapi_text
+from fastapi_template.compare_api import compare
 
 COPY_FLAG = "TEMPLATE_COPY_RUN"
 

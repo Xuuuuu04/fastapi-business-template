@@ -98,12 +98,7 @@ def product_entry(target: Path, name: str) -> None:
         "框架来源见 template-source.json。\n",
     )
     agents = (target / "AGENTS.md").read_text(encoding="utf-8")
-    end = agents.index("## 怎么运行")
-    agents = (
-        f"# {name}\n\n" + f"## 这个项目是什么\n\n- 产品：{name}\n- 使用者：（待填写）\n\n"
-        "业务模块由产品按需要生成，规则须按本产品确认。\n\n" + agents[end:]
-    )
-    write(target / "AGENTS.md", agents)
+    write(target / "AGENTS.md", f"# {name}\n\n" + agents[agents.index("## 业务要点") :])
 
 
 def product_metadata(source: Path, target: Path) -> None:

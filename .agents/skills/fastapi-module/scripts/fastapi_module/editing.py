@@ -12,7 +12,7 @@ def validate(module: str, name: str) -> Path:
         raise ValueError("模块和操作名只能使用小写字母、数字、下划线")
     folder = ROOT / "service" / module
     if folder.is_symlink() or not (folder / "module.json").is_file():
-        raise ValueError("需要已有标准模块，请先new_module或adopt_modules")
+        raise ValueError("需要已有标准模块，请先用 uv run dev new-module 生成")
     return folder
 
 

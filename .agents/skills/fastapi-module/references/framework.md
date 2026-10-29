@@ -2,7 +2,7 @@
 
 业务包只从 `shared.public` 导入框架，只导入别的包的 `public.py` 和 `library.工具包.public`；不导入 fastapi、httpx 等 HTTP 库，SQLAlchemy 只在 `store/` 里用。违反时启动和检查都会报错。模板没有预置业务包，每节末尾列出的 `server/tests/framework/` 下的文件就是完整可运行的例子。
 
-路由文件在 `app/api/v1/包名.py`，接口多时拆成 `包名_主题.py`。路由只做参数转换并 `await run(操作, 输入)`，可以用 `app.api.runner` 的 `RunDep`、`FailureLimit` 和 `app.api.replies` 的 `responses_for`。只改请求或响应格式时，新建 `app/api/v2/包名.py` 转换后调用同一个操作，不复制业务代码。
+路由文件在 `app/api/v1/包名.py`，接口多时拆成 `包名_主题.py`。路由只做参数转换并 `await run(操作, 输入)`，可以用 `app.api.runner` 的 `RunDep`、`FailureLimit` 和 `app.api.replies` 的 `responses_for`。
 
 ## 声明
 
@@ -141,7 +141,7 @@ class QuoteInvalid(BusinessError):
 
 - 抛出时可带说明和字段：`raise QuoteInvalid(f"商品 {sku} 金额为 0", fields={"amount": "必须大于零"})`。
 - 程序按 `code` 判断，不按说明文字判断。contract 的 `errors` 列出会抛的业务错误，接口文档据此生成。
-- 意外异常只记录类型和出错位置，不记录消息。各类问题怎么处理见 SKILL.md 的"出了问题怎么办"。
+- 意外异常只记录类型和出错位置，不记录消息。各类问题怎么处理见 SKILL.md 的“出错怎么办”。
 
 ## 后台任务
 

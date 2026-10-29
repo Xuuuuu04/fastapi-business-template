@@ -1,89 +1,41 @@
-# 已有产品接收框架更新
+# 升级框架
 
-适用于：复制模板、或通过 GitHub 模板创建、因此和模板没有共同 Git 历史的产品。
-
-更新工具只比较框架文件，不要求把模板的全部提交合并进产品。业务包、模块登记、环境配置、依赖版本和数据库迁移历史，都由产品自己保留。
+更新工具只比较框架文件（清单在 `server/shared/modules/validation/framework_files.py`），不要求产品和模板有共同的 Git 历史。业务包、模块登记、环境配置、依赖版本、迁移历史和业务文档都由产品自己保留。
 
 ## 一、准备旧模板和新模板
 
-先把产品当前的工作保存好，新开一个分支。
-
-用初始化工具创建的产品，`template-source.json` 记录了上次采用的模板版本、Git 提交和文件摘要，据此取出旧模板。没用初始化工具的旧产品，要从第一次复制模板时的提交或版本取出。不能随便猜一个版本当旧模板，否则工具分不清哪些是产品自己改的。
+先提交产品当前的改动。产品根目录的 `template-source.json` 记着上次采用的模板版本和提交，按它取出旧模板，不要猜：
 
 ```bash
 git clone https://github.com/Xuuuuu04/fastapi-business-template.git /tmp/template-upgrade
-git -C /tmp/template-upgrade worktree add --detach /tmp/template-old 旧模板提交或标签
-git -C /tmp/template-upgrade worktree add --detach /tmp/template-new 新模板提交或标签
+git -C /tmp/template-upgrade worktree add --detach /tmp/template-old 旧模板提交
+git -C /tmp/template-upgrade worktree add --detach /tmp/template-new 新模板提交
 ```
 
-## 二、预览和接收
+## 二、预览和写入
 
-一律在**新模板**的 `server/` 下运行升级工具，用 `--target` 指定产品目录。这样用的是新版本的工具和框架清单；产品里的旧工具可能漏掉新版本新增的框架文件，写出的来源记录也是旧格式。
+在新模板的 `server/` 下运行，用的是新版本的工具和框架清单：
 
 ```bash
 cd /tmp/template-new/server
 uv sync
-# 预览
 uv run dev upgrade --target /产品目录 --base /tmp/template-old --source /tmp/template-new
-# 确认后写入
 uv run dev upgrade --target /产品目录 --base /tmp/template-old --source /tmp/template-new --apply
 ```
 
-预览结果里，`changes` 是要改的框架文件；`newly_managed` 是新模板清单里有、产品来源记录里没有的文件，产品从没收到过它们，按新增文件处理；`manual_review` 是要人工处理的依赖、配置和登记。不加 `--apply` 就不会写入产品。
-
-工具对每个文件这样处理：
+预览结果里，`changes` 是要改的框架文件，`newly_managed` 是新版本才开始管理的文件，`manual_review` 是要人工处理的依赖、配置和登记。
 
 | 情况 | 处理 |
-|---|---|
+| --- | --- |
 | 产品没改过这个文件 | 直接用新版 |
-| 产品和新版改的是不同位置 | 尝试自动合并文本 |
-| 同一处两边都改了 | 冲突 |
-| 新增的文件和产品里的文件重名 | 冲突 |
-| 新版删了产品改过的文件 | 冲突 |
-| 产品删了新版改过的文件 | 冲突 |
+| 产品和新版改的是不同位置 | 自动合并文本 |
+| 同一处两边都改了，或一边删一边改 | 冲突 |
 
-- 有任何一个冲突，所有文件都保持原样，一个都不写。
-- 默认只预览。`--apply` 在保存前会再检查一次，保存中途失败会恢复本次已写入的文件。
-- 文件链接、或路径指到项目之外的文件会被拒绝。
-- 工具从不访问或修改数据库。
+有冲突时一个文件都不写。按业务规则和接口含义人工解决冲突，再重新预览。写入后 `template-source.json` 更新成新模板。
 
-冲突要人工解决，以业务规则和接口含义为准，改完重新预览。更新完成后，`template-source.json` 按新模板的清单记下文件摘要。产品自己的修改仍保留在产品文件里，下次更新继续做三份比较。
+## 三、写入之后
 
-### 用旧工具升级过的产品
-
-3.1.1 及以前在产品自己的 `server/` 下升级过的产品，`template-source.json` 没登记新版本新增的框架文件（3.1.1 是 `tests/scheduling.py` 和 `tests/template_project.py`）。产品里的旧工具下次升级会报“旧模板与 template-source.json 不一致”。照上面的做法在新模板的 `server/` 下运行就行：新工具只核对记录里登记过的文件，漏掉的文件列进 `newly_managed` 并补进产品，接收后来源记录按新格式重写。暂时不升级、只想修正来源记录时，把记录里的那个版本同时作 `--base` 和 `--source` 运行一次，确认预览后加 `--apply`。
-
-## 三、接收之后检查
-
-1. 看 `git diff`。预览结果里 `manual_review` 列出的依赖、配置、登记和迁移变化，需要人工处理。
-2. 读新模板的版本说明。已有的数据库必须保留自己的迁移历史，按业务差异新增迁移，不能覆盖初始迁移再升级。模板从 1.x 升到 2.x 时，事件和后端选择有变化，需要单独适配。
-3. 第一次采用标准包结构时，在产品的 `server/` 下运行 `uv run dev adopt-modules`。目录、固定文件、步骤位置不合格的，先处理。新版增加了系统功能和新表时，还要按新表的声明生成产品自己的迁移。
-4. 审查完框架差异，在产品的 `server/` 下依次运行：
-   - `uv run dev docs`
-   - `uv run dev check`
-5. 使用 PostgreSQL 的产品，检查命令再加 `--postgres 测试数据库地址`，用真实业务包验证接口和业务样例。
-6. 接收项目 Skill 和 `AGENTS.md` 的变化，之后按业务迁移 Skill 逐项推进。第一次更新后跑完整检查；日常的局部调试和当前业务的联合检查另外分开运行。
-
-## 工具不做的事
-
-- 不改依赖和 `uv.lock`。
-- 不批准不兼容的接口，不执行数据库迁移。
-- 不审查框架改动本身，框架差异仍然需要人看。
-
-没有共同 Git 历史不妨碍比较文件。但旧模板找不对、业务行为已经和新版不兼容、新版新增了数据库结构，这些情况仍要人工处理。
-
-## 第二代升级第三代
-
-先从项目的 `template-source.json` 确认旧模板，保留原工作分支和迁移历史，再执行三方预览。第三代更新范围包含时钟中间件、测试资源准备及本机开发命令；生产入口仍不导入开发工具。
-
-必须逐项适配 `manual_review`：
-
-- 将第三代的开发依赖与 `[tool]` 配置合进产品 `pyproject.toml`，保留产品名称、版本及自己的依赖，再重新生成 `uv.lock`。
-- 增加产品自己的 `app/product.py`，用 `ApplicationSpec` 写产品组装；原业务登记、接口和手写文档按实际业务保留。
-- 配置示例逐项接收新字段，保留产品自己的配置说明。实际凭据仍由产品环境提供。
-- 新增的 `e30a00000006`、`e30a00000007` 涉及外部意图、任务约束及资源表。保留原迁移，只加入新版本；若产品已有自己的迁移头，先核对对象依赖再新增合并版本。包含辅助函数或动态DDL时，自动分析会要求人工处理，不能直接当作独立变化。
-- 规则账本、业务词表、业务文档、项目计划、任务卡和开发面板已经删除；升级后可删掉产品里的 `doc/包名/*.md`、`doc/rules-ledger.json`、`doc/glossary.json` 和 `project-plan.json`，`dev docs` 只生成 `doc/api/openapi.json`。
-
-在隔离 SQLite/PostgreSQL 分别验证从产品旧版本升级和全新建库，检查结构、合成旧行以及产品样例，再跑当前源码完整检查。模板的合成三包升级验收只证明工具路径，不代替各产品接口兼容、实际数据或生产部署验收。
-
-还没部署的更新，用产品的 Git 分支撤回。数据库迁移和部署需要产品自己的备份和恢复办法。
+1. 看 `git diff`，按 `manual_review` 处理依赖、配置和登记；依赖变了重新生成 `uv.lock`。
+2. 新版增加了框架表时，在产品的迁移链上新增迁移，不改已有迁移。
+3. 运行 `uv run dev docs` 和 `uv run dev check`，生产用 PostgreSQL 的再加 `--postgres 测试库地址` 跑一次。
+4. 提交。要撤回就用 Git 撤回这次提交。

@@ -26,7 +26,7 @@ def unused_allowed(problems: list[Problem]) -> list[Problem]:
 def in_modules(problems: list[Problem], names: Sequence[str]) -> list[Problem]:
     if not names:
         return problems
-    from fastapi_project.development.selection import module_files
+    from fastapi_check.affected.selection import module_files
 
     files = set(module_files(tuple(names)))
     folders = [

@@ -1,5 +1,5 @@
 import pytest
-from fastapi_project.development.impact import CHECK, impact_scope, module_area
+from fastapi_check.affected.impact import CHECK, impact_scope, module_area
 
 from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES

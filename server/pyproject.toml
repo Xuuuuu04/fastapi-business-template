@@ -51,12 +51,10 @@ testpaths = [
 ]
 addopts = "--strict-markers --strict-config --import-mode=importlib -p no:cacheprovider"
 pythonpath = [".",
+  "../.agents/skills/fastapi-business/scripts",
   "../.agents/skills/fastapi-check/scripts",
-  "../.agents/skills/fastapi-docs/scripts",
-  "../.agents/skills/fastapi-migration/scripts",
   "../.agents/skills/fastapi-module/scripts",
   "../.agents/skills/fastapi-operations/scripts",
-  "../.agents/skills/fastapi-project/scripts",
   "../.agents/skills/fastapi-template/scripts",
 ]
 markers = [
@@ -86,12 +84,10 @@ python_version = "3.12"
 explicit_package_bases = true
 mypy_path = [
   "devtools/src",
+  "../.agents/skills/fastapi-business/scripts",
   "../.agents/skills/fastapi-check/scripts",
-  "../.agents/skills/fastapi-docs/scripts",
-  "../.agents/skills/fastapi-migration/scripts",
   "../.agents/skills/fastapi-module/scripts",
   "../.agents/skills/fastapi-operations/scripts",
-  "../.agents/skills/fastapi-project/scripts",
   "../.agents/skills/fastapi-template/scripts",
 ]
 disallow_untyped_defs = true

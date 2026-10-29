@@ -4,8 +4,8 @@ from time import perf_counter
 
 import pytest
 from fastapi import APIRouter, FastAPI
-from fastapi_project.development.locate import locate
-from fastapi_project.development.locate_routes import route_details
+from fastapi_business.routes import route_details
+from fastapi_business.search import locate
 
 from shared.errors.framework import DeclarationError
 from shared.flow.flow import Flow
@@ -149,7 +149,7 @@ def test_schedule_and_pipeline_names(tmp_path: Path) -> None:
 def test_registered_router_selection() -> None:
     import ast
 
-    from fastapi_project.development.locate_routes import registered_routers
+    from fastapi_business.routes import registered_routers
 
     from tests.framework.sample_routes import sample_router
 

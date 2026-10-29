@@ -25,12 +25,10 @@ def check_imports(root: Path = ROOT) -> list[Problem]:
                 "tools",
                 "tests",
                 "fastapi_check",
-                "fastapi_docs",
-                "fastapi_project",
+                "fastapi_business",
                 "fastapi_module",
                 "fastapi_template",
                 "fastapi_operations",
-                "fastapi_migration",
             ),
             "框架代码不能依赖业务、接口或工具",
         )
@@ -96,12 +94,10 @@ def service_problem(module: str, own: str, area: str) -> tuple[str, str, str] | 
         "tools",
         "tests",
         "fastapi_check",
-        "fastapi_docs",
-        "fastapi_project",
+        "fastapi_business",
         "fastapi_module",
         "fastapi_template",
         "fastapi_operations",
-        "fastapi_migration",
     ):
         return "import_layer", f"业务代码导入了 {module}", "业务模块不能依赖接口层和工具"
     if top in WEB_LIBRARIES:

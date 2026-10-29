@@ -24,8 +24,8 @@ def main() -> None:
     if result.returncode:
         parser.exit(1, "副本已创建，生成文档失败；请在副本安装依赖后重新生成并检查。\n")
     print(
-        f"已创建：{args.destination.absolute()}。请填写使用者与业务计划，"
-        "运行 uv sync 和完整检查；数据库尚未创建。"
+        f"已创建：{args.destination.absolute()}。在 AGENTS.md 写业务要点，"
+        "运行 uv sync 和 uv run dev check；数据库还没有创建。"
     )
 
 

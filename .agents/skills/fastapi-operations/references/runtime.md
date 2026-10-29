@@ -1,4 +1,4 @@
-# 运行与运维
+# 运行参考
 
 命令都在 `server/` 执行。
 
@@ -18,8 +18,8 @@
 | `APP_DEV_CALLER` | 关闭 |
 | `APP_RUN_RECORDS` | `database` |
 | `APP_API_KEYS` | 至少一把，用 `dev make-key` 生成，只存摘要 |
-| `APP_CODE_VERSION` | 实际部署的版本，一般是提交号 |
-| `APP_JWT_SECRET`、`APP_JWT_PREVIOUS_SECRETS` | 独立随机，至少 32 个字符；旧密钥过渡期结束就移除 |
+| `APP_CODE_VERSION` | 部署的提交号，`dev deploy` 自动传入 |
+| `APP_JWT_SECRET` | 独立随机，至少 32 个字符；换密钥时旧的放进 `APP_JWT_PREVIOUS_SECRETS` |
 | `APP_DATA_KEYS` | 有存储用 `vault` 时必须独立设置，至少 32 个字符；新密钥放第一位 |
 | 模型配置、`APP_REMOTES` | 声明了提示词或外部系统就必须配置 |
 
@@ -33,16 +33,15 @@
 
 ## 单机部署
 
-日常用 `uv run dev deploy`（见 [SKILL](../SKILL.md)“发布部署”）。它在服务器上执行的就是 `docker compose -f deploy/compose.yaml --env-file .env up -d --build`，再等 `/health/ready`。
+日常用 `uv run dev deploy`（见 [SKILL](../SKILL.md)“发布上线”）。它在服务器上执行的就是 `docker compose -f deploy/compose.yaml --env-file .env up -d --build`，再等 `/health/ready`。
 
 - `migrate` 服务先执行迁移，接口和 worker 不自己改表。接口端口只绑定宿主机 `127.0.0.1:8000`，对外要配 HTTPS 反向代理，前端和 `/api` 放同一域名。
-- `/health/ready` 只说明配置、数据库和迁移版本正常，不代表业务已经验收。
-- worker 健康：设置 `APP_JOB_HEALTH_FILE`（放 worker 自己的临时目录），用 `python -m app.setup.worker_health` 检查，默认 60 秒内有更新才算健康。显示 unhealthy 时 Docker 不会自动重启，告警要另外安排。
+- worker 健康：设置 `APP_JOB_HEALTH_FILE`（放 worker 自己的临时目录），用 `python -m app.setup.worker_health` 检查，默认 60 秒内有更新才算健康。显示 unhealthy 时 Docker 不会自动重启。
 - 停止：worker 先等在途任务 `APP_JOB_SHUTDOWN_SECONDS`（默认 20 秒），超时再取消并清理。容器的 `stop_grace_period`（模板 30 秒）要比它长，否则清理会被强杀打断。
 
 ## 迁移
 
-- 部署时执行 `uv run alembic upgrade head`。`/health/ready` 会核对数据库版本和代码是否一致。
+- compose 的 `migrate` 服务执行 `alembic upgrade head`。`/health/ready` 会核对数据库版本和代码是否一致。
 - 模板初始迁移 `7e03c1a0b624` 只用于全新数据库。已有产品保留自己的迁移链。
 - 迁移里的删除、改名、改类型默认只警告。逐条整理好历史表归属（`APP_OWNED_TABLES`、`APP_EXTERNAL_TABLES` 或模块的同名登记）后，设 `APP_MIGRATION_STRICT=true` 把警告变成错误。
 

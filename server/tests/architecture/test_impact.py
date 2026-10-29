@@ -1,5 +1,5 @@
 import pytest
-from fastapi_project.development.impact import (
+from fastapi_check.affected.impact import (
     CHECK,
     framework_files,
     impact_scope,
@@ -127,7 +127,7 @@ def test_docs_tests_and_api_are_direct_changes(catalog: Catalog, path: str) -> N
     "path",
     [
         "server/shared/flow/runner.py",
-        ".agents/skills/fastapi-project/scripts/fastapi_project/impact.py",
+        ".agents/skills/fastapi-check/scripts/fastapi_check/affected/impact.py",
         "server/app/setup/catalog.py",
         "server/migrations/versions/new_table.py",
         "server/app/api/v1/__init__.py",

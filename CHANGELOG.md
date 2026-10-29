@@ -1,6 +1,6 @@
 # 版本记录
 
-按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
+按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务的变化记在业务文档 `.agents/skills/fastapi-business/business.md`。
 
 ## 未发布
 
@@ -11,13 +11,17 @@
 - 生成器不再写业务文档、项目计划和规则编号；`dev locate` 只按代码声明查找，`dev impact` 去掉规则和流程文档两节，`dev merge` 只重建模块登记、路由和 openapi.json。交付检查仍拒绝模拟骨架。
 - `dev check` 只做静态检查（风格、格式、类型、接口文档、迁移归属）和跑测试：不再计算源码指纹、不存档、不沿用上次结果、不按模板工具摘要跳过测试，SQLite 和 PostgreSQL 不再并行双跑（要 PostgreSQL 时加 `--postgres`）。完整检查从约 119 秒降到 36 秒。
 - 删除 `dev skeleton`（按规格生成多包骨架）、`dev merge`（本机分支整合）、`dev impact`（改动影响报告）、`dev pin/gc`（检查证据保留与清理），以及复制整个模板再重跑全部测试的端到端测试。`check --affected` 仍按改动选包。
-- 删除 `framework.lock` 和 `dev framework-lock`：不再给框架文件算摘要，服务启动也不再因摘要不一致拒绝启动。框架文件清单改放在 `shared/modules/validation/framework_files.py`（`FRAMEWORK`），升级工具和 `check --affected` 读它；升级时仍能读旧模板的 `framework_lock.py`。`template-source.json` 不再记 `framework_lock` 字段。
+- 删除 `framework.lock` 和 `dev framework-lock`：不再给框架文件算摘要，服务启动也不再因摘要不一致拒绝启动。框架文件清单改放在 `shared/modules/validation/framework_files.py`（`FRAMEWORK`），升级工具和 `check --affected` 读它。`template-source.json` 不再记 `framework_lock` 字段。
 - 运行记录不再计算和保存整份源码的哈希（`source_version`）；读取旧记录时自动忽略这个字段。
 - 业务代码（`service/`、`library/`、`app/api/v1/` 及其测试）禁止 try/except 和 `contextlib.suppress`，新检查规则 `catch`。框架补两种写法代替原来要自己接住错误的场景：`Db.one/change(..., conflict=业务错误())` 只把唯一冲突换成声明的业务错误；路由 `run(..., limits=(FailureLimit(...),))` 统一做失败计数、超限 429、成功清零。账号包预设改用这两种写法，去掉了两处 try。
 - 通用流式接口 `stream.py` 从 `app/api/v1/` 挪到 `app/api/system/`（框架代码），URL 不变。
 - 包的类型边界写进检查：`module.json` 和 `Module` 的 `kind` 必须写 `capability` 或 `workflow` 且一致；能力包必须有 `store/`，流程包不许有 `store/`、不许登记表；流程包只能调用能力包，谁都不能调用流程包。允许 `flow_*.py` 拆分流程定义。`new-module --kind workflow` 改为生成不带数据存取的空流程包，`new-operation` 会自己补上需要的导入。`adopt-modules` 要求旧包先在 `module.py` 写明 kind。
 - 业务包 README 不再要求“业务文档”小节，模板里指向已删业务文档的链接一并删除。
 - 删除规则编号：`@step(rule=...)`、`meaning(rule=...)`、pytest 的 `rule_case` 标记，以及运行报告、字段来源、定位结果里的规则列；读旧运行记录时自动忽略已删字段。
+- 删除框架内置运维 `APP_OPERATIONS`（定时备份和恢复校验、数据保留清理、容量检查和暂停非关键任务、Webhook 提醒）、`JobPlan.critical`，新迁移 `e30a00000008` 删掉 `system_ops_state` 表；删除隔离演练 `dev drill`、部署前检查 `deploy/check_env.py`（启动时已做同样的配置检查）和模块指纹 `catalog.digest`。Dockerfile 不再安装 PostgreSQL 客户端；CI 只装依赖跑 `dev check`；删除 PR 模板。
+- 新增 `uv run dev deploy`：`git push`，ssh 到 `DEPLOY_HOST` 在 `DEPLOY_DIR` 里 `git pull` 后 `docker compose up -d --build`，等 `/health/ready`。不备份、不回滚。
+- Skill 重组成五个：fastapi-business（新增，查业务、`dev locate`、业务文档 `business.md`）、fastapi-module（开发风格并入）、fastapi-check（含 `dev docs` 和 `--affected` 选包）、fastapi-operations、fastapi-template（含 `dev compare-api`）。删除 fastapi-guide 和只放脚本的 fastapi-project、fastapi-docs、fastapi-migration。业务文档由代理在业务做完后审阅差异手工更新，升级框架不覆盖它。
+- 删除 `dev adopt-modules`、升级工具的 `--recovery-proof`、写入失败时的回退，以及读取旧清单 `framework_lock.py` 的兼容。
 - 新增 `@step(placeholder=True)`：生成器产出的样例步骤都带这个标记，`dev check --delivery` 遇到占位或模拟步骤就报错，换成真实实现后删掉标记。
 - 依赖方向只剩严格模式：删除 `APP_MODULE_DEPENDENCIES_STRICT` 和只警告的模式，`module.json` 只认 `"dependencies": "strict"`。流程包也不许登记 `owned_tables`、`external_tables`。
 - `new-pipeline` 只给等待阶段写 `repeat_safe=True`，其他阶段默认不可重复执行；不再往 `doc/` 生成演练配置。`check --quick` 也跑注释、文档字符串、try 等质量规则。

@@ -41,7 +41,7 @@ def declared_kind(folder: Path) -> str | None:
     return kind if kind in KINDS else None
 
 
-def check_layout(root: Path, names: Iterable[str], *, markers: bool = True) -> list[str]:
+def check_layout(root: Path, names: Iterable[str]) -> list[str]:
     service = root / "service"
     listed = set(names)
     problems = []
@@ -57,17 +57,17 @@ def check_layout(root: Path, names: Iterable[str], *, markers: bool = True) -> l
         if not folder.is_dir() or folder.is_symlink():
             problems.append(f"service/{name}：找不到业务包目录")
             continue
-        problems += check_package(folder, markers=markers)
+        problems += check_package(folder)
     return problems
 
 
-def check_package(folder: Path, *, markers: bool) -> list[str]:
+def check_package(folder: Path) -> list[str]:
     problems = [
         f"service/{folder.name}/{name}：缺少标准文件"
         for name in sorted(REQUIRED)
         if not (folder / name).is_file()
     ]
-    kind = declared_kind(folder) if markers else None
+    kind = declared_kind(folder)
     required = []
     if kind != "workflow":
         required += [("store", name) for name in ("contract.py", "sql.py", "tables.py")]
@@ -82,9 +82,7 @@ def check_package(folder: Path, *, markers: bool) -> list[str]:
             continue
         if path.is_symlink() or not permitted(parts, path.is_dir()):
             problems.append(f"service/{folder.name}/{'/'.join(parts)}：文件位置不符合标准结构")
-    if markers:
-        problems += check_marker(folder)
-    return problems
+    return problems + check_marker(folder)
 
 
 def permitted(parts: tuple[str, ...], directory: bool) -> bool:
@@ -108,7 +106,7 @@ def check_marker(folder: Path) -> list[str]:
     except (OSError, ValueError):
         return [
             f"service/{folder.name}/module.json：缺少有效的结构说明；"
-            "新包用 uv run dev new-module，旧包用 uv run dev adopt-modules"
+            "用 uv run dev new-module 生成业务包"
         ]
     kind = content.get("kind") if isinstance(content, dict) else None
     normalized = (

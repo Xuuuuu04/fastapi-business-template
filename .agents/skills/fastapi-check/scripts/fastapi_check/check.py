@@ -6,7 +6,7 @@ import sys
 
 from fastapi_check.development_rules import check_development
 from fastapi_check.quality.rules import ROOT
-from fastapi_project.development.selection import (
+from fastapi_check.affected.selection import (
     Selection,
     module_files,
     module_names,
@@ -23,7 +23,7 @@ INTEGRITY = (
 QUALITY = "tests/quality/test_project_quality.py"
 NEXT_STEPS = {
     "迁移表归属": "请按上方列出的表补充归属登记",
-    "实现状态": "交付前把模拟步骤换成真实实现并设置 simulated=False",
+    "实现状态": "交付前把占位和模拟步骤换成真实实现，去掉 placeholder 和 simulated 标记",
     "代码风格": "请对上方列出的文件运行 uv run ruff check --fix，再处理剩余问题",
     "代码格式": "请对上方列出的文件运行 uv run ruff format",
     "类型检查": "请按上方 mypy 输出修正类型",

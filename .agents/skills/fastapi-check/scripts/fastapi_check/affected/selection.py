@@ -10,8 +10,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from fastapi_check.quality.rules import PROJECT, ROOT
-from fastapi_project.development.impact import impact_scope
-from fastapi_project.development.versions import module_api_files
+from fastapi_check.affected.impact import impact_scope
+from fastapi_check.affected.versions import module_api_files
 
 from shared.modules.catalog import Catalog
 

@@ -7,7 +7,6 @@ PROJECT = ROOT.parent
 MAX_FILE_LINES = 300
 MAX_FUNCTION_LINES = 50
 MAX_NESTING = 4
-MAX_BUSINESS_DOC_LINES = 200
 
 CODE_DIRS = (
     "app",
@@ -17,7 +16,6 @@ CODE_DIRS = (
     "../.agents/skills",
     "devtools",
     "tests",
-    "deploy",
 )
 BUSINESS_DIRS = ("service/", "library/", "app/api/v1/", "tests/modules/", "tests/integration/")
 FRAMEWORK_TESTS = ("tests/integration/system/",)

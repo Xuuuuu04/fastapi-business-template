@@ -1,8 +1,7 @@
 import argparse
 import json
-from pathlib import Path
-
-from fastapi_project.development.locate import locate
+from fastapi_business.search import locate
+from fastapi_check.quality.rules import PROJECT
 
 from app.setup.application import application_modules
 from shared.modules.catalog import Catalog
@@ -16,10 +15,9 @@ def main() -> None:
     args = parser.parse_args()
     if not args.query.strip() or not 1 <= args.limit <= 100:
         parser.error("query 不能为空，limit 必须在 1 到 100 之间")
-    from fastapi_project.development.locate_routes import local_routes
+    from fastapi_business.routes import local_routes
 
-    project = Path(__file__).resolve().parents[5]
-    result = locate(Catalog(application_modules()), project, args.query, args.limit, local_routes())
+    result = locate(Catalog(application_modules()), PROJECT, args.query, args.limit, local_routes())
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

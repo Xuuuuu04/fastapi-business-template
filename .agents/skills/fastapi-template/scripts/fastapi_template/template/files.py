@@ -12,7 +12,6 @@ from shared.modules.validation import framework_files
 SOURCE_FILE = "template-source.json"
 LIST_MODULES = (
     ("server/shared/modules/validation/framework_files.py", "FRAMEWORK"),
-    ("server/shared/modules/validation/framework_lock.py", "LOCKED"),
 )
 MANUAL_FILES = (
     "server/pyproject.toml",
@@ -76,6 +75,10 @@ def manifest(template: Path) -> Manifest:
     return Manifest(*(tuple(values[name]) for name in names))
 
 
+def project_path(entry: str) -> str:
+    return entry.removeprefix("../") if entry.startswith("../") else f"server/{entry}"
+
+
 def managed_files(project: Path, listing: Manifest | None = None) -> dict[str, bytes]:
     listing = listing or manifest(project)
     found = {}
@@ -84,15 +87,14 @@ def managed_files(project: Path, listing: Manifest | None = None) -> dict[str, b
     for entry in entries:
         if entry == "pyproject.toml":
             continue
-        relative = entry.removeprefix("../") if entry.startswith("../") else f"server/{entry}"
-        base = safe_path(project, relative)
+        base = safe_path(project, project_path(entry))
         paths = [base] if base.is_file() else sorted(base.rglob("*"))
         for path in paths:
             name = path.relative_to(project).as_posix()
             if (
                 path.suffix in listing.suffixes
                 and "__pycache__" not in path.parts
-                and name not in {f"server/{item}" for item in listing.registration}
+                and name not in {project_path(item) for item in listing.registration}
             ):
                 checked = safe_path(project, name)
                 if checked.is_file():

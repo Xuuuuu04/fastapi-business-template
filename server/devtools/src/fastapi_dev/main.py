@@ -8,20 +8,19 @@ from pathlib import Path
 COMMANDS = {
     "new-library": "fastapi_module.new_library",
     "check": "fastapi_check.check",
-    "locate": "fastapi_project.locate",
-    "docs": "fastapi_docs.openapi",
+    "locate": "fastapi_business.locate",
+    "docs": "fastapi_check.openapi",
     "diagnose": "fastapi_operations.diagnose",
     "jobs": "fastapi_operations.jobs",
     "pipelines": "fastapi_operations.pipelines",
     "make-key": "fastapi_operations.make_key",
     "deploy": "fastapi_operations.deploy",
     "new-module": "fastapi_module.new_module",
-    "adopt-modules": "fastapi_module.adopt_modules",
     "new-operation": "fastapi_module.new_operation",
     "new-pipeline": "fastapi_module.new_pipeline",
     "new-project": "fastapi_template.start_project",
     "upgrade": "fastapi_template.update_framework",
-    "compare-api": "fastapi_migration.compare_api",
+    "compare-api": "fastapi_template.compare_api",
 }
 
 

@@ -6,12 +6,14 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from fastapi_check.quality.rules import ROOT
+
 from shared.flow.step import source_of
 from shared.modules.contract import Contract
 
 
 def local_routes() -> dict[str, list[dict[str, Any]]]:
-    path = Path(__file__).resolve().parents[6] / "server/app/api/routers.py"
+    path = ROOT / "app/api/routers.py"
     tree = ast.parse(path.read_text())
     imports = {
         alias.asname or alias.name: (node.module, alias.name)

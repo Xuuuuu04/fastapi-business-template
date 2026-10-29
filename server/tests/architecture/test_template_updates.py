@@ -5,12 +5,15 @@ from pathlib import Path
 import pytest
 from fastapi_template.template.files import (
     LIST_MODULES,
+    Manifest,
     check_base,
     managed_files,
     manifest,
     save_provenance,
 )
 from fastapi_template.template.merge import apply_plan, update_plan
+
+from shared.modules.validation.framework_files import REGISTRATION
 
 FRAMEWORK_MODULE = LIST_MODULES[0][0]
 
@@ -177,10 +180,8 @@ def write(root: Path, name: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def test_legacy_list_module_is_read(tmp_path: Path) -> None:
-    write(
-        tmp_path,
-        LIST_MODULES[1][0],
-        'LOCKED = ("shared",)\nREGISTRATION = ()\nSUFFIXES = (".py",)\n',
-    )
-    assert manifest(tmp_path).framework == ("shared",)
+def test_business_document_stays_with_product(tmp_path: Path) -> None:
+    write(tmp_path, ".agents/skills/fastapi-business/SKILL.md", "# 业务\n")
+    write(tmp_path, ".agents/skills/fastapi-business/business.md", "# 产品业务\n")
+    files = managed_files(tmp_path, Manifest(("../.agents/skills",), REGISTRATION, (".md",)))
+    assert list(files) == [".agents/skills/fastapi-business/SKILL.md"]

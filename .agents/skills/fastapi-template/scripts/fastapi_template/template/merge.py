@@ -11,7 +11,6 @@ from fastapi_template.template.files import (
     safe_path,
     save_provenance,
 )
-from fastapi_template.template.recovery import load_proof, recovered_patch
 
 
 @dataclass(frozen=True)
@@ -52,65 +51,32 @@ def compare_file(
     return merge_text(name, old, local, new)
 
 
-def update_plan(
-    target: Path, base: Path, source: Path, *, recovery_proof: Path | None = None
-) -> tuple[list[Change], list[str]]:
+def update_plan(target: Path, base: Path, source: Path) -> tuple[list[Change], list[str]]:
     listing = manifest(source)
     fresh = set(check_base(target, base, listing))
     old = {
         name: content for name, content in managed_files(base, listing).items() if name not in fresh
     }
     new = managed_files(source, listing)
-    proofs = load_proof(recovery_proof)
-    if set(proofs) - (old.keys() | new.keys()):
-        raise ValueError("回收证明包含非框架管理文件")
     changes = []
-    recovered_manual: set[str] = set()
     for name in sorted(old.keys() | new.keys()):
         path = safe_path(target, name)
         local = path.read_bytes() if path.exists() else None
         change = compare_file(name, old.get(name), local, new.get(name))
-        if change and change.state == "conflict":
-            proof = recovered_patch(proofs, name, old.get(name), local, new.get(name))
-            if proof is not None:
-                change = Change(name, "recovered", new.get(name))
-                recovered_manual.update(proof)
         if change:
             changes.append(change)
-    return changes, sorted(set(manual_changes(base, source)) | recovered_manual)
+    return changes, manual_changes(base, source)
 
 
-def apply_plan(
-    target: Path,
-    base: Path,
-    source: Path,
-    expected: list[Change],
-    *,
-    recovery_proof: Path | None = None,
-) -> None:
-    current, _ = update_plan(target, base, source, recovery_proof=recovery_proof)
+def apply_plan(target: Path, base: Path, source: Path, expected: list[Change]) -> None:
+    current, _ = update_plan(target, base, source)
     if current != expected:
         raise ValueError("文件在预览后发生变化，请重新预览")
     if any(change.state == "conflict" for change in current):
         raise ValueError("存在冲突，所有文件保持原样")
-    originals = {
-        change.name: safe_path(target, change.name).read_bytes()
-        if safe_path(target, change.name).exists()
-        else None
-        for change in current
-    }
-    provenance_path = safe_path(target, "template-source.json")
-    originals["template-source.json"] = (
-        provenance_path.read_bytes() if provenance_path.exists() else None
-    )
-    try:
-        for change in current:
-            write_content(safe_path(target, change.name), change.content)
-        save_provenance(target, source)
-    except (OSError, ValueError, RuntimeError):
-        for name, content in originals.items():
-            write_content(safe_path(target, name), content)
-        raise
+    for change in current:
+        write_content(safe_path(target, change.name), change.content)
+    save_provenance(target, source)
 
 
 def write_content(path: Path, content: bytes | None) -> None:
