@@ -8,7 +8,7 @@ from fastapi_check.quality.rules import ROOT
 
 from shared.modules.catalog import Catalog
 from shared.modules.libraries import library_links
-from shared.modules.validation.framework_files import FRAMEWORK
+from shared.modules.validation.framework_files import FRAMEWORK, REGISTRATION
 
 MODULE_AREAS = (
     ("server/service/", "代码"),
@@ -18,6 +18,7 @@ MODULE_AREAS = (
     ("server/tests/integration/", "测试"),
 )
 CHECK = "APP_DISABLED_MODULES='[]' uv run dev check"
+PRODUCT_FILES = {entry.removeprefix("../") for entry in REGISTRATION if entry.startswith("../")}
 
 
 @dataclass(frozen=True)
@@ -66,7 +67,7 @@ def framework_files(files: Iterable[str]) -> list[str]:
     return sorted(
         path
         for path in files
-        if path.startswith(".agents/skills/")
+        if (path.startswith(".agents/skills/") and path not in PRODUCT_FILES)
         or (
             path.startswith("server/")
             and any(path[7:] == entry or path[7:].startswith(entry + "/") for entry in FRAMEWORK)
