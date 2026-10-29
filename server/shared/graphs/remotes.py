@@ -14,7 +14,7 @@ def remote_table(run: RunRecord) -> list[str]:
         for call in step.remotes:
             values = [
                 step.title,
-                call.endpoint or "未知（旧调用）",
+                call.endpoint or call.remote,
                 call.status or "未知",
                 call.outcome,
                 duration(call.elapsed_ms),

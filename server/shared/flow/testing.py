@@ -13,6 +13,14 @@ from shared.model_calls.gate import ModelGate
 from shared.model_calls.service import ModelService
 from shared.modules.contract import Contract
 from shared.records.models import StepRecord
+from shared.scenarios.observations import (
+    ExpectedObservation,
+    ObservationJournal,
+    ObservationPoint,
+    capture,
+)
+from shared.scenarios.simulation import simulate
+from shared.timing.clock import FakeClock
 
 Fake = Callable[[Any], Awaitable[Data]]
 
@@ -100,3 +108,16 @@ def fake_later(part: Step, submitted: list[tuple[str, Data]]) -> Callable[..., A
         return f"test-{len(submitted)}"
 
     return later
+
+
+__all__ = [
+    "ExpectedObservation",
+    "FakeClock",
+    "ObservationJournal",
+    "ObservationPoint",
+    "StepResult",
+    "capture",
+    "simulate",
+    "try_step",
+    "try_step_async",
+]

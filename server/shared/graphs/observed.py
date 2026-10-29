@@ -76,7 +76,7 @@ def external_nodes(node: str, step: StepRecord) -> list[str]:
     calls = [(call.prompt, call.status, call.elapsed_ms) for call in step.models]
     calls += [
         (
-            (call.endpoint or call.remote + "（接口未知）") + f" · {call.outcome}",
+            (call.endpoint or call.remote) + f" · {call.outcome}",
             "failed"
             if call.error or call.status >= 400
             else "running"

@@ -28,6 +28,12 @@
 - `dev check --module` 只传存在的测试目录（流程包没有 `tests/modules/包名`）；`dev pipelines` 按产品组装读取模块和配置；`dev locate` 去掉没用的 `--json`；`check --affected` 遇到只改业务文档时不跑检查。
 - 删除四个兼容开关，一律按严格规则走：`APP_SCHEDULE_ORG_ID`（只认 `APP_SCHEDULE_ORG_IDS`）、`APP_REMOTE_ENDPOINTS_STRICT`（外部调用只能用 `remote.call` 加已声明的 `Endpoint`，删 `remote.get/post/put/delete`）、`APP_MIGRATION_STRICT`（迁移改未登记的表直接报错）、`APP_QUERY_BUDGET_MODE`（test 环境超额就失败）。
 - 9 个框架迁移合成一个初始迁移 `40a000000001`；迁移模板不再生成注释。
+- 外部调用每种情况只有一种写法：调 HTTP 接口（读和写）只用 `remote.call` 加 `Endpoint`，发邮件和调 SDK 只用 `effects` 加 `ProviderSpec`。删除 `HttpAdapter`，`ProviderSpec` 只接受 `smtp`、`sdk`，`ApplicationSpec.adapters` 只收配置。`RemoteRequest` 的 `endpoint`、`effect` 必填。
+- 新增 `uv run dev run 操作名 --input JSON`：用本地配置以开发者身份真跑一次操作，打印结果和运行报告，失败时退出码为 1。
+- `Module` 必须写 `kind`，操作必须写 `effect`；删除没写时的放行分支。
+- 删除旧数据兼容：运行记录按 4.0 的格式严格读取（不认识的字段直接报错），任务表 `failed_attempts` 不能为空，任务去重只按当前的身份范围，调用者记录必须字段齐全，定时任务的去重键统一格式，多阶段流程的阶段签名固定包含全部字段。删除 `APP_OWNED_TABLES`、`APP_EXTERNAL_TABLES`（只用模块里的同名登记）、`module.json` 的 `dependencies` 字段、升级工具对旧模板和旧来源记录的兼容、`check --affected` 对已删除的 `doc/模块/` 目录的处理。
+- `shared.public` 从 81 个名字收窄到 65 个：测试工具（`capture`、`simulate`、`FakeClock` 等）改从 `shared.flow.testing` 导入；产品组装用的 `ApplicationSpec`、`WorkerSpec`、各种适配器从各自的模块导入；删除 `PUBLIC`、`SIGNED_IN` 常量（直接写 `"public"`、`"signed_in"`）。
+- 文字检查新增禁用词：夹具、资产、证据、账本、台账。
 - 新增 `@step(placeholder=True)`：生成器产出的样例步骤都带这个标记，`dev check --delivery` 遇到占位或模拟步骤就报错，换成真实实现后删掉标记。
 - 依赖方向只剩严格模式：删除 `APP_MODULE_DEPENDENCIES_STRICT` 和只警告的模式，`module.json` 只认 `"dependencies": "strict"`。流程包也不许登记 `owned_tables`、`external_tables`。
 - `new-pipeline` 只给等待阶段写 `repeat_safe=True`，其他阶段默认不可重复执行；不再往 `doc/` 生成演练配置。`check --quick` 也跑注释、文档字符串、try 等质量规则。

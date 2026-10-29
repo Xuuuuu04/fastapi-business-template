@@ -1,6 +1,6 @@
 # 框架用法
 
-业务包只从 `shared.public` 导入框架，只导入别的包的 `public.py` 和 `library.工具包.public`；不导入 fastapi、httpx 等 HTTP 库，SQLAlchemy 只在 `store/` 里用。违反时启动和检查都会报错。模板没有预置业务包，每节末尾列出的 `server/tests/framework/` 下的文件就是完整可运行的例子。
+业务包只从 `shared.public` 导入框架；测试工具（`try_step`、`capture`、`simulate`、`FakeClock` 等）从 `shared.flow.testing` 导入；产品组装用的 `ApplicationSpec` 和适配器在 `app/product.py` 里从各自的模块导入。只导入别的包的 `public.py` 和 `library.工具包.public`；不导入 fastapi、httpx 等 HTTP 库，SQLAlchemy 只在 `store/` 里用。违反时启动和检查都会报错。模板没有预置业务包，每节末尾列出的 `server/tests/framework/` 下的文件就是完整可运行的例子。
 
 路由文件在 `app/api/v1/包名.py`，接口多时拆成 `包名_主题.py`，拆出来的 router 要加进 `app/api/routers.py` 的 `MODULE_ROUTERS`。删除类接口写 `@router.delete(..., status_code=204)`，函数返回 `None`。路由只做参数转换并 `await run(操作, 输入)`，可以用 `app.api.runner` 的 `RunDep`、`FailureLimit` 和 `app.api.replies` 的 `responses_for`。
 

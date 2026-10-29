@@ -5,22 +5,13 @@ from sqlalchemy import select
 
 from app.setup.build import build
 from shared.access.caller import SYSTEM
+from shared.application.spec import ApplicationSpec
 from shared.effects.module import dispatch
 from shared.effects.spec import EffectAdapter, ProviderSpec
 from shared.effects.tables import intents
 from shared.jobs.tables import jobs
 from shared.jobs.worker import Worker, WorkerOptions
-from shared.public import (
-    ApplicationSpec,
-    EffectGate,
-    Flow,
-    Module,
-    Nothing,
-    WorkData,
-    contract,
-    meaning,
-    step,
-)
+from shared.public import EffectGate, Flow, Module, Nothing, WorkData, contract, meaning, step
 from tests.framework.test_provider_effects import Adapter, Input, Output
 from tests.testing_app import make_settings, reset_database
 

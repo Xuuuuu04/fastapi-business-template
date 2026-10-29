@@ -5,20 +5,10 @@ import pytest
 
 from app.setup.build import build
 from shared.access.caller import SYSTEM
+from shared.application.spec import ApplicationSpec
 from shared.errors.framework import RunTimeout
-from shared.public import (
-    ApplicationSpec,
-    Clock,
-    FakeClock,
-    Flow,
-    JobPlan,
-    Module,
-    Nothing,
-    WorkData,
-    contract,
-    meaning,
-    step,
-)
+from shared.flow.testing import FakeClock
+from shared.public import Clock, Flow, JobPlan, Module, Nothing, WorkData, contract, meaning, step
 from shared.records.stores import RunFilter
 from tests.testing_app import make_settings, reset_database
 

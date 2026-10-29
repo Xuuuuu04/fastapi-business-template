@@ -7,13 +7,13 @@ from sqlalchemy import func, select
 
 from app.setup.build import build
 from shared.access.caller import SYSTEM
+from shared.application.spec import ApplicationSpec
+from shared.flow.testing import FakeClock
 from shared.jobs.queue import JobQueue
 from shared.jobs.resource_tables import leases
 from shared.jobs.tables import jobs
 from shared.public import (
-    ApplicationSpec,
     Data,
-    FakeClock,
     Flow,
     JobPlan,
     Module,

@@ -41,7 +41,7 @@
 
 ## 迁移
 
-- 迁移只能改本产品登记的表：模块 `tables`、`owned_tables` 或 `APP_OWNED_TABLES`；`external_tables` 和 `APP_EXTERNAL_TABLES` 里的表只读。删除、改名、改类型未登记的表，启动和检查都会报错。
+- 迁移只能改本产品登记的表：模块的 `tables` 和 `owned_tables`；模块 `external_tables` 里的表只读。迁移删除、改名、改类型没有登记的表时，启动和检查都会报错。
 
 ## 运行记录和日志
 

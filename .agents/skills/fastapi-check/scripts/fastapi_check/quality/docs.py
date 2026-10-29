@@ -3,7 +3,22 @@ from pathlib import Path
 from fastapi_check.quality.report import Problem
 from fastapi_check.quality.rules import PROJECT
 
-BANNED_WORDS = ("阻断", "巡检", "巡查", "红线", "门禁", "判官", "————", "「", "」")
+BANNED_WORDS = (
+    "阻断",
+    "巡检",
+    "巡查",
+    "红线",
+    "门禁",
+    "判官",
+    "夹具",
+    "资产",
+    "证据",
+    "账本",
+    "台账",
+    "————",
+    "「",
+    "」",
+)
 BANNED_PHRASES = ("Successful Response", "Validation Error")
 STYLE_GENERATED = ("server/out/", "server/var/")
 

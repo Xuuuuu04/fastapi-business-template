@@ -66,4 +66,4 @@ uv run dev run customer_contact.create_contact --input-file 样例.json --org no
 - 预期结果来自和用户确认过的业务样例。旧系统的输出只用来比较，不当标准答案。
 - 和时间有关的样例，在执行时传入时间或用可控时钟，不放宽业务时限。
 - 权限测试用真实的应用权限。
-- 目录分组、夹具、单步测试、数据库和手动测试见[测试说明](references/tests.md)。
+- 目录分组、测试准备函数、单步测试、数据库和手动测试见[测试说明](references/tests.md)。

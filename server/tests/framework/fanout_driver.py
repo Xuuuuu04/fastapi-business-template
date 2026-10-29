@@ -5,12 +5,12 @@ import pytest
 from sqlalchemy import func, insert, select
 
 from app.setup.build import Services, build
+from shared.application.spec import ApplicationSpec
 from shared.jobs import queue as job_queue
 from shared.jobs.tables import job_counts, jobs
 from shared.jobs.worker import Worker, WorkerOptions
 from shared.pipelines.plan import StartRequest
 from shared.pipelines.tables import members, runs
-from shared.public import ApplicationSpec
 from shared.timing.clock import RealClock
 from shared.timing.current import current_clock, use_clock
 from tests.framework.fanout_sample import Begin, module, pipeline, sample_metadata, versions

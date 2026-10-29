@@ -15,7 +15,7 @@
 
 ## 写业务测试
 
-- 夹具在 `tests/conftest.py`：`client`（真实应用的 TestClient）、`services`（组装好的服务，可直接 `await services.runtime.run(操作, 输入, caller=...)`）、`settings`。请求头用 `tests/testing_app.py` 的 `KEY`（全部权限）和 `READER`（只读）。
+- 测试准备函数（pytest 里叫 fixture）在 `tests/conftest.py`：`client`（真实应用的 TestClient）、`services`（组装好的服务，可直接 `await services.runtime.run(操作, 输入, caller=...)`）、`settings`。请求头用 `tests/testing_app.py` 的 `KEY`（全部权限）和 `READER`（只读）。
 - 单个步骤用 `shared.flow.testing` 的 `try_step(步骤, Work类, 字段=值)`，返回的 `values` 是写出的字段；异步步骤用 `try_step_async(步骤, Work类, {字段: 值}, store=假存储)`。
 - 接口测试除了正常结果，还要断言错误的 `code`；需要确认停在哪一步时，用响应里的 `run_id` 查 `/api/system/runs/{run_id}`。
 - 只在 PostgreSQL 上有意义的测试（行锁、并发提交）加 `@pytest.mark.postgres_only`，没有配置 PostgreSQL 时会跳过。
