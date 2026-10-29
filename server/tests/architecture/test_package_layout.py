@@ -8,14 +8,13 @@ from shared.modules.layout import check_layout, descriptor
 
 def package(root: Path, kind: str | None, *, store: bool, extra: tuple[str, ...] = ()) -> None:
     folder = root / "service" / "order_desk"
-    for name in ("README.md", "data.py", "public.py", "flow.py", "module.py", *extra):
+    for name in ("data.py", "public.py", "flow.py", "module.py", *extra):
         (folder / name).parent.mkdir(parents=True, exist_ok=True)
         (folder / name).write_text("", encoding="utf-8")
     (folder / "steps").mkdir()
-    (folder / "steps/README.md").write_text("", encoding="utf-8")
     if store:
         (folder / "store").mkdir()
-        for name in ("README.md", "contract.py", "sql.py", "tables.py"):
+        for name in ("contract.py", "sql.py", "tables.py"):
             (folder / "store" / name).write_text("", encoding="utf-8")
     marker = descriptor("order_desk", kind=kind or "")
     (folder / "module.json").write_text(json.dumps(marker), encoding="utf-8")

@@ -21,6 +21,8 @@
 - 新增 `@step(placeholder=True)`：生成器产出的样例步骤都带这个标记，`dev check --delivery` 遇到占位或模拟步骤就报错，换成真实实现后删掉标记。
 - 依赖方向只剩严格模式：删除 `APP_MODULE_DEPENDENCIES_STRICT` 和只警告的模式，`module.json` 只认 `"dependencies": "strict"`。流程包也不许登记 `owned_tables`、`external_tables`。
 - `new-pipeline` 只给等待阶段写 `repeat_safe=True`，其他阶段默认不可重复执行；不再往 `doc/` 生成演练配置。`check --quick` 也跑注释、文档字符串、try 等质量规则。
+- 删除全部目录 README（52 份）和"每个目录必须有 README"的检查；业务包和工具包不再要求 README，`steps/`、`store/`、`calc/` 里只放 `.py`。写业务要用的框架用法提炼进 `fastapi-module/references/framework.md`，运行运维进 `fastapi-operations/references/runtime.md`，测试分组和失败报告进 `fastapi-check/references/tests.md`。生成器不再生成 README。
+- `PipelineGate` 加进 `shared.public`：扇出流程的步骤原来只能导入框架内部模块，业务代码写不出来。
 - 已有产品接入：升级后旧代码的注释会被新检查报出，用同样的方式删除；意图改用名字、类型、`meaning()` 和测试表达，修改原因写进提交说明。
 
 ## 3.2.0（2026-10-14）

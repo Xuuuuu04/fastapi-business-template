@@ -73,7 +73,6 @@ def initialize(source: Path, target: Path, name: str) -> None:
 
 def native_documents(source: Path, target: Path, name: str) -> None:
     product_entry(target, name)
-    product_history(target, name)
     product_metadata(source, target)
     product_configuration(target, name)
 
@@ -105,20 +104,6 @@ def product_entry(target: Path, name: str) -> None:
         "业务模块由产品按需要生成，规则须按本产品确认。\n\n" + agents[end:]
     )
     write(target / "AGENTS.md", agents)
-
-
-def product_history(target: Path, name: str) -> None:
-    for path in (target / "doc").glob("*/changes.md"):
-        write(
-            path,
-            f"# {path.parent.name}：业务变化\n\n从模板继承通用模块规则；"
-            "产品中的调整从这里开始记录。\n",
-        )
-    deploy = target / "server/deploy/README.md"
-    write(
-        deploy,
-        deploy.read_text(encoding="utf-8").split("## 精简前的生产配置验收记录")[0].rstrip() + "\n",
-    )
 
 
 def product_metadata(source: Path, target: Path) -> None:

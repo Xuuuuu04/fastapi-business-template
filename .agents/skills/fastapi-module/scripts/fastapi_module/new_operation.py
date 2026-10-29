@@ -59,7 +59,7 @@ def changes(
         f"public.{name}: flow.{name}_flow",
         mapping=True,
     )
-    generated |= supporting_files(module, name, title, input, invalid, read)
+    generated |= supporting_files(module, name, input, invalid, read)
     if http:
         generated |= route(module, name, title, input, output)
     return generated
@@ -79,10 +79,6 @@ def implementation_files(
     step = folder / "steps" / f"build_{name}.py"
     generated[step] = templates.step_code(module, name, output, invalid)
     generated[folder / "calc" / f"{name}.py"] = templates.calc_code()
-    if not (folder / "calc" / "README.md").exists():
-        generated[folder / "calc" / "README.md"] = (
-            "# 纯计算\n\n只接收参数并返回结果；外部值由步骤传入。\n"
-        )
     flow = folder / "flow.py"
     flow_text = add_import(read(flow), "from shared.public import Flow")
     flow_text = add_import(flow_text, f"from service.{module}.data import {kind}Work")
@@ -97,14 +93,8 @@ def implementation_files(
 
 
 def supporting_files(
-    module: str,
-    name: str,
-    title: str,
-    input: str,
-    invalid: str,
-    read: Callable[[Path], str],
+    module: str, name: str, input: str, invalid: str, read: Callable[[Path], str]
 ) -> dict[Path, str]:
-    folder = ROOT / "service" / module
     generated: dict[Path, str] = {}
     tests = ROOT / "tests/modules" / module
     generated[tests / f"test_calc_{name}.py"] = templates.calc_tests(module, name)
@@ -114,10 +104,6 @@ def supporting_files(
         generated[fixture] = templates.fixture()
     elif "operation_services" not in read(fixture):
         generated[fixture] = append(read(fixture), templates.fixture())
-    readme = folder / "README.md"
-    generated[readme] = read(readme).replace(
-        "## 公开操作", f"## 公开操作\n\n- `{module}.{name}`：{title}。", 1
-    )
     return generated
 
 

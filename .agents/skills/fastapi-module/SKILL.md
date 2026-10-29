@@ -54,7 +54,7 @@ uv run dev new-pipeline customer_contact daily --title 每日流程 --stages sel
 - 分段提交：固定来源的大批数据，每批可以独立生效。例：`JobPlan(parse_rows, segmented=True, repeat_safe=True, cursor=Cursor)`；保存步骤每 5000 条推进一次 `checkpoint.advance({"after": next_id}, rows=count)`，最后 finish。游标 Data 与范围要明确，不能把正文塞进游标。
 - 多阶段：采集、等待、汇算、发布各自需要独立事务和失败恢复。例：`Pipeline("report.daily", "日报", Begin, (Stage("collect", collect), Wait("wait", ready), Stage("sum", aggregate), Stage("publish", publish)))`；在 module.py 登记 pipelines 和各阶段的 provides/jobs、Schedule 首入口。汇算阶段很大时再使用分段，不要在步骤里循环 sleep。
 
-以上是已定义 Data/操作的登记片段，完整独立样例见 server/tests/framework/drill_sample.py。用 `dev new-pipeline` 先搭整条链，再逐阶段替换占位实现；真实规模原件回放跑通全链之后，再补局部细节——生成的样例不算业务完成。细节见[步骤与事务](../../../server/shared/flow/README.md)、[后台任务](../../../server/shared/jobs/README.md)。
+以上是已定义 Data/操作的登记片段，完整独立样例见 server/tests/framework/drill_sample.py。用 `dev new-pipeline` 先搭整条链，再逐阶段替换占位实现；真实规模原件回放跑通全链之后，再补局部细节；生成的样例不算业务完成。细节见[框架用法](references/framework.md)。
 
 ## 包内的文件分工
 
@@ -67,11 +67,11 @@ uv run dev new-pipeline customer_contact daily --title 每日流程 --stages sel
 | `data.py` | 输入、流程中间数据、返回结果的数据模型 |
 | `public.py` | 包对外公开的操作，别的包只能从这里导入 |
 
-字段用 `meaning()` 写含义；步骤声明自己读写哪些字段。生成器产出的样例步骤带 `placeholder=True`，换成真实实现后删掉这个标记；`dev check --delivery` 不允许留着占位步骤。完整目录见 `server/service/README.md`，步骤与事务的写法见 `server/shared/flow/README.md`。
+字段用 `meaning()` 写含义；步骤声明自己读写哪些字段。生成器产出的样例步骤带 `placeholder=True`，换成真实实现后删掉这个标记；`dev check --delivery` 不允许留着占位步骤。各机制的写法见[框架用法](references/framework.md)。
 
 ## 什么时候把计算放进 calc
 
-需要复用或独立测试的金额、文本、汇算等计算，放在可选的 `calc/` 目录；小赋值仍然可以留在步骤里。calc 只接收参数、返回结果；不得访问数据库、网络、文件、时钟和随机数——需要时间、随机值或外部数据时，由步骤取得后传进来。calc 的短测试直接调用函数，不需要 services、settings 或数据库夹具。生成器默认生成纯函数和短测试。
+需要复用或独立测试的金额、文本、汇算等计算，放在可选的 `calc/` 目录；小赋值仍然可以留在步骤里。calc 只接收参数、返回结果；不得访问数据库、网络、文件、时钟和随机数；需要时间、随机值或外部数据时，由步骤取得后传进来。calc 的短测试直接调用函数，不需要 services、settings 或数据库夹具。生成器默认生成纯函数和短测试。
 
 步骤从本包 calc 导入函数，在已有声明上添加 `@step(..., calcs=[normalize_text])`；直接调用但漏了登记、引用了外包的函数或用了异步函数，启动时会报错。经 store 使用的 calc 也要在所属步骤登记。calcs 声明的是可能调用的范围，不强制每次直接执行所有函数。计算图会列出函数源码；运行图保留声明，耗时包含在所属步骤里，是否逐个实际调用不单独追踪。
 
@@ -104,6 +104,7 @@ uv run dev new-pipeline customer_contact daily --title 每日流程 --stages sel
 
 ## 相关
 
+- 框架各机制怎么写（声明、存储、错误、后台任务、多阶段流程、外部调用、文件、大模型、权限、缓存、表格、时钟）：读[框架用法](references/framework.md)。
 - 迁移旧系统的业务：读 `fastapi-template` 的[迁移参考](../fastapi-template/references/product-migration.md)。
 - 前后端接口适配：读[接口参考](references/frontend-interface.md)，以当前OpenAPI及真实接口结果核对字段和权限。
 - 生成器使用的代码模板在 [assets/templates](assets/templates/)。

@@ -4,7 +4,6 @@ from typing import Any
 from fastapi_check.quality.blocking import check_blocking
 from fastapi_check.quality.files import check_files
 from fastapi_check.quality.naming import check_naming
-from fastapi_check.quality.readmes import check_readmes
 from fastapi_check.quality.registry import check_listed
 
 from shared.modules.catalog import Catalog
@@ -117,14 +116,6 @@ def test_blocking_call(tmp_path: Path) -> None:
         "import time\n\n\nasync def wait_rows(data):\n    time.sleep(1)\n",
     )
     assert rules_of(check_blocking(tmp_path)) == {"blocking_call"}
-
-
-def test_readme_rules(tmp_path: Path) -> None:
-    write(tmp_path, "app/sample_code.py", "")
-    write(tmp_path, "service/order_desk/module.py", "")
-    write(tmp_path, "service/order_desk/README.md", "# 订单台\n\n## 用途\n\n只写了用途。\n")
-    rules = rules_of(check_readmes(tmp_path, {"order_desk": ["order_desk.create_order"]}))
-    assert {"readme_missing", "readme_section", "readme_operation"} <= rules
 
 
 def test_unlisted_module(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@ import json
 from collections.abc import Iterable
 from pathlib import Path
 
-REQUIRED = {"README.md", "data.py", "public.py", "flow.py", "module.py"}
+REQUIRED = {"data.py", "public.py", "flow.py", "module.py"}
 AREAS = {"steps", "store", "calc", "prompts"}
 IGNORED = {"__pycache__", ".DS_Store"}
 
@@ -45,7 +45,7 @@ def check_layout(root: Path, names: Iterable[str], *, markers: bool = True) -> l
     service = root / "service"
     listed = set(names)
     problems = []
-    for path in sorted(service.iterdir()):
+    for path in sorted(service.iterdir()) if service.is_dir() else []:
         if path.name in IGNORED or path.name in {"README.md", "__init__.py"}:
             continue
         if path.is_dir() and not path.is_symlink() and not actual_files(path):
@@ -68,11 +68,9 @@ def check_package(folder: Path, *, markers: bool) -> list[str]:
         if not (folder / name).is_file()
     ]
     kind = declared_kind(folder) if markers else None
-    required = [("steps", "README.md")]
+    required = []
     if kind != "workflow":
-        required += [
-            ("store", name) for name in ("README.md", "contract.py", "sql.py", "tables.py")
-        ]
+        required += [("store", name) for name in ("contract.py", "sql.py", "tables.py")]
     elif (folder / "store").exists():
         problems.append(f"service/{folder.name}/store：流程包不拥有数据，数据存取放到能力包")
     for area, name in required:
@@ -100,7 +98,7 @@ def permitted(parts: tuple[str, ...], directory: bool) -> bool:
     if len(parts) != 2 or directory or parts[0] not in AREAS:
         return False
     suffix = Path(parts[1]).suffix
-    return suffix in ({".md", ".txt"} if parts[0] == "prompts" else {".py", ".md"})
+    return suffix in ({".md", ".txt"} if parts[0] == "prompts" else {".py"})
 
 
 def check_marker(folder: Path) -> list[str]:

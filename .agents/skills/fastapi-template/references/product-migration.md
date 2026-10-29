@@ -33,7 +33,7 @@
 uv run dev new-pipeline report daily --title 经营日报 --stages collect,wait,calculate,publish --wait wait
 ```
 
-选择方法：短保存用普通 `Flow(...steps=[validate, save])`，必须一起回滚；固定范围的大量数据用 `JobPlan(parse, segmented=True, repeat_safe=True, cursor=Cursor)` 每批 5000 行推进 Checkpoint；采集、等待、汇算、发布用 `Pipeline(...Stage/Wait...)`，每个阶段独立事务，汇算 Stage 内部可以再分段。完整声明片段和独立样例见[模块开发](../../fastapi-module/SKILL.md)、[步骤与事务](../../../../server/shared/flow/README.md)、[后台任务](../../../../server/shared/jobs/README.md)。生成的正常样例只证明骨架是通的，必须换成确认过的实际结果。
+选择方法：短保存用普通 `Flow(...steps=[validate, save])`，必须一起回滚；固定范围的大量数据用 `JobPlan(parse, segmented=True, repeat_safe=True, cursor=Cursor)` 每批 5000 行推进 Checkpoint；采集、等待、汇算、发布用 `Pipeline(...Stage/Wait...)`，每个阶段独立事务，汇算 Stage 内部可以再分段。完整声明片段和独立样例见[模块开发](../../fastapi-module/SKILL.md)和[框架用法](../../fastapi-module/references/framework.md)。生成的正常样例只证明骨架是通的，必须换成确认过的实际结果。
 
 ## 怎样处理旧函数
 
@@ -74,7 +74,7 @@ job = JobPlan(load, segmented=True, repeat_safe=True, import_plan=import_plan)
 
 复用分段提交：每批只读写一段并声明 checkpoint.advance，最后声明 finish。框架在最后一批提交前自动对账目标里的实际数据：行数精确相等、合计精确相等、最低非空率、非空引用完整。没有登记的指标仍然是未验证的，不会默认替产品选择质量字段。对账不通过时任务失败并撤销最后一批，之前已提交的批次保留；运行报告记录每个指标的预期和实测；对账还没有执行时标未知。确认来源为空时才使用 `Reconcile(...rows=0, allow_empty=True)`，不能为了让对账通过而改行数。
 
-生成迁移之前先登记表归属，方法见[迁移说明](../../../../server/migrations/README.md)。旧产品先处理历史危险动作的警告，之后开启 APP_MIGRATION_STRICT；外部表只保留，不属于本产品维护的表不能删除、改名或改类型。
+生成迁移之前先登记表归属，方法见[框架用法](../../fastapi-module/references/framework.md)“存储”一节。旧产品先处理历史危险动作的警告，之后开启 APP_MIGRATION_STRICT；外部表只保留，不属于本产品维护的表不能删除、改名或改类型。
 
 ## 联合验证
 

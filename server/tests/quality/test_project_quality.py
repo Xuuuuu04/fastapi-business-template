@@ -5,11 +5,7 @@ from fastapi_check.quality.blocking import check_blocking
 from fastapi_check.quality.docs import check_writing_style
 from fastapi_check.quality.files import check_files
 from fastapi_check.quality.naming import check_naming
-from fastapi_check.quality.readmes import check_readmes
 from fastapi_check.quality.report import Problem, in_modules, unused_allowed, without_allowed
-
-from app.setup.catalog import MODULES
-from shared.modules.catalog import Catalog
 
 
 def listed(problems: list[Problem]) -> str:
@@ -36,15 +32,6 @@ def test_naming() -> None:
 
 def test_no_blocking_calls() -> None:
     problems = scoped(check_blocking())
-    assert problems == [], listed(problems)
-
-
-def test_readmes() -> None:
-    catalog = Catalog(MODULES)
-    names = {
-        name: [item.name for item in module.provides] for name, module in catalog.modules.items()
-    }
-    problems = scoped(check_readmes(contracts=names))
     assert problems == [], listed(problems)
 
 

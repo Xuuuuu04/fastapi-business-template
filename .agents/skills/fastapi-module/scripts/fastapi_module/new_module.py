@@ -16,13 +16,11 @@ def targets(name: str, kind: str = "capability") -> dict[str, Path]:
     service = ROOT / "service" / name
     if kind == "workflow":
         return {
-            "workflow/README.md.txt": service / "README.md",
             "workflow/module.json.txt": service / "module.json",
             "workflow/module.py.txt": service / "module.py",
             "workflow/public.py.txt": service / "public.py",
             "workflow/data.py.txt": service / "data.py",
             "workflow/flow.py.txt": service / "flow.py",
-            "workflow/steps/README.md.txt": service / "steps" / "README.md",
             "workflow/routes.py.txt": ROOT / "app" / "api" / "v1" / f"{name}.py",
             "workflow/test_api.py.txt": ROOT
             / "tests"
@@ -31,8 +29,6 @@ def targets(name: str, kind: str = "capability") -> dict[str, Path]:
             / "test_registration.py",
         }
     return {
-        "service/README.md.txt": service / "README.md",
-        "service/calc_README.md.txt": service / "calc" / "README.md",
         "service/calc/titles.py.txt": service / "calc" / "titles.py",
         "tests/test_calc.py.txt": ROOT / "tests" / "modules" / name / "test_calc.py",
         "service/data.py.txt": service / "data.py",
@@ -40,10 +36,8 @@ def targets(name: str, kind: str = "capability") -> dict[str, Path]:
         "service/flow.py.txt": service / "flow.py",
         "service/module.py.txt": service / "module.py",
         "service/module.json.txt": service / "module.json",
-        "service/steps_README.md.txt": service / "steps" / "README.md",
         "service/steps/check_record.py.txt": service / "steps" / "check_record.py",
         "service/steps/store_records.py.txt": service / "steps" / "store_records.py",
-        "service/store_README.md.txt": service / "store" / "README.md",
         "service/store/contract.py.txt": service / "store" / "contract.py",
         "service/store/sql.py.txt": service / "store" / "sql.py",
         "service/store/tables.py.txt": service / "store" / "tables.py",

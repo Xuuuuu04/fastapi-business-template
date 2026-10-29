@@ -24,7 +24,7 @@ def check_libraries(root: Path) -> list[Problem]:
 def check_library_folder(root: Path, spec: LibrarySpec) -> list[Problem]:
     folder = root / "library" / spec.name
     problems = []
-    for required in ("README.md", "public.py", "module.json"):
+    for required in ("public.py", "module.json"):
         if not (folder / required).is_file():
             problems.append(
                 Problem(f"library/{spec.name}/{required}", 0, "library_layout", "缺少工具文件")
@@ -35,9 +35,8 @@ def check_library_folder(root: Path, spec: LibrarySpec) -> list[Problem]:
         if "__pycache__" in parts:
             continue
         allowed = (
-            len(parts) == 1
-            and parts[0] in {"README.md", "public.py", "module.json", "data.py", "calc"}
-        ) or (len(parts) == 2 and parts[0] == "calc" and path.suffix in {".py", ".md"})
+            len(parts) == 1 and parts[0] in {"public.py", "module.json", "data.py", "calc"}
+        ) or (len(parts) == 2 and parts[0] == "calc" and path.suffix == ".py")
         if path.is_symlink() or not allowed:
             problems.append(
                 Problem(

@@ -50,7 +50,7 @@ def test_module_quality_keeps_only_own_paths(monkeypatch: pytest.MonkeyPatch) ->
         Problem("service/sample_records/steps/build_fee.py", 3, "step_name", "本包"),
         Problem("tests/modules/sample_records/test_fee.py", 9, "comment", "本包"),
         Problem("app/api/v1/sample_records.py", 1, "docstring", "本包接口"),
-        Problem("server/service/sample_records/README.md", 4, "writing_style", "本包说明"),
+        Problem("service/sample_records/data.py", 4, "comment", "本包数据"),
     ]
     others = [
         Problem("service/sample_records_extra/steps/build_fee.py", 3, "step_name", "名字相近"),

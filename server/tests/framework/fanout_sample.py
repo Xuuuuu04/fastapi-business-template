@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, MetaData, PrimaryKeyConstraint, Table, f
 
 from shared.access.caller import Caller
 from shared.db.org import org_column
-from shared.pipelines.gate import PipelineGate
 from shared.public import (
     All,
     Data,
@@ -13,6 +12,7 @@ from shared.public import (
     Member,
     Module,
     Pipeline,
+    PipelineGate,
     Stage,
     Wait,
     WorkData,

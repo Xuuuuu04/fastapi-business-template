@@ -28,11 +28,8 @@ def library_files(name: str, title: str, root: Path = ROOT) -> dict[Path, str]:
             indent=2,
         )
         + "\n",
-        folder
-        / "README.md": f"# {title}\n\n纯文本整理，不访问外部资源。公开导出：normalize_text。\n",
         folder / "public.py": f"from library.{name}.calc.texts import normalize_text\n\n"
         + '__all__ = ["normalize_text"]\n',
-        folder / "calc/README.md": "# 纯计算\n\n只接收参数并返回结果，不读取外部状态。\n",
         folder / "calc/texts.py": "def normalize_text(value: str) -> str:\n"
         + "    return value.strip()\n",
         root

@@ -35,18 +35,11 @@ def changes(module: str, name: str, title: str, stages: list[str], wait: str) ->
             values[step] = values[step].replace(
                 f"{state}(text=value)", f"{state}(text=value, ready=True)"
             )
-    readme = folder / "README.md"
-    values[readme] = readme_text(values[readme], module, name, title)
     registration = folder / "module.py"
     values[registration] = registration_text(
         values[registration], module, name, title, state, stages, wait
     )
     return values
-
-
-def readme_text(original: str, module: str, name: str, title: str) -> str:
-    entry = f"- `{module}.start_{name}`：启动{title}。"
-    return original.replace("## 公开操作", "## 公开操作\n\n" + entry, 1)
 
 
 def registration_text(

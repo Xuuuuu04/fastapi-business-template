@@ -15,9 +15,11 @@ uv run dev jobs show 任务编号
 uv run dev make-key --name 服务名 --org-id 组织 --permissions 权限
 ```
 
+部署、生产配置、迁移、内置运维，以及用系统接口一层层查一次运行，见[运行与运维](references/runtime.md)。
+
 ## 查运行情况
 
-`diagnose` 有五个子命令：`runs`（运行列表）、`run`（单次运行）、`flow`（流程）、`field`（字段来源）、`stats`（统计）。也可以在浏览器打开 `/system/console`，或访问 `/api/system/runs/{run_id}/report`。
+`diagnose` 有六个子命令：`runs`（运行列表）、`run`（单次运行）、`flow`（流程）、`field`（字段来源）、`stats`（统计）、`budgets`（查询额度）。也可以在浏览器打开 `/system/console`，或访问 `/api/system/runs/{run_id}/report`。
 
 ## 处理后台任务
 
@@ -26,7 +28,7 @@ uv run dev make-key --name 服务名 --org-id 组织 --permissions 权限
 - 授权是否覆盖这个任务、这个环境。
 - 重新排队前，先查任务里的外部动作是否已经执行过。结果不明时不要直接重试，否则可能重复执行（比如重复扣款）。
 
-后台任务使用用户权限的限制，见 `server/shared/jobs/README.md`。
+后台任务使用用户权限的限制，见 fastapi-module 的[框架用法](../fastapi-module/references/framework.md)“后台任务”一节。
 
 ## 多阶段流程
 
@@ -44,7 +46,7 @@ uv run dev drill ../doc/模块/drill_流程.json --output var/development/drill
 # 同上，增加 --postgres 'postgresql+psycopg://用户:密码@隔离主机/隔离库'
 ```
 
-配置写法与指标见[演练说明](../../../server/shared/drills/README.md)。命令按 module.py 里实际的 Schedule 首入口跑完整链路；回放没有覆盖到的请求会明确失败，失败或超时返回非零。report.json 列出各阶段耗时、实际提交的行数（或未知）、最慢的 SQL、采样的内存峰值和需要人工处理的地方，artifacts 保留发布的文件。报告会分别列出：使用了原件的阶段、不需要回放的阶段、没有完成的阶段。模型使用模拟提供者，建表使用登记的结构；不能据此说真实模型、生产迁移或外部发布已经验证。输出里包含业务产物，应只存放在授权的本机目录，不提交 Git。
+配置写法见[运行与运维](references/runtime.md)。命令按 module.py 里实际的 Schedule 首入口跑完整链路；回放没有覆盖到的请求会明确失败，失败或超时返回非零。report.json 列出各阶段耗时、实际提交的行数（或未知）、最慢的 SQL、采样的内存峰值和需要人工处理的地方，artifacts 保留发布的文件。报告会分别列出：使用了原件的阶段、不需要回放的阶段、没有完成的阶段。模型使用模拟提供者，建表使用登记的结构；不能据此说真实模型、生产迁移或外部发布已经验证。输出里包含业务产物，应只存放在授权的本机目录，不提交 Git。
 
 ## 生成服务密钥
 

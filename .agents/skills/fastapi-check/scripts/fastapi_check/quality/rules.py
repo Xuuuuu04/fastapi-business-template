@@ -7,8 +7,6 @@ PROJECT = ROOT.parent
 MAX_FILE_LINES = 300
 MAX_FUNCTION_LINES = 50
 MAX_NESTING = 4
-MAX_MODULE_README_LINES = 120
-MAX_README_LINES = 150
 MAX_BUSINESS_DOC_LINES = 200
 
 CODE_DIRS = (
@@ -23,7 +21,6 @@ CODE_DIRS = (
 )
 BUSINESS_DIRS = ("service/", "library/", "app/api/v1/", "tests/modules/", "tests/integration/")
 FRAMEWORK_TESTS = ("tests/integration/system/",)
-README_DIRS = ("app", "service", "shared", "devtools", "tests", "deploy", "migrations")
 SKIP_PARTS = ("__pycache__", ".venv", "versions", "temp")
 
 VAGUE_NAMES = frozenset(
@@ -85,13 +82,6 @@ STEP_VERBS = frozenset(
 
 CONDITION_WORDS = frozenset({"is", "has", "can", "needs", "should"})
 
-MODULE_README_SECTIONS = (
-    "## 用途",
-    "## 公开操作",
-    "## 依赖",
-    "## 内部组织",
-    "## 测试",
-)
 
 BUSINESS_DOCS = ("needs.md", "rules.md", "changes.md")
 

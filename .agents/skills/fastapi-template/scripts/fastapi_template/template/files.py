@@ -25,9 +25,6 @@ MANUAL_FILES = (
     "server/migrations/versions",
     "AGENTS.md",
     "CLAUDE.md",
-    "server/README.md",
-    "server/service/README.md",
-    "server/tests/README.md",
     "CHANGELOG.md",
     ".github",
 )

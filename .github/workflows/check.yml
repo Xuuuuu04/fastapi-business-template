@@ -50,7 +50,7 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     env:
-      # 以下变量让 Redis 和 S3 的约定测试参加，说明见 server/tests/README.md。
+      # 以下变量让 Redis 和 S3 的约定测试参加，说明见 .agents/skills/fastapi-check/references/tests.md。
       APP_TEST_REDIS_URL: redis://127.0.0.1:6379/15
       APP_TEST_S3_ENDPOINT: http://127.0.0.1:9000
       APP_TEST_S3_ACCESS_KEY: template

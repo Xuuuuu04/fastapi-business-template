@@ -35,6 +35,8 @@ uv run dev check --postgres 测试数据库地址
 
 ## 写测试的要求
 
+测试目录和分组、业务测试的夹具、失败报告位置和 PostgreSQL 测试库隔离，见[测试说明](references/tests.md)。
+
 - 预期结果来自和用户确认过的业务样例。旧系统的输出只能用来比较兼容性，不能当作正确答案。
 - 和时间有关的样例：在操作执行时传入时间，或使用可控的时钟。不要在模块导入时就算好有效期，也不要为了让测试通过而放宽业务时限。
 - 权限测试使用真实的应用权限。
@@ -51,6 +53,6 @@ uv run dev check --postgres 测试数据库地址
 
 当前业务和公共安全问题修复之后，才能说当前目标完成。其他交付条件单独列出来，不要悄悄并入当前阶段。
 
-查询额度在公开的 contract 里声明 QueryBudget；显式声明后，测试超额默认失败，旧的未声明操作只警告。APP_QUERY_BUDGET_MODE=warn 可以临时只警告；逐项迁移完成后改成 error，让默认额度也在测试中报错。生产环境只记录。接入方法和测量含义见 server/shared/db/README.md。
+查询额度在公开的 contract 里声明 QueryBudget；显式声明后，测试超额默认失败，旧的未声明操作只警告。APP_QUERY_BUDGET_MODE=warn 可以临时只警告；逐项迁移完成后改成 error，让默认额度也在测试中报错。生产环境只记录。写法见 fastapi-module 的 [框架用法](../fastapi-module/references/framework.md)。
 
 命名检查的来历和删除条件见[检查说明](references/check-rationale.md)；没有当前替代证据时，不因为耗时或以前通过而删除检查。
