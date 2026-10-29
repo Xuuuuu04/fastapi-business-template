@@ -19,13 +19,26 @@ def actual_files(folder: Path) -> bool:
     return False
 
 
-def descriptor(name: str, *, strict: bool = False) -> dict[str, object]:
+KINDS = ("capability", "workflow")
+
+
+def descriptor(name: str, *, strict: bool = False, kind: str = "") -> dict[str, object]:
     return {
         "schema_version": 1,
         "layout": "standard",
         "module": name,
+        **({"kind": kind} if kind else {}),
         **({"dependencies": "strict"} if strict else {}),
     }
+
+
+def declared_kind(folder: Path) -> str | None:
+    try:
+        content = json.loads((folder / "module.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    kind = content.get("kind") if isinstance(content, dict) else None
+    return kind if kind in KINDS else None
 
 
 def check_layout(root: Path, names: Iterable[str], *, markers: bool = True) -> list[str]:
@@ -54,14 +67,17 @@ def check_package(folder: Path, *, markers: bool) -> list[str]:
         for name in sorted(REQUIRED)
         if not (folder / name).is_file()
     ]
-    for area in ("steps", "store"):
-        for name in (
-            ("README.md",)
-            if area == "steps"
-            else ("README.md", "contract.py", "sql.py", "tables.py")
-        ):
-            if not (folder / area / name).is_file():
-                problems.append(f"service/{folder.name}/{area}/{name}：缺少标准文件")
+    kind = declared_kind(folder) if markers else None
+    required = [("steps", "README.md")]
+    if kind != "workflow":
+        required += [
+            ("store", name) for name in ("README.md", "contract.py", "sql.py", "tables.py")
+        ]
+    elif (folder / "store").exists():
+        problems.append(f"service/{folder.name}/store：流程包不拥有数据，数据存取放到能力包")
+    for area, name in required:
+        if not (folder / area / name).is_file():
+            problems.append(f"service/{folder.name}/{area}/{name}：缺少标准文件")
     for path in sorted(folder.rglob("*")):
         parts = path.relative_to(folder).parts
         if any(part in IGNORED for part in parts):
@@ -79,7 +95,7 @@ def permitted(parts: tuple[str, ...], directory: bool) -> bool:
             return parts[0] in AREAS
         name = parts[0]
         return name in REQUIRED | {"module.json", "__init__.py"} or (
-            name.startswith("data_") and name.endswith(".py")
+            name.startswith(("data_", "flow_")) and name.endswith(".py")
         )
     if len(parts) != 2 or directory or parts[0] not in AREAS:
         return False
@@ -102,7 +118,10 @@ def check_marker(folder: Path) -> list[str]:
         if isinstance(content, dict)
         else content
     )
-    if kind not in (None, "capability", "workflow") or normalized not in (
+    if kind not in KINDS:
+        kinds = "capability（能力包）或 workflow（流程包）"
+        return [f"service/{folder.name}/module.json：kind 必须写 {kinds}"]
+    if normalized not in (
         descriptor(folder.name),
         descriptor(folder.name, strict=True),
     ):

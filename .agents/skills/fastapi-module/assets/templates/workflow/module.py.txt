@@ -1,0 +1,9 @@
+from shared.public import Module
+
+module = Module(
+    name="$name",
+    title="$title",
+    version="1",
+    kind="workflow",
+    provides={},
+)

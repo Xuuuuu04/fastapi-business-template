@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, get_args
 
 from pydantic import BaseModel
@@ -11,6 +11,7 @@ from shared.modules.module import Module
 def check_policy(modules: Sequence[Module]) -> list[str]:
     provided = {operation: module for module in modules for operation in module.provides}
     names = {module.name for module in modules}
+    kinds = {module.name: module.kind for module in modules}
     problems = []
     for module in modules:
         problems += provider_problems(module)
@@ -18,10 +19,12 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
             issue
             for plan in module.jobs
             if plan.revalidate is not None
-            for issue in dependency_problems(module, plan.contract, plan.revalidate)
+            for issue in dependency_problems(module, plan.contract, plan.revalidate, kinds)
         ]
         if module.kind not in (None, "capability", "workflow"):
             problems.append(f"模块 {module.name} 的kind无效")
+        if module.kind == "workflow" and module.tables:
+            problems.append(f"流程包 {module.name} 不拥有数据表，表放到能力包")
         unknown = sorted(
             name for name in module.read_dependencies if name not in names or name == module.name
         )
@@ -45,7 +48,7 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
                 issue
                 for target in targets
                 if target in provided
-                for issue in dependency_problems(module, operation, target)
+                for issue in dependency_problems(module, operation, target, kinds)
             ]
             if module.kind:
                 problems += data_problems(module, operation, flow.work)
@@ -64,11 +67,15 @@ def provider_problems(module: Module) -> list[str]:
     ]
 
 
-def dependency_problems(module: Module, operation: Contract, target: Contract) -> list[str]:
+def dependency_problems(
+    module: Module, operation: Contract, target: Contract, kinds: Mapping[str, str | None]
+) -> list[str]:
     if operation.effect == "query" and target.effect != "query":
         return [f"查询 {operation.name} 不能调用写入或效果未知的操作 {target.name}"]
     if target.module == module.name:
         return []
+    if module.kind and kinds.get(target.module) == "workflow":
+        return [f"{module.name} 不能调用流程包的操作 {target.name}；流程包只被入口调用"]
     if module.kind != "capability":
         return []
     if target.effect != "query":

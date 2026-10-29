@@ -9,18 +9,30 @@ description: 在本项目新增业务包，或把已有业务包调整成固定�
 
 业务含义还没定的地方先问用户，不要自己补。
 
+## 包分三种
+
+| 类型 | 负责什么 | 能调用谁 | 目录 |
+| --- | --- | --- | --- |
+| 能力包 `capability` | 拥有自己的表和规则 | 本包；别的能力包只能读（`read_dependencies`） | `service/`，必须有 `store/` |
+| 流程包 `workflow` | 把几个能力包串成业务链 | 只能调能力包，不调其他流程包 | `service/`，不许有 `store/`，不建表 |
+| 工具包 | 纯计算 | 只用自己和标准库 | `library/` |
+
+谁都不能调用流程包，流程包只由入口（HTTP 接口、定时、后台任务）调用。拆包先看数据：一张表只属于一个能力包；要把几个能力包串起来，再建流程包。包里操作多了，流程和数据可以拆成 `flow_主题.py`、`data_主题.py`。
+
 ## 生成新包
 
 在 `server/` 目录执行：
 
 ```bash
-# 新建一个业务包
+# 新建能力包（带示例表和读写操作）
 uv run dev new-module customer_contact --title 客户联系人
+# 新建流程包（空包，再用 new-operation 加操作）
+uv run dev new-module order_sync --title 订单同步 --kind workflow
 # 给已有的旧包补上结构说明
 uv run dev adopt-modules
 ```
 
-- `new-module` 会建立业务包、测试、业务文档和 HTTP 入口，并更新公共登记。不要复制已有的业务包来当新包。
+- `new-module` 会建立业务包、测试和 HTTP 入口，并更新公共登记。不要复制已有的业务包来当新包。
 - `adopt-modules` 要求旧包先通过全部结构检查，才会写入结构说明。它不改业务代码。
 - 需要账号登录时加 `--preset access`，例如 `uv run dev new-module user_access --title 账号登录 --preset access`：生成登录、新建账号、账号表迁移、文档和测试，接口路径固定为 `/api/v1/access`，与前端模板的登录约定一致，见[接口参考](references/frontend-interface.md)。
 

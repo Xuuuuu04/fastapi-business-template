@@ -49,11 +49,12 @@ def changes(
         f"__all__ += {sorted(set(exports))!r}"
     )
     public = add_import(public, f"from service.{module}.data import {input}, {output}, {invalid}")
+    public = add_import(public, "from shared.public import contract")
     generated[folder / "public.py"] = append(public, declaration)
     generated |= implementation_files(module, name, title, kind, output, invalid, read)
     registration = folder / "module.py"
     generated[registration] = extend_module(
-        read(registration),
+        add_import(read(registration), f"from service.{module} import flow, public"),
         "provides",
         f"public.{name}: flow.{name}_flow",
         mapping=True,
@@ -83,7 +84,8 @@ def implementation_files(
             "# 纯计算\n\n只接收参数并返回结果；外部值由步骤传入。\n"
         )
     flow = folder / "flow.py"
-    flow_text = add_import(read(flow), f"from service.{module}.data import {kind}Work")
+    flow_text = add_import(read(flow), "from shared.public import Flow")
+    flow_text = add_import(flow_text, f"from service.{module}.data import {kind}Work")
     flow_text = add_import(
         flow_text, f"from service.{module}.steps.build_{name} import build_{name}"
     )
@@ -136,7 +138,9 @@ def route(module: str, name: str, title: str, input: str, output: str) -> dict[P
 async def {name}(body: {module}.{input}, run: RunDep) -> {module}.{output}:
     return await run({module}.{name}, body)
 '''
-    return {path: append(path.read_text(), code)}
+    text = add_import(path.read_text(), "from app.api.runner import RunDep")
+    text = add_import(text, f"from service.{module} import public as {module}")
+    return {path: append(text, code)}
 
 
 def generate(

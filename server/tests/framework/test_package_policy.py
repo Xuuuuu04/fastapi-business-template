@@ -219,3 +219,40 @@ def test_read_dependencies_must_be_registered() -> None:
     )
     assert check_policy([source, declared]) == []
     assert any("只读依赖未登记" in issue for issue in check_policy([source, typoed]))
+
+
+def calling_module(name: str, kind: str, target: Any) -> Module:
+    operation = contract(
+        f"{name}.run", "执行", input=Nothing, output=Nothing, access=f"{name}.run", effect="command"
+    )
+
+    @step("调用", writes=["result"], uses=[target])
+    async def call_target(data: Work, call) -> None:
+        data.result = await call(target, Nothing())
+
+    flow = Flow("执行", work=Work, result="result", steps=[call_target])
+    return Module(name, "调用方", "1", {operation: flow}, kind=kind)
+
+
+def test_nothing_calls_into_a_workflow() -> None:
+    target = contract(
+        "order_flow.start", "启动", input=Nothing, output=Nothing, access="a.b", effect="command"
+    )
+    owner = Module(
+        "order_flow",
+        "订单流程",
+        "1",
+        {target: Flow("启动", work=Work, result="result", steps=[produce])},
+        kind="workflow",
+    )
+    for kind in ("workflow", "capability"):
+        problems = check_policy([owner, calling_module("report_flow", kind, target)])
+        assert any("不能调用流程包的操作 order_flow.start" in issue for issue in problems)
+
+
+def test_workflow_owns_no_tables() -> None:
+    from sqlalchemy import Column, Integer, MetaData, Table
+
+    table = Table("order_flow_rows", MetaData(), Column("id", Integer, primary_key=True))
+    workflow = Module("order_flow", "订单流程", "1", {}, kind="workflow", tables=(table,))
+    assert check_policy([workflow]) == ["流程包 order_flow 不拥有数据表，表放到能力包"]

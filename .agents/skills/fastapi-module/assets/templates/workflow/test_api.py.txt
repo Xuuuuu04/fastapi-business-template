@@ -1,0 +1,9 @@
+from fastapi.testclient import TestClient
+
+from tests.testing_app import KEY
+
+
+def test_package_is_registered(client: TestClient) -> None:
+    reply = client.get("/api/system/modules", headers=KEY)
+    assert reply.status_code == 200
+    assert "$name" in {item["name"] for item in reply.json()["modules"]}

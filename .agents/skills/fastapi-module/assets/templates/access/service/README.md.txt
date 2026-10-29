@@ -24,10 +24,6 @@
 - `store/`：`contract.py` 声明需要的读写，`sql.py` 是数据库实现，`tables.py` 定义账号表。
 - 接口在 `app/api/v1/$name.py`，路径固定为 `/api/v1/access`，登录失败限流也在那里。
 
-## 业务文档
-
-需求、规则和变化记录见 [doc/$name](../../../doc/$name/)；流程图和字段来源见其中自动生成的 flows.md。
-
 ## 测试
 
 - `tests/modules/$name/`：口令计算和授权范围的步骤测试。

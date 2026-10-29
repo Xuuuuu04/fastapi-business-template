@@ -5,6 +5,7 @@ from fastapi_check.quality.files import check_files
 from fastapi_check.quality.rules import ROOT
 from fastapi_module.access_preset import preset_targets
 
+from shared.modules.layout import check_layout
 from shared.modules.validation.imports import check_imports
 
 
@@ -32,6 +33,7 @@ def test_account_preset_follows_business_rules(tmp_path: Path) -> None:
     for path in written:
         if path.suffix == ".py":
             compile(path.read_text(encoding="utf-8"), str(path), "exec")
+    assert check_layout(tmp_path, ["user_access"]) == []
     assert [problem.text() for problem in check_imports(tmp_path, strict=True)] == []
     rules = {"comment", "docstring", "catch"}
     assert [p.text() for p in check_files(tmp_path) if p.rule in rules] == []

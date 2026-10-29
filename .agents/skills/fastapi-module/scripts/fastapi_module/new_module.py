@@ -1,5 +1,4 @@
 import argparse
-import json
 import re
 import subprocess
 import sys
@@ -13,8 +12,24 @@ TEMPLATES = Path(__file__).resolve().parents[2] / "assets/templates"
 NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)+$")
 
 
-def targets(name: str) -> dict[str, Path]:
+def targets(name: str, kind: str = "capability") -> dict[str, Path]:
     service = ROOT / "service" / name
+    if kind == "workflow":
+        return {
+            "workflow/README.md.txt": service / "README.md",
+            "workflow/module.json.txt": service / "module.json",
+            "workflow/module.py.txt": service / "module.py",
+            "workflow/public.py.txt": service / "public.py",
+            "workflow/data.py.txt": service / "data.py",
+            "workflow/flow.py.txt": service / "flow.py",
+            "workflow/steps/README.md.txt": service / "steps" / "README.md",
+            "workflow/routes.py.txt": ROOT / "app" / "api" / "v1" / f"{name}.py",
+            "workflow/test_api.py.txt": ROOT
+            / "tests"
+            / "integration"
+            / name
+            / "test_registration.py",
+        }
     return {
         "service/README.md.txt": service / "README.md",
         "service/calc_README.md.txt": service / "calc" / "README.md",
@@ -50,10 +65,10 @@ def check_name(name: str) -> str:
     return ""
 
 
-def write_files(name: str, title: str) -> list[Path]:
+def write_files(name: str, title: str, kind: str = "capability") -> list[Path]:
     values = {"name": name, "title": title, "Camel": camel(name), "path": name.replace("_", "-")}
     written = []
-    for source, target in targets(name).items():
+    for source, target in targets(name, kind).items():
         text = Template((TEMPLATES / source).read_text(encoding="utf-8")).substitute(values)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
@@ -115,15 +130,6 @@ def tidy(paths: list[Path]) -> None:
     subprocess.run([*ruff, "format", "--quiet", *files], cwd=ROOT, check=False)
 
 
-def set_kind(name: str, kind: str) -> None:
-    marker = ROOT / "service" / name / "module.json"
-    descriptor = json.loads(marker.read_text())
-    descriptor["kind"] = kind
-    marker.write_text(json.dumps(descriptor, ensure_ascii=False, indent=2) + "\n")
-    module = ROOT / "service" / name / "module.py"
-    module.write_text(module.read_text().replace('kind="capability"', f'kind="{kind}"'))
-
-
 def next_steps(name: str) -> list[str]:
     return [
         f"1. 按真实业务修改 service/{name}",
@@ -132,6 +138,14 @@ def next_steps(name: str) -> list[str]:
         "3. uv run dev docs（更新 openapi.json）",
         f"4. uv run dev check --module {name}（先检查本模块）",
         "5. uv run dev check（交付前检查全部模块）",
+    ]
+
+
+def workflow_steps(name: str) -> list[str]:
+    return [
+        f"1. uv run dev new-operation {name} 操作名 --title 中文名 --http（添加操作）",
+        "2. 在步骤的 uses 里声明要调用的能力包操作；流程包不调用其他流程包，不建表",
+        f"3. uv run dev check --module {name}",
     ]
 
 
@@ -157,9 +171,8 @@ def main() -> None:
         written = access_preset.write_preset(args.name, args.title)
         steps = access_preset.next_steps(args.name)
     else:
-        written = write_files(args.name, args.title)
-        set_kind(args.name, args.kind)
-        steps = next_steps(args.name)
+        written = write_files(args.name, args.title, args.kind)
+        steps = workflow_steps(args.name) if args.kind == "workflow" else next_steps(args.name)
     tidy(written + register(args.name, args.title))
     print(f"已生成模块 {args.name}（{args.title}），共 {len(written)} 个文件，并已登记。接下来：")
     print("\n".join(steps))

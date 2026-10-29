@@ -15,6 +15,8 @@
 - 运行记录不再计算和保存整份源码的哈希（`source_version`）；读取旧记录时自动忽略这个字段。
 - 业务代码（`service/`、`library/`、`app/api/v1/` 及其测试）禁止 try/except 和 `contextlib.suppress`，新检查规则 `catch`。框架补两种写法代替原来要自己接住错误的场景：`Db.one/change(..., conflict=业务错误())` 只把唯一冲突换成声明的业务错误；路由 `run(..., limits=(FailureLimit(...),))` 统一做失败计数、超限 429、成功清零。账号包预设改用这两种写法，去掉了两处 try。
 - 通用流式接口 `stream.py` 从 `app/api/v1/` 挪到 `app/api/system/`（框架代码），URL 不变。
+- 包的类型边界写进检查：`module.json` 和 `Module` 的 `kind` 必须写 `capability` 或 `workflow` 且一致；能力包必须有 `store/`，流程包不许有 `store/`、不许登记表；流程包只能调用能力包，谁都不能调用流程包。允许 `flow_*.py` 拆分流程定义。`new-module --kind workflow` 改为生成不带数据存取的空流程包，`new-operation` 会自己补上需要的导入。`adopt-modules` 要求旧包先在 `module.py` 写明 kind。
+- 业务包 README 不再要求“业务文档”小节，模板里指向已删业务文档的链接一并删除。
 - 已有产品接入：升级后旧代码的注释会被新检查报出，用同样的方式删除；意图改用名字、类型、`meaning()` 和测试表达，修改原因写进提交说明。
 
 ## 3.2.0（2026-10-14）

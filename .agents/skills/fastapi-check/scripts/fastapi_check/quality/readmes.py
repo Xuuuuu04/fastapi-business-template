@@ -52,7 +52,7 @@ def check_length(readme: Path, root: Path) -> list[Problem]:
             0,
             "readme_lines",
             f"README 有 {count} 行，超过 {limit} 行",
-            "整理成要点；详细的业务规则放到 doc/ 下的业务文档，不删除业务条件和确认样例",
+            "整理成要点，业务规则写进测试样例",
         )
     ]
 
