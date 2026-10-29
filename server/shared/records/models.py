@@ -95,7 +95,6 @@ class StepRecord:
     name: str
     title: str
     kind: str
-    rule: str
     source: str
     reads: list[str] = field(default_factory=list)
     writes: list[str] = field(default_factory=list)
@@ -193,8 +192,18 @@ def run_from_dict(data: dict[str, Any]) -> RunRecord:
         remotes = [RemoteCallRecord(**item) for item in raw.get("remotes", [])]
         database = [DatabaseCallRecord(**item) for item in raw.get("database", [])]
         steps.append(
-            StepRecord(**{**raw, "models": models, "remotes": remotes, "database": database})
+            StepRecord(
+                **{
+                    **known(StepRecord, raw),
+                    "models": models,
+                    "remotes": remotes,
+                    "database": database,
+                }
+            )
         )
-    known = {item.name for item in fields(RunRecord)}
-    values = {key: value for key, value in data.items() if key in known}
-    return RunRecord(**{**values, "steps": steps})
+    return RunRecord(**{**known(RunRecord, data), "steps": steps})
+
+
+def known(kind: type, data: dict[str, Any]) -> dict[str, Any]:
+    names = {item.name for item in fields(kind)}
+    return {key: value for key, value in data.items() if key in names}

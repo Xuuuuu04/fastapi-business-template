@@ -4,7 +4,7 @@ from shared.public import BusinessError, Data, Kind, WorkData, meaning
 
 
 class ${Camel}Input(Data):
-    title: str = meaning("标题，去掉首尾空白后为 1 到 80 个字", rule="R-01", min_length=1)
+    title: str = meaning("标题，去掉首尾空白后为 1 到 80 个字", min_length=1)
 
 
 class ${Camel}Id(Data):
@@ -25,7 +25,7 @@ class ${Camel}Invalid(BusinessError):
 
 class CreateWork(WorkData):
     title: str = meaning("调用方填写的标题")
-    clean_title: str = meaning("整理后的标题", rule="R-01")
+    clean_title: str = meaning("整理后的标题")
     record: ${Camel}View = meaning("保存后的记录")
 
 

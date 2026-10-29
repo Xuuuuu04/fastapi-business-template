@@ -55,7 +55,6 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 
 业务迁移见 `fastapi-template` 的迁移参考，前后端接口适配见 `fastapi-module` 的接口参考。五个日常 Skill 入口包含本 guide；`fastapi-project`、`fastapi-docs`、`fastapi-migration` 只放 `dev locate`、`dev docs`、`dev compare-api` 的脚本，不是 Skill 入口。所有命令一律用 `uv run dev 子命令`。
 
-写文档和生成文字时，遵循 [文风与术语约定](references/writing-style.md)：完整句子、统一术语、图上只放流程、细节进表格。
 
 ## 复制项目时
 

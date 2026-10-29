@@ -22,13 +22,13 @@ def actual_files(folder: Path) -> bool:
 KINDS = ("capability", "workflow")
 
 
-def descriptor(name: str, *, strict: bool = False, kind: str = "") -> dict[str, object]:
+def descriptor(name: str, *, kind: str = "") -> dict[str, object]:
     return {
         "schema_version": 1,
         "layout": "standard",
         "module": name,
         **({"kind": kind} if kind else {}),
-        **({"dependencies": "strict"} if strict else {}),
+        "dependencies": "strict",
     }
 
 
@@ -121,9 +121,6 @@ def check_marker(folder: Path) -> list[str]:
     if kind not in KINDS:
         kinds = "capability（能力包）或 workflow（流程包）"
         return [f"service/{folder.name}/module.json：kind 必须写 {kinds}"]
-    if normalized not in (
-        descriptor(folder.name),
-        descriptor(folder.name, strict=True),
-    ):
+    if normalized != descriptor(folder.name):
         return [f"service/{folder.name}/module.json：结构说明与标准业务包不一致"]
     return []

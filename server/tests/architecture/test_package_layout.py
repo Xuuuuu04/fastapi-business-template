@@ -17,7 +17,7 @@ def package(root: Path, kind: str | None, *, store: bool, extra: tuple[str, ...]
         (folder / "store").mkdir()
         for name in ("README.md", "contract.py", "sql.py", "tables.py"):
             (folder / "store" / name).write_text("", encoding="utf-8")
-    marker = descriptor("order_desk", strict=True, kind=kind or "")
+    marker = descriptor("order_desk", kind=kind or "")
     (folder / "module.json").write_text(json.dumps(marker), encoding="utf-8")
 
 

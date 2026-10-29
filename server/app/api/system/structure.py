@@ -73,7 +73,6 @@ async def flow(name: str, request: Request, caller: CallerDep) -> dict[str, Any]
                 "name": part.name,
                 "title": part.title,
                 "kind": part.kind,
-                "rule": part.rule,
                 "source": part.source,
                 "reads": part.reads,
                 "writes": part.writes,

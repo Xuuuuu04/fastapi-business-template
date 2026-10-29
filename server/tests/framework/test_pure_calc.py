@@ -29,13 +29,11 @@ def source_file(root: Path, area: str, text: str) -> Path:
 @pytest.mark.parametrize("target", ["steps.sample", "data", "flow", "public", "module"])
 def test_store_direction(tmp_path: Path, target: str) -> None:
     source_file(tmp_path, "store", f"from service.sample_calc.{target} import value\n")
-    with pytest.warns(UserWarning, match="APP_MODULE_DEPENDENCIES_STRICT"):
-        assert check_imports(tmp_path, strict=False) == []
-    problem = check_imports(tmp_path, strict=True)[0]
+    problem = check_imports(tmp_path)[0]
     assert problem.path.endswith("store/sample.py") and problem.line == 1
     assert "calc/" in problem.hint
     with pytest.raises(ConfigError, match="import_direction"):
-        check_structure([], tmp_path, strict=True)
+        check_structure([], tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -59,11 +57,11 @@ def test_store_direction(tmp_path: Path, target: str) -> None:
 )
 def test_impure_calc(tmp_path: Path, code: str) -> None:
     source_file(tmp_path, "calc", code)
-    problems = check_imports(tmp_path, strict=False)
+    problems = check_imports(tmp_path)
     assert problems and all(problem.line > 0 for problem in problems)
     assert any("参数" in problem.hint for problem in problems)
     with pytest.raises(ConfigError):
-        check_structure([], tmp_path, strict=False)
+        check_structure([], tmp_path)
 
 
 def test_normal_calc(tmp_path: Path) -> None:
@@ -71,7 +69,7 @@ def test_normal_calc(tmp_path: Path) -> None:
         tmp_path, "calc", "from decimal import Decimal\ndef total(a, b):\n    return a + b\n"
     )
     source_file(tmp_path, "store", "from service.sample_calc.calc.sample import total\n")
-    assert check_imports(tmp_path, strict=True) == []
+    assert check_imports(tmp_path) == []
     paths = targets("sample_calc")
     assert any(path.name == "test_calc.py" for path in paths.values())
     assert "services" not in operation_templates.calc_tests("sample_calc", "normalize")
@@ -181,9 +179,3 @@ async def test_runtime_includes_calc_in_step(through_store: bool) -> None:
         assert "耗时算在本步骤内" in step_node("one", 1, records[0].steps[0])[0]
     finally:
         await services.close()
-
-
-def test_new_package_strict(tmp_path: Path) -> None:
-    path = source_file(tmp_path, "store", "from service.sample_calc.steps.sample import value\n")
-    (path.parent.parent / "module.json").write_text('{"dependencies": "strict"}')
-    assert check_imports(tmp_path, strict=False)[0].rule == "import_direction"

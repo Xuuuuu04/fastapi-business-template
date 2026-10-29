@@ -10,9 +10,7 @@ from shared.modules.validation.imports import check_imports
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def check_structure(
-    modules: Sequence[Module], root: Path = ROOT, *, strict: bool | None = None
-) -> None:
+def check_structure(modules: Sequence[Module], root: Path = ROOT) -> None:
     problems = check_layout(root, (module.name for module in modules))
     problems += step_locations(modules)
     problems += [
@@ -20,7 +18,7 @@ def check_structure(
         for module in modules
         if (kind := declared_kind(root / "service" / module.name)) and kind != module.kind
     ]
-    problems += [problem.text() for problem in check_imports(root, strict=strict)]
+    problems += [problem.text() for problem in check_imports(root)]
     if problems:
         raise ConfigError(problems)
 

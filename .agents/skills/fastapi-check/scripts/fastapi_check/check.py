@@ -64,7 +64,9 @@ def arguments() -> argparse.Namespace:
     parser.add_argument(
         "--module", action="append", default=[], help="指定模块，可重复或用逗号分隔"
     )
-    parser.add_argument("--quick", action="store_true", help="只查所选模块的风格、格式和测试")
+    parser.add_argument(
+        "--quick", action="store_true", help="只查所选模块的风格、格式、质量规则和测试"
+    )
     parser.add_argument("--affected", action="store_true", help="按和 --base 的差异选出受影响模块")
     parser.add_argument("--base", default="origin/main", help="--affected 的比较分支")
     parser.add_argument("--postgres", default="", help="测试改用这个隔离 PostgreSQL 控制地址")
@@ -94,7 +96,7 @@ def steps(selection: Selection) -> list[tuple[str, list[str]]]:
         return [
             ("代码风格", ["ruff", "check", *files]),
             ("代码格式", ["ruff", "format", "--check", *files]),
-            ("模块测试", tests),
+            ("模块测试", [*tests, QUALITY]),
         ]
     if selection.modules:
         tests += [*INTEGRITY, QUALITY]
@@ -120,7 +122,7 @@ def environment(
         "APP_TEST_GROUP": group,
         "APP_TEST_WORKERS": str(workers),
         "APP_DEVELOPMENT_DELIVERY": "1" if delivery else "0",
-        "APP_DEVELOPMENT_MODULES": json.dumps([] if selection.quick else list(selection.modules)),
+        "APP_DEVELOPMENT_MODULES": json.dumps(list(selection.modules)),
         "APP_DISABLED_MODULES": "[]",
     }
     if postgres:

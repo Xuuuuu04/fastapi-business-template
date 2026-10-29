@@ -4,7 +4,13 @@ from shared.public import step
 
 MAX_TITLE_LENGTH = 80
 
-@step("整理标题", reads=["title"], writes=["clean_title"], rule="R-01", calcs=[normalize_title])
+@step(
+    "整理标题",
+    reads=["title"],
+    writes=["clean_title"],
+    calcs=[normalize_title],
+    placeholder=True,
+)
 def clean_title(data: CreateWork) -> None:
     data.clean_title = normalize_title(data.title)
     if not data.clean_title or len(data.clean_title) > MAX_TITLE_LENGTH:

@@ -1,7 +1,4 @@
 import ast
-import json
-import os
-import warnings
 from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
@@ -14,7 +11,7 @@ WEB_LIBRARIES = ("fastapi", "starlette", "httpx", "httpx2", "requests", "uvicorn
 DATABASE_LIBRARIES = ("sqlalchemy", "sqlite3", "psycopg", "aiosqlite", "alembic")
 
 
-def check_imports(root: Path = ROOT, *, strict: bool | None = None) -> list[Problem]:
+def check_imports(root: Path = ROOT) -> list[Problem]:
     problems = []
     for path in files_under(root, ("service",), ".py"):
         problems += check_service_file(path, root)
@@ -41,38 +38,7 @@ def check_imports(root: Path = ROOT, *, strict: bool | None = None) -> list[Prob
         problems += check_api_file(path, root)
     for path in files_under(root, ("service", "shared", "app"), ".py"):
         problems += check_dynamic(path, root)
-    return migration_policy(problems, strict, root) + check_libraries(root)
-
-
-def migration_policy(problems: list[Problem], strict: bool | None, root: Path) -> list[Problem]:
-    if strict is None:
-        strict = os.getenv("APP_MODULE_DEPENDENCIES_STRICT", "false").lower() in {"1", "true"}
-    errors = []
-    for problem in problems:
-        if (
-            problem.rule == "import_direction"
-            and not strict
-            and not package_strict(root, problem.path)
-        ):
-            warnings.warn(
-                problem.text() + "；迁移后设置 APP_MODULE_DEPENDENCIES_STRICT=true",
-                UserWarning,
-                stacklevel=2,
-            )
-        else:
-            errors.append(problem)
-    return errors
-
-
-def package_strict(root: Path, path: str) -> bool:
-    parts = Path(path).parts
-    if len(parts) < 2 or parts[0] != "service":
-        return False
-    marker = root / "service" / parts[1] / "module.json"
-    try:
-        return json.loads(marker.read_text()).get("dependencies") == "strict"
-    except (OSError, ValueError, AttributeError):
-        return False
+    return problems + check_libraries(root)
 
 
 def imported(path: Path) -> Iterator[tuple[str, int]]:

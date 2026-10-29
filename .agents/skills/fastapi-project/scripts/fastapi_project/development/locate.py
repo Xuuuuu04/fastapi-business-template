@@ -41,7 +41,7 @@ def field_terms(model: type[BaseModel], seen: set[type] | None = None) -> list[s
     if model in seen:
         return []
     seen.add(model)
-    terms = [f"{name} {note.meaning} {note.rule}" for name, note in notes_of(model).items()]
+    terms = [f"{name} {note.meaning}" for name, note in notes_of(model).items()]
     for field in model.model_fields.values():
         for inner in nested_models(field.annotation):
             terms.extend(field_terms(inner, seen))
@@ -59,7 +59,7 @@ def operation_terms(binding: Binding, routes: list[dict]) -> list[str]:
     ]
     terms += [table.name for table in module.tables]
     for part in flow.steps:
-        terms += [part.title, part.rule, f"{module.name}.{part.rule}"]
+        terms += [part.title]
     terms += [route["path"] for route in routes]
     terms += [s.name + " " + s.title for s in module.schedules if s.contract is item]
     terms += [j.contract.name + " " + j.contract.title for j in module.jobs if j.contract is item]
@@ -81,7 +81,6 @@ def result_of(binding: Binding, project: Path, routes: list[dict]) -> dict[str, 
         {"name": p.name, "title": p.title, "source": f"server/{p.source}"}
         for p in binding.flow.steps
     ]
-    used = list(dict.fromkeys(p.rule for p in binding.flow.steps if p.rule))
     files = [
         declaration_source(project, module.name),
         model_source(item.input, project),
@@ -109,7 +108,6 @@ def result_of(binding: Binding, project: Path, routes: list[dict]) -> dict[str, 
         ),
         "tables": bounded([t.name for t in module.tables]),
         "table_relation": "模块归属；具体步骤实际访问未知",
-        "rules": bounded(used),
         "next": COMMAND + f"check --module {module.name}",
     }
 

@@ -39,7 +39,13 @@ from service.{module}.data import {kind}Work, {output}, {invalid}
 from shared.public import step
 
 
-@step("整理样例输入", reads=["text"], writes=["result"], calcs=[normalize_text])
+@step(
+    "整理样例输入",
+    reads=["text"],
+    writes=["result"],
+    calcs=[normalize_text],
+    placeholder=True,
+)
 def build_{name}(data: {kind}Work) -> None:
     value = normalize_text(data.text)
     if not value:

@@ -8,6 +8,7 @@ from fastapi_project.development.locate import locate
 from fastapi_project.development.locate_routes import route_details
 
 from shared.errors.framework import DeclarationError
+from shared.flow.flow import Flow
 from shared.modules.catalog import Catalog
 from shared.public import Module, contract
 from tests.framework.sample_modules import CalcInput, CalcResult, NoteStore, calc_flow
@@ -38,11 +39,10 @@ async def adjust_price() -> str:
 
 @pytest.mark.parametrize(
     "query",
-    ["价格表", "PRICE TABLE", "/api/v1/price/adjust", "/api/v1/price/old", "R-01"],
+    ["价格表", "PRICE TABLE", "/api/v1/price/adjust", "/api/v1/price/old"],
 )
 def test_business_queries(tmp_path: Path, query: str) -> None:
-    flow = replace_flow_rule()
-    catalog = Catalog([replace(price_module, provides={price: flow})])
+    catalog = Catalog([price_module])
     app = FastAPI()
     app.include_router(router)
     result = locate(catalog, tmp_path, query, routes=route_details(app))
@@ -52,17 +52,6 @@ def test_business_queries(tmp_path: Path, query: str) -> None:
     assert hit["steps"]["items"][0]["source"].startswith("server/tests/")
     assert hit["next"] == "uv run dev check --module sample_price"
     assert result["database_read"] is False
-
-
-def replace_flow_rule():
-    from shared.flow.flow import Flow
-
-    return Flow(
-        calc_flow.title,
-        work=calc_flow.work,
-        result=calc_flow.result,
-        steps=[replace(s, rule="R-01") for s in calc_flow.steps],
-    )
 
 
 def test_bounded_large_project(tmp_path: Path) -> None:
@@ -90,7 +79,9 @@ def test_operation_conflict_and_missing_reference() -> None:
     other = replace(price, name="sample_price.other", aliases=("CHANGE PRICE",))
     with pytest.raises(DeclarationError, match="冲突"):
         Catalog([replace(price_module, provides={price: calc_flow, other: calc_flow})])
-    flow = replace_flow_rule()
+    flow = Flow(
+        calc_flow.title, work=calc_flow.work, result=calc_flow.result, steps=list(calc_flow.steps)
+    )
     flow.steps = (replace(flow.steps[0], uses=(other,)), *flow.steps[1:])
     with pytest.raises(DeclarationError, match="没有登记"):
         Catalog([replace(price_module, provides={price: flow})])

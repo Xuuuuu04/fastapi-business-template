@@ -3,9 +3,9 @@ from shared.public import BusinessError, Data, Kind, WorkData, meaning
 
 
 class LoginInput(Data):
-    org_code: str = meaning("组织代码", rule="R-01", min_length=1, max_length=64)
-    username: str = meaning("账号", rule="R-01", min_length=1, max_length=64)
-    password: str = meaning("口令", rule="R-02", secret=True, min_length=1, max_length=256)
+    org_code: str = meaning("组织代码", min_length=1, max_length=64)
+    username: str = meaning("账号", min_length=1, max_length=64)
+    password: str = meaning("口令", secret=True, min_length=1, max_length=256)
     otp_code: str = meaning(
         "两步验证码；最小账号包没有两步验证，不使用这个值",
         empty="不使用两步验证",
@@ -16,23 +16,23 @@ class LoginInput(Data):
 
 class Account(Data):
     user_id: int = meaning("账号编号")
-    org_id: str = meaning("所属组织代码", rule="R-01")
-    username: str = meaning("账号", rule="R-01")
-    permissions: list[str] = meaning("令牌里写入的权限名", rule="R-03")
+    org_id: str = meaning("所属组织代码")
+    username: str = meaning("账号")
+    permissions: list[str] = meaning("令牌里写入的权限名")
 
 
 class NewAccount(Data):
-    org_id: str = meaning("所属组织代码", rule="R-03", min_length=1, max_length=64)
-    username: str = meaning("账号", rule="R-01", min_length=1, max_length=64)
-    password: str = meaning("初始口令", rule="R-02", secret=True, min_length=8, max_length=256)
-    permissions: list[str] = meaning("授予的权限名", rule="R-03", default_factory=list)
+    org_id: str = meaning("所属组织代码", min_length=1, max_length=64)
+    username: str = meaning("账号", min_length=1, max_length=64)
+    password: str = meaning("初始口令", secret=True, min_length=8, max_length=256)
+    permissions: list[str] = meaning("授予的权限名", default_factory=list)
 
 
 class AccountView(Data):
     user_id: int = meaning("账号编号")
-    org_id: str = meaning("所属组织代码", rule="R-01")
-    username: str = meaning("账号", rule="R-01")
-    permissions: list[str] = meaning("账号拥有的权限名", rule="R-03")
+    org_id: str = meaning("所属组织代码")
+    username: str = meaning("账号")
+    permissions: list[str] = meaning("账号拥有的权限名")
 
 
 class LoginFailed(BusinessError):
@@ -55,7 +55,7 @@ class LoginWork(WorkData):
     account: StoredAccount | None = meaning(
         "按组织代码和账号找到的账号", empty="没有这个账号", default=None
     )
-    verified: bool = meaning("口令是否正确", rule="R-02", default=False)
+    verified: bool = meaning("口令是否正确", default=False)
     result: Account = meaning("登录成功的账号")
 
 
@@ -64,5 +64,5 @@ class CreateWork(WorkData):
     username: str = meaning("账号")
     password: str = meaning("初始口令", secret=True)
     permissions: list[str] = meaning("授予的权限名")
-    password_hash: str = meaning("口令摘要", rule="R-02", secret=True)
+    password_hash: str = meaning("口令摘要", secret=True)
     result: AccountView = meaning("保存后的账号")

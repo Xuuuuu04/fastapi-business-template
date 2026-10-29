@@ -41,23 +41,6 @@ def changes(module: str, name: str, title: str, stages: list[str], wait: str) ->
     values[registration] = registration_text(
         values[registration], module, name, title, state, stages, wait
     )
-    config = PROJECT / "doc" / module / f"drill_{name}.json"
-    values[config] = (
-        json.dumps(
-            dict(
-                schema_version=1,
-                pipeline=module + "." + name,
-                entry="schedule",
-                scale=100000,
-                replay={},
-                uncovered=stages,
-                meaning="演练占位：阶段样例未覆盖真实业务，上游原件回放由PR4命令接入",
-            ),
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n"
-    )
     return values
 
 
@@ -86,7 +69,8 @@ def registration_text(
     position = text.index("module = Module(")
     text = text[:position] + declaration + "\n" + text[position:]
     for stage in stages:
-        text = extend_module(text, "jobs", f"JobPlan(public.{name}_{stage}, repeat_safe=True)")
+        safe = ", repeat_safe=True" if stage == wait else ""
+        text = extend_module(text, "jobs", f"JobPlan(public.{name}_{stage}{safe})")
     text = extend_module(text, "pipelines", f"{name}_pipeline")
     schedule = (
         f"Schedule({name!r}, {title!r}, {name}_pipeline.start, "

@@ -6,7 +6,7 @@ from service.$name.store.contract import ${Camel}Store
 from shared.public import Caller, step
 
 
-@step("核对授权范围", reads=["org_id", "permissions"], rule="R-03")
+@step("核对授权范围", reads=["org_id", "permissions"])
 def check_grant(data: CreateWork, caller: Caller) -> None:
     same_org = caller.org_id in ("*", data.org_id)
     if not same_org or not all(caller.can(name) for name in data.permissions):
@@ -17,7 +17,6 @@ def check_grant(data: CreateWork, caller: Caller) -> None:
     "计算口令摘要",
     reads=["password"],
     writes=["password_hash"],
-    rule="R-02",
     heavy=True,
 )
 def build_password_hash(data: CreateWork) -> None:
@@ -28,7 +27,6 @@ def build_password_hash(data: CreateWork) -> None:
     "保存账号",
     reads=["org_id", "username", "password_hash", "permissions"],
     writes=["result"],
-    rule="R-01",
     saves=True,
 )
 async def save_account(data: CreateWork, store: ${Camel}Store) -> None:

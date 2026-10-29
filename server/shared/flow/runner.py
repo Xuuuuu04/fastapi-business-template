@@ -62,7 +62,6 @@ async def run_part(
         name=part.name,
         title=part.title,
         kind=part.kind,
-        rule=part.rule,
         source=part.source,
         reads=list(part.reads),
         writes=list(part.writes),

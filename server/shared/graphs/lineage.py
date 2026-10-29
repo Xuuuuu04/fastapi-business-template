@@ -9,10 +9,8 @@ class FieldSource:
     name: str
     meaning: str
     unit: str
-    rule: str
     origin: str
     step: str = ""
-    step_rule: str = ""
     source: str = ""
     condition: str = ""
     uses: list[str] = field(default_factory=list)
@@ -27,11 +25,11 @@ def field_sources(binding: Binding) -> dict[str, FieldSource]:
         origin = (
             "操作输入" if name in input_fields else ("默认值" if note.has_default else "未写入")
         )
-        found[name] = FieldSource(name, note.meaning, note.unit, note.rule, origin)
+        found[name] = FieldSource(name, note.meaning, note.unit, origin)
     for part in binding.flow.steps:
         for name in part.writes:
             source = found[name]
-            source.origin, source.step, source.step_rule = "步骤", part.title, part.rule
+            source.origin, source.step = "步骤", part.title
             source.source, source.inputs = part.source, list(part.reads)
             source.uses = [f"{used.title}（{used.name}）" for used in part.uses]
             source.condition = part.when.title if part.when else ""
@@ -63,8 +61,6 @@ def describe(item: FieldSource) -> str:
     if item.origin != "步骤":
         return f"{title}：来自{item.origin}"
     text = f"{title}：由步骤“{item.step}”写入"
-    if item.step_rule or item.rule:
-        text += f"，规则 {item.rule or item.step_rule}"
     if item.condition:
         text += f"，只在条件“{item.condition}”满足时写入"
     if item.uses:
@@ -86,11 +82,7 @@ def lineage_graph(binding: Binding, name: str) -> str:
         item = sources[current]
         text = label(f"{item.meaning or current}（{current}）")
         lines.append(f'    {node_id("f", current)}["{text}"]')
-        via = (
-            label(f"{item.step} {item.rule or item.step_rule}".strip())
-            if item.step
-            else label(item.origin)
-        )
+        via = label(item.step) if item.step else label(item.origin)
         for inner in item.inputs:
             lines.append(f'    {node_id("f", inner)} -->|"{via}"| {node_id("f", current)}')
             queue.append(inner)

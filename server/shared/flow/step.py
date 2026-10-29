@@ -47,7 +47,6 @@ class Step:
     prompts: tuple[Prompt, ...]
     later: tuple[Contract[Any, Any], ...]
     remotes: tuple[Remote, ...]
-    rule: str
     saves: bool
     when: Condition | None
     heavy: bool
@@ -59,6 +58,7 @@ class Step:
     providers: tuple[ProviderSpec, ...] = ()
     observes: tuple[str, ...] = ()
     simulated: bool = False
+    placeholder: bool = False
 
     @property
     def kind(self) -> str:
@@ -92,7 +92,6 @@ def step(
     later: Sequence[Contract[Any, Any]] = (),
     remotes: Sequence[Remote] = (),
     endpoints: Sequence[Endpoint[Any, Any]] = (),
-    rule: str = "",
     saves: bool = False,
     when: Condition | None = None,
     heavy: bool = False,
@@ -100,6 +99,7 @@ def step(
     providers: Sequence[ProviderSpec] = (),
     observes: Sequence[str] = (),
     simulated: bool = False,
+    placeholder: bool = False,
 ) -> Callable[[Callable[..., Any]], Step]:
     def wrap(func: Callable[..., Any]) -> Step:
         params = tuple(inspect.signature(func).parameters)
@@ -114,7 +114,6 @@ def step(
             later=tuple(later),
             remotes=tuple(remotes),
             endpoints=tuple(endpoints),
-            rule=rule,
             saves=saves,
             when=when,
             heavy=heavy,
@@ -125,6 +124,7 @@ def step(
             providers=tuple(providers),
             observes=tuple(observes),
             simulated=simulated,
+            placeholder=placeholder,
         )
 
     return wrap

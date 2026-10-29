@@ -31,7 +31,7 @@ daily = Pipeline(
 ## 开发者写法
 
 ```python
-@step("计算应付", reads=["subtotal", "discount"], writes=["total"], rule="R-04")
+@step("计算应付", reads=["subtotal", "discount"], writes=["total"])
 def count_total(data: QuoteWork) -> None:
     data.total = data.subtotal - data.discount
 ```

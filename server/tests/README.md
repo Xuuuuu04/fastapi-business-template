@@ -25,5 +25,4 @@
 - 共用配置：[testing_app.py](testing_app.py)（测试密钥 `KEY`、只读密钥 `READER`）、[conftest.py](conftest.py)（`client`、`services`、`sample` 夹具）。
 - 测试失败时，[failure_reports.py](failure_reports.py) 附中文运行报告，并把本测试全部运行及完整报告保存到 `var/development/failures/`；成员夹具销毁前补入阶段、成员、任务及租约状态，不保存身份或输入产出正文。先读报告再读代码。
 - 成员链样例使用受控队列时钟，按下一任务的实际到期时间推进；机器停顿不消耗合成上游的20秒等待预算。超时前检查、提交时超时、租约重领和PostgreSQL并发提交另有明确样例，正式worker仍使用真实时间。
-- 测试说明中写上规则编号（例如 `# R-03：……`），`doc/progress.md` 据此统计每条规则有没有测试。
 - 业务测试的预期值来自已确认的业务样例，不要照着实现代码的公式反推预期。

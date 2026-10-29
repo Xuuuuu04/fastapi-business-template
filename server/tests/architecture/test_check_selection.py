@@ -69,6 +69,7 @@ def test_quick_plan_is_local_and_not_acceptance(
     assert len(plan) == 3
     assert all("mypy" not in command and "docs" not in command for _, command in plan)
     assert not any(test in plan[-1][1] for test in INTEGRITY)
+    assert QUALITY in plan[-1][1]
     assert selection.scope() == {"kind": "quick", "modules": ["sample_records"]}
 
 

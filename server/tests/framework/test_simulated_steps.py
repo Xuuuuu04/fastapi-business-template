@@ -2,7 +2,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from fastapi_check.development_rules import simulated_steps
+from fastapi_check.development_rules import unfinished_steps
 
 from app.setup.build import build
 from shared.access.caller import SYSTEM
@@ -67,4 +67,22 @@ def test_production_build_rejects_skeleton(tmp_path: Path) -> None:
 
 
 def test_delivery_refuses_mock_implementation() -> None:
-    assert any("模拟骨架" in text for text in simulated_steps(Catalog([skeleton_module()])))
+    assert any("占位或模拟步骤" in text for text in unfinished_steps(Catalog([skeleton_module()])))
+
+
+def test_delivery_refuses_placeholder_steps() -> None:
+    from dataclasses import replace
+
+    from shared.flow.flow import Flow
+
+    module = skeleton_module()
+    item, flow = next(iter(module.provides.items()))
+
+    def rebuilt(**flags: bool) -> Catalog:
+        steps = [replace(part, **flags) for part in flow.steps]
+        marked = Flow(flow.title, work=flow.work, result=flow.result, steps=steps)
+        return Catalog([replace(module, provides={item: marked})])
+
+    assert unfinished_steps(rebuilt(simulated=False, placeholder=False)) == []
+    problems = unfinished_steps(rebuilt(simulated=False, placeholder=True))
+    assert problems and all("占位或模拟步骤" in text for text in problems)

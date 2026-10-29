@@ -45,7 +45,7 @@ def show_flow(catalog: Catalog, name: str) -> None:
         return
     print(f"# {binding.contract.title}（{name}）\n\n```mermaid\n{flow_graph(binding)}\n```\n")
     for source in field_sources(binding).values():
-        where = " ".join(part for part in (source.origin, source.step, source.rule) if part)
+        where = " ".join(part for part in (source.origin, source.step) if part)
         print(f"- {source.name}（{source.meaning}）：{where}")
 
 

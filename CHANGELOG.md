@@ -17,6 +17,10 @@
 - 通用流式接口 `stream.py` 从 `app/api/v1/` 挪到 `app/api/system/`（框架代码），URL 不变。
 - 包的类型边界写进检查：`module.json` 和 `Module` 的 `kind` 必须写 `capability` 或 `workflow` 且一致；能力包必须有 `store/`，流程包不许有 `store/`、不许登记表；流程包只能调用能力包，谁都不能调用流程包。允许 `flow_*.py` 拆分流程定义。`new-module --kind workflow` 改为生成不带数据存取的空流程包，`new-operation` 会自己补上需要的导入。`adopt-modules` 要求旧包先在 `module.py` 写明 kind。
 - 业务包 README 不再要求“业务文档”小节，模板里指向已删业务文档的链接一并删除。
+- 删除规则编号：`@step(rule=...)`、`meaning(rule=...)`、pytest 的 `rule_case` 标记，以及运行报告、字段来源、定位结果里的规则列；读旧运行记录时自动忽略已删字段。
+- 新增 `@step(placeholder=True)`：生成器产出的样例步骤都带这个标记，`dev check --delivery` 遇到占位或模拟步骤就报错，换成真实实现后删掉标记。
+- 依赖方向只剩严格模式：删除 `APP_MODULE_DEPENDENCIES_STRICT` 和只警告的模式，`module.json` 只认 `"dependencies": "strict"`。流程包也不许登记 `owned_tables`、`external_tables`。
+- `new-pipeline` 只给等待阶段写 `repeat_safe=True`，其他阶段默认不可重复执行；不再往 `doc/` 生成演练配置。`check --quick` 也跑注释、文档字符串、try 等质量规则。
 - 已有产品接入：升级后旧代码的注释会被新检查报出，用同样的方式删除；意图改用名字、类型、`meaning()` 和测试表达，修改原因写进提交说明。
 
 ## 3.2.0（2026-10-14）

@@ -63,4 +63,4 @@ uv run dev new-module customer_contact --title 客户联系人
 | 一个流程最多 12 步，太长就拆成本模块的内部操作 | 一个人一次能看懂的范围有限 |
 | 不写多余的防御代码，不吞掉异常 | 出错要在运行记录中看得见，不能悄悄变成空值或零 |
 
-包内依赖：步骤（steps）可以使用 calc、data、store.contract；store 只依赖 store 和 calc；calc 只用本包 calc 和纯计算库。calc 不访问数据库、外部、文件、时钟或随机数；需要这些值时由步骤传进来，用 @step(calcs=[函数]) 登记。旧产品的反向导入默认警告，迁移完成后设置 APP_MODULE_DEPENDENCIES_STRICT=true；新生成的包默认严格检查，旧的结构说明仍然有效；新 calc 立即严格检查。详见 fastapi-module Skill。
+包内依赖：步骤（steps）可以使用 calc、data、store.contract；store 只依赖 store 和 calc；calc 只用本包 calc 和纯计算库。calc 不访问数据库、外部、文件、时钟或随机数；需要这些值时由步骤传进来，用 @step(calcs=[函数]) 登记。违反这些方向，启动和检查都直接报错。

@@ -34,6 +34,6 @@ def test_account_preset_follows_business_rules(tmp_path: Path) -> None:
         if path.suffix == ".py":
             compile(path.read_text(encoding="utf-8"), str(path), "exec")
     assert check_layout(tmp_path, ["user_access"]) == []
-    assert [problem.text() for problem in check_imports(tmp_path, strict=True)] == []
+    assert [problem.text() for problem in check_imports(tmp_path)] == []
     rules = {"comment", "docstring", "catch"}
     assert [p.text() for p in check_files(tmp_path) if p.rule in rules] == []

@@ -63,9 +63,7 @@ def prepare(
 ) -> tuple[StepView, StepRecord]:
     types = FieldTypes(work)
     view = StepView(values, part.reads, part.writes, types, part.title)
-    record = StepRecord(
-        secrets.token_hex(4), part.name, part.title, part.kind, part.rule, part.source
-    )
+    record = StepRecord(secrets.token_hex(4), part.name, part.title, part.kind, part.source)
     return view, record
 
 

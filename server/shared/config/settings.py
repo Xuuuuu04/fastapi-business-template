@@ -21,7 +21,6 @@ class Settings(BaseSettings):
     name: str = "单体后端模板"
     code_version: str = "dev"
     disabled_modules: list[str] = []
-    module_dependencies_strict: bool = False
     operations: OperationsConfig = Field(default_factory=OperationsConfig)
 
     database_url: str = "sqlite+aiosqlite:///var/local.db"

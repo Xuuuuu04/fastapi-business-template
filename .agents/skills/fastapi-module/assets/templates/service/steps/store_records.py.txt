@@ -3,12 +3,12 @@ from service.$name.store.contract import ${Camel}Store
 from shared.public import step
 
 
-@step("保存记录", reads=["clean_title"], writes=["record"], saves=True)
+@step("保存记录", reads=["clean_title"], writes=["record"], saves=True, placeholder=True)
 async def save_record(data: CreateWork, store: ${Camel}Store) -> None:
     data.record = await store.add(data.clean_title)
 
 
-@step("读取记录", reads=["record_id"], writes=["record"])
+@step("读取记录", reads=["record_id"], writes=["record"], placeholder=True)
 async def read_record(data: ReadWork, store: ${Camel}Store) -> None:
     found = await store.find(data.record_id)
     if found is None:

@@ -77,12 +77,12 @@ def is_vip(data: CalcWork) -> bool:
     return data.vip
 
 
-@step("计算优惠", reads=["amount"], writes=["discount"], when=is_vip, rule="R-01")
+@step("计算优惠", reads=["amount"], writes=["discount"], when=is_vip)
 def count_discount(data: CalcWork) -> None:
     data.discount = data.amount * Decimal("0.1")
 
 
-@step("计算应付", reads=["amount", "discount", "fail_at"], writes=["total"], rule="R-02")
+@step("计算应付", reads=["amount", "discount", "fail_at"], writes=["total"])
 def count_total(data: CalcWork, note: Note) -> None:
     if data.fail_at == "total":
         raise ValueError("故意在计算时失败")

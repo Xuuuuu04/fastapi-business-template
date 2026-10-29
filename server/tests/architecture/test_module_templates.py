@@ -21,6 +21,6 @@ def test_new_module_templates_follow_rules(tmp_path: Path, kind: str) -> None:
         if place.suffix == ".py":
             compile(text, str(place), "exec")
     assert check_layout(tmp_path, ["order_desk"]) == []
-    assert [problem.text() for problem in check_imports(tmp_path, strict=True)] == []
+    assert [problem.text() for problem in check_imports(tmp_path)] == []
     rules = {"comment", "docstring", "catch"}
     assert [p.text() for p in check_files(tmp_path) if p.rule in rules] == []

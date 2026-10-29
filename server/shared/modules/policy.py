@@ -23,7 +23,9 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
         ]
         if module.kind not in (None, "capability", "workflow"):
             problems.append(f"模块 {module.name} 的kind无效")
-        if module.kind == "workflow" and module.tables:
+        if module.kind == "workflow" and (
+            module.tables or module.owned_tables or module.external_tables
+        ):
             problems.append(f"流程包 {module.name} 不拥有数据表，表放到能力包")
         unknown = sorted(
             name for name in module.read_dependencies if name not in names or name == module.name

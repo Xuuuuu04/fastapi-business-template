@@ -254,5 +254,7 @@ def test_workflow_owns_no_tables() -> None:
     from sqlalchemy import Column, Integer, MetaData, Table
 
     table = Table("order_flow_rows", MetaData(), Column("id", Integer, primary_key=True))
-    workflow = Module("order_flow", "订单流程", "1", {}, kind="workflow", tables=(table,))
-    assert check_policy([workflow]) == ["流程包 order_flow 不拥有数据表，表放到能力包"]
+    expected = ["流程包 order_flow 不拥有数据表，表放到能力包"]
+    for tables in ({"tables": (table,)}, {"owned_tables": ("x",)}, {"external_tables": ("y",)}):
+        workflow = Module("order_flow", "订单流程", "1", {}, kind="workflow", **tables)
+        assert check_policy([workflow]) == expected

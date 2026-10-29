@@ -13,7 +13,6 @@ class FieldNote:
     name: str
     meaning: str
     unit: str = ""
-    rule: str = ""
     empty: str = ""
     log_value: bool = False
     secret: bool = False
@@ -24,7 +23,6 @@ def meaning(
     text: str,
     *,
     unit: str = "",
-    rule: str = "",
     empty: str = "",
     log_value: bool = False,
     secret: bool = False,
@@ -33,9 +31,9 @@ def meaning(
     example: Any = None,
     **limits: Any,
 ) -> Any:
-    note: dict[str, object] = {"meaning": text, "unit": unit, "rule": rule, "empty": empty}
+    note: dict[str, object] = {"meaning": text, "unit": unit, "empty": empty}
     note |= {"log_value": log_value, "secret": secret}
-    options: dict[str, Any] = {"description": describe(text, unit, rule, empty)}
+    options: dict[str, Any] = {"description": describe(text, unit, empty)}
     options["json_schema_extra"] = {NOTE_KEY: note}
     if example is not None:
         options["examples"] = [example]
@@ -46,14 +44,12 @@ def meaning(
     return Field(**options, **limits)
 
 
-def describe(text: str, unit: str, rule: str, empty: str) -> str:
+def describe(text: str, unit: str, empty: str) -> str:
     parts = [text]
     if unit:
         parts.append(f"单位：{unit}")
     if empty:
         parts.append(f"为空表示：{empty}")
-    if rule:
-        parts.append(f"规则：{rule}")
     return "；".join(parts)
 
 
@@ -67,7 +63,6 @@ def notes_of(model: type[BaseModel]) -> dict[str, FieldNote]:
             name=name,
             meaning=str(values.get("meaning", "")),
             unit=str(values.get("unit", "")),
-            rule=str(values.get("rule", "")),
             empty=str(values.get("empty", "")),
             log_value=bool(values.get("log_value", False)),
             secret=bool(values.get("secret", False)),

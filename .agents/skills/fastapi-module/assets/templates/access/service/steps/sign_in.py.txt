@@ -4,7 +4,7 @@ from service.$name.store.contract import ${Camel}Store
 from shared.public import step
 
 
-@step("查找账号", reads=["org_code", "username"], writes=["account"], rule="R-01")
+@step("查找账号", reads=["org_code", "username"], writes=["account"])
 async def find_account(data: LoginWork, store: ${Camel}Store) -> None:
     data.account = await store.find(data.org_code, data.username)
 
@@ -13,7 +13,6 @@ async def find_account(data: LoginWork, store: ${Camel}Store) -> None:
     "核对口令",
     reads=["account", "password"],
     writes=["verified"],
-    rule="R-02",
     heavy=True,
 )
 def check_password(data: LoginWork) -> None:
@@ -21,7 +20,7 @@ def check_password(data: LoginWork) -> None:
     data.verified = verify_password(data.password, saved) and data.account is not None
 
 
-@step("整理登录结果", reads=["account", "verified"], writes=["result"], rule="R-01")
+@step("整理登录结果", reads=["account", "verified"], writes=["result"])
 def build_result(data: LoginWork) -> None:
     if data.account is None or not data.verified:
         raise LoginFailed()

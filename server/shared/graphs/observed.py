@@ -162,8 +162,8 @@ def run_section(run: RunRecord, is_root: bool) -> list[str]:
     lines = report_header(run, is_root)
     if not is_root:
         lines += [run.summary, ""]
-    lines += ["| 序号 | 步骤 | 类型 | 状态 | 耗时 | 规则 | 写入 | 说明 | 位置 |"]
-    lines += ["| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    lines += ["| 序号 | 步骤 | 类型 | 状态 | 耗时 | 写入 | 说明 | 位置 |"]
+    lines += ["| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for index, step in enumerate(run.steps, start=1):
         lines.append(step_row(index, step))
     lines += ["", budget_text(run.query_budget)]
@@ -206,7 +206,6 @@ def step_row(index: int, step: StepRecord) -> str:
     values = [index, step.title, STEP_KIND_TEXT.get(step.kind, step.kind), status]
     values += [
         duration(step.elapsed_ms),
-        step.rule or "",
         (f"产出 {len(step.outputs)}/{len(step.writes)}；" if step.outputs_recorded else "")
         + "；".join(step.values),
         "；".join(notes),

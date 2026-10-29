@@ -67,17 +67,17 @@ uv run dev new-pipeline customer_contact daily --title 每日流程 --stages sel
 | `data.py` | 输入、流程中间数据、返回结果的数据模型 |
 | `public.py` | 包对外公开的操作，别的包只能从这里导入 |
 
-字段用 `meaning()` 写含义；步骤声明自己读写哪些字段，并标注对应的规则编号。完整目录见 `server/service/README.md`，步骤与事务的写法见 `server/shared/flow/README.md`。
+字段用 `meaning()` 写含义；步骤声明自己读写哪些字段。生成器产出的样例步骤带 `placeholder=True`，换成真实实现后删掉这个标记；`dev check --delivery` 不允许留着占位步骤。完整目录见 `server/service/README.md`，步骤与事务的写法见 `server/shared/flow/README.md`。
 
 ## 什么时候把计算放进 calc
 
 需要复用或独立测试的金额、文本、汇算等计算，放在可选的 `calc/` 目录；小赋值仍然可以留在步骤里。calc 只接收参数、返回结果；不得访问数据库、网络、文件、时钟和随机数——需要时间、随机值或外部数据时，由步骤取得后传进来。calc 的短测试直接调用函数，不需要 services、settings 或数据库夹具。生成器默认生成纯函数和短测试。
 
-步骤从本包 calc 导入函数，在已有声明上添加 `@step(..., calcs=[normalize_text])`；直接调用但漏了登记、引用了外包的函数或用了异步函数，启动时会报错。经 store 使用的 calc 也要在所属步骤登记。calcs 声明的是可能调用的范围，不强制每次直接执行所有函数。计算图会列出函数源码；运行图保留声明，耗时包含在所属步骤里，是否逐个实际调用不单独追踪，旧记录明确标未知。
+步骤从本包 calc 导入函数，在已有声明上添加 `@step(..., calcs=[normalize_text])`；直接调用但漏了登记、引用了外包的函数或用了异步函数，启动时会报错。经 store 使用的 calc 也要在所属步骤登记。calcs 声明的是可能调用的范围，不强制每次直接执行所有函数。计算图会列出函数源码；运行图保留声明，耗时包含在所属步骤里，是否逐个实际调用不单独追踪。
 
 包内依赖方向：步骤可以用 calc、data、其他步骤和 store.contract；store 只用 store 和 calc，不导入步骤、data、flow、module 或 public。calc 只用本包 calc、纯计算标准库和 shared.public 的纯数据/异常类型。共享的数据约定应该移到 store.contract，或改成参数传递。calc 的检查是静态约束，不是执行不可信代码的沙箱；反射、动态函数参数、经数据对象访问外部资源，都不能据此宣称运行时已证明纯净。
 
-已有产品的反向依赖默认保持运行，但在启动和 check 时会输出文件和行号的警告以及迁移建议。把计算移进 calc、改成步骤传参、重新导出文档之后，设置 `APP_MODULE_DEPENDENCIES_STRICT=true`，启动和完整检查就都按错误处理。新生成包的 module.json 默认 dependencies=strict，反向导入直接报错；旧包的结构说明不用改。新 calc 目录里的不纯导入或调用会立即报错。旧短操作没有 calc 时写法不变，也没有数据库迁移。
+违反包内依赖方向、calc 里有不纯的导入或调用，服务启动和检查都直接报错，没有只警告的模式。
 
 ## 出了问题怎么办
 
