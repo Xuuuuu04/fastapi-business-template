@@ -1,13 +1,8 @@
-"""
-节点检查详情只保留范围、数据库计数和时间，完整运行值仍在本机原件中。
-"""
-
 from fastapi_project.development.check_storage import load_cases
 from fastapi_project.development.panel_evidence import formal_checks
 from fastapi_project.development.status import relevant_cases
 
 
-# 最近三次实际检查分别列出，当前性只说明本包源码，不把局部结果写成全局成功。
 def recent_records(name: str, status: dict, checks: list[dict]) -> list[dict]:
     result: list[dict] = []
     module = status["modules"].get(name)

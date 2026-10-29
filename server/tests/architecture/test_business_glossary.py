@@ -1,7 +1,3 @@
-"""
-词表显式定义优先定位，重复词义失败；规则账本生成文档不覆盖旧手写规则。
-"""
-
 from pathlib import Path
 
 import pytest
@@ -14,7 +10,6 @@ from tests.architecture.test_confirmed_cases import prepare
 from tests.framework.test_observation_points import module
 
 
-# 别名即使不出现在源码中，也能定位到词表明确登记的操作。
 def test_glossary_locates_explicit_owner(tmp_path: Path) -> None:
     add_term(
         tmp_path,
@@ -32,7 +27,6 @@ def test_glossary_locates_explicit_owner(tmp_path: Path) -> None:
     assert not found["database_read"] and len(match_terms(tmp_path, "合成词义")) == 1
 
 
-# 同词、别名重叠与跨包归属都要显式整理，不能最后写入者覆盖前者。
 def test_duplicate_glossary_is_not_overwritten(tmp_path: Path) -> None:
     term = BusinessTerm(
         word="数量", definition="合成数量", module="sample_counts", operations=["sample_counts.run"]
@@ -45,7 +39,6 @@ def test_duplicate_glossary_is_not_overwritten(tmp_path: Path) -> None:
     assert len(match_terms(tmp_path, "数量")) == 1
 
 
-# 生成账本文档包含修订与保护状态，保持人工规则文档原样兼容。
 def test_rule_ledger_documents_keep_manual_history(tmp_path: Path) -> None:
     prepare(tmp_path)
     original = tmp_path / "doc/sample_rules/rules.md"
@@ -63,7 +56,6 @@ def test_rule_ledger_documents_keep_manual_history(tmp_path: Path) -> None:
     assert not ledger_documents(tmp_path / "empty")
 
 
-# 生成边界被截断时不覆盖规则原件，未采纳的历史文字也不能凭生成文档成为确认。
 def test_damaged_ledger_section_preserves_manual_rules(tmp_path: Path) -> None:
     prepare(tmp_path)
     original = tmp_path / "doc/sample_rules/rules.md"

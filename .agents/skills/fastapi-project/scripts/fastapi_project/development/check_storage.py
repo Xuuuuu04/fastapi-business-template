@@ -1,7 +1,3 @@
-"""
-CheckRecord v2：检查清单、测试结果流和运行对象分别保存，读取范围由调用方选择。
-"""
-
 import gzip
 import hashlib
 import json
@@ -22,7 +18,6 @@ from fastapi_project.development.check_assets import (
 from fastapi_project.development.evidence_lock import evidence_lock
 
 
-# 用唯一临时流保存各项结果，最终清单写入前所有引用已经就绪。
 def write_cases(root: Path, identity: str, number: int, cases: Any) -> dict[str, Any]:
     relative = f"_cases/{identity}-{number}.jsonl.gz"
     target = asset_path(root, relative)
@@ -45,14 +40,12 @@ def write_cases(root: Path, identity: str, number: int, cases: Any) -> dict[str,
     return {"cases": [], "case_file": relative, "case_sha256": digest.hexdigest(), "counts": counts}
 
 
-# 一轮检查的实际范围与数据库分别保存，源文件变化状态不能被统计数量覆盖。
 def save_record(project: Path, record: dict[str, Any]) -> Path:
     root = project / "server/var/development/checks"
     with evidence_lock(root):
         return publish_record(root, record)
 
 
-# 共享轨迹和结果流先写齐，清单作为本轮发布的最后一步。
 def publish_record(root: Path, record: dict[str, Any]) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     identity = uuid.uuid4().hex
@@ -75,7 +68,6 @@ def publish_record(root: Path, record: dict[str, Any]) -> Path:
     return path
 
 
-# 项目摘要只加载选中轮次的轻量结果，旧内存记录仍可直接使用。
 def iter_cases(suite: dict[str, Any]) -> Iterator[dict[str, Any]]:
     if suite.get("_cases_loaded"):
         yield from suite["cases"]
@@ -101,7 +93,6 @@ def iter_cases(suite: dict[str, Any]) -> Iterator[dict[str, Any]]:
         raise ValueError(f"测试证据缺失或损坏：{path.name}") from error
 
 
-# 仅在需要模块或具体测试结果时展开，不在全历史上载入运行轨迹。
 def load_cases(suite: dict[str, Any]) -> list[dict[str, Any]]:
     if "case_file" in suite and not suite.get("_cases_loaded"):
         suite["cases"] = list(iter_cases(suite))
@@ -109,7 +100,6 @@ def load_cases(suite: dict[str, Any]) -> list[dict[str, Any]]:
     return suite.get("cases", [])
 
 
-# 导出完整检查包，清单最后写入；只复制JSON会明确缺证据，不猜别的目录。
 def export_record(source: Path, destination: Path) -> Path:
     from contextlib import ExitStack
 
@@ -120,7 +110,6 @@ def export_record(source: Path, destination: Path) -> Path:
         return publish_export(source, destination)
 
 
-# 已持有两端发布锁时复制校验过的原件，避免共享对象发布前被清理。
 def publish_export(source: Path, destination: Path) -> Path:
     source = asset_path(source.parent, source.name)
     record = json.loads(source.read_text())
@@ -137,7 +126,6 @@ def publish_export(source: Path, destination: Path) -> Path:
     return target
 
 
-# 每项测试只复制明确引用且校验通过的轨迹。
 def copy_case_assets(source: Path, destination: Path, case: dict[str, Any]) -> None:
     for run in case.get("runs", []):
         if run.get("detail_ref"):
@@ -145,7 +133,6 @@ def copy_case_assets(source: Path, destination: Path, case: dict[str, Any]) -> N
             copy_asset(source, destination, run["detail_ref"]["file"])
 
 
-# 复制范围由清单明确给出，文件链接与越界路径统一拒绝。
 def copy_asset(source: Path, destination: Path, relative: str) -> None:
     target = asset_path(destination, relative)
     target.parent.mkdir(parents=True, exist_ok=True)

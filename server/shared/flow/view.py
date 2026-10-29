@@ -1,8 +1,3 @@
-"""
-步骤看到的流程数据 StepView：只能读取声明的字段，只能写入声明的字段。
-写入时按字段类型做严格校验（例如金额字段不接受浮点数），出错时指出步骤、字段和期望类型。
-"""
-
 from typing import Any
 
 from pydantic import TypeAdapter, ValidationError
@@ -12,9 +7,7 @@ from shared.data.models import WorkData
 from shared.errors.framework import StepRuleBroken
 
 
-# 流程字段的含义与类型检查器，用于解释和验证步骤读写。
 class FieldTypes:
-    # 为流程数据的每个字段准备类型校验器和字段说明。
     def __init__(self, work: type[WorkData]) -> None:
         self.notes: dict[str, FieldNote] = notes_of(work)
         self.adapters: dict[str, TypeAdapter[Any]] = {
@@ -22,12 +15,10 @@ class FieldTypes:
         }
         self.annotations = {name: info.annotation for name, info in work.model_fields.items()}
 
-    # 返回字段的中文名称，用于错误说明。
     def label(self, name: str) -> str:
         note = self.notes.get(name)
         return f"{name}（{note.meaning}）" if note and note.meaning else name
 
-    # 按字段类型严格校验写入的值。
     def check(self, name: str, value: Any, place: str) -> Any:
         try:
             return self.adapters[name].validate_python(value, strict=True)
@@ -40,11 +31,9 @@ class FieldTypes:
             ) from None
 
 
-# 步骤能够读写的数据视图，越过声明范围时立即报错。
 class StepView:
     __slots__ = ("_values", "_reads", "_writes", "_written", "_types", "_place")
 
-    # 按步骤声明建立读写范围。
     def __init__(
         self,
         values: dict[str, Any],
@@ -60,7 +49,6 @@ class StepView:
         object.__setattr__(self, "_types", types)
         object.__setattr__(self, "_place", place)
 
-    # 读取字段：未声明读取或尚未写入都会报错。
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_"):
             raise AttributeError(name)
@@ -75,7 +63,6 @@ class StepView:
             )
         return self._values[name]
 
-    # 写入字段：未声明写入或类型不符都会报错。
     def __setattr__(self, name: str, value: Any) -> None:
         if name not in self._writes:
             raise StepRuleBroken(
@@ -86,7 +73,6 @@ class StepView:
         self._written.add(name)
 
 
-# 列出步骤声明要写入但实际没有写入的字段；写成函数，避免与业务字段重名。
 def missing_writes(view: StepView) -> list[str]:
     written = object.__getattribute__(view, "_written")
     return [name for name in object.__getattribute__(view, "_writes") if name not in written]

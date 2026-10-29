@@ -1,12 +1,7 @@
-"""
-上游接口的中文运行报告表，字段错误只包含受控路径和错误类别。
-"""
-
 from shared.records.models import RunRecord
 from shared.records.summary import duration
 
 
-# 协议状态与有限字段问题进入中文报告，不复制上游取值。
 def remote_table(run: RunRecord) -> list[str]:
     if not any(step.remotes for step in run.steps):
         return []
@@ -29,6 +24,5 @@ def remote_table(run: RunRecord) -> list[str]:
     return lines
 
 
-# 表格文字转义，不把上游字段路径当作Markdown。
 def safe_cell(value: object) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ")

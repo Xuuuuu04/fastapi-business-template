@@ -1,7 +1,3 @@
-"""
-流程摘要、运行图与人工恢复：修改命令必须明确确认，未知结果需独立确认。
-"""
-
 import argparse
 import asyncio
 import json
@@ -16,7 +12,6 @@ from shared.pipelines.recovery import resume
 from shared.pipelines.views import detail, list_runs
 
 
-# 本地运维命令使用明确配置的数据库，始终归还连接。
 async def run(args: argparse.Namespace) -> None:
     database = Database(Settings().database_url)
     result: Any
@@ -44,7 +39,6 @@ async def run(args: argparse.Namespace) -> None:
         await database.close()
 
 
-# 提供按组织摘要、细节和显式恢复入口。
 def main() -> None:
     parser = argparse.ArgumentParser(description="查看和恢复多阶段业务流程")
     commands = parser.add_subparsers(dest="command", required=True)

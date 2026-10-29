@@ -1,7 +1,3 @@
-"""
-任务领取后、执行前重新核对有效期与关键业务状态，不把排队时的状态当成现在仍然有效。
-"""
-
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -16,7 +12,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue, Ticket
 
 
-# 所有核对在实际业务执行与写事务之前完成，查询操作也留下自己的运行证据。
 async def allowed(
     runtime: "Runtime",
     queue: "JobQueue",

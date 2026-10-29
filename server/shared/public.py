@@ -1,8 +1,3 @@
-"""
-框架给业务模块使用的全部内容，业务代码只从这里导入，不直接导入 shared 下的其他文件。
-含义与每个模块的 public.py 相同：这是框架对外公开的部分，其余都是框架内部实现。
-"""
-
 from shared.access.caller import PUBLIC, SIGNED_IN, Caller
 from shared.access.vault import Vault
 from shared.application.spec import ApplicationSpec, WorkerSpec

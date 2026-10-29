@@ -1,8 +1,3 @@
-"""
-大模型调用服务：限制并发、统一重试、记录每次调用的模型、提示词版本、用量和耗时。
-步骤不直接使用本服务，而是通过执行器注入的 model 参数（ModelGate）调用。
-"""
-
 import asyncio
 import json
 from typing import Any
@@ -23,9 +18,7 @@ RETRY_WAITS = (1.0, 3.0)
 KEPT_TEXT = 2000
 
 
-# 执行已登记的提示词，检查输出格式并管理并发与失败重试。
 class ModelService:
-    # 设置服务商实现、并发上限、是否保存截断后的原文，以及暂时故障后的重试等待秒数。
     def __init__(
         self,
         provider: ModelProvider,
@@ -43,12 +36,10 @@ class ModelService:
         self.texts: dict[Prompt, PromptText] = {}
         self.breaker = Breaker(clock=lambda: self.clock.monotonic())
 
-    # 启动时读取并检查全部提示词文件。
     def load(self, prompts: list[Prompt]) -> None:
         for item in prompts:
             self.texts[item] = load_prompt(item)
 
-    # 调用一次大模型：填充提示词、限流、重试，并把调用情况写进 records。
     @clocked
     async def complete(
         self, item: Prompt, values: dict[str, object], records: list[ModelCallRecord]
@@ -75,7 +66,6 @@ class ModelService:
             record.prompt_text, record.reply_text = user[:KEPT_TEXT], reply.text[:KEPT_TEXT]
         return reply
 
-    # 在并发上限内发送请求；连续失败时连续失败后暂停调用，暂停期间直接失败。
     @clocked
     async def send(self, request: ModelRequest, record: ModelCallRecord) -> ModelReply:
         wait = self.breaker.blocked()
@@ -95,7 +85,6 @@ class ModelService:
         self.breaker.succeeded()
         return reply
 
-    # 暂时故障按 retry_waits 的次数和间隔重试。
     @clocked
     async def attempts(self, request: ModelRequest, record: ModelCallRecord) -> ModelReply:
         for attempt in range(len(self.retry_waits) + 1):
@@ -109,13 +98,11 @@ class ModelService:
                 await sleep(self.retry_waits[attempt])
         raise ModelUnavailable("大模型调用重试次数已用完")
 
-    # 关闭服务商连接。
     @clocked
     async def close(self) -> None:
         await self.provider.close()
 
 
-# 从回复文本中取出 JSON，并按声明的数据类型校验。
 def parse_output[T: Data](text: str, output: type[T]) -> T:
     body = text.strip()
     if body.startswith("```"):

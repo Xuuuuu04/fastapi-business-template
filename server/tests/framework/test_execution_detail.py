@@ -1,8 +1,3 @@
-"""
-实际运行细节：通过 HTTP 验证步骤产出、SQL 耗时和存储函数位置；失败保留部分产出。
-旧记录保持可读且标明未知；开发历史不包含显式允许记录的业务取值。
-"""
-
 from decimal import Decimal
 
 import pytest
@@ -18,7 +13,6 @@ from tests.framework.sample_modules import CalcInput, SlowInput, calc, slow
 from tests.testing_app import KEY
 
 
-# 计算保存产生两次真实 SQL，图和报告都能指出存储函数与字段产出。
 def test_http_run_identifies_sql_and_outputs(sample_client: TestClient) -> None:
     client = sample_client
     response = client.post("/test/calc", json={"amount": "5"}, headers=KEY)
@@ -43,7 +37,6 @@ def test_http_run_identifies_sql_and_outputs(sample_client: TestClient) -> None:
     assert "最长步骤" in report and "数据库调用" in report and "sample_calc_notes" in report
 
 
-# 条件判断有自己的函数位置和耗时；跳过仍然没有产出。
 @pytest.mark.anyio
 async def test_condition_and_partial_failure(sample: Services) -> None:
     await sample.runtime.run(calc, CalcInput(amount=Decimal("5")), caller=DEVELOPER)
@@ -62,7 +55,6 @@ async def test_condition_and_partial_failure(sample: Services) -> None:
     assert "产出 1/1" in run_graph([run]) and "数据库调用" in run_report([run], run.id)
 
 
-# 一个耗时步骤会在真实记录中比保存步骤更慢，并出现在报告的最长步骤处。
 @pytest.mark.anyio
 async def test_measured_slow_step_is_visible(sample: Services) -> None:
     result = await sample.runtime.run(
@@ -76,7 +68,6 @@ async def test_measured_slow_step_is_visible(sample: Services) -> None:
     assert f"{longest.source} · wait_some" in run_report([run], run.id)
 
 
-# 开发历史只给字段形状；金额 log_value 允许写入普通运行报告，也不会进入开发记录。
 @pytest.mark.anyio
 async def test_development_evidence_omits_business_values(sample: Services) -> None:
     await sample.runtime.run(calc, CalcInput(amount=Decimal("987654321.123")), caller=DEVELOPER)

@@ -1,9 +1,3 @@
-"""
-读取并检查运行配置。环境变量统一以 APP_ 开头，示例见 server/.env.example。
-导入本文件时不读取环境；测试可以直接传入 Settings(...)。
-生产环境的额外要求在 check_production() 中检查，启动时不满足就拒绝运行。
-"""
-
 from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator
@@ -18,7 +12,6 @@ from shared.remote_calls.remote import RemoteConfig
 LOCAL_JWT_SECRET = "local-development-only-secret-change-me"
 
 
-# 应用运行配置，从环境变量或配置文件读取并检查字段格式。
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="APP_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
@@ -106,35 +99,29 @@ class Settings(BaseSettings):
     otel_endpoint: str = ""
     console: bool | None = None
 
-    # 多组织定时配置先校验，避免启动后遗漏某个组织。
     @model_validator(mode="after")
     def schedule_organizations(self) -> "Settings":
         configured_orgs(self.schedule_org_id, self.schedule_org_ids)
         return self
 
-    # 开启健康信号时，为正常轮询和容器检查留出三十秒余量。
     @model_validator(mode="after")
     def check_worker_health(self) -> "Settings":
         if self.job_health_file and self.job_health_seconds < self.job_poll_seconds + 30:
             raise ValueError("APP_JOB_HEALTH_SECONDS 至少比 APP_JOB_POLL_SECONDS 大 30 秒")
         return self
 
-    # 开发和测试环境默认开启额外的步骤检查，生产环境默认关闭以节省开销。
     def extra_step_checks(self) -> bool:
         if self.step_checks is not None:
             return self.step_checks
         return self.env != "production"
 
-    # 判断是否配置了真实的大模型服务。
     def has_model(self) -> bool:
         return bool(self.model_base_url and self.model_name and self.model_api_key)
 
-    # 本地与测试默认显示排查页，生产环境默认关闭。
     def console_enabled(self) -> bool:
         return self.console if self.console is not None else self.env != "production"
 
 
-# 列出生产环境配置中不允许的地方。
 def check_production(settings: Settings, *, needs_vault: bool = True) -> list[str]:
     if settings.env != "production":
         return []

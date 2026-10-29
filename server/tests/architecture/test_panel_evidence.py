@@ -1,13 +1,8 @@
-"""
-离线面板颜色验证当前源码、双库整链和稳定性边界，缺证据与旧证据不能染绿。
-"""
-
 import copy
 
 from fastapi_project.development.panel_evidence import node_evidence
 
 
-# 合成两个真实包声明与公开操作，只用于状态计算，不生成正式业务。
 def status() -> dict:
     modules = {
         name: {
@@ -23,7 +18,6 @@ def status() -> dict:
     }
 
 
-# 同一轮两个库都真实执行两包操作，数据是独立合成状态而非产品记录。
 def check(identity: str) -> dict:
     current = status()
     cases = [
@@ -50,7 +44,6 @@ def check(identity: str) -> dict:
     }
 
 
-# 当前链三个双库成功才稳定；计划、未知、骨架、过期、任务状态单独表达。
 def test_panel_states_do_not_invent_completion() -> None:
     current = status()
     assert node_evidence("future_package", current, [])["state"] == "planned"
@@ -67,7 +60,6 @@ def test_panel_states_do_not_invent_completion() -> None:
     assert node_evidence("sample_source", current, records)["state"] == "skeleton"
 
 
-# 双库缺项、缺实际执行、调用方缺覆盖和跳过都不能提供整链稳定证据。
 def test_panel_requires_complete_chain_and_real_execution() -> None:
     records = [check(str(number)) for number in range(3)]
     for fault in ("database", "caller", "skip", "simulated", "empty"):
@@ -86,7 +78,6 @@ def test_panel_requires_complete_chain_and_real_execution() -> None:
         assert node_evidence("sample_source", status(), changed)["state"] == "checked"
 
 
-# 同源码的成功失败冲突须显示不稳定，随后局部成功也不能隐藏失败。
 def test_panel_flaky_and_quick_check_boundaries() -> None:
     failed = check("failed")
     failed["passed"] = False

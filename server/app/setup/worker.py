@@ -1,9 +1,3 @@
-"""
-worker 进程入口：uv run python -m app.setup.worker
-与接口进程使用同一份代码和模块目录；收到 SIGTERM 或 Ctrl+C 后不再领取新任务，等待在途任务结束。
-使用 SQLite 时只能运行一个 worker；多个 worker 需要 PostgreSQL。
-"""
-
 import asyncio
 import logging
 import signal
@@ -19,7 +13,6 @@ from shared.logs.setup import setup_logs
 log = logging.getLogger("server.jobs")
 
 
-# 组装服务并运行 worker，直到收到停止信号。
 async def serve(settings: Settings, *, application: ApplicationSpec | None = None) -> None:
     specification = application or declared_application()
     settings = specification.prepare(settings)
@@ -57,12 +50,10 @@ async def serve(settings: Settings, *, application: ApplicationSpec | None = Non
         await services.close()
 
 
-# 后台扩展可以返回任意Awaitable，TaskGroup仍只接收由框架创建的协程。
 async def run_extension(extension: WorkerSpec, services: Services, stop: asyncio.Event) -> None:
     await extension.run(services, stop)
 
 
-# 读取配置并启动 worker。
 def main() -> None:
     asyncio.run(serve(declared_application().settings()))
 

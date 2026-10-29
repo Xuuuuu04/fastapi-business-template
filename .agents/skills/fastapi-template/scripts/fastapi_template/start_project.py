@@ -1,8 +1,3 @@
-"""
-生成只含新产品代码与文档的新项目副本，不覆盖任何现有目录。
-初始化不启动服务、不创建数据库、不复制环境或本机资料。
-"""
-
 import argparse
 import subprocess
 import sys
@@ -12,7 +7,6 @@ from fastapi_check.quality.rules import PROJECT
 from fastapi_template.template.initialization import initialize
 
 
-# 创建新副本后重新生成文档；使用当前解释器，不复制虚拟环境。
 def main() -> None:
     parser = argparse.ArgumentParser(description="从模板开始干净的新产品项目")
     parser.add_argument("destination", type=Path, help="尚不存在的目标目录")

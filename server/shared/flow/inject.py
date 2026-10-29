@@ -1,8 +1,3 @@
-"""
-按步骤的参数名准备 store、call、model、remote、cache、emit、later、caller、note。
-每个工具只允许步骤声明过的范围，例如 call 只能调用 uses 中的操作，只读步骤的 store 不能写入。
-"""
-
 import inspect
 from collections.abc import AsyncIterator, Callable
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -31,9 +26,7 @@ MAX_NOTES = 20
 MAX_NOTE_TEXT = 200
 
 
-# 业务步骤登记后台任务时需要的操作约定。
 class JobSubmitter(Protocol):
-    # 在给定的写入事务中登记一个后台任务，返回任务编号。
     async def submit(
         self,
         connection: AsyncConnection,
@@ -46,14 +39,11 @@ class JobSubmitter(Protocol):
     ) -> str: ...
 
 
-# 在步骤内调用已声明的其他模块操作，共享本次执行身份与事务。
 class Call:
-    # 绑定本次运行、步骤记录和步骤声明的可调用操作。
     def __init__(self, scope: Scope, run: RunRecord, record: StepRecord, part: Step) -> None:
         self._scope, self._run, self._record, self._part = scope, run, record, part
         self._busy = False
 
-    # 调用一个声明过的操作，返回它的结果。
     async def __call__[In: Data, Out: Data](self, item: Contract[In, Out], input: In) -> Out:
         if item not in self._part.uses:
             raise StepRuleBroken(
@@ -68,13 +58,10 @@ class Call:
             self._busy = False
 
 
-# 在步骤内登记已声明的后台任务，随当前事务一起保存。
 class Later:
-    # 绑定本次运行的写入事务和步骤声明的可登记任务。
     def __init__(self, scope: Scope, record: StepRecord, part: Step) -> None:
         self._scope, self._record, self._part = scope, record, part
 
-    # 登记一个后台任务，与本次写入同一事务提交；返回任务编号。
     async def __call__(self, item: Contract[Any, Any], input: Data, *, key: str = "") -> str:
         runtime = self._scope.runtime
         if item not in self._part.later:
@@ -91,25 +78,19 @@ class Later:
         return job_id
 
 
-# 把必要的数据说明写入当前步骤记录，方便排查业务结果。
 class NoteWriter:
-    # 绑定要写入说明的步骤记录。
     def __init__(self, record: StepRecord) -> None:
         self._record = record
 
-    # 写下一条数据说明，例如“排除 3 条记录：缺少单价”。
     def __call__(self, text: str) -> None:
         if len(self._record.notes) < MAX_NOTES:
             self._record.notes.append(text[:MAX_NOTE_TEXT])
 
 
-# 将步骤生成的流式消息发送给接口，同时检查允许发送的格式。
 class Emitter:
-    # 把一段文本交给流式响应；等待消费方接收，避免无限积压。
     def __init__(self, scope: Scope, record: StepRecord) -> None:
         self._scope, self._record = scope, record
 
-    # 每段最多 64 KiB；客户端断开后上层任务取消并回滚事务。
     async def __call__(self, text: str) -> None:
         if self._scope.emitter is None:
             raise StepRuleBroken("这个操作没有以流式接口执行")
@@ -119,7 +100,6 @@ class Emitter:
         self._record.emitted += 1
 
 
-# 按步骤参数准备工具，步骤结束后释放只读连接。
 @asynccontextmanager
 async def tools_for(
     part: Step, scope: Scope, run: RunRecord, record: StepRecord, module: Module
@@ -132,7 +112,6 @@ async def tools_for(
         yield tools
 
 
-# 准备不需要打开连接的工具，只准备步骤参数中出现的。
 def simple_tools(
     part: Step, scope: Scope, run: RunRecord, record: StepRecord, module: Module, params: set[str]
 ) -> dict[str, Any]:
@@ -153,14 +132,12 @@ def simple_tools(
     return {name: make() for name, make in makers.items() if name in params}
 
 
-# 只有显式分段的后台任务可取得恢复位置，HTTP与普通任务不能借此改变事务。
 def batch_checkpoint(scope: Scope) -> Checkpoint:
     if scope.checkpoint is None:
         raise StepRuleBroken("checkpoint 只能用于 JobPlan(segmented=True) 的后台任务")
     return scope.checkpoint
 
 
-# 按构造参数名准备存储实现所需的依赖；旧库始终使用独立的只读连接。
 async def build_store(
     part: Step, scope: Scope, record: StepRecord, module: Module, stack: AsyncExitStack
 ) -> object:
@@ -203,7 +180,6 @@ async def build_store(
     return factory(**{name: available[name] for name in names})
 
 
-# 限制外部系统在写入事务开始后调用，并记录请求概要。
 def remote_gate(
     part: Step, scope: Scope, record: StepRecord, allowed: tuple[Any, ...]
 ) -> RemoteGate:
@@ -220,7 +196,6 @@ def remote_gate(
     )
 
 
-# 缓存键按模块隔离，记录当前步骤的命中和未命中次数。
 def module_cache(scope: Scope, name: str, record: StepRecord) -> ModuleCache:
     cache = scope.runtime.cache
     if cache is None:
@@ -228,7 +203,6 @@ def module_cache(scope: Scope, name: str, record: StepRecord) -> ModuleCache:
     return ModuleCache(cache, name, record)
 
 
-# 保存步骤使用写入事务；读取步骤在事务开始前用只读连接，之后沿用事务连接以读到本次写入。
 async def store_connection(part: Step, scope: Scope, stack: AsyncExitStack) -> AsyncConnection:
     database = scope.runtime.database
     if part.saves:

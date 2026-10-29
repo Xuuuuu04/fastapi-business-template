@@ -1,7 +1,3 @@
-"""
-文档模块索引按行身份合并，表外手写说明仍走三方比较，冲突不覆盖。
-"""
-
 import re
 from pathlib import Path
 
@@ -13,7 +9,6 @@ from fastapi_template.template.merge import merge_text
 TOKEN = "@@MODULE_INDEX@@\n"
 
 
-# 只提取明确模块表，其他段落和标点原样保留作为独立原件。
 def split_index(source: str) -> tuple[str, list[dict]]:
     lines = source.splitlines(keepends=True)
     heading = lines.index("## 模块\n")
@@ -27,7 +22,6 @@ def split_index(source: str) -> tuple[str, list[dict]]:
     return "".join(lines[:start] + [TOKEN] + lines[end:]), rows
 
 
-# 模块表是可再生索引，表外双方都改时依然需要解决真实文本冲突。
 def resolve_index(project: Path, commits: tuple[str, str, str]) -> str | None:
     values = [blob(project, commit, "doc/README.md") for commit in commits]
     if not all(value is not None for value in values):
@@ -45,7 +39,6 @@ def resolve_index(project: Path, commits: tuple[str, str, str]) -> str | None:
     return "doc/README.md"
 
 
-# AGENTS仅生成段可再生，其他人写的说明和要求必须保留三方语义。
 def resolve_agents(project: Path, commits: tuple[str, str, str]) -> str | None:
     values = [blob(project, commit, "AGENTS.md") for commit in commits]
     if not all(value is not None for value in values):
@@ -64,7 +57,6 @@ def resolve_agents(project: Path, commits: tuple[str, str, str]) -> str | None:
     return "AGENTS.md"
 
 
-# 规则与变化记录只有账本生成段可重建，段外原文仍按三方比较保留。
 def resolve_ledger_section(project: Path, commits: tuple[str, str, str], name: str) -> bool:
     kind = Path(name).stem
     if not re.fullmatch(r"doc/[a-z][a-z0-9_]*/(?:rules|changes)\.md", name):

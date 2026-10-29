@@ -1,8 +1,3 @@
-"""
-开发视图只把相同源码的成功运行计入当前样例，旧版本与缺失记录仍可见。
-源码摘要忽略文档和运行历史，在代码变化时改变。
-"""
-
 from dataclasses import replace
 from pathlib import Path
 
@@ -18,7 +13,6 @@ from shared.records.version import source_version
 from tests.framework.sample_modules import CalcInput, calc
 
 
-# 从真实操作取得记录，再验证版本与记录完整性筛选，而不是只检查标签。
 @pytest.mark.anyio
 async def test_current_success_samples_require_matching_source(sample: Services) -> None:
     await sample.runtime.run(calc, CalcInput(amount=5), caller=DEVELOPER)
@@ -49,7 +43,6 @@ async def test_current_success_samples_require_matching_source(sample: Services)
     assert "caller" not in str(status) and "version-test" not in str(status)
 
 
-# 阅读和编辑说明不会改变运行代码版本，真正改业务源码会改变。
 def test_source_version_tracks_code_not_history(tmp_path: Path) -> None:
     target = tmp_path / "product"
     initialize(PROJECT, target, "版本样例")

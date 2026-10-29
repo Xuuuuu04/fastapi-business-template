@@ -1,8 +1,3 @@
-"""
-默认服务与 worker 在创建资源前检查业务包、计算步骤、依赖方向和框架文件摘要。
-开发包越界时拒绝启动；测试显式提供的临时模块不检查磁盘目录。
-"""
-
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -16,7 +11,6 @@ from shared.modules.validation.imports import check_imports
 ROOT = Path(__file__).resolve().parents[2]
 
 
-# 框架更新必须先检查真实差异并更新摘要，不能带着无意改动启动。
 def check_structure(
     modules: Sequence[Module], root: Path = ROOT, *, strict: bool | None = None
 ) -> None:
@@ -30,7 +24,6 @@ def check_structure(
         raise ConfigError(problems)
 
 
-# 每个计算节点必须来自对应模块的 steps/，条件也使用相同位置规则。
 def step_locations(modules: Sequence[Module]) -> list[str]:
     problems = []
     for module in modules:

@@ -69,11 +69,11 @@ JobPlan(process_batch, segmented=True, repeat_safe=True, lease_seconds=60)
 每次操作只处理一批。步骤可以注入 `checkpoint: Checkpoint`（从 `shared.public` 导入）：
 
 ```python
-start = checkpoint.cursor.get("after", 0)  # 已提交的位置，首次为空字典
-# 用读取步骤确定本批范围，再用 saves=True 的步骤保存本批结果。
+start = checkpoint.cursor.get("after", 0)
 checkpoint.advance({"after": next_id}, rows=batch_count)
-# 最后一批用 checkpoint.finish(rows=batch_count, cursor={"after": next_id})。
 ```
+
+`checkpoint.cursor` 是已提交的位置，第一批为空字典。本批范围用读取步骤确定，结果用 `saves=True` 的步骤保存；最后一批改用 `checkpoint.finish(rows=batch_count, cursor={"after": next_id})`。
 
 `advance/finish` 只声明提交点；整个本批操作成功结束后框架才提交。每次调用只能声明一次；继续执行必须推进游标。游标是最多 16 KiB 的 JSON 字典，不放业务正文或凭据。框架把业务写入、游标、段证据和最后一批的任务完成状态放在同一事务里，随后释放连接、重新调用操作。
 

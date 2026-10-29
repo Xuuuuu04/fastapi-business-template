@@ -1,7 +1,3 @@
-"""
-真实隔离数据库验证两头合并的旧版增量和全新建库，旧行来自独立合成数据。
-"""
-
 import os
 from pathlib import Path
 
@@ -12,7 +8,6 @@ from fastapi_project.development.migration_verify import compare_paths, verify
 from tests.architecture.test_migration_merge import revision
 
 
-# 最小Alembic工程不加载产品配置，迁移地址只从测试命令显式取得。
 def project(root: Path) -> None:
     folder = root / "server"
     folder.mkdir()
@@ -60,7 +55,6 @@ asyncio.run(main())
     write_merge(root, migration_plan(root))
 
 
-# SQLite真实旧行升级后仍在，结构与从零创建完全一致。
 @pytest.mark.anyio
 async def test_sqlite_incremental_and_fresh_schema(tmp_path: Path) -> None:
     project(tmp_path)
@@ -74,7 +68,6 @@ async def test_sqlite_incremental_and_fresh_schema(tmp_path: Path) -> None:
     assert result["schema_equal"] and result["seed_rows_preserved"] and result["seed_rows"] == 1
 
 
-# 双库验证明确使用本目标自有PG容器控制连接，凭据只在内存中组装，不存日志。
 @pytest.mark.anyio
 @pytest.mark.postgres_only
 async def test_real_dual_database_incremental_migration(tmp_path: Path) -> None:

@@ -1,7 +1,3 @@
-"""
-业务词表显式登记定义、别名与负责操作；没有登记的含义保持未知，不从函数名猜业务。
-"""
-
 from pathlib import Path
 from typing import Literal
 
@@ -13,7 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from shared.modules.catalog import Catalog
 
 
-# 一个业务词只由一个包负责，可以关联多个本包公开操作。
 class BusinessTerm(BaseModel):
     model_config = ConfigDict(extra="forbid")
     word: str = Field(min_length=1, max_length=100)
@@ -23,13 +18,11 @@ class BusinessTerm(BaseModel):
     operations: list[str] = Field(min_length=1)
 
 
-# 空模板不创建虚构词表，词或别名重复也不能默默覆盖。
 class BusinessGlossary(BaseModel):
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal[1] = 1
     terms: list[BusinessTerm] = Field(default_factory=list)
 
-    # 词义归属明确且所有公开操作属于负责包，实际是否登记由项目检查另行核对。
     def validate_terms(self) -> None:
         seen: set[str] = set()
         for term in self.terms:
@@ -41,7 +34,6 @@ class BusinessGlossary(BaseModel):
             seen |= names
 
 
-# 原件JSON为事实，检索不另建会过期的索引。
 def read_glossary(project: Path) -> BusinessGlossary:
     path = project / "doc/glossary.json"
     glossary = (
@@ -53,7 +45,6 @@ def read_glossary(project: Path) -> BusinessGlossary:
     return glossary
 
 
-# 显式改词表保留Git变更，不自动从代码生成业务定义。
 @serialized
 def add_term(project: Path, term: BusinessTerm) -> None:
     glossary = read_glossary(project)
@@ -64,7 +55,6 @@ def add_term(project: Path, term: BusinessTerm) -> None:
     )
 
 
-# 定位先返回明确词义与负责操作，普通声明匹配仍作为另一类结果保留。
 def match_terms(project: Path, query: str) -> list[BusinessTerm]:
     return [
         term
@@ -73,7 +63,6 @@ def match_terms(project: Path, query: str) -> list[BusinessTerm]:
     ]
 
 
-# 定义可先于实现存在，但操作必须已登记或明确列在计划里，拼错不能悄悄落空。
 def target_problems(project: Path, catalog: Catalog) -> list[str]:
     plan = read_plan(project)
     targets = set(catalog.by_name)

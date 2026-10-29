@@ -1,9 +1,3 @@
-"""
-启动组装：按配置创建数据库、运行记录、大模型服务、任务表和执行器。
-接口进程和 worker 进程都用这里组装，保证两边使用同一份模块目录。
-创建过程不连接数据库，连接在第一次使用时建立。
-"""
-
 import inspect
 import logging
 from collections.abc import Sequence
@@ -42,7 +36,6 @@ from shared.telemetry.service import Telemetry
 log = logging.getLogger("server.setup")
 
 
-# 接口与后台进程使用的服务对象，集中管理创建结果和退出时的资源释放。
 @dataclass
 class Services:
     settings: Settings
@@ -58,7 +51,6 @@ class Services:
     uploads: UploadArea | None
     telemetry: Telemetry
 
-    # 按创建的相反顺序释放资源。
     async def close(self) -> None:
         await self.runtime.heavy.close(self.settings.job_shutdown_seconds)
         if self.runtime.effects is not None:
@@ -74,7 +66,6 @@ class Services:
         await self.database.close()
 
 
-# 按配置组装全部服务；modules 和 provider 只在测试中替换。
 def build(
     settings: Settings,
     *,
@@ -127,7 +118,6 @@ def build(
     return services
 
 
-# 产品扩展与内置模块共同进入同一目录，API和worker采用相同声明。
 def product_catalog(
     settings: Settings, spec: ApplicationSpec, modules: Sequence[Module]
 ) -> Catalog:
@@ -139,7 +129,6 @@ def product_catalog(
     return catalog
 
 
-# 关闭模块只影响接口和执行入口，保留其数据库表与历史数据。
 def enabled_modules(settings: Settings, registered: Sequence[Module] | None = None) -> list[Module]:
     registered = MODULES if registered is None else registered
     unknown = set(settings.disabled_modules) - {module.name for module in registered}
@@ -148,7 +137,6 @@ def enabled_modules(settings: Settings, registered: Sequence[Module] | None = No
     return [module for module in registered if module.name not in settings.disabled_modules]
 
 
-# 生产环境中，模块声明的每个外部系统都必须配置地址。
 def unconfigured_remotes(settings: Settings, catalog: Catalog) -> list[str]:
     if settings.env != "production":
         return []
@@ -160,7 +148,6 @@ def unconfigured_remotes(settings: Settings, catalog: Catalog) -> list[str]:
     ]
 
 
-# 创建外部服务、文件服务、任务入口和执行器。
 def finish_build(
     settings: Settings,
     catalog: Catalog,
@@ -213,14 +200,12 @@ def finish_build(
     )
 
 
-# 只为实际使用字段加密的模块创建密钥服务。
 def vault_service(settings: Settings, needs: set[str]) -> Vault | None:
     return (
         Vault([key.get_secret_value() for key in settings.data_keys]) if "vault" in needs else None
     )
 
 
-# 按配置创建有明确连接和操作预算的缓存服务。
 def cache_service(settings: Settings) -> Cache:
     return (
         RedisCache(
@@ -233,7 +218,6 @@ def cache_service(settings: Settings) -> Cache:
     )
 
 
-# 只保留启用模块声明过的外部系统地址。
 def remote_service(settings: Settings, catalog: Catalog) -> RemoteService:
     used = {item.name for module in catalog.modules.values() for item in module.remotes}
     return RemoteService(
@@ -242,7 +226,6 @@ def remote_service(settings: Settings, catalog: Catalog) -> RemoteService:
     )
 
 
-# 有模块使用大模型时才创建服务；开发时可用模拟回复，生产时必须配置真实服务。
 def model_service(
     settings: Settings, catalog: Catalog, provider: ModelProvider | None
 ) -> ModelService | None:
@@ -271,7 +254,6 @@ def model_service(
     return service
 
 
-# 从已有存储声明读取实际需要的服务，不再要求业务重复维护一份开关。
 def store_requirements(catalog: Catalog) -> set[str]:
     return {
         name
@@ -281,6 +263,5 @@ def store_requirements(catalog: Catalog) -> set[str]:
     }
 
 
-# 测试和演练与生产使用同一额度配置，生产行为由QueryPolicy固定。
 def query_policy(settings: Settings) -> QueryPolicy:
     return QueryPolicy(settings.env, settings.query_budget_mode, settings.query_budget_explain)

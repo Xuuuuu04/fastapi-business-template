@@ -1,7 +1,3 @@
-"""
-骨架测试读取独立样例；模拟只填测试提供者，实际实现仍用同一组输入与中间观察验证。
-"""
-
 import json
 from pathlib import Path
 from typing import Any
@@ -17,7 +13,6 @@ from shared.scenarios.observations import (
 from shared.scenarios.simulation import simulate
 
 
-# 只从当前产品的样例目录读取，不读取模板本机原话或运行数据库。
 def fixture(project: Path, identity: str) -> dict[str, Any]:
     module = identity.split(".")[0]
     found = [
@@ -32,9 +27,7 @@ def fixture(project: Path, identity: str) -> dict[str, Any]:
     return case
 
 
-# 按已声明类型构造测试提供者，提供者从不进入正式业务文件。
 def provider(binding, case: dict[str, Any]):
-    # 原始入参也核对，不能让固定mock产出掩盖跨包参数连接错误。
     def fill(data) -> None:
         actual = {name: getattr(data, name) for name in binding.contract.input.model_fields}
         assert actual == case["input"], "模拟步骤收到了与独立样例不同的输入"
@@ -43,7 +36,6 @@ def provider(binding, case: dict[str, Any]):
     return fill
 
 
-# 顺着规格引用准备有限测试提供者，真实实现不读取它们。
 async def run_case(
     services: Services, project: Path, operation: str, identity: str, dependencies: dict[str, str]
 ) -> tuple[dict, dict]:

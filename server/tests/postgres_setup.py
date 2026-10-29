@@ -1,7 +1,3 @@
-"""
-本轮独立PostgreSQL库的结构复用；特殊DDL、权限与迁移测试继续完整重建。
-"""
-
 import asyncio
 import os
 import subprocess
@@ -18,7 +14,6 @@ from tests.environment import subprocess_environment
 PREPARED: dict[str, str] = {}
 
 
-# 只有资源插件创建的数据库可以使用快速清理，外部显式连接保持完整重建。
 def reusable(url: str, hooks: bool) -> bool:
     return bool(
         url.startswith("postgresql")
@@ -28,7 +23,6 @@ def reusable(url: str, hooks: bool) -> bool:
     )
 
 
-# 本worker的结构已经准备好才清数据；版本、表和索引变化会先重新建结构。
 async def prepare(url: str, key: str, reset: Any) -> None:
     if PREPARED.get(url) != key:
         if url in PREPARED:
@@ -67,7 +61,6 @@ async def prepare(url: str, key: str, reset: Any) -> None:
         await engine.dispose()
 
 
-# 第一次使用实际迁移建立结构；控制连接、生产变量与模型配置不进入子进程。
 def migrate_baseline(url: str) -> None:
     environment = subprocess_environment()
     environment.update(APP_ENV="test", APP_DATABASE_URL=url)

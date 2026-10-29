@@ -1,8 +1,3 @@
-"""
-三份文件比较的框架更新：旧模板、项目现有文件、新模板。
-只更新没有冲突的完整方案；有冲突时全部保留原样，不把冲突标记写进业务项目。
-"""
-
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,7 +14,6 @@ from fastapi_template.template.files import (
 from fastapi_template.template.recovery import load_proof, recovered_patch
 
 
-# 一项更新的内容与状态；冲突项的内容为空，不可应用。
 @dataclass(frozen=True)
 class Change:
     name: str
@@ -27,7 +21,6 @@ class Change:
     content: bytes | None
 
 
-# Git 只在临时目录合并文本，不接触项目文件；冲突返回明确状态。
 def merge_text(name: str, old: bytes, local: bytes, new: bytes) -> Change:
     if any(b"\0" in content for content in (old, local, new)):
         return Change(name, "conflict", None)
@@ -47,7 +40,6 @@ def merge_text(name: str, old: bytes, local: bytes, new: bytes) -> Change:
     )
 
 
-# 处理增加、修改、删除和两边同时改动，已相同的内容不产生写入。
 def compare_file(
     name: str, old: bytes | None, local: bytes | None, new: bytes | None
 ) -> Change | None:
@@ -60,8 +52,6 @@ def compare_file(
     return merge_text(name, old, local, new)
 
 
-# 先检查所有目标和来源，再计算完整方案；依赖与登记变化单独列出人工处理。
-# 文件范围用新模板自己的清单；来源记录里没有的文件产品从未收到过，按新增处理。
 def update_plan(
     target: Path, base: Path, source: Path, *, recovery_proof: Path | None = None
 ) -> tuple[list[Change], list[str]]:
@@ -90,7 +80,6 @@ def update_plan(
     return changes, sorted(set(manual_changes(base, source)) | recovered_manual)
 
 
-# 应用前重新读取文件，失败时恢复本次写入；来源更新必须与文件更新一起成功。
 def apply_plan(
     target: Path,
     base: Path,
@@ -124,7 +113,6 @@ def apply_plan(
         raise
 
 
-# 保存或删除框架文件；临时文件位于同目录，替换单个文件时不会留下半份内容。
 def write_content(path: Path, content: bytes | None) -> None:
     if content is None:
         path.unlink(missing_ok=True)

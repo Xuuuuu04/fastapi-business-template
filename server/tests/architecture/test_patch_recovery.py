@@ -1,7 +1,3 @@
-"""
-已审查补丁只在三份摘要精确匹配时回收；任一内容变化仍进入原冲突处理。
-"""
-
 import hashlib
 import json
 from pathlib import Path
@@ -11,7 +7,6 @@ from fastapi_template.template import recovery
 from fastapi_template.template.merge import compare_file
 
 
-# 摘要证明不能扩大到尚未审查的新产品修改或后续模板修改。
 def test_recovery_requires_all_three_fingerprints(tmp_path: Path) -> None:
     old, product, new = b"old", b"old with patch", b"generic reviewed implementation"
     name = "server/shared/example.py"
@@ -36,13 +31,11 @@ def test_recovery_requires_all_three_fingerprints(tmp_path: Path) -> None:
     assert recovery.recovered_patch(proofs, "other.py", old, product, new) is None
 
 
-# 没有显式证明时不启用回收，不从模板猜测任何产品的补丁。
 def test_no_embedded_product_proof() -> None:
     assert recovery.load_proof(None) == {}
     assert not hasattr(recovery, "RECOVERED")
 
 
-# 外部格式和路径错误在预览之前拒绝，不能扩大替换范围。
 @pytest.mark.parametrize(
     "document",
     [
@@ -58,7 +51,6 @@ def test_invalid_external_proof_is_rejected(tmp_path: Path, document) -> None:
         recovery.load_proof(path)
 
 
-# 应用前重读外部证明；证明被改变时不能用旧预览结果保存。
 def test_external_proof_changes_are_rechecked_before_apply(tmp_path: Path) -> None:
     from fastapi_template.template.merge import apply_plan, update_plan
 

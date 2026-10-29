@@ -1,7 +1,3 @@
-"""
-检查缓存明确标记沿用，源码、范围、实际依赖与测试服务配置变化都使旧结果失效。
-"""
-
 import hashlib
 import json
 import platform
@@ -13,7 +9,6 @@ from fastapi_check.matrix import CheckOptions, clean_environment, databases
 from fastapi_project.development.history import read_checks
 
 
-# 配置只保存单向摘要，连接地址和凭据不进入检查证据。
 def execution_profile(options: CheckOptions, postgres: str) -> dict[str, Any]:
     services = {
         key: value for key, value in clean_environment().items() if key.startswith("APP_TEST_")
@@ -31,7 +26,6 @@ def execution_profile(options: CheckOptions, postgres: str) -> dict[str, Any]:
     }
 
 
-# 缓存命中不会产生新的通过轮次，也不抹掉后来同范围的失败。
 def cached_round(
     project: Path,
     fingerprints: dict[str, str],

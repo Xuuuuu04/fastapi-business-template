@@ -8,9 +8,9 @@
 
 ```python
 class ProductMissing(BusinessError):
-    code = "product_missing"  # 稳定的错误码，调用方按它判断
-    kind = Kind.NOT_FOUND  # 决定状态码 404
-    message = "商品不存在"  # 默认中文说明，可以改
+    code = "product_missing"
+    kind = Kind.NOT_FOUND
+    message = "商品不存在"
 ```
 
 程序按错误码和种类判断，不要按说明文字判断：说明文字可以随时改进，判断逻辑不应因此改变。

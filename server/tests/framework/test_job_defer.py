@@ -1,7 +1,3 @@
-"""
-明确的冷却延后释放执行位置，不消耗失败重试次数，冷却后仍重新检查任务。
-"""
-
 from pathlib import Path
 
 import pytest
@@ -32,12 +28,10 @@ from tests.testing_app import make_settings, reset_database
 pytestmark = pytest.mark.anyio
 
 
-# 每次只有一个明确的空结果，业务失败与延后分别发生。
 class Work(WorkData):
     result: Nothing = meaning("完成结果")
 
 
-# 合成两次429等待、一次暂时失败和一次成功，不把等待变成失败重试。
 def deferred_module() -> Module:
     count = 0
     operation = contract(
@@ -49,7 +43,6 @@ def deferred_module() -> Module:
         effect="command",
     )
 
-    # 前两次没有产生效果，只告诉框架何时重新核对。
     @step("尝试合成处理", writes=["result"])
     def work(data: Work) -> None:
         nonlocal count
@@ -70,7 +63,6 @@ def deferred_module() -> Module:
     )
 
 
-# 明确等待两次后仍有一次失败重试额度，所有等待期间都没有资源位置。
 async def test_deferred_attempts_do_not_consume_retry_budget(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     await reset_database(settings.database_url)

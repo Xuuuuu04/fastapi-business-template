@@ -1,7 +1,3 @@
-"""
-输入中有大量问题时，错误响应仍有明确上限，字段路径不会被截断成别的字段。
-"""
-
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -13,17 +9,14 @@ from shared.public import Data, Nothing, meaning
 from tests.testing_app import make_settings
 
 
-# 合成批量输入用于触发很多错误，内容不保存到数据库。
 class Batch(Data):
     amounts: list[int] = meaning("合成整数列表")
 
 
-# 真正经过 FastAPI 输入校验和统一错误响应，不只测试转换函数。
 def test_bulk_validation_response_is_bounded(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     app = create_app(settings, build(settings, modules=[]))
 
-    # 只有完全合法的输入才能进入接口。
     @app.post("/test/bulk")
     async def receive(body: Batch) -> Nothing:
         return Nothing()
@@ -38,7 +31,6 @@ def test_bulk_validation_response_is_bounded(tmp_path: Path) -> None:
     assert reply.json()["fields"][-1]["field"] == "amounts.49"
 
 
-# 超长路径不被截断，中文问题按实际字节截断且仍可正常显示。
 def test_field_problem_paths_and_text_are_bounded() -> None:
     fields = field_problems(
         [

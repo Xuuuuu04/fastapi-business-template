@@ -1,7 +1,3 @@
-"""
-从迁移脚本静态读取版本图，不执行脚本；缺少声明、重复版本和循环明确失败。
-"""
-
 import ast
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,7 +5,6 @@ from pathlib import Path
 from fastapi_template.template.files import safe_path
 
 
-# 一个已有迁移版本与其真实源码、父版本，业务SQL尚未在分析阶段执行。
 @dataclass(frozen=True)
 class Revision:
     id: str
@@ -19,7 +14,6 @@ class Revision:
     tree: ast.Module
 
 
-# 只接受Python常量声明，动态版本号不能被猜成可安全合并的图。
 def declarations(tree: ast.Module) -> dict:
     result = {}
     for node in tree.body:
@@ -46,7 +40,6 @@ def declarations(tree: ast.Module) -> dict:
     return result
 
 
-# 父版本和声明依赖都是图约束，空父表示初始版本。
 def revision_refs(value: object) -> tuple[str, ...]:
     if value is None:
         return ()
@@ -58,7 +51,6 @@ def revision_refs(value: object) -> tuple[str, ...]:
     return tuple(values)
 
 
-# 读取普通源码文件，拒绝链接、遗漏父声明和重复版本。
 def read_graph(project: Path) -> dict[str, Revision]:
     graph = {}
     for path in sorted(safe_path(project, "server/migrations/versions").glob("*.py")):
@@ -80,7 +72,6 @@ def read_graph(project: Path) -> dict[str, Revision]:
     return graph
 
 
-# 深度优先保留路径，版本循环不能被已访问集合悄悄略过。
 def ancestors(graph: dict[str, Revision], identity: str, trail: tuple[str, ...] = ()) -> set[str]:
     if identity not in graph:
         raise ValueError("迁移父版本不存在：" + identity)
@@ -92,7 +83,6 @@ def ancestors(graph: dict[str, Revision], identity: str, trail: tuple[str, ...] 
     return found
 
 
-# 多头必须有唯一最近共同祖先，互不相关的迁移历史不能自动拼接。
 def branches(graph: dict[str, Revision]) -> tuple[list[str], str | None, dict[str, list[Revision]]]:
     parents = {parent for revision in graph.values() for parent in revision.parents}
     heads = sorted(graph.keys() - parents)

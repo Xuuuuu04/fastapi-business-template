@@ -1,12 +1,7 @@
-"""
-三个包的合成规格与独立预期，只供模板生成验收，不登记到空模板或产品数据库。
-"""
-
 import json
 from pathlib import Path
 
 
-# 相同标量字段用于检查真实跨包传递，样例数值不进入正式骨架源码。
 def specification() -> dict:
     field = {"value": {"type": "int", "meaning": "合成数量"}}
     operations = [
@@ -52,7 +47,6 @@ def specification() -> dict:
     return json.loads(json.dumps({"line": "合成计算链", "packages": packages}))
 
 
-# 独立资料先写，生成器不能通过实际实现来算这些值或改它们。
 def write_inputs(project: Path) -> Path:
     for package, action, input, expected in (
         ("sample_sources", "load", 496116, 992232),
@@ -71,7 +65,6 @@ def write_inputs(project: Path) -> Path:
             "tests": [f"tests/modules/{package}/test_{action}.py::test_case"],
         }
         if package == "sample_chain":
-            # 观察点按被调用的操作命名：步骤 fetch_包_操作，字段 包_操作。
             point = {
                 "operation": "sample_chain.run",
                 "step": "fetch_sample_counts_advance",
@@ -89,7 +82,6 @@ def write_inputs(project: Path) -> Path:
     return spec
 
 
-# 实际计算来自算法，不从expected常量生成；wrong供中间步骤定位反例使用。
 def implement(project: Path, *, wrong: bool = False, only: str = "") -> None:
     for package, action, kind, expression in (
         ("sample_sources", "load", "Load", "data.value * 2" + (" - 1" if wrong else "")),
@@ -99,10 +91,8 @@ def implement(project: Path, *, wrong: bool = False, only: str = "") -> None:
             continue
         path = project / "server/service" / package / "steps" / ("build_" + action + ".py")
         path.write_text(
-            '"""\n合成实际计算，不读取样例预期。\n"""\n\n'
             f"from service.{package}.data_{action} import {kind}Work, {kind}Output\n"
             "from shared.public import step\n\n\n"
-            "# 按独立合成算法计算数量。\n"
             "@step('计算数量', reads=['value'], writes=['result'], "
             "observes=['value', 'result'], simulated=False)\n"
             f"def build_result(data: {kind}Work) -> None:\n"

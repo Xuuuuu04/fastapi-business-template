@@ -1,7 +1,3 @@
-"""
-扇出池：规划和派发分离，只登记有限在途成员，队列满时保存等待并由worker重新检查。
-"""
-
 import json
 from typing import TYPE_CHECKING
 
@@ -22,7 +18,6 @@ if TYPE_CHECKING:
 BUSY = ("queued", "running", "waiting_retry")
 
 
-# 规划产出已提交前，成员仍只是计划；规划成功与池启用使用同一事务。
 async def planned(
     connection: AsyncConnection,
     queue: "JobQueue",
@@ -60,7 +55,6 @@ async def planned(
     await advance(connection, queue, root, row, group)
 
 
-# 成员或维护器触发同一推进逻辑，不在内存里保留协调状态。
 async def advance(
     connection: AsyncConnection, queue: "JobQueue", root: dict, row: dict, group: FanOut
 ) -> None:
@@ -84,7 +78,6 @@ async def advance(
         await fill(connection, queue, root, row, group, active)
 
 
-# 汇合分母始终是本次规划的全部成员，必需成员不能被比例忽略。
 async def enough(connection: AsyncConnection, stage_id: str, group: FanOut, counts: dict) -> bool:
     total, successful = sum(counts.values()), counts.get("succeeded", 0)
     if isinstance(group.join, All):
@@ -103,7 +96,6 @@ async def enough(connection: AsyncConnection, stage_id: str, group: FanOut, coun
     return required == len(group.join.required)
 
 
-# 达标瞬间冻结本次纳入清单，不再派发新成员，迟到结果只留记录。
 async def seal(connection: AsyncConnection, stage_id: str) -> None:
     await connection.execute(
         update(members)
@@ -120,7 +112,6 @@ async def seal(connection: AsyncConnection, stage_id: str) -> None:
     await connection.execute(update(stages).where(stages.c.id == stage_id).values(state="joining"))
 
 
-# 只有有限数量的成员拥有排队或运行的任务，等待检查也占成员名额。
 async def active_count(connection: AsyncConnection, stage_id: str) -> int:
     result = await connection.scalar(
         select(func.count())
@@ -130,7 +121,6 @@ async def active_count(connection: AsyncConnection, stage_id: str) -> int:
     return int(result or 0)
 
 
-# 状态只取计数，协调器不把数百个成员正文加载进内存。
 async def states_of(connection: AsyncConnection, stage_id: str) -> dict[str, int]:
     rows = await connection.execute(
         select(members.c.state, func.count())
@@ -140,7 +130,6 @@ async def states_of(connection: AsyncConnection, stage_id: str) -> dict[str, int
     return {state: int(count) for state, count in rows}
 
 
-# 逐个派发空位，单一合同的队列满时仍保留已规划成员，不使规划阶段失败。
 async def fill(
     connection: AsyncConnection,
     queue: "JobQueue",
@@ -185,7 +174,6 @@ async def fill(
             break
 
 
-# 新阶段新建任务；失败当前阶段则复用任务及PR1已提交游标。
 async def dispatch(
     connection: AsyncConnection, queue: "JobQueue", root: dict, group: FanOut, member: dict
 ) -> None:
@@ -236,7 +224,6 @@ async def dispatch(
     )
 
 
-# 所有活跃成员已收尾后才进入下一阶段；规划产出是有界引用而非整份成员结果。
 async def completed(
     connection: AsyncConnection, queue: "JobQueue", root: dict, row: dict, group: FanOut
 ) -> None:
@@ -259,7 +246,6 @@ async def completed(
         await queue.pipelines.next_cycle(connection, root)
 
 
-# 所有成员已完成仍未达标才宣布失败，成功结果保留供失败成员恢复复用。
 async def failed_group(
     connection: AsyncConnection, queue: "JobQueue", root: dict, row: dict, counts: dict
 ) -> None:

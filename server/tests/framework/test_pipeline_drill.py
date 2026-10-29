@@ -1,7 +1,3 @@
-"""
-十万行原件回放端到端：真实定时入口、批量解析/汇算/CSV、阶段耗时SQL内存与无人工完成。
-"""
-
 import csv
 import hashlib
 import json
@@ -17,7 +13,6 @@ from tests.framework.drill_sample import module
 pytestmark = pytest.mark.anyio
 
 
-# 原件不通过模型重新生成结果；清单固定内容摘要，框架实际消费原始JSON字节。
 def original(folder: Path, count: int = 100000) -> dict:
     content = json.dumps(
         {"rows": [{"id": i, "value": i * 2} for i in range(1, count + 1)]}
@@ -42,7 +37,6 @@ def original(folder: Path, count: int = 100000) -> dict:
     )
 
 
-# 每数据库真正跑完整定时链，无真实网络，CSV实际下载产物按内容验收。
 async def test_100000_rows_original_replay(tmp_path: Path) -> None:
     config = original(tmp_path)
     postgres = os.environ.get("APP_TEST_DATABASE_URL", "")
@@ -66,7 +60,6 @@ async def test_100000_rows_original_replay(tmp_path: Path) -> None:
     assert rows == [{"rows": "100000", "total": "10000100000"}]
 
 
-# 原件摘要不符明确失败，不能访问真实上游补数据，也不能声称覆盖完成。
 async def test_replay_missing_or_changed_is_not_success(tmp_path: Path) -> None:
     config = original(tmp_path)
     config["replay"]["recorded_upstream"][0]["sha256"] = "invalid"

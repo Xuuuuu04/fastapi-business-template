@@ -1,7 +1,3 @@
-"""
-操作查询额度声明与运行结束对比；未知测量不伪装成零，生产不打断。
-"""
-
 import logging
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -12,7 +8,6 @@ from shared.records.models import RunRecord
 log = logging.getLogger("server.query_budget")
 
 
-# 额度按单次操作/分段运行计算；次数包含Db读写，rows包含返回/修改行数。
 @dataclass(frozen=True)
 class QueryBudget:
     queries: int = 1000
@@ -21,14 +16,12 @@ class QueryBudget:
     repeated: int = 100
 
 
-# 环境配置与业务额度分开；生产始终只记录，EXPLAIN只允许测试环境。
 @dataclass(frozen=True)
 class QueryPolicy:
     env: str = "local"
     mode: str = "auto"
     explain: bool = False
 
-    # 诊断开关不能在生产开启。
     def explain_enabled(self) -> bool:
         return self.env == "test" and self.explain
 
@@ -36,7 +29,6 @@ class QueryPolicy:
 DEFAULT_BUDGET = QueryBudget()
 
 
-# 启动时校验声明，错误汇总到操作名，不允许负值、布尔或错误类型。
 def check_budget(budget: QueryBudget | None, name: str) -> list[str]:
     if budget is None:
         return []
@@ -49,14 +41,12 @@ def check_budget(budget: QueryBudget | None, name: str) -> list[str]:
     ]
 
 
-# 默认宽松只警告；显式声明后测试默认失败，可选择warn或把默认约束升级为error。
 def policy(env: str, mode: str, declared: bool) -> str:
     if env == "production" or mode == "warn":
         return "warn"
     return "error" if env == "test" and (declared or mode == "error") else "warn"
 
 
-# 每步骤累计不依赖有限SQL明细，最近记录/演练共用相同结构。
 def comparison(run: RunRecord, budget: QueryBudget, declared: bool) -> dict[str, Any]:
     actual = {
         key: sum(getattr(step, "database_" + key) for step in run.steps)
@@ -101,7 +91,6 @@ def comparison(run: RunRecord, budget: QueryBudget, declared: bool) -> dict[str,
     )
 
 
-# 正常执行后在提交前检查，失败执行只附事实，不覆盖原异常。
 def evaluate(run: RunRecord, budget: QueryBudget, declared: bool, mode: str) -> None:
     run.query_budget = comparison(run, budget, declared) | {"mode": mode}
     issues = run.query_budget["exceeded"] or run.query_budget["repeated"]
@@ -113,7 +102,6 @@ def evaluate(run: RunRecord, budget: QueryBudget, declared: bool, mode: str) -> 
         raise StepRuleBroken(text)
 
 
-# 摘要只放总量和超额/循环提示，存储函数位置仍在结构化记录中。
 def budget_text(result: dict[str, Any]) -> str:
     if not result:
         return "查询额度未知（旧记录没有保存额度数据）"
@@ -135,7 +123,6 @@ def budget_text(result: dict[str, Any]) -> str:
     return "；".join(parts)
 
 
-# 子操作总量累加，最多保留200种步骤/函数位置，不随循环调用次数增长。
 def merge_child(parent: RunRecord, child: RunRecord) -> None:
     result = child.query_budget
     if not result:
@@ -170,7 +157,6 @@ def merge_child(parent: RunRecord, child: RunRecord) -> None:
             target["functions_complete"] = False
 
 
-# 每步骤开始只保存先前总量，计划诊断按操作累计额度判断，不复制先前SQL明细。
 def prior_totals(run: RunRecord) -> dict[str, int]:
     fields = {"queries": "database_count", "rows": "database_rows", "bytes": "database_bytes"}
     children = run.query_children.get("actual", {})

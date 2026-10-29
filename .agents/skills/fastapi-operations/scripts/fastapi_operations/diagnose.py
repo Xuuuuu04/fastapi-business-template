@@ -1,12 +1,3 @@
-"""
-排查命令，供人和 Agent 在能访问数据库的机器上直接查看，不必先读代码：
-  runs [--status failed] [--module 名称]   最近的运行和中文摘要
-  run 运行编号                             一次运行的中文排查报告
-  flow 操作名                              操作的计算流程图和字段来源（来自声明，不需要数据库）
-  field 操作名 字段名                       逐层说明一个字段怎样得出
-运行记录保存在进程内存时（APP_RUN_RECORDS=memory），命令行看不到服务进程里的记录，请用排查接口。
-"""
-
 import argparse
 import asyncio
 import json
@@ -23,13 +14,11 @@ from shared.records.stores import RunFilter, SqlRunStore
 from shared.timing.budgets import budget_report
 
 
-# 打印最近的运行。
 async def show_runs(store: SqlRunStore, status: str, module: str, limit: int) -> None:
     for run in await store.recent(RunFilter(module=module, status=status), limit):
         print(f"{run.id}  {run.status:<8} {run.title}：{run.summary}")
 
 
-# 打印一次运行的中文排查报告。
 async def show_run(store: SqlRunStore, run_id: str) -> None:
     found = await store.get(run_id)
     if found is None:
@@ -38,7 +27,6 @@ async def show_run(store: SqlRunStore, run_id: str) -> None:
     print(run_report(await store.tree(found.root_id), run_id))
 
 
-# 打印数据库中已结束的运行统计。
 async def show_stats(store: SqlRunStore, hours: int, module: str) -> None:
     rows = await store.stats(time.time() - hours * 3600, module)
     for row in rows:
@@ -50,7 +38,6 @@ async def show_stats(store: SqlRunStore, hours: int, module: str) -> None:
         print("这个时段没有已保存的运行记录")
 
 
-# 打印操作的流程图和字段来源。
 def show_flow(catalog: Catalog, name: str) -> None:
     binding = catalog.find(name)
     if binding is None:
@@ -62,7 +49,6 @@ def show_flow(catalog: Catalog, name: str) -> None:
         print(f"- {source.name}（{source.meaning}）：{where}")
 
 
-# 打印一个字段的来源说明。
 def show_field(catalog: Catalog, name: str, field: str) -> None:
     binding = catalog.find(name)
     if binding is None or field not in binding.types.notes:
@@ -71,7 +57,6 @@ def show_field(catalog: Catalog, name: str, field: str) -> None:
     print("\n".join(explain(binding, field)))
 
 
-# 解析命令并执行。
 async def run(args: argparse.Namespace) -> None:
     catalog = Catalog(application_modules())
     if args.command == "budgets":
@@ -102,7 +87,6 @@ async def run(args: argparse.Namespace) -> None:
         await database.close()
 
 
-# 定义命令行参数。
 def main() -> None:
     parser = argparse.ArgumentParser(description="查看运行记录、流程和字段来源")
     commands = parser.add_subparsers(dest="command", required=True)

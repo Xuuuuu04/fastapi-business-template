@@ -1,8 +1,3 @@
-"""
-项目 Skill 的产品复制、旧工具升级与部署独立性。
-检查实际文件与子进程，不把说明文件存在当成脚本可用。
-"""
-
 import json
 import shutil
 import subprocess
@@ -17,7 +12,6 @@ from fastapi_template.template.merge import apply_plan, update_plan
 from shared.modules.validation.framework_lock import differences
 
 
-# 只复制项目 Skill，不复制本机任务；副本命令必须读取副本产品，而非原模板。
 def test_copy_retains_skills_and_uses_product_paths(tmp_path: Path) -> None:
     target = tmp_path / "product"
     initialize(PROJECT, target, "独立产品")
@@ -35,7 +29,6 @@ def test_copy_retains_skills_and_uses_product_paths(tmp_path: Path) -> None:
     assert status["name"] == "独立产品" and status["check_rounds"] == 0
 
 
-# 旧模板的 tools 文件按原来源参与比较，更新后删除它并加入新的项目 Skill。
 def test_upgrade_removes_old_tools_and_copies_skills(tmp_path: Path) -> None:
     base, source, target = [tmp_path / name for name in ("old", "new", "product")]
     for project in (base, source, target):
@@ -55,7 +48,6 @@ def test_upgrade_removes_old_tools_and_copies_skills(tmp_path: Path) -> None:
     assert (target / skill).read_text() == "VERSION = 2\n"
 
 
-# 部署只复制 server/；服务启动检查不依赖 Agent Skill，也不忽略公共源码变化。
 def test_server_starts_without_project_skills(tmp_path: Path) -> None:
     target = tmp_path / "product"
     initialize(PROJECT, target, "部署样例")

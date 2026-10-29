@@ -1,8 +1,3 @@
-"""
-架构测试：依赖方向、模块登记与连接、迁移与表定义一致、框架文件摘要、关闭全部业务模块后框架仍能启动、
-新模块命令能在当前的登记文件中登记。
-"""
-
 import ast
 import asyncio
 from pathlib import Path
@@ -29,17 +24,14 @@ from shared.modules.validation.imports import check_imports
 from tests.testing_app import KEY, database_url, make_settings
 
 
-# 依赖方向符合规则：业务只用 shared.public 和其他模块的 public.py。
 def test_import_rules() -> None:
     assert [problem.text() for problem in check_imports()] == []
 
 
-# 每个模块都已登记，对外操作接到了接口或任务上，内部操作都被调用。
 def test_registry_is_complete() -> None:
     assert [problem.text() for problem in check_registry(Catalog(MODULES))] == []
 
 
-# 迁移到最新版本后，数据库结构与代码中的表定义一致。
 def test_migrations_match_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     url = database_url(tmp_path)
     asyncio.run(drop_everything(url))
@@ -50,7 +42,6 @@ def test_migrations_match_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert asyncio.run(differences_from(url)) == []
 
 
-# 删除库中现存的全部表；同库先前留下的任何样例表都不能影响本次对比。
 async def drop_everything(url: str) -> None:
     engine = create_async_engine(url)
     async with engine.begin() as connection:
@@ -59,7 +50,6 @@ async def drop_everything(url: str) -> None:
     await engine.dispose()
 
 
-# 按方言清空当前模式，不依赖表来自哪一份声明。
 def drop_present_tables(connection: Connection) -> None:
     if connection.dialect.name == "postgresql":
         connection.execute(text("DROP SCHEMA public CASCADE"))
@@ -69,7 +59,6 @@ def drop_present_tables(connection: Connection) -> None:
         connection.execute(text(f'DROP TABLE "{name}"'))
 
 
-# 对比数据库结构和代码中的表定义。
 async def differences_from(url: str) -> list[object]:
     engine = create_async_engine(url)
     async with engine.connect() as connection:
@@ -78,13 +67,11 @@ async def differences_from(url: str) -> list[object]:
     return found
 
 
-# 在同步连接上对比结构。
 def compare(connection: Connection) -> list[object]:
     context = MigrationContext.configure(connection, opts={"compare_type": True})
     return list(compare_metadata(context, metadata))
 
 
-# 框架文件与 framework.lock 中记录的摘要一致。
 def test_framework_files_unchanged() -> None:
     changes = differences()
     assert changes == [], (
@@ -93,7 +80,6 @@ def test_framework_files_unchanged() -> None:
     )
 
 
-# 不启用任何业务模块时，框架仍能启动、通过健康检查并提供排查接口。
 def test_framework_runs_without_modules(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     with TestClient(create_app(settings, build(settings, modules=[]))) as client:
@@ -102,7 +88,6 @@ def test_framework_runs_without_modules(tmp_path: Path) -> None:
         assert body["modules"] == [] and client.get("/openapi.json").status_code == 200
 
 
-# 新模块命令按当前文件格式登记：模块进入清单，接口按模块名分组。
 def test_scaffold_registers_in_current_files() -> None:
     changes = (
         (ROOT / "app" / "setup" / "catalog.py", add_module, "sample_new"),

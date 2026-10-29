@@ -1,7 +1,3 @@
-"""
-流程运行与阶段记录：周期去重、每组织同流程最多一条活动运行，阶段与后台任务一一关联。
-"""
-
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, Table, Text, text
 
 from shared.db.tables import metadata

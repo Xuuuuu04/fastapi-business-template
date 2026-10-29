@@ -1,7 +1,3 @@
-"""
-本机业务现状：生成声明/运行事实与手写判断分开，检查源码版本和生成时间，不把未知补成成功。
-"""
-
 import hashlib
 import json
 import time
@@ -38,7 +34,6 @@ MANUAL = (
 )
 
 
-# 库目标仅保留无密码的单向摘要，换库/角色/搜索路径后旧观察过期，不泄露连接目标。
 def database_identity(url: str) -> str:
     parsed = make_url(url).set(password=None)
     if parsed.get_backend_name() == "sqlite" and parsed.database and parsed.database != ":memory:":
@@ -46,7 +41,6 @@ def database_identity(url: str) -> str:
     return hashlib.sha256(parsed.render_as_string(hide_password=True).encode()).hexdigest()
 
 
-# 模块声明包含普通/分段/流程与关键任务选择，不根据操作数量推测完成度。
 def declaration(catalog: Catalog, name: str, disabled: set[str]) -> dict[str, Any]:
     module = catalog.modules[name]
     return dict(
@@ -77,7 +71,6 @@ def declaration(catalog: Catalog, name: str, disabled: set[str]) -> dict[str, An
     )
 
 
-# 只读取生成标记之间的元信息；坏记录明确报错，不覆盖手写判断。
 def read(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
@@ -93,7 +86,6 @@ def read(path: Path) -> dict[str, Any] | None:
     return data
 
 
-# Markdown只放短元信息，完整生成明细在同名JSON，不要求代理开工展开全文。
 def metadata(data: dict[str, Any]) -> dict[str, Any]:
     digest = hashlib.sha256(
         json.dumps(data, ensure_ascii=False, sort_keys=True).encode()
@@ -103,7 +95,6 @@ def metadata(data: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-# 运行部分仅保存状态/编号/时间/数量，不保存业务输入、SQL参数或连接目标。
 def block(data: dict[str, Any]) -> str:
     declared = data["declaration"]
     runtime = data["runtime"]
@@ -148,7 +139,6 @@ def block(data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-# 不访问数据库时如实未知；显式不读取不会把旧证据当当前真实状态。
 def unknown() -> dict[str, Any]:
     message = "未知（还没有连接数据库读取过）"
     return dict(
@@ -159,7 +149,6 @@ def unknown() -> dict[str, Any]:
     )
 
 
-# 保留生成区之外的原字节，文件缺失时才建立手写占位。
 def render(path: Path, data: dict[str, Any]) -> str:
     if not path.exists():
         return "# 业务现状：" + data["declaration"]["name"] + "\n\n" + block(data) + "\n" + MANUAL
@@ -170,7 +159,6 @@ def render(path: Path, data: dict[str, Any]) -> str:
     return text[:first] + block(data) + text[last:]
 
 
-# 声明按内容判断时效；运行观察的时间保留为事实，不因一天过去让静态检查失败。
 def outdated(
     catalog: Catalog,
     project: Path,
@@ -205,7 +193,6 @@ def outdated(
     return result
 
 
-# 显式命令生成；缺少DB证据标未知，不改手写部分。
 def update(
     catalog: Catalog,
     project: Path,

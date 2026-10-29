@@ -1,8 +1,3 @@
-"""
-检查命名：目录和文件用小写下划线，不用含义模糊的名字；
-业务模块名至少两个词；步骤函数名写成“动词_对象”；条件函数名以 is、has、can 等开头。
-"""
-
 import ast
 import re
 from pathlib import Path
@@ -13,7 +8,6 @@ from fastapi_check.quality.rules import CODE_DIRS, CONDITION_WORDS, ROOT, STEP_V
 SNAKE = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
 
 
-# 检查全部命名规则。
 def check_naming(root: Path = ROOT) -> list[Problem]:
     problems = check_paths(root)
     problems += check_module_names(root)
@@ -22,7 +16,6 @@ def check_naming(root: Path = ROOT) -> list[Problem]:
     return problems
 
 
-# 检查目录名和 Python 文件名。
 def check_paths(root: Path) -> list[Problem]:
     problems = []
     for path in files_under(root, CODE_DIRS, ".py"):
@@ -56,7 +49,6 @@ def check_paths(root: Path) -> list[Problem]:
     return sorted(set(problems), key=lambda item: (item.path, item.message))
 
 
-# 检查业务模块名至少两个词。
 def check_module_names(root: Path) -> list[Problem]:
     service = root / "service"
     if not service.exists():
@@ -74,7 +66,6 @@ def check_module_names(root: Path) -> list[Problem]:
     ]
 
 
-# 检查步骤和条件函数的命名。
 def check_step_names(path: Path, root: Path) -> list[Problem]:
     problems = []
     tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -105,7 +96,6 @@ def check_step_names(path: Path, root: Path) -> list[Problem]:
     return problems
 
 
-# 返回函数使用的 step 或 condition 装饰器名称。
 def decorator_name(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
     for item in node.decorator_list:
         target = item.func if isinstance(item, ast.Call) else item

@@ -1,7 +1,3 @@
-"""
-单个操作的声明、上游协议与实际测试执行证据，未执行的信息保持未知。
-"""
-
 from collections.abc import Iterator
 from typing import Any
 
@@ -13,7 +9,6 @@ from shared.graphs.static import flow_graph
 from shared.modules.catalog import Catalog
 
 
-# 按实际结束状态统计执行次数；错误场景测试中的业务失败不会变成测试失败。
 def execution_counts(cases: list[dict[str, Any]], operation: str, step: str = "") -> dict[str, int]:
     counts: dict[str, int] = {}
     for case in cases:
@@ -32,7 +27,6 @@ def execution_counts(cases: list[dict[str, Any]], operation: str, step: str = ""
     return counts
 
 
-# 一个操作的步骤图与当前位置，全部来自真实模块声明。
 def operation_status(
     catalog: Catalog, operation: str, cases: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -80,12 +74,10 @@ def operation_status(
     }
 
 
-# 按最近测试的实际运行显示整条路径，不能把多次执行拼成一次成功。
 def last_run(cases: list[dict[str, Any]], operation: str) -> dict[str, Any] | None:
     return next(passed_runs(cases, operation), None)
 
 
-# 从最近到最早遍历实际通过的测试，失败和跳过的测试不会提供成功证据。
 def passed_runs(cases: list[dict[str, Any]], operation: str) -> Iterator[dict[str, Any]]:
     for case in reversed(cases):
         if case["outcome"] != "passed":
@@ -95,7 +87,6 @@ def passed_runs(cases: list[dict[str, Any]], operation: str) -> Iterator[dict[st
                 yield run
 
 
-# 最近一次通过测试中的实际步骤记录；老记录缺少时间时保持未知。
 def last_execution(cases: list[dict[str, Any]], operation: str, name: str) -> dict[str, Any] | None:
     for run in passed_runs(cases, operation):
         for step in reversed(run["steps"]):

@@ -1,7 +1,3 @@
-"""
-应用执行、后台时间与外部截止共同读取受控时钟，业务校时不会让执行消耗倒退。
-"""
-
 import asyncio
 from pathlib import Path
 
@@ -29,17 +25,14 @@ from tests.testing_app import make_settings, reset_database
 pytestmark = pytest.mark.anyio
 
 
-# 受控执行不需要真实数据或外部服务。
 class Work(WorkData):
     result: Nothing = meaning("执行结果")
 
 
-# 校时影响业务截止，但执行消耗由单调时间计算，超时仍真正取消。
 async def test_runtime_deadline_and_elapsed_use_same_clock(tmp_path: Path) -> None:
     clock = FakeClock(100)
     entered = asyncio.Event()
 
-    # 业务等待长于公开操作预算，测试推进时间触发真实取消。
     @step("受控等待", writes=["result"])
     async def wait(data: Work, clock: Clock) -> None:
         entered.set()
@@ -83,11 +76,9 @@ async def test_runtime_deadline_and_elapsed_use_same_clock(tmp_path: Path) -> No
         await services.close()
 
 
-# 提交和领取在执行器之外也沿用同一产品时钟，不由后台进程另选时间。
 async def test_queue_uses_product_clock_without_runtime_context(tmp_path: Path) -> None:
     clock = FakeClock(100)
 
-    # 即时空结果供任务声明使用。
     @step("空结果", writes=["result"])
     def result(data: Work) -> None:
         data.result = Nothing()

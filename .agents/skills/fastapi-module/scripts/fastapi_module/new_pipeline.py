@@ -1,7 +1,3 @@
-"""
-新增流程一次生成声明、阶段骨架、定时首入口和演练配置，业务实现按阶段补充。
-"""
-
 import argparse
 import json
 from pathlib import Path
@@ -13,7 +9,6 @@ from fastapi_module.new_operation import changes as operation_changes
 from fastapi_module.new_operation import update_docs
 
 
-# 同一条流程用显式公共State，阶段之间通过Data自然衔接。
 def changes(module: str, name: str, title: str, stages: list[str], wait: str) -> dict[Path, str]:
     folder = validate(module, name)
     if not stages or len(set(stages)) != len(stages) or wait not in stages:
@@ -25,7 +20,7 @@ def changes(module: str, name: str, title: str, stages: list[str], wait: str) ->
     values = {
         data: append(
             add_import(data.read_text(), "from shared.public import Data, meaning"),
-            f"# 流程阶段只传有界Data，业务大结果改成版本号或引用。\nclass {state}(Data):\n"
+            f"class {state}(Data):\n"
             '    text: str = meaning("生成样例文本；业务实现后替换", default="样例")\n'
             '    ready: bool = meaning("等待结果是否就绪", default=False)',
         )
@@ -66,13 +61,11 @@ def changes(module: str, name: str, title: str, stages: list[str], wait: str) ->
     return values
 
 
-# 流程的启动操作也是公开操作，和各阶段一样写进包 README。
 def readme_text(original: str, module: str, name: str, title: str) -> str:
     entry = f"- `{module}.start_{name}`：启动{title}。"
     return original.replace("## 公开操作", "## 公开操作\n\n" + entry, 1)
 
 
-# 流程、后台计划和首阶段Schedule一起进入Module登记。
 def registration_text(
     original: str, module: str, name: str, title: str, state: str, stages: list[str], wait: str
 ) -> str:
@@ -103,7 +96,6 @@ def registration_text(
     return extend_module(text, "schedules", schedule)
 
 
-# 预览无文件变化；实施后文档和入口一起更新，报告列出实际Git影响文件。
 def generate(
     module: str, name: str, title: str, stages: list[str], wait: str, preview: bool = False
 ) -> list[str]:
@@ -135,7 +127,6 @@ def generate(
     return files
 
 
-# 阶段名由业务规划给出，不添加任何预置业务模块。
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成多阶段流程和定时/演练骨架")
     parser.add_argument("module")

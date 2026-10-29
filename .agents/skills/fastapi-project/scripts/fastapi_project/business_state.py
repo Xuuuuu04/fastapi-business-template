@@ -1,7 +1,3 @@
-"""
-生成或检查本机业务现状，默认不访问数据库；--runs明确读取当前数据库，生成区外手写内容保留。
-"""
-
 import argparse
 import asyncio
 
@@ -16,7 +12,6 @@ from shared.db.database import Database
 from shared.modules.catalog import Catalog
 
 
-# 查询失败不写新状态、不打印连接目标或凭据。
 async def runtime(settings: Settings, catalog: Catalog) -> dict:
     database = Database(settings.database_url)
     try:
@@ -25,7 +20,6 @@ async def runtime(settings: Settings, catalog: Catalog) -> dict:
         await database.close()
 
 
-# 开工先读、收工显式刷新；检查绝不自动把过期运行证据更新成成功。
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成业务现状（生成事实/手写判断分开）")
     parser.add_argument("--module", action="append", default=[])

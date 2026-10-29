@@ -1,8 +1,3 @@
-"""
-生成可提交的项目设计与结构进度，始终不读取本机检查历史或数据库。
-机器上的实际测试与运行状态由 uv run dev status 即时输出，避免进入通用模板。
-"""
-
 from pathlib import Path
 
 from fastapi_docs.progress_doc import cell
@@ -14,7 +9,6 @@ from shared.modules.catalog import Catalog
 from shared.modules.libraries import library_links, library_specs
 
 
-# 从根节点生成业务线与模块图，并逐项列出还没有登记的目标操作。
 def design_doc(catalog: Catalog, project: Path) -> str:
     plan = read_plan(project)
     name = plan["name"] if plan else project.name
@@ -53,7 +47,6 @@ def design_doc(catalog: Catalog, project: Path) -> str:
     return design_text(graph, rows)
 
 
-# 工具与实际调用者从静态导入生成，不把计划依赖当作已经连接的代码。
 def library_graph(root: Path) -> list[str]:
     specs = library_specs(root)
     names = {spec.name for spec in specs}
@@ -65,7 +58,6 @@ def library_graph(root: Path) -> list[str]:
     return graph
 
 
-# 自动生成说明只包含静态信息，实际测试状态留在机器上的检查记录中。
 def design_text(graph: list[str], rows: list[str]) -> str:
     return "\n".join(
         [

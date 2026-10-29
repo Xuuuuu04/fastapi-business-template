@@ -1,7 +1,3 @@
-"""
-成员分段任务失败后复用已提交批次，不重跑规划或成功段，也不能改回普通任务重做。
-"""
-
 from dataclasses import replace
 
 import pytest
@@ -29,19 +25,16 @@ pytestmark = pytest.mark.anyio
 __all__ = ["fanout"]
 
 
-# 已声明的分段游标，只恢复已提交范围之后的行。
 class Cursor(Data):
     after: int = meaning("上次已提交结束行", default=0)
 
 
-# 成员规划只登记一个分段成员，业务步骤不管理成员状态。
 @step("登记分段成员", reads=["count", "version"], writes=["result"], saves=True)
 async def plan_segment(data: PlanWork, pipeline: PipelineGate) -> None:
     await pipeline.add_members([Member[BatchInput](key="batch", input=BatchInput(total=15000))])
     data.result = Batch(count=1)
 
 
-# 成功成员的最终结果仍通过声明的有界Data页读取。
 @step("汇算已完成分段成员", reads=["count"], writes=["result"])
 async def combine_segment(data: SumWork, pipeline: PipelineGate) -> None:
     page = await pipeline.results("requests", BatchResult)
@@ -50,7 +43,6 @@ async def combine_segment(data: SumWork, pipeline: PipelineGate) -> None:
     )
 
 
-# 测试仅替换样例声明，不添加任何模板业务。
 async def configure(services: Services):
     from shared.modules.catalog import Catalog
 
@@ -89,7 +81,6 @@ async def configure(services: Services):
     return changed, owner, segmented
 
 
-# 已提交5000行保留；修复第二批后继续完成15000行，主键证明没有重复。
 async def test_segmented_member_keeps_checkpoint(fanout: Services, monkeypatch) -> None:
     from shared.pipelines.plan import StartRequest
     from tests.framework.fanout_sample import Begin
@@ -98,7 +89,6 @@ async def test_segmented_member_keeps_checkpoint(fanout: Services, monkeypatch) 
     changed, owner, segmented = await configure(fanout)
     original = BatchStore.save
 
-    # 在第二批写入后失败，整批撤销但第一批已提交。
     async def fail(self, start, end):
         count = await original(self, start, end)
         if start == 5000:
@@ -113,9 +103,7 @@ async def test_segmented_member_keeps_checkpoint(fanout: Services, monkeypatch) 
     assert (await drain(fanout, run_id))["state"] == "failed"
     async with fanout.database.read() as connection:
         assert await connection.scalar(select(func.count()).select_from(output)) == 5000
-    # 即使人工接受声明，也不能把有已提交批次的任务切回普通执行。
     unsafe = replace(segmented, jobs=(replace(segmented.jobs[0], segmented=False),))
-    # 登记检查本身会拒绝普通任务带checkpoint，因此直接验证恢复数据保护。
     from shared.pipelines.recovery import validate_checkpoint
     from shared.pipelines.tables import members
 

@@ -1,7 +1,3 @@
-"""
-统一外部发送与查证。数据库事务只登记和保存，网络、SMTP或SDK调用在事务外进行。
-"""
-
 import asyncio
 import hashlib
 from typing import Any
@@ -17,9 +13,7 @@ from shared.timing.current import clocked, monotonic
 from shared.timing.current import now as business_now
 
 
-# 外部效果的所有适配器共用持久意图与未知保护，没有自动回到未发送的恢复路径。
 class EffectService:
-    # 适配器已经由产品配置工厂创建；只为注册过的供应商建立执行位置。
     def __init__(self, store: EffectStore, bindings: dict[ProviderSpec, EffectAdapter]) -> None:
         self.clock: Clock = RealClock()
 
@@ -35,11 +29,9 @@ class EffectService:
                 configure(spec.concurrency)
         self.limits = {spec: asyncio.Semaphore(spec.concurrency) for spec in bindings}
 
-    # 业务租期使用统一入口，受控Clock将在时间包替换真实时钟。
     def now(self) -> float:
         return self.clock.now()
 
-    # 同一个客户端可被多个协议复用，退出时只关闭一次。
     @clocked
     async def close(self) -> None:
         seen = set()
@@ -48,7 +40,6 @@ class EffectService:
                 seen.add(id(adapter))
                 await adapter.close()
 
-    # 保存意图并发送一次；重复调用从原意图恢复，不重新生成请求。
     @clocked
     async def call(
         self,
@@ -74,7 +65,6 @@ class EffectService:
             )
         return await self.perform(id, caller, records, effects)
 
-    # 登记后的任务也走同一执行入口；先取得执行位置再持久化本次发送状态。
     @clocked
     async def perform(
         self,
@@ -101,7 +91,6 @@ class EffectService:
             await self.attempt(spec, adapter, row, id, attempt, records, effects, lookup)
         return final_result(self.result(spec, await self.store.read(id, caller)), lookup)
 
-    # 异常、超时、取消和回执保存失败都保留发送前的unknown，不凭异常名称推定未发送。
     @clocked
     async def attempt(
         self,
@@ -148,13 +137,11 @@ class EffectService:
         finally:
             record.elapsed_ms = (monotonic() - started) * 1000
 
-    # 只允许组装中登记过的同一声明对象，不能用伪造供应商扩大权限。
     def adapter(self, spec: ProviderSpec) -> EffectAdapter:
         if spec not in self.bindings:
             raise StepRuleBroken(f"外部效果 {spec.name} 未在产品组装登记")
         return self.bindings[spec]
 
-    # 公开结果不泄漏请求原文，受理与完成仍保留供应商语义。
     def result(self, spec: ProviderSpec, row: dict[str, Any]) -> EffectResult:
         data = (
             spec.output.model_validate_json(self.store.vault.decrypt(row["receipt"]))
@@ -170,7 +157,6 @@ class EffectService:
         )
 
 
-# 完成/受理必须有校验回执；发送返回未发送不能覆盖已开始发送的未知事实。
 def checked_reply(spec: ProviderSpec, reply: AdapterReply, lookup: bool) -> AdapterReply:
     if reply.state not in {"not_sent", "refused", "accepted", "completed", "unknown"}:
         raise StepRuleBroken("供应商回执状态无效")
@@ -186,7 +172,6 @@ def checked_reply(spec: ProviderSpec, reply: AdapterReply, lookup: bool) -> Adap
     return AdapterReply(reply.state, data, reply.external_id)
 
 
-# 未确认不能把后台任务标为成功；查询则明确展示当前事实，不触发发送。
 def final_result(result: EffectResult, lookup: bool) -> EffectResult:
     if not lookup and result.state == "unknown":
         raise RemoteResultUnknown("原外部意图仍未确认或正在执行，不能盲目重发")
@@ -195,7 +180,6 @@ def final_result(result: EffectResult, lookup: bool) -> EffectResult:
     return result
 
 
-# 产品适配器明确声明供应商账号，切换账号或目标不能直接恢复旧请求。
 def binding_of(adapter: EffectAdapter) -> str:
     if not adapter.identity or len(adapter.identity) > 1024:
         raise StepRuleBroken("供应商适配器必须声明有界账号与目标标识")

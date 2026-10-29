@@ -1,11 +1,3 @@
-"""
-生成一个新业务模块的完整骨架，并登记到模块总目录和路由清单：
-  uv run dev new-module customer_contact --title 客户联系人
-生成内容：service/模块名、doc/模块名、app/api/v1/模块名.py，
-以及 tests/modules 与 tests/integration 下的测试。
-生成后按提示补写业务文档、生成迁移、导出文档，再运行全量检查。
-"""
-
 import argparse
 import json
 import re
@@ -21,7 +13,6 @@ TEMPLATES = Path(__file__).resolve().parents[2] / "assets/templates"
 NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)+$")
 
 
-# 列出模板文件和生成位置。
 def targets(name: str) -> dict[str, Path]:
     service = ROOT / "service" / name
     return {
@@ -50,7 +41,6 @@ def targets(name: str) -> dict[str, Path]:
     }
 
 
-# 检查模块名：小写下划线、至少两个词、不用含义模糊的词、不与现有模块重名。
 def check_name(name: str) -> str:
     if not NAME.match(name):
         return "模块名只能用小写字母、数字和下划线，并且至少两个词，例如 customer_contact"
@@ -63,7 +53,6 @@ def check_name(name: str) -> str:
     return ""
 
 
-# 按模板生成全部文件。
 def write_files(name: str, title: str) -> list[Path]:
     values = {"name": name, "title": title, "Camel": camel(name), "path": name.replace("_", "-")}
     written = []
@@ -75,7 +64,6 @@ def write_files(name: str, title: str) -> list[Path]:
     return written
 
 
-# 在模块总目录、路由清单和业务文档目录中登记新模块。
 def register(name: str, title: str) -> list[Path]:
     catalog = ROOT / "app" / "setup" / "catalog.py"
     write_registry(ROOT)
@@ -85,14 +73,12 @@ def register(name: str, title: str) -> list[Path]:
     return [catalog, routers]
 
 
-# 在模块总目录中导入并启用新模块。
 def add_module(text: str, name: str) -> str:
     head = "MODULES: list[Module]"
     text = add_import(text, head, f"from service.{name}.module import module as {name}")
     return append_item(text, head, name)
 
 
-# 在路由清单中导入并登记新模块的接口。
 def add_route(text: str, name: str) -> str:
     head = "MODULE_ROUTERS: dict[str, tuple[APIRouter, ...]]"
     position = text.index(head)
@@ -105,7 +91,6 @@ def add_route(text: str, name: str) -> str:
     return text[:imports_end] + f"from app.api.v1 import {name}\n\n" + text[imports_end:]
 
 
-# 把导入放在列表定义之前，之后由 ruff 并入导入区；不依赖已有导入行的写法。
 def add_import(text: str, head: str, line: str) -> str:
     position = text.find(f"{head} = [")
     if position < 0:
@@ -113,7 +98,6 @@ def add_import(text: str, head: str, line: str) -> str:
     return text[:position] + f"{line}\n\n" + text[position:]
 
 
-# 在“名称 = [...]”形式的列表末尾加一项，不依赖列表写成一行还是多行。
 def append_item(text: str, head: str, item: str) -> str:
     match = re.search(re.escape(head) + r" = \[(.*?)\]", text, re.DOTALL)
     if match is None:
@@ -123,7 +107,6 @@ def append_item(text: str, head: str, item: str) -> str:
     return text[: match.start()] + f"{head} = [\n{body}]" + text[match.end() :]
 
 
-# 在 doc/README.md 的模块表中加一行。
 def add_doc_row(name: str, title: str) -> None:
     index = PROJECT / "doc" / "README.md"
     lines = index.read_text(encoding="utf-8").splitlines()
@@ -142,12 +125,10 @@ def add_doc_row(name: str, title: str) -> None:
     index.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-# 把模块名转成驼峰写法，例如 customer_contact 转成 CustomerContact。
 def camel(name: str) -> str:
     return "".join(part.capitalize() for part in name.split("_"))
 
 
-# 整理生成和修改过的 Python 文件的导入顺序与格式。
 def tidy(paths: list[Path]) -> None:
     files = [str(path) for path in paths if path.suffix == ".py"]
     ruff = [sys.executable, "-m", "ruff"]
@@ -156,7 +137,6 @@ def tidy(paths: list[Path]) -> None:
     subprocess.run([*ruff, "format", "--quiet", *files], cwd=ROOT, check=False)
 
 
-# 写入包类型；结构说明和模块声明保持一致。
 def set_kind(name: str, kind: str) -> None:
     marker = ROOT / "service" / name / "module.json"
     descriptor = json.loads(marker.read_text())
@@ -166,7 +146,6 @@ def set_kind(name: str, kind: str) -> None:
     module.write_text(module.read_text().replace('kind="capability"', f'kind="{kind}"'))
 
 
-# 普通业务包生成后要做的事。
 def next_steps(name: str) -> list[str]:
     return [
         f"1. 在 doc/{name}/needs.md 和 rules.md 写清真实业务，再按业务修改 service/{name}",
@@ -178,7 +157,6 @@ def next_steps(name: str) -> list[str]:
     ]
 
 
-# 解析参数并生成模块；--preset access 生成最小账号包。
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成新业务模块的骨架")
     parser.add_argument("name", help="模块名，至少两个词，例如 customer_contact")

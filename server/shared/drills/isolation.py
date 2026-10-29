@@ -1,7 +1,3 @@
-"""
-演练数据库隔离：SQLite总是新文件，PostgreSQL总是新schema，退出只删除本次创建空间。
-"""
-
 import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -12,7 +8,6 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 
 
-# 不在原有数据库表上drop/create，PostgreSQL不把public加入演练搜索路径。
 @asynccontextmanager
 async def isolated(folder: Path, postgres: str = "") -> AsyncIterator[str]:
     if not postgres:

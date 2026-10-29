@@ -1,41 +1,29 @@
-"""
-从字段与连接声明生成代码，业务取值只由测试提供者给出，正式骨架保留明确的未实现标记。
-"""
-
 from fastapi_module.new_module import camel
 from fastapi_module.skeleton_spec import SkeletonOperation, SkeletonPackage, call_field
 
-HEADER = '"""\n显式声明生成的业务骨架；字段与连接属于契约，业务计算需独立实现。\n"""\n\n'
 
-
-# 引用由规格检查过，只展开成字段访问，不执行任意表达式。
 def expression(reference: str) -> str:
     source, name = reference.rsplit(".", 1)
     return "data." + name if source == "input" else f"data.{call_field(source)}.{name}"
 
 
-# 步骤声明读的工作字段：原始输入读字段本身，调用产出读整段产出。
 def work_field(reference: str) -> str:
     source, name = reference.rsplit(".", 1)
     return name if source == "input" else call_field(source)
 
 
-# 每个操作独立的数据文件，避免多操作的data.py不断变长。
 def data_code(operation: SkeletonOperation, operations: dict[str, SkeletonOperation]) -> str:
     kind = camel(operation.name)
     imports = sorted({call.operation.split(".")[0] for call in operation.calls})
-    code = HEADER + "from shared.public import Data, WorkData, meaning\n"
+    code = "from shared.public import Data, WorkData, meaning\n"
     code += "".join(f"from service.{name} import public as {name}\n" for name in imports)
     for suffix, fields in (("Input", operation.input), ("Output", operation.output)):
-        code += (
-            f"\n\n# 公开{suffix}字段由声明提供，不包含确认样例的取值。\n"
-            f"class {kind}{suffix}(Data):\n"
-        )
+        code += f"\n\nclass {kind}{suffix}(Data):\n"
         code += "".join(
             f"    {name}: {field.type} = meaning({field.meaning!r})\n"
             for name, field in fields.items()
         )
-    code += f"\n\n# 连接步骤只传递类型明确的中间产出。\nclass {kind}Work(WorkData):\n"
+    code += f"\n\nclass {kind}Work(WorkData):\n"
     code += "".join(
         f"    {name}: {field.type} = meaning({field.meaning!r})\n"
         for name, field in operation.input.items()
@@ -51,9 +39,8 @@ def data_code(operation: SkeletonOperation, operations: dict[str, SkeletonOperat
     return code
 
 
-# 公共入口只公开契约和输入输出类，不导出流程或步骤。
 def public_code(package: SkeletonPackage) -> str:
-    code = HEADER + "from shared.public import contract\n"
+    code = "from shared.public import contract\n"
     exports = []
     for operation in package.operations:
         kind = camel(operation.name)
@@ -71,17 +58,13 @@ def public_code(package: SkeletonPackage) -> str:
     return code + f"\n__all__ = {exports!r}\n"
 
 
-# 每个调用步骤按被调用的操作命名，最终整理结果是实际连接逻辑，不编造业务计算。
 def step_code(
     package: SkeletonPackage,
     operation: SkeletonOperation,
     operations: dict[str, SkeletonOperation],
 ) -> str:
     kind = camel(operation.name)
-    code = (
-        HEADER
-        + f"from service.{package.name}.data_{operation.name} import {kind}Work, {kind}Output\n"
-    )
+    code = f"from service.{package.name}.data_{operation.name} import {kind}Work, {kind}Output\n"
     code += "from shared.public import step" + (", Call" if operation.calls else "") + "\n"
     code += "".join(
         f"from service.{name} import public as {name}\n"
@@ -95,8 +78,7 @@ def step_code(
             f"{name}={expression(reference)}" for name, reference in call.input.items()
         )
         code += (
-            f"\n\n# 调用{call.operation}（{title}），入参来源明确。\n"
-            f"@step({title!r}, reads={reads!r}, writes=[{field!r}], "
+            f"\n\n@step({title!r}, reads={reads!r}, writes=[{field!r}], "
             f"uses=[{package_name}.{action}], observes=[{field!r}], simulated=False)\n"
             f"async def fetch_{field}(data: {kind}Work, call: Call) -> None:\n"
             f"    data.{field} = await call({package_name}.{action}, "
@@ -105,14 +87,12 @@ def step_code(
     return code + result_step(operation)
 
 
-# 没有业务计算的地方只留下模拟标记，不把expected值写入生产函数。
 def result_step(operation: SkeletonOperation) -> str:
     kind = camel(operation.name)
     if not operation.calls:
         reads = list(operation.input)
         return (
-            "\n\n# 模拟提供者只在测试上下文注入，正式业务需要替换此步骤。\n"
-            f"@step({operation.title!r}, reads={reads!r}, writes=['result'], "
+            f"\n\n@step({operation.title!r}, reads={reads!r}, writes=['result'], "
             f"observes={[*reads, 'result']!r}, simulated=True)\n"
             f"def build_result(data: {kind}Work) -> None:\n"
             "    raise NotImplementedError('此处尚未实现业务计算')\n"
@@ -120,17 +100,15 @@ def result_step(operation: SkeletonOperation) -> str:
     reads = sorted({work_field(reference) for reference in operation.returns.values()})
     values = ", ".join(f"{name}={expression(ref)}" for name, ref in operation.returns.items())
     return (
-        "\n\n# 按显式字段映射整理最终结果。\n"
-        f"@step('整理最终结果', reads={reads!r}, writes=['result'], "
+        f"\n\n@step('整理最终结果', reads={reads!r}, writes=['result'], "
         "observes=['result'], simulated=False)\n"
         f"def build_result(data: {kind}Work) -> None:\n"
         f"    data.result = {kind}Output({values})\n"
     )
 
 
-# 每个操作连到自己明确的步骤序列，不从预期猜数据流。
 def flow_code(package: SkeletonPackage) -> str:
-    code = HEADER + "from shared.public import Flow\n"
+    code = "from shared.public import Flow\n"
     for operation in package.operations:
         code += (
             f"from service.{package.name}.data_{operation.name} "
@@ -148,20 +126,17 @@ def flow_code(package: SkeletonPackage) -> str:
     return code
 
 
-# 骨架不生成数据库表或对外效果，后续真实实现单独提供增量迁移。
 def module_code(package: SkeletonPackage) -> str:
     entries = ", ".join(f"public.{op.name}: flow.{op.name}_flow" for op in package.operations)
     return (
-        HEADER
-        + f"from service.{package.name} import flow, public\nfrom shared.public import Module\n\n"
+        f"from service.{package.name} import flow, public\nfrom shared.public import Module\n\n"
         f"module = Module({package.name!r}, {package.title!r}, '0.1.0', "
         f"{{{entries}}}, kind={package.kind!r})\n"
     )
 
 
-# HTTP入口只做类型转换，权限和业务行为继续由公开操作决定。
 def api_code(package: SkeletonPackage) -> str:
-    code = HEADER + (
+    code = (
         "from fastapi import APIRouter\nfrom app.api.runner import RunDep\n"
         f"from service.{package.name} import public\n\n"
         f"router = APIRouter(prefix='/api/v1/{package.name.replace('_', '-')}', "
@@ -170,8 +145,7 @@ def api_code(package: SkeletonPackage) -> str:
     for operation in package.operations:
         kind = camel(operation.name)
         code += (
-            f"\n\n# 调用{operation.title}的公开操作。\n"
-            f"@router.post('/{operation.name}', response_model=public.{kind}Output, "
+            f"\n\n@router.post('/{operation.name}', response_model=public.{kind}Output, "
             f"operation_id={package.name + '_' + operation.name!r}, summary={operation.title!r})\n"
             f"async def {operation.name}(body: public.{kind}Input, "
             f"run: RunDep) -> public.{kind}Output:\n"

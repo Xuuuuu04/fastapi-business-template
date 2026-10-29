@@ -14,10 +14,14 @@ pipeline = Pipeline(
         Stage("publish", publish),
     ),
 )
-# Module(..., pipelines=(pipeline,), jobs=(JobPlan(...), ...))
-# Schedule(..., contract=pipeline.start,
-#   input=pipeline.start.input(request=StartRequest[Source](data=Source())),
-#   slot_input_field="request.period", org_ids=("org-a", "org-b"))
+module = Module(..., pipelines=(pipeline,), jobs=(JobPlan(...), ...))
+schedule = Schedule(
+    ...,
+    contract=pipeline.start,
+    input=pipeline.start.input(request=StartRequest[Source](data=Source())),
+    slot_input_field="request.period",
+    org_ids=("org-a", "org-b"),
+)
 ```
 
 阶段输入默认来自上一阶段，首阶段来自初始输入；可以用 `input_from="input"` 或已完成阶段名。只能传声明的 `Data`，序列化上限 16 KiB，大结果传引用。分段阶段还需 `JobPlan(cursor=CursorData, segmented=True, repeat_safe=True)`，用于兼容性检查。

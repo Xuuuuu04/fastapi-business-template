@@ -1,8 +1,3 @@
-"""
-任务表和排队计数表。任务表本身就是队列：worker 从这里领取任务。
-时间列保存 Unix 秒数（浮点数），在 SQLite 和 PostgreSQL 上比较方式一致。
-"""
-
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Index, Integer, String, Table, Text, text
 
 from shared.db.tables import metadata
@@ -56,7 +51,6 @@ job_counts = Table(
     Column("active", Integer, nullable=False, default=0),
 )
 
-# 每个分段任务的当前恢复位置及在途外部写入证明；与业务段一起提交。
 checkpoints = Table(
     "system_job_checkpoints",
     metadata,
@@ -69,7 +63,6 @@ checkpoints = Table(
     Column("external_pending", Boolean, nullable=False),
 )
 
-# 每个已提交段的独立运行编号、行数和耗时，崩溃后仍可查看。
 segments = Table(
     "system_job_segments",
     metadata,

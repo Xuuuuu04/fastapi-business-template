@@ -1,7 +1,3 @@
-"""
-工具包复用现有纯计算检查，覆盖文件位置、公开入口、导出一致与依赖循环。
-"""
-
 import ast
 from pathlib import Path
 
@@ -11,7 +7,6 @@ from shared.modules.validation.pure import check_pure
 from shared.modules.validation.report import Problem
 
 
-# 文件位置、导出一致与纯计算一起检查，不以包名称代替源码证据。
 def check_libraries(root: Path) -> list[Problem]:
     problems = []
     try:
@@ -26,7 +21,6 @@ def check_libraries(root: Path) -> list[Problem]:
     return problems
 
 
-# 工具不能持有存储和业务流程，数据类型可以放在data.py。
 def check_library_folder(root: Path, spec: LibrarySpec) -> list[Problem]:
     folder = root / "library" / spec.name
     problems = []
@@ -58,7 +52,6 @@ def check_library_folder(root: Path, spec: LibrarySpec) -> list[Problem]:
     return problems
 
 
-# 声明的导出与public.py的__all__双向一致，两边多出的名称都不可信。
 def export_problems(folder: Path, spec: LibrarySpec) -> list[Problem]:
     public = folder / "public.py"
     if not public.is_file():
@@ -98,7 +91,6 @@ def export_problems(folder: Path, spec: LibrarySpec) -> list[Problem]:
     return [Problem(str(public), 0, "library_exports", "导出与声明不一致；" + "；".join(details))]
 
 
-# 只接受源码明确绑定的公开名称，__all__不能把不存在的函数变成已实现。
 def public_bindings(tree: ast.Module) -> set[str]:
     found = set()
     for node in tree.body:

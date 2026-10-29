@@ -1,7 +1,3 @@
-"""
-影响报告的命令入口只展示明确的关闭状态，不从环境借用真实配置。
-"""
-
 import json
 
 import pytest
@@ -13,7 +9,6 @@ from tests.architecture.test_impact import repo as repo
 from tests.architecture.test_impact import write
 
 
-# CLI JSON 始终使用完整 MODULES，不通过 enabled_modules 裁剪声明图。
 def test_cli_json_respects_disabled_only_for_display(
     repo: Repo,
     catalog: Catalog,

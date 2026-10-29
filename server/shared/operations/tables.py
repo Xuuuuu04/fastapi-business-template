@@ -1,7 +1,3 @@
-"""
-跨worker共享容量暂停事实；通知复用已有system_notifications。
-"""
-
 from sqlalchemy import Boolean, Column, Float, String, Table, Text
 
 from shared.db.tables import metadata

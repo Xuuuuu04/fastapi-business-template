@@ -1,8 +1,3 @@
-"""
-上传临时区：接口先把上传的文件写到这里，检查扩展名和大小，算出 SHA-256，得到一个临时编号；
-文件管理模块再按临时编号把文件保存到正式存储。超过一小时没有被取走的临时文件由 worker 清理。
-"""
-
 import hashlib
 import json
 import mimetypes
@@ -20,7 +15,6 @@ from shared.timing.current import now as business_now
 TEMP_ID = re.compile(r"^[0-9a-f]{32}$")
 
 
-# 临时上传的编号和文件信息，供业务步骤接收内容使用。
 @dataclass(frozen=True)
 class TempUpload:
     temp_id: str
@@ -30,15 +24,12 @@ class TempUpload:
     content_type: str
 
 
-# 管理临时上传目录，限制文件类型、大小和临时文件有效时间。
 class UploadArea:
-    # 设置临时目录、大小上限和允许的扩展名。
     def __init__(self, root: Path, max_bytes: int, suffixes: list[str]) -> None:
         self.root = root
         self.max_bytes = max_bytes
         self.suffixes = {suffix.lower() for suffix in suffixes}
 
-    # 接收上传内容：边写边检查大小，写完后记下文件信息。
     async def receive(self, name: str, chunks: AsyncIterator[bytes]) -> TempUpload:
         clean = PurePath(name.replace("\\", "/")).name[:200] or "file"
         suffix = PurePath(clean).suffix.lower()
@@ -70,7 +61,6 @@ class UploadArea:
         )
         return upload
 
-    # 按临时编号取得文件路径和信息。
     async def find(self, temp_id: str) -> tuple[Path, TempUpload]:
         if not TEMP_ID.match(temp_id):
             raise StepRuleBroken("临时文件编号格式不正确")
@@ -80,12 +70,10 @@ class UploadArea:
         upload = TempUpload(**json.loads(await info.read_text()))
         return self.root / temp_id, upload
 
-    # 删除一个临时文件。
     async def discard(self, temp_id: str) -> None:
         for name in (temp_id, f"{temp_id}.json"):
             await anyio.Path(self.root / name).unlink(missing_ok=True)
 
-    # 删除超过指定秒数的临时文件，返回删除数量。
     async def clean(self, older_than: float) -> int:
         folder = anyio.Path(self.root)
         if not await folder.is_dir():

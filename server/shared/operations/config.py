@@ -1,20 +1,14 @@
-"""
-内置运维配置，默认关闭；保留与容量范围必须显式指定。
-"""
-
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, SecretStr, model_validator
 
 
-# 每个内置计划独立开关，不改变旧产品任务行为。
 class OperationsConfig(BaseModel):
     backup: bool = False
     retention: bool = False
     capacity: bool = False
     notifications: bool = False
     backup_root: str = "var/backups"
-    # pg_dump/pg_restore 所在目录；为空时用 PATH 中的命令。主版本必须与数据库一致。
     pg_bin: str = ""
     backup_days: int = Field(default=30, ge=1)
     backup_every_seconds: int = Field(default=86400, ge=60)
@@ -34,7 +28,6 @@ class OperationsConfig(BaseModel):
     webhook_format: str = Field(default="generic", pattern="^(generic|wecom|feishu)$")
     webhook_timeout: float = Field(default=10, gt=0, le=60)
 
-    # 目标与安全文件范围在启动前检查，不能默认清空整个文件目录。
     @model_validator(mode="after")
     def validate_targets(self) -> "OperationsConfig":
         if self.notifications and not self.webhook_url:
@@ -55,6 +48,5 @@ class OperationsConfig(BaseModel):
                 raise ValueError("原件保留仅接受相对安全前缀")
         return self
 
-    # 没有开启任何功能时不挂载内置模块。
     def enabled(self) -> bool:
         return self.backup or self.retention or self.capacity or self.notifications

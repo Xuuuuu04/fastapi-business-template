@@ -1,7 +1,3 @@
-"""
-人工恢复扇出：保留成功成员及已完成子阶段，只将失败成员的当前任务重新排队。
-"""
-
 import json
 from typing import TYPE_CHECKING
 
@@ -22,7 +18,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
 
 
-# 首先等真正执行中的成员收尾，避免人工恢复和已发出的外部动作交错。
 async def resume(
     connection: AsyncConnection,
     queue: "JobQueue",
@@ -67,7 +62,6 @@ async def resume(
     return "已恢复失败成员，已成功成员与子阶段不重跑"
 
 
-# 恢复前独立核对运行中的动作、汇合声明和其他周期，不修改成功结果。
 async def validate_resume(
     connection: AsyncConnection,
     queue: "JobQueue",
@@ -108,7 +102,6 @@ async def validate_resume(
         raise InvalidInput(f"同组织另一周期{other}还在执行")
 
 
-# 产出和输入都按显式接受的新Data校验，格式不兼容需业务先迁移而非重做成功结果。
 async def restore_member(
     connection: AsyncConnection,
     queue: "JobQueue",

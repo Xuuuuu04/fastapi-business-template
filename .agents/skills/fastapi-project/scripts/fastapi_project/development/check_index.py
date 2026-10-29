@@ -1,7 +1,3 @@
-"""
-检查清单索引可以重建；只缓存文件身份与派生清单，不替代原始检查证据。
-"""
-
 import json
 import sqlite3
 from pathlib import Path
@@ -11,13 +7,11 @@ from fastapi_project.development.check_import import import_legacy
 from fastapi_project.development.check_storage import load_cases
 
 
-# 文件替换、内容修改与utime都使索引失效，mtime不是唯一判断依据。
 def file_stamp(path: Path) -> str:
     value = path.stat()
     return f"{value.st_ino}:{value.st_size}:{value.st_mtime_ns}:{value.st_ctime_ns}"
 
 
-# 清单格式有界；大于4MiB的旧格式必须使用流式转换。
 def read_manifest(path: Path) -> tuple[dict[str, Any], Path]:
     root = path.parent
     if path.stat().st_size <= 4 * 1024 * 1024:
@@ -28,7 +22,6 @@ def read_manifest(path: Path) -> tuple[dict[str, Any], Path]:
     return import_legacy(path, root), root
 
 
-# 只查询或导入实际发生变化的文件；SQLite事务处理同时完成的多份检查。
 def indexed(path: Path, connection: sqlite3.Connection) -> tuple[dict[str, Any], Path]:
     stamp = file_stamp(path)
     previous = connection.execute(
@@ -44,7 +37,6 @@ def indexed(path: Path, connection: sqlite3.Connection) -> tuple[dict[str, Any],
     return record, root
 
 
-# 索引失效或损坏时重建派生数据库，不删除检查清单或轨迹。
 def open_index(folder: Path) -> sqlite3.Connection:
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / "_index.sqlite3"
@@ -65,7 +57,6 @@ def open_index(folder: Path) -> sqlite3.Connection:
     raise ValueError("检查索引无法建立")
 
 
-# 同一轮跨工作树或CI导入不能重复计数，也不能用同编号的不同事实互相覆盖。
 def read_records(
     project: Path, extra: list[Path] | None, include_cases: bool
 ) -> list[dict[str, Any]]:
@@ -92,7 +83,6 @@ def read_records(
     return sorted(result.values(), key=lambda item: item["finished_at"])
 
 
-# 绝对位置只用于当前读取，不写进可导出的清单。
 def attach_root(record: dict[str, Any], root: Path, include_cases: bool) -> dict[str, Any]:
     for suite in record.get("suites", []):
         suite["_artifact_root"] = str(root)
@@ -101,9 +91,7 @@ def attach_root(record: dict[str, Any], root: Path, include_cases: bool) -> dict
     return record
 
 
-# 比较独立清单事实；位置及加载结果不是检查内容。
 def compare_records(first: dict[str, Any], second: dict[str, Any]) -> None:
-    # 排除读取时才附加的位置和缓存结果。
     def normalized(record: dict[str, Any]) -> dict[str, Any]:
         return {
             **record,

@@ -1,7 +1,3 @@
-"""
-分包规则的持久存储，兼容旧单文件账本；写入日志保留提交前后快照供中断恢复。
-"""
-
 import json
 import re
 import uuid
@@ -18,19 +14,16 @@ JOURNAL = ".agents/records/ledger-write.json"
 PACKAGE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
-# 原件以字节解码保留换行符，回滚不能顺手把CRLF改成LF。
 def original_text(path: Path) -> str:
     return path.read_bytes().decode("utf-8")
 
 
-# 元数据引用只能指向本机规则文件，包名不能变成任意目录读写入口。
 def rule_path(project: Path, name: str) -> Path:
     if not PACKAGE.fullmatch(name):
         raise ValueError("规则包名不合法")
     return safe_path(project, f"doc/{name}/rules.json")
 
 
-# 新索引不保存规则正文；每个规则包独立保存自己的当前规则和修订事件。
 def store_files(project: Path, ledger: RuleLedger) -> dict[str, str]:
     names = sorted(
         {item.id.split(".")[0] for item in ledger.rules}
@@ -71,7 +64,6 @@ def store_files(project: Path, ledger: RuleLedger) -> dict[str, str]:
     return result
 
 
-# 读取函数可复用到Git基线，旧格式完整保留，不自动确认旧资料。
 def decode_ledger(index: dict, packages: dict[str, dict]) -> RuleLedger:
     if index.get("schema_version") == 1:
         ledger = RuleLedger.model_validate(index)
@@ -103,7 +95,6 @@ def decode_ledger(index: dict, packages: dict[str, dict]) -> RuleLedger:
     return ledger
 
 
-# 尚未提交的多文件写入返回完整旧快照，提交索引已经落盘则返回完整新快照。
 def journal_ledger(project: Path) -> RuleLedger | None:
     path = safe_path(project, JOURNAL)
     if not path.exists():
@@ -116,7 +107,6 @@ def journal_ledger(project: Path) -> RuleLedger | None:
     return ledger
 
 
-# 分包内容由固定目录读取，未知格式保留错误，不能把缺文件当成没有规则。
 def package_data(project: Path, index: dict) -> dict[str, dict]:
     if index.get("schema_version") != 2:
         return {}
@@ -125,7 +115,6 @@ def package_data(project: Path, index: dict) -> dict[str, dict]:
     }
 
 
-# 单次磁盘快照在并发变化时要求重读，真实格式错误仍明确报出。
 def read_once(project: Path) -> RuleLedger | None:
     path = safe_path(project, INDEX)
     if not path.is_file():
@@ -150,7 +139,6 @@ def read_once(project: Path) -> RuleLedger | None:
     return decode_ledger(index, packages)
 
 
-# 日志快照与稳定磁盘快照二选一，不把两次并发写入的文件拼成半份账本。
 def read_store(project: Path) -> RuleLedger:
     for _ in range(3):
         snapshot = journal_ledger(project)
@@ -162,14 +150,12 @@ def read_store(project: Path) -> RuleLedger:
     raise ValueError("规则账本正在变化，请稍后读取")
 
 
-# 写入日志只允许索引或固定规则路径，损坏日志不转换为任意文件操作。
 def checked_file(project: Path, name: str) -> Path:
     if name != INDEX and not re.fullmatch(r"doc/[a-z][a-z0-9_]*/rules\.json", name):
         raise ValueError("规则写入日志包含非法文件")
     return safe_path(project, name)
 
 
-# 每份原件必须仍为提交前或本次目标内容；外部改动不能被恢复过程覆盖。
 def restore_files(project: Path, desired: dict, alternatives: dict) -> None:
     for name in desired.keys() | alternatives.keys():
         path = checked_file(project, name)
@@ -184,7 +170,6 @@ def restore_files(project: Path, desired: dict, alternatives: dict) -> None:
             atomic_bytes(path, content.encode())
 
 
-# 持有同一跨进程锁恢复事务，旧索引表示回滚，新索引表示提交已完成。
 @serialized
 def recover_store(project: Path) -> bool:
     path = safe_path(project, JOURNAL)
@@ -203,7 +188,6 @@ def recover_store(project: Path) -> bool:
     return True
 
 
-# 包文件先保存，索引最后提交；普通异常恢复旧文件，进程中断留日志供明确恢复。
 @serialized
 def write_store(project: Path, ledger: RuleLedger) -> Path:
     recover_store(project)

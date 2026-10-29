@@ -1,8 +1,3 @@
-"""
-检查 async 函数中的阻塞调用。time.sleep、requests、同步数据库连接等会卡住整个服务的事件循环，
-其他请求都要等它结束；在 async 函数中请改用 asyncio.sleep、httpx2.AsyncClient 和框架提供的 store。
-"""
-
 import ast
 from pathlib import Path
 
@@ -12,7 +7,6 @@ from fastapi_check.quality.rules import BLOCKING_CALLS, ROOT
 from shared.modules.validation.imports import call_name
 
 
-# 检查 app、service、shared 中全部 async 函数。
 def check_blocking(root: Path = ROOT) -> list[Problem]:
     problems = []
     for path in files_under(root, ("app", "service", "shared"), ".py"):
@@ -23,7 +17,6 @@ def check_blocking(root: Path = ROOT) -> list[Problem]:
     return problems
 
 
-# 找出一个 async 函数中直接出现的阻塞调用（不含其中定义的普通函数）。
 def blocking_calls(function: ast.AsyncFunctionDef, name: str) -> list[Problem]:
     problems = []
     pending: list[ast.AST] = list(function.body)
@@ -45,7 +38,6 @@ def blocking_calls(function: ast.AsyncFunctionDef, name: str) -> list[Problem]:
     return problems
 
 
-# 取得调用的完整名称，支持 a.b.c 形式。
 def full_name(node: ast.Call) -> str:
     target = node.func
     parts = []

@@ -1,7 +1,3 @@
-"""
-操作记录与执行器的事务衔接：成功记录随业务提交，失败记录在回滚后单独保存。
-"""
-
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -21,12 +17,10 @@ log = logging.getLogger("server.runtime")
 Hook = Callable[[AsyncConnection, Data, str], Awaitable[None]]
 
 
-# 把调用方的提交前操作和成功操作记录合并到同一事务。
 def audit_hook(item: Contract[Any, Any], scope: Scope, hook: Hook | None) -> Hook | None:
     if not item.audit and hook is None:
         return None
 
-    # 提交前先执行调用方操作，再写操作记录。
     async def combined(connection: AsyncConnection, value: Data, run_id: str) -> None:
         if hook is not None:
             await hook(connection, value, run_id)
@@ -36,7 +30,6 @@ def audit_hook(item: Contract[Any, Any], scope: Scope, hook: Hook | None) -> Hoo
     return combined
 
 
-# 失败或权限拒绝在回滚后独立保存；操作记录保存故障只写日志。
 async def audit_failure(
     database: Database,
     item: Contract[Any, Any],

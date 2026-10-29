@@ -1,8 +1,3 @@
-"""
-worker：循环领取任务，通过执行器运行对应的操作，并按结果更新任务状态。
-执行期间定期延长执行期限；收到停止信号后不再领取新任务，有限等待在途任务，其余交给期限过期后的恢复处理。
-"""
-
 import asyncio
 import json
 import logging
@@ -39,7 +34,6 @@ RECLAIM_SECONDS = 15.0
 CLEAN_SECONDS = 3600.0
 
 
-# 后台进程的并发、查询间隔、退出等待与记录保留设置。
 @dataclass
 class WorkerOptions:
     concurrency: int = 4
@@ -52,14 +46,11 @@ class WorkerOptions:
     schedule_org_ids: tuple[str, ...] = ()
 
 
-# 领取并执行后台任务，保存结果并处理退出和重试。
 class Worker:
-    # 所有辅助函数继承所属应用时钟，不保留第二份时间状态。
     @property
     def clock(self) -> Clock:
         return self.runtime.clock
 
-    # 绑定执行器、任务表、服务密钥配置和运行参数。
     def __init__(
         self, runtime: Runtime, queue: JobQueue, keys: list[ApiKeyConfig], options: WorkerOptions
     ) -> None:
@@ -80,11 +71,9 @@ class Worker:
         self.health = WorkerHealth(options.health_file)
         self.cycle_failed = False
 
-    # 本轮领取或维护失败时不刷新健康信号。
     def failed_cycle(self) -> None:
         self.cycle_failed = True
 
-    # 主循环：处理过期任务、登记定时任务、领取并执行任务，直到收到停止信号。
     @clocked
     async def run(self, stop: asyncio.Event) -> None:
         self.health.clear()
@@ -93,7 +82,6 @@ class Worker:
         finally:
             self.health.clear()
 
-    # 正常空队列也报告健康；领取或维护失败时保留上次成功时间。
     @clocked
     async def loop(self, stop: asyncio.Event) -> None:
         self.stop = stop
@@ -117,7 +105,6 @@ class Worker:
                 await wait_or_stop(stop, self.options.poll_seconds)
         await self.drain()
 
-    # 在并发上限内领取任务；领取到任何任务返回 True。
     @clocked
     async def claim_some(self) -> bool:
         claimed = False
@@ -135,7 +122,6 @@ class Worker:
             claimed = True
         return claimed
 
-    # 停止时有限等待在途任务，超时后取消并等待回滚、连接归还完成。
     @clocked
     async def drain(self) -> None:
         if not self.tasks:
@@ -151,7 +137,6 @@ class Worker:
             if isinstance(result, BaseException) and not isinstance(result, asyncio.CancelledError):
                 raise result
 
-    # 执行一个任务并更新状态。
     @clocked
     async def execute(self, ticket: Ticket) -> None:
         try:
@@ -203,7 +188,6 @@ class Worker:
             with suppress(asyncio.CancelledError):
                 await heartbeat
 
-    # 通过执行器运行任务；完成标记与业务写入同一事务提交。
     @clocked
     async def run_job(
         self,
@@ -214,7 +198,6 @@ class Worker:
         wait_after: Any,
         context: ExecutionContext | None = None,
     ) -> None:
-        # 在提交前把任务标为完成；尝试已过期时放弃本次写入。
         async def finish(connection: AsyncConnection, result: Data, run_id: str) -> None:
             if context is not None:
                 await context.finish(connection, result, run_id)
@@ -253,7 +236,6 @@ class Worker:
                 safe_exception_text(error),
             )
 
-    # 恢复登记任务时的调用者；服务密钥按当前配置重新取得权限。
     def restore_caller(self, ticket: Ticket) -> Caller | None:
         caller = caller_from_record(json.loads(ticket.caller_json))
         if caller.kind == "service":
@@ -261,7 +243,6 @@ class Worker:
             return current if current and current.org_id == caller.org_id else None
         return caller
 
-    # 定期延长执行期限；任务已不属于本次尝试时取消执行。
     @clocked
     async def keep_lease(
         self, ticket: Ticket, lease: float, runner: asyncio.Task[Any] | None

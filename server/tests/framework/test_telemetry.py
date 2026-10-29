@@ -1,7 +1,3 @@
-"""
-OpenTelemetry 跨度：运行、跨模块调用和步骤形成父子关系，属性中没有业务字段的值。
-"""
-
 from decimal import Decimal
 
 import pytest
@@ -13,7 +9,6 @@ from shared.telemetry.service import Telemetry
 from tests.framework.sample_modules import CalcInput, outer
 
 
-# 外层操作调用计算操作：步骤跨度挂在所属运行下，下层运行挂在调用它的步骤下。
 @pytest.mark.anyio
 async def test_spans_follow_run_tree(sample: Services) -> None:
     exporter = InMemorySpanExporter()

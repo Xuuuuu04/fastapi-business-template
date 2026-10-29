@@ -1,7 +1,3 @@
-"""
-产品声明、持久分发模块和配置适配器共同组装，离线测试不执行真实适配器工厂。
-"""
-
 from collections.abc import Sequence
 
 from shared.access.vault import Vault
@@ -17,7 +13,6 @@ from shared.modules.module import Module
 from shared.remote_calls.service import RemoteService
 
 
-# 模块不能访问产品未登记的供应商，关闭业务不删除已经存在的意图或表。
 def with_effects(spec: ApplicationSpec, modules: Sequence[Module]) -> list[Module]:
     unknown = [
         provider.name
@@ -30,7 +25,6 @@ def with_effects(spec: ApplicationSpec, modules: Sequence[Module]) -> list[Modul
     return [*modules, *([make_effect_module(spec.providers)] if spec.providers else [])]
 
 
-# 真实客户端仅运行环境由工厂创建，测试必须显式注入合成适配器。
 def effect_service(
     settings: Settings,
     spec: ApplicationSpec,

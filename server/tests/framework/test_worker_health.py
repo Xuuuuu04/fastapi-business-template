@@ -1,7 +1,3 @@
-"""
-worker 正常循环、失败与停止的健康信号；不依赖实际容器。
-"""
-
 import asyncio
 import time
 from pathlib import Path
@@ -16,7 +12,6 @@ from tests.framework.test_jobs import make_worker
 pytestmark = pytest.mark.anyio
 
 
-# 健康有效期为正常轮询与容器检查留出余量。
 def test_worker_poll_cannot_outlast_health_signal() -> None:
     with pytest.raises(ValueError, match="大 30 秒"):
         Settings(_env_file=None, job_health_file="/tmp/test-health", job_poll_seconds=120)
@@ -29,7 +24,6 @@ def test_worker_poll_cannot_outlast_health_signal() -> None:
     assert settings.job_health_seconds == 180
 
 
-# 缺少、过期和损坏的信号失败，正常信号可读且可以清除。
 def test_worker_signal_missing_stale_and_clear(tmp_path: Path) -> None:
     path = tmp_path / "worker.health"
     signal = WorkerHealth(str(path))
@@ -44,7 +38,6 @@ def test_worker_signal_missing_stale_and_clear(tmp_path: Path) -> None:
     assert not path.exists()
 
 
-# 正常空队列也健康，领取失败不报告成功循环。
 @pytest.mark.parametrize("failed", [False, True])
 async def test_worker_only_signals_after_successful_loop(
     sample: Services, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failed: bool
@@ -54,7 +47,6 @@ async def test_worker_only_signals_after_successful_loop(
     worker.health = WorkerHealth(str(path))
     stop = asyncio.Event()
 
-    # 让一轮循环结束，按参数模拟正常空队列或数据库失败。
     async def claim(now: float) -> None:
         stop.set()
         if failed:
@@ -65,7 +57,6 @@ async def test_worker_only_signals_after_successful_loop(
     assert worker_healthy(str(path), 60) is not failed
 
 
-# 停止时移除旧信号，不能把已退出的进程当作近期健康。
 async def test_worker_stop_removes_previous_health(sample: Services, tmp_path: Path) -> None:
     worker = make_worker(sample)
     path = tmp_path / "worker.health"

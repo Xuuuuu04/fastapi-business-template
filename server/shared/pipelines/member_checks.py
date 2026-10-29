@@ -1,7 +1,3 @@
-"""
-扇出及固定来源的启动检查：公开子操作、Data连线、汇合规则和并发上限。
-"""
-
 import math
 from typing import TYPE_CHECKING
 
@@ -11,7 +7,6 @@ if TYPE_CHECKING:
     from shared.jobs.plan import JobPlan
 
 
-# 成员用相同的一条公开阶段链，不允许隐藏的嵌套执行器。
 def check_group(pipeline: Pipeline, group: FanOut, operations: dict, plans: dict) -> list[str]:
     from shared.pipelines.registration import check_stages
 
@@ -42,7 +37,6 @@ def check_group(pipeline: Pipeline, group: FanOut, operations: dict, plans: dict
     return problems
 
 
-# 只在第一阶段固定来源，读取来源的阶段必须声明相同Data类型。
 def check_source(stage: Stage, index: int, source_model: type, place: str) -> list[str]:
     problems = []
     if stage.freeze_sources and index != 0:
@@ -52,7 +46,6 @@ def check_source(stage: Stage, index: int, source_model: type, place: str) -> li
     return problems
 
 
-# 成员产出访问也是Data依赖，只允许读取前面已经声明的扇出阶段。
 def check_results(stage: Stage, groups: dict[str, FanOut], place: str) -> list[str]:
     problems = []
     for name, model in stage.members.items():

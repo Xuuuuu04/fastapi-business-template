@@ -1,7 +1,3 @@
-"""
-数据库矩阵、总预算、缓存来源与并行结果汇总不能混淆实际检查范围。
-"""
-
 import json
 import os
 import subprocess
@@ -14,11 +10,9 @@ from fastapi_check.matrix import CheckOptions, databases, execute_matrix
 from fastapi_project.development.history import save_check
 
 
-# 两库共用总预算并优先分配较重的PostgreSQL，各自资源和控制连接保持隔离。
 def test_parallel_budget_and_distinct_resources() -> None:
     recorded = []
 
-    # 替身只观察每个进程会收到什么，不真的连接数据库。
     def run(title, arguments, environment, database):
         recorded.append((arguments, environment, database))
         return True, {"database": database, "exit_code": 0, "cases": []}
@@ -42,14 +36,12 @@ def test_parallel_budget_and_distinct_resources() -> None:
     assert "APP_TEST_CONTROL_URL" not in next(env for _, env, db in recorded if db == "sqlite")
 
 
-# 模型和数据库凭据不进入检查配置摘要，配置变化仍让缓存失效。
 def test_profile_is_private_and_changes_with_services(monkeypatch) -> None:
     first = execution_profile(CheckOptions(), "postgresql://user:secret-a@test.invalid/control")
     second = execution_profile(CheckOptions(), "postgresql://user:secret-b@test.invalid/control")
     assert first != second and "secret-a" not in json.dumps(first)
 
 
-# 最近失败不能被旧的通过掩盖，源码变化也不能沿用通过记录。
 def test_cache_preserves_failure_and_version(tmp_path: Path) -> None:
     value = {
         "fingerprints": {},
@@ -68,7 +60,6 @@ def test_cache_preserves_failure_and_version(tmp_path: Path) -> None:
     assert not cached_round(tmp_path, {}, "s1", {"kind": "all"}, {})
 
 
-# 真实xdist子进程结束时输出全部worker的case，不由最后写文件的worker覆盖。
 def test_parallel_results_are_combined(tmp_path: Path) -> None:
     tests = tmp_path / "test_items.py"
     tests.write_text(
@@ -101,7 +92,6 @@ def test_parallel_results_are_combined(tmp_path: Path) -> None:
     assert len(data["cases"]) == 12 and data["exit_code"] == 0
 
 
-# 无明确地址不能假装已经运行了PostgreSQL。
 def test_database_selection_requires_target() -> None:
     with pytest.raises(ValueError):
         databases("", "both")

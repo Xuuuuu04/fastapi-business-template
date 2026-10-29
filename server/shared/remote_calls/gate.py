@@ -1,8 +1,3 @@
-"""
-模块拿到的 remote 参数 RemoteGate：只能访问声明过的外部系统。
-步骤通过 @step(remotes=[...]) 声明；存储实现可以访问模块 module.py 中声明的全部外部系统。
-"""
-
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -19,9 +14,7 @@ from shared.remote_calls.service import RemoteReply, RemoteRequest, RemoteServic
 log = logging.getLogger("server.remote_calls")
 
 
-# 步骤使用的外部接口入口，只允许访问已声明的外部系统。
 class RemoteGate:
-    # 绑定调用服务、允许访问的外部系统和本步骤的调用记录。
     def __init__(
         self,
         service: RemoteService | None,
@@ -48,13 +41,11 @@ class RemoteGate:
             else strict_endpoints
         )
 
-    # 读取数据；遇到暂时故障自动重试。
     async def get(
         self, target: Remote, path: str, *, params: dict[str, Any] | None = None
     ) -> RemoteReply:
         return await self.send(target, RemoteRequest("GET", path, params=params))
 
-    # 提交数据；带 key 时对方可以按请求编号去重，才会在暂时故障时重试。
     async def post(
         self,
         target: Remote,
@@ -69,7 +60,6 @@ class RemoteGate:
             RemoteRequest("POST", path, json=json, key=key, accepted_statuses=accepted_statuses),
         )
 
-    # 修改数据；规则与 post 相同。
     async def put(
         self,
         target: Remote,
@@ -84,11 +74,9 @@ class RemoteGate:
             RemoteRequest("PUT", path, json=json, key=key, accepted_statuses=accepted_statuses),
         )
 
-    # 删除数据；规则与 post 相同。
     async def delete(self, target: Remote, path: str, *, key: str = "") -> RemoteReply:
         return await self.send(target, RemoteRequest("DELETE", path, key=key))
 
-    # 检查外部系统已声明后发送请求。
     async def send(self, target: Remote, request: RemoteRequest) -> RemoteReply:
         if request.endpoint:
             self.check_request(request)
@@ -106,7 +94,6 @@ class RemoteGate:
             await self._before_write()
         return await self._service.send(target, request, self._records, self._effects)
 
-    # 自动序列化输入与校验回执；拒绝状态仍带HTTP状态，业务自行核对含义。
     async def call[In: Data, Out: Data](
         self,
         target: Remote,
@@ -122,7 +109,6 @@ class RemoteGate:
         reply = await self.send(target, request)
         return EndpointReply(reply.status, reply.data)
 
-    # 低层send也不能伪造协议名来绕过声明范围或效果保护。
     def check_request(self, request: RemoteRequest) -> None:
         matched = next((e for e in self._endpoints if e.name == request.endpoint), None)
         if matched is None or request.protocol is not matched or request.input is None:

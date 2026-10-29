@@ -1,15 +1,9 @@
-"""
-字段来源：从步骤的 reads、writes 和规则编号推出每个字段由哪一步、按哪条规则、用哪些字段算出。
-来源精确到步骤；具体公式看对应步骤的源码和业务规则文档。
-"""
-
 from dataclasses import dataclass, field
 
 from shared.graphs.mermaid import label, node_id
 from shared.modules.catalog import Binding
 
 
-# 字段在计算流程中的来源，包含产生步骤、条件、规则和说明。
 @dataclass
 class FieldSource:
     name: str
@@ -25,7 +19,6 @@ class FieldSource:
     inputs: list[str] = field(default_factory=list)
 
 
-# 列出流程中每个字段的来源。
 def field_sources(binding: Binding) -> dict[str, FieldSource]:
     notes = binding.types.notes
     input_fields = set(binding.contract.input.model_fields)
@@ -45,12 +38,10 @@ def field_sources(binding: Binding) -> dict[str, FieldSource]:
     return found
 
 
-# 用中文逐层说明一个字段的来源，最多展开 depth 层。
 def explain(binding: Binding, name: str, depth: int = 6) -> list[str]:
     sources = field_sources(binding)
     lines: list[str] = []
 
-    # 递归说明字段来源，seen 防止重复展开。
     def walk(current: str, level: int, seen: set[str]) -> None:
         item = sources.get(current)
         indent = "  " * level
@@ -67,7 +58,6 @@ def explain(binding: Binding, name: str, depth: int = 6) -> list[str]:
     return lines
 
 
-# 用一句话描述一个字段的来源。
 def describe(item: FieldSource) -> str:
     title = f"{item.meaning or item.name}（{item.name}）"
     if item.origin != "步骤":
@@ -84,7 +74,6 @@ def describe(item: FieldSource) -> str:
     return text + f"；源码 {item.source}"
 
 
-# 生成一个字段的来源图。
 def lineage_graph(binding: Binding, name: str) -> str:
     sources = field_sources(binding)
     lines = ["flowchart RL"]

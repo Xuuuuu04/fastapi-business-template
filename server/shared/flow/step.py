@@ -1,11 +1,3 @@
-"""
-定义步骤 @step 和条件 @condition 的写法。
-步骤声明读取和写入哪些字段、调用哪些操作、使用哪些提示词、登记哪些任务；
-执行器只按声明提供数据和工具，声明以外的访问会报错。参数名决定步骤能拿到什么：
-data 流程数据、store 本模块存储、call 调用其他操作、model 大模型、remote 外部接口、
-cache 缓存、emit 流式输出、later 登记任务、caller 调用者身份、note 记录数据说明。
-"""
-
 import inspect
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -35,7 +27,6 @@ PARAMS = (
 )
 
 
-# 流程中的判断节点，声明读取字段和满足条件后执行的步骤。
 @dataclass(frozen=True, eq=False)
 class Condition:
     func: Callable[[Any], bool]
@@ -45,7 +36,6 @@ class Condition:
     source: str
 
 
-# 流程中的一个计算节点，声明读写字段及使用的外部能力。
 @dataclass(frozen=True, eq=False)
 class Step:
     func: Callable[..., Any]
@@ -70,7 +60,6 @@ class Step:
     observes: tuple[str, ...] = ()
     simulated: bool = False
 
-    # 按参数判断步骤的种类：大模型、保存、读取、调用或纯计算。
     @property
     def kind(self) -> str:
         if "model" in self.params:
@@ -86,16 +75,13 @@ class Step:
         return "compute"
 
 
-# 声明一个命名条件：只读取声明的字段，返回 True 时执行带这个条件的步骤。
 def condition(title: str, *, reads: Sequence[str]) -> Callable[[Callable[[Any], bool]], Condition]:
-    # 把条件函数包装成条件声明。
     def wrap(func: Callable[[Any], bool]) -> Condition:
         return Condition(func, func.__name__, title, tuple(reads), source_of(func))
 
     return wrap
 
 
-# 声明一个步骤。
 def step(
     title: str,
     *,
@@ -115,7 +101,6 @@ def step(
     observes: Sequence[str] = (),
     simulated: bool = False,
 ) -> Callable[[Callable[..., Any]], Step]:
-    # 把步骤函数包装成步骤声明。
     def wrap(func: Callable[..., Any]) -> Step:
         params = tuple(inspect.signature(func).parameters)
         return Step(
@@ -145,7 +130,6 @@ def step(
     return wrap
 
 
-# 返回函数所在的源码位置，写成“模块路径:行号”，不含磁盘绝对路径。
 def source_of(func: Callable[..., Any]) -> str:
     path = func.__module__.replace(".", "/") + ".py"
     line = getattr(getattr(func, "__code__", None), "co_firstlineno", 0)

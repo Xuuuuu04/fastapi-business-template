@@ -1,7 +1,3 @@
-"""
-声明式产品登录入口保留JWT校验、无效凭据限流和标准头优先，不导入业务包。
-"""
-
 from dataclasses import replace
 from pathlib import Path
 
@@ -18,7 +14,6 @@ from tests.framework.identity_sample import module, resolve
 from tests.testing_app import make_settings, prepare_test_database_now
 
 
-# 不透明令牌由声明选择解析器，兼容头不能覆盖标准头。
 def test_custom_identity_and_jwt_are_both_verified(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     prepare_test_database_now(settings.database_url)
@@ -57,7 +52,6 @@ def test_custom_identity_and_jwt_are_both_verified(tmp_path: Path) -> None:
         )
 
 
-# 未声明或者模块关闭时，兼容头不能成为额外登录入口。
 def test_identity_header_disappears_without_module(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     prepare_test_database_now(settings.database_url)
@@ -70,7 +64,6 @@ def test_identity_header_disappears_without_module(tmp_path: Path) -> None:
         )
 
 
-# 多入口、标准头覆盖和错误归属在启动时明确拒绝。
 @pytest.mark.parametrize("variant", ["duplicate", "header", "owner"])
 def test_bad_identity_declaration_is_rejected(variant) -> None:
     if variant == "duplicate":
@@ -83,7 +76,6 @@ def test_bad_identity_declaration_is_rejected(variant) -> None:
         Catalog(modules)
 
 
-# 标准JWT入口按明确声明处理；兼容头仍交给产品会话解析器。
 def test_jwt_token_mode_is_explicit(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     prepare_test_database_now(settings.database_url)
@@ -116,7 +108,6 @@ def test_jwt_token_mode_is_explicit(tmp_path: Path) -> None:
         )
 
 
-# 两个点不是令牌类型；失败的不透明令牌依然消耗无效凭据额度。
 def test_opaque_failures_are_rate_limited_even_with_dots(tmp_path: Path) -> None:
     settings = make_settings(tmp_path, request_rate_per_minute=2)
     prepare_test_database_now(settings.database_url)
@@ -137,7 +128,6 @@ def test_opaque_failures_are_rate_limited_even_with_dots(tmp_path: Path) -> None
         )
 
 
-# 登录成功不保留完整运行，失败仍保留全部排查记录。
 def test_identity_success_is_not_recorded_but_failure_is(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     prepare_test_database_now(settings.database_url)

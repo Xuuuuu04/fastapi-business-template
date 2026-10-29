@@ -1,7 +1,3 @@
-"""
-独立业务词样例，不进入正式模块、路由或迁移。
-"""
-
 from dataclasses import replace
 from pathlib import Path
 from time import perf_counter
@@ -35,13 +31,11 @@ price_module = Module(
 router = APIRouter(prefix="/api/v1/price")
 
 
-# 端点引用与正式接口相同的公开约定。
 @router.post("/adjust")
 async def adjust_price() -> str:
     return price.name
 
 
-# 中文、英文、现用路径、旧路径与规则编号均定位到真实声明。
 @pytest.mark.parametrize(
     "query",
     ["价格表", "PRICE TABLE", "/api/v1/price/adjust", "/api/v1/price/old", "R-01", "规则标题"],
@@ -63,7 +57,6 @@ def test_business_queries(tmp_path: Path, query: str) -> None:
     assert result["database_read"] is False
 
 
-# 测试副本的规则不修改公用样例。
 def replace_flow_rule():
     from shared.flow.flow import Flow
 
@@ -75,7 +68,6 @@ def replace_flow_rule():
     )
 
 
-# 大项目1000操作，结果数量上限与省略数准确，检索本体一秒内。
 def test_bounded_large_project(tmp_path: Path) -> None:
     operations = {
         contract(
@@ -91,14 +83,12 @@ def test_bounded_large_project(tmp_path: Path) -> None:
     assert result["total"] == 1000 and result["omitted"] == 997
 
 
-# 新别名冲突启动即发现；旧产品省略别名不增加约束。
 @pytest.mark.parametrize("aliases", [(" ",), ("价格表", "价格表"), ("sample_price",)])
 def test_invalid_module_aliases(aliases: tuple[str, ...]) -> None:
     with pytest.raises(DeclarationError):
         Catalog([replace(price_module, aliases=aliases)])
 
 
-# 操作别名大小写冲突，以及失效操作引用都在启动发现。
 def test_operation_conflict_and_missing_reference() -> None:
     other = replace(price, name="sample_price.other", aliases=("CHANGE PRICE",))
     with pytest.raises(DeclarationError, match="冲突"):
@@ -109,7 +99,6 @@ def test_operation_conflict_and_missing_reference() -> None:
         Catalog([replace(price_module, provides={price: flow})])
 
 
-# meaning与表名定位，明细省略仍保留准确的下一步。
 def test_fields_tables_and_detail_limit(tmp_path: Path) -> None:
     from sqlalchemy import MetaData, Table
 
@@ -123,7 +112,6 @@ def test_fields_tables_and_detail_limit(tmp_path: Path) -> None:
     assert "未知" in hit["table_relation"]
 
 
-# 新运行保存当时别名，旧JSON兼容且不猜历史别名。
 @pytest.mark.anyio
 async def test_aliases_in_real_run(sample) -> None:
     from decimal import Decimal
@@ -148,7 +136,6 @@ async def test_aliases_in_real_run(sample) -> None:
     assert "未知（旧记录）" in run_graph([run_from_dict(old)])
 
 
-# 定时计划和多阶段流程词回到已登记操作，不需要读取运行数据库。
 def test_schedule_and_pipeline_names(tmp_path: Path) -> None:
     from datetime import timedelta
     from decimal import Decimal
@@ -171,7 +158,6 @@ def test_schedule_and_pipeline_names(tmp_path: Path) -> None:
     assert {hit["operation"] for hit in hits} == {price.name, pipeline.start.name}
 
 
-# 常规路由登记只读指定业务路由，动态写法回退，不猜测接口。
 def test_registered_router_selection() -> None:
     import ast
 

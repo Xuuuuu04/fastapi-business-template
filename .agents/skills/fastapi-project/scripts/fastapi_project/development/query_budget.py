@@ -1,7 +1,3 @@
-"""
-单操作查询额度与最近真实测量，不读取数据库，旧证据保持未知。
-"""
-
 from dataclasses import asdict
 from typing import Any
 
@@ -9,7 +5,6 @@ from shared.db.budget import DEFAULT_BUDGET
 from shared.modules.catalog import Binding
 
 
-# 默认额度也显示，避免未声明被误读为没有限制。
 def query_status(binding: Binding, cases: list[dict[str, Any]], operation: str) -> dict[str, Any]:
     return dict(
         query_budget=dict(
@@ -20,7 +15,6 @@ def query_status(binding: Binding, cases: list[dict[str, Any]], operation: str) 
     )
 
 
-# 超额失败也是真实测量；同时保留测试结果/源码时效，不把失败包装成成功。
 def latest_query(cases: list[dict[str, Any]], operation: str) -> dict[str, Any]:
     for case in reversed(cases):
         for run in reversed(case.get("runs", [])):

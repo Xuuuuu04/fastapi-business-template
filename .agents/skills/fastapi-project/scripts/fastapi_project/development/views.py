@@ -1,14 +1,8 @@
-"""
-项目开发视图：从产品根、业务线到开发包，再到操作和计算步骤。
-图的结构来自计划和代码，测试状态来自留存记录；没有证据时明确写出未知。
-"""
-
 from typing import Any
 
 from shared.graphs.mermaid import label, node_id
 
 
-# 生成根节点、业务线、已实现与未实现模块，以及真实模块依赖。
 def project_graph(status: dict[str, Any]) -> str:
     lines = ["flowchart TD", f'    root["{label(status["name"])}"]']
     for index, line in enumerate(status["lines"]):
@@ -31,12 +25,10 @@ def project_graph(status: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-# 表格内容必须转义，计划名称不能注入图语言或破坏 Markdown。
 def cell(value: object) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ")
 
 
-# 项目总览说明设计范围与证据，不用一个百分比混合不同完成条件。
 def project_markdown(status: dict[str, Any]) -> str:
     lines = [f"# {cell(status['name'])}：开发状态", ""]
     totals = status["totals"]
@@ -82,7 +74,6 @@ def project_markdown(status: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-# 总览必须显示整轮检查的失败，不能让业务测试数量遮住其他检查失败。
 def check_summary(recent: dict[str, Any] | None) -> list[str]:
     if recent is None:
         return []
@@ -96,7 +87,6 @@ def check_summary(recent: dict[str, Any] | None) -> list[str]:
     ]
 
 
-# 已设计但没有实现的开发包始终出现在全局视图中。
 def missing_packages(status: dict[str, Any]) -> list[str]:
     lines = []
     for line in status["lines"]:
@@ -110,7 +100,6 @@ def missing_packages(status: dict[str, Any]) -> list[str]:
     return lines
 
 
-# 模块详情包含每个操作的计算图、条件分支、文件位置及最近测试的步骤状态。
 def module_markdown(module: dict[str, Any]) -> str:
     lines = [
         f"# {cell(module['title'])}（{module['name']}）",
@@ -142,7 +131,6 @@ def module_markdown(module: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-# 文件和函数、最近测试耗时和产出同处一张表；图上的状态来自同一次真实执行。
 def operation_markdown(operation: dict[str, Any]) -> list[str]:
     lines = [
         f"## {cell(operation['title'])}（{operation['name']}）",
@@ -179,7 +167,6 @@ def operation_markdown(operation: dict[str, Any]) -> list[str]:
     return lines
 
 
-# 运行样例覆盖只表示近期实际成功经过多少操作，不推测未执行操作是否正确。
 def runtime_summary(runtime: dict[str, Any]) -> list[str]:
     if not runtime["available"]:
         return ["", cell(runtime["reason"])]

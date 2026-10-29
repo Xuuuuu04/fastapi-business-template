@@ -1,7 +1,3 @@
-"""
-资源额度与执行位置由数据库跨worker共享，位置有尝试编号和租期，等待不保留事务。
-"""
-
 from sqlalchemy import Column, Float, Integer, String, Table
 
 from shared.db.tables import metadata

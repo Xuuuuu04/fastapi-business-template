@@ -1,14 +1,9 @@
-"""
-新增分支DDL按表、列和命名对象分析，未知SQL或动态操作不能当作独立迁移。
-"""
-
 import ast
 from dataclasses import dataclass
 
 from fastapi_project.development.migration_graph import Revision
 
 
-# 对象读写足迹用于跨分支比较，星号表示整个表，不证明业务数据已经验收。
 @dataclass(frozen=True)
 class Touch:
     table: str
@@ -17,7 +12,6 @@ class Touch:
     source: str
 
 
-# 字符串和字符串列表必须是常量，变量或执行表达式留给人工检查。
 def literal(node: ast.AST | None) -> object:
     try:
         return ast.literal_eval(node) if node is not None else None
@@ -25,7 +19,6 @@ def literal(node: ast.AST | None) -> object:
         raise ValueError("DDL参数不是静态常量") from error
 
 
-# 完整常量标识不能为空，None不能被转成一个虚假的表名。
 def identifier(node: ast.AST | None) -> str:
     value = literal(node)
     if not isinstance(value, str) or not value:
@@ -33,7 +26,6 @@ def identifier(node: ast.AST | None) -> str:
     return value
 
 
-# 明确schema参与对象身份，跨schema对象和外键引用不混作默认表。
 def qualified(name: str, call: ast.Call) -> str:
     schema = next((keyword.value for keyword in call.keywords if keyword.arg == "schema"), None)
     if schema is None or literal(schema) is None:
@@ -41,7 +33,6 @@ def qualified(name: str, call: ast.Call) -> str:
     return identifier(schema) + "." + name
 
 
-# 列改动包含新旧名字，计算表达式按整表依赖处理。
 def column_operation(call: ast.Call, table: str | None, source: str) -> list[Touch]:
     if not isinstance(call.func, ast.Attribute):
         raise ValueError("列操作需要明确方法")
@@ -62,7 +53,6 @@ def column_operation(call: ast.Call, table: str | None, source: str) -> list[Tou
     return result
 
 
-# 命名对象既锁定名称，也保留依赖列，跨分支新列与索引不是独立操作。
 def named_operation(call: ast.Call, table: str | None, source: str) -> list[Touch]:
     if not isinstance(call.func, ast.Attribute):
         raise ValueError("命名对象操作需要明确方法")
@@ -89,7 +79,6 @@ def named_operation(call: ast.Call, table: str | None, source: str) -> list[Touc
     return result
 
 
-# 已知Alembic动作分流到局部分析，原始SQL和未覆盖动作明确要求处理。
 def operation(call: ast.Call, table: str | None, source: str) -> list[Touch]:
     if not isinstance(call.func, ast.Attribute):
         raise ValueError("DDL调用不是明确方法")
@@ -115,7 +104,6 @@ def operation(call: ast.Call, table: str | None, source: str) -> list[Touch]:
     raise ValueError("尚未支持的DDL操作：" + name)
 
 
-# 外键参数产生实际读取足迹，引用别的分支新表必须声明依赖，不能任由版本号排序。
 def foreign_references(function: ast.FunctionDef, path: str) -> list[Touch]:
     result = []
     for node in ast.walk(function):
@@ -136,7 +124,6 @@ def foreign_references(function: ast.FunctionDef, path: str) -> list[Touch]:
     return result
 
 
-# batch表来自明确的with上下文，其他上下文管理器不冒充数据库批量操作。
 def contexts(function: ast.FunctionDef) -> tuple[dict[str, str | None], list[str]]:
     aliases: dict[str, str | None] = {"op": None}
     unknown = []
@@ -159,7 +146,6 @@ def contexts(function: ast.FunctionDef) -> tuple[dict[str, str | None], list[str
     return aliases, unknown
 
 
-# 仅允许类型构造表达式，绑定连接、未知模块方法和帮助函数都需要实际人工分析。
 def known_constructor(call: ast.Call) -> bool:
     if ast.unparse(call.func) in {"shared.db.types.UtcTime", "shared.db.types.ExactNumber"}:
         return True
@@ -169,7 +155,6 @@ def known_constructor(call: ast.Call) -> bool:
     return isinstance(node, ast.Name) and node.id in {"sa", "sqlalchemy"}
 
 
-# 一个upgrade中的确定调用与疑问分别返回，不能用确定的部分掩盖未知SQL。
 def analyze(revision: Revision) -> tuple[list[Touch], list[str]]:
     upgrades = [
         node

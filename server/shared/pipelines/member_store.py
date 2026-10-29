@@ -1,7 +1,3 @@
-"""
-稳定成员的登记及查询；成员数据有界，重试复用相同键和输入，不能换来源。
-"""
-
 import json
 import secrets
 from typing import TYPE_CHECKING, Any
@@ -20,7 +16,6 @@ if TYPE_CHECKING:
     from shared.modules.catalog import Catalog
 
 
-# 按任务实际关联查找成员，伪造专用key不会成为流程成员。
 async def member_for(connection: AsyncConnection, job_id: str) -> dict[str, Any] | None:
     row = (
         (await connection.execute(select(members).where(members.c.job_id == job_id)))
@@ -30,7 +25,6 @@ async def member_for(connection: AsyncConnection, job_id: str) -> dict[str, Any]
     return dict(row) if row else None
 
 
-# 每次登记数量有界，业务规划可用PR1逐批提交；此时不占用后台排队名额。
 async def add(
     connection: AsyncConnection,
     root: dict,
@@ -73,7 +67,6 @@ async def add(
     return len(values)
 
 
-# 数据库唯一约束保护并发重试；同键换输入明确拒绝。
 async def insert_member(connection: AsyncConnection, row: dict) -> None:
     try:
         async with connection.begin_nested():

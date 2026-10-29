@@ -1,7 +1,3 @@
-"""
-按业务词定位本地声明，只读，不启动服务、不访问数据库。
-"""
-
 import argparse
 import json
 from pathlib import Path
@@ -12,9 +8,8 @@ from app.setup.application import application_modules
 from shared.modules.catalog import Catalog
 
 
-# 命令结果有界；明细中保留继续查看的准确命令。
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     parser.add_argument("--query", required=True)
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--json", action="store_true")

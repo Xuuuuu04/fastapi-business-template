@@ -1,7 +1,3 @@
-"""
-外部意图的短事务存储，使用条件领取防止并发发送；租期结束也不会抹掉未知结果。
-"""
-
 import hashlib
 import json
 import secrets
@@ -20,19 +16,15 @@ from shared.effects.tables import attempts, intents
 from shared.errors.framework import DuplicateRequest, NotAllowed, StepRuleBroken
 
 
-# 身份范围不来自业务输入；组织或调用者不同不能共享同一个外部意图。
 def owner_of(caller: Caller) -> str:
     raw = json.dumps([caller.kind, caller.org_id, caller.id])
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-# 同一业务键、适配器和身份始终取得同一编号，正文冲突则明确拒绝。
 class EffectStore:
-    # 加密器与数据库来自产品组装，存储不创建网络连接。
     def __init__(self, database: Database, vault: Vault) -> None:
         self.database, self.vault = database, vault
 
-    # 已有业务事务可直接登记；独立调用则在上层使用短事务。
     async def prepare(
         self,
         connection: AsyncConnection,
@@ -81,7 +73,6 @@ class EffectStore:
             raise DuplicateRequest("同一外部业务键的输入、协议、账号或模拟类型已经改变")
         return id
 
-    # 每次读取都检查身份归属，意图编号本身不是访问凭据。
     async def read(self, id: str, caller: Caller) -> dict[str, Any]:
         async with self.database.read() as connection:
             row = (
@@ -93,7 +84,6 @@ class EffectStore:
             raise NotAllowed("外部意图不存在或不属于当前调用者")
         return dict(row)
 
-    # 发送前持久化unknown；查证只领取查询位置，不发送业务请求。
     async def claim(self, id: str, spec: ProviderSpec, now: float, *, lookup: bool) -> int | None:
         eligible = (
             intents.c.state.in_(("unknown", "accepted"))
@@ -126,7 +116,6 @@ class EffectStore:
                 )
         return attempt
 
-    # 回执与尝试证据同事务保存，迟到的旧尝试不能改写新尝试状态。
     async def save(self, id: str, attempt: int, reply: AdapterReply, now: float) -> bool:
         body = reply.data.model_dump_json() if reply.data is not None else ""
         receipt = self.vault.encrypt(body) if body else ""
@@ -151,7 +140,6 @@ class EffectStore:
             )
         return bool(changed.rowcount)
 
-    # 逐次尝试证据独立保留，恢复和迟到结果都有原位置。
     async def event(
         self,
         connection: AsyncConnection,

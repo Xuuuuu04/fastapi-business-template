@@ -1,7 +1,3 @@
-"""
-关闭业务模块后，其接口和接口文档同时移除，系统接口仍可使用。
-"""
-
 import pytest
 from fastapi import APIRouter
 from fastapi.testclient import TestClient
@@ -15,7 +11,6 @@ from tests.framework.sample_routes import sample_router
 from tests.testing_app import KEY
 
 
-# 关闭全部业务模块时，不暴露任何模块接口。
 def test_empty_catalog_keeps_only_system_routes(settings: Settings) -> None:
     with TestClient(create_app(settings, build(settings, modules=[]))) as client:
         paths = client.get("/openapi.json").json()["paths"]
@@ -25,7 +20,6 @@ def test_empty_catalog_keeps_only_system_routes(settings: Settings) -> None:
         assert client.get("/health/live").status_code == 200
 
 
-# 一个模块的多个接口一起关闭，其他模块与系统接口继续可用。
 @pytest.mark.parametrize("disabled", ["sample_calc", "sample_outer"])
 def test_disabled_module_routes_disappear(
     settings: Settings, disabled: str, monkeypatch: pytest.MonkeyPatch
@@ -55,7 +49,6 @@ def test_disabled_module_routes_disappear(
         assert "/health/live" in paths
 
 
-# 没有文件和大模型需求时，不创建相关服务，也不要求 S3 桶或旧库地址有效。
 @pytest.mark.anyio
 async def test_unused_services_are_not_created(settings: Settings) -> None:
     settings.file_storage = "s3"
@@ -71,7 +64,6 @@ async def test_unused_services_are_not_created(settings: Settings) -> None:
         await services.close()
 
 
-# 启用文件模块时，缺少 S3 桶仍须拒绝启动，不能用空实现掩盖配置错误。
 def test_used_file_service_requires_configuration(settings: Settings) -> None:
     from shared.errors.framework import ConfigError
 

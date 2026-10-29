@@ -1,8 +1,3 @@
-"""
-通用PostgreSQL组织上下文：限定在事务内，连接复用或更换调用者时不继承其他组织。
-SQLite和未配置上下文的产品保持原来行为。
-"""
-
 import secrets
 
 import pytest
@@ -15,7 +10,6 @@ from shared.db.access import Db
 pytestmark = [pytest.mark.anyio, pytest.mark.postgres_only]
 
 
-# 使用非超级且不能绕过RLS的角色，证明数据库策略实际限制组织。
 async def test_rls_uses_configured_trusted_org(services: Services) -> None:
     role = "rls_" + secrets.token_hex(4)
     table = "rls_" + secrets.token_hex(4)

@@ -1,7 +1,3 @@
-"""
-$title 的数据库实现，SQL 都集中在这里。不负责提交或回滚。
-"""
-
 from datetime import UTC, datetime
 
 from sqlalchemy import RowMapping, insert, select
@@ -11,24 +7,19 @@ from service.$name.store.tables import records
 from shared.public import Db
 
 
-# $title 的数据库访问实现，不自行提交或回滚事务。
 class Sql${Camel}Store:
-    # 使用框架提供的数据库入口。
     def __init__(self, db: Db) -> None:
         self.db = db
 
-    # 保存一条新记录。
     async def add(self, title: str) -> ${Camel}View:
         values = {"title": title, "created_at": datetime.now(UTC)}
         statement = insert(records).values(**values).returning(records)
         return view_of(await self.db.one(statement))
 
-    # 按编号读取记录。
     async def find(self, record_id: int) -> ${Camel}View | None:
         row = await self.db.first(select(records).where(records.c.id == record_id))
         return view_of(row) if row else None
 
 
-# 把数据库行转成公开数据。
 def view_of(row: RowMapping) -> ${Camel}View:
     return ${Camel}View(id=row["id"], title=row["title"], created_at=row["created_at"])

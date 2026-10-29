@@ -1,7 +1,3 @@
-"""
-从明确规格生成一批连接骨架；预览无写入，输入与业务预期由独立样例提供。
-"""
-
 import argparse
 import ast
 import json
@@ -18,12 +14,10 @@ from fastapi_project.development.task_models import source_snapshot
 from fastapi_template.template.files import safe_path
 
 
-# 派生登记之外的自定义逻辑不能被生成器静默覆盖。
 def check_registry(project: Path) -> None:
     actual = (project / "server/app/setup/catalog.py").read_text()
     expected = registry_text(project / "server")
 
-    # 仅忽略说明和导入排序，保留登记表达式与所有其他实际代码。
     def shape(text: str) -> tuple:
         body = [
             node
@@ -46,7 +40,6 @@ def check_registry(project: Path) -> None:
         raise ValueError("登记文件含有独立逻辑，请先整理后再生成骨架")
 
 
-# 生成之前验证全批，文档和格式处理失败会明确保留待处理的源码状态。
 def generate(project: Path, spec: Path, *, preview: bool = False) -> list[str]:
     bundle = SkeletonBundle.model_validate_json(spec.read_bytes())
     check_registry(project)
@@ -63,7 +56,6 @@ def generate(project: Path, spec: Path, *, preview: bool = False) -> list[str]:
     )
 
 
-# 读取已有独立编号，避免不同文件名的同一样例被重复初始化。
 def existing_cases(project: Path, folder: Path) -> set[str]:
     existing: set[str] = set()
     for path in folder.glob("*.json"):
@@ -75,7 +67,6 @@ def existing_cases(project: Path, folder: Path) -> set[str]:
     return existing
 
 
-# 按独立样例的规则编号生成待填写标题。
 def rules_template(package: SkeletonPackage) -> str:
     ids = sorted(
         {case.split(".")[1].split("-C")[0] for op in package.operations for case in op.cases}
@@ -85,7 +76,6 @@ def rules_template(package: SkeletonPackage) -> str:
     )
 
 
-# 计算单包的类型占位与规则模板，不覆盖已有业务资料。
 def case_templates(project: Path, package: SkeletonPackage) -> dict[Path, str]:
     defaults = {
         "str": "待填写",
@@ -132,7 +122,6 @@ def case_templates(project: Path, package: SkeletonPackage) -> dict[Path, str]:
     return files
 
 
-# 全批模板检查完成后才写入，预览保持所有文件不变。
 def initialize_cases(project: Path, spec: Path, *, preview: bool = False) -> list[str]:
     bundle = SkeletonBundle.model_validate_json(spec.read_bytes())
     bundle.validate_links()
@@ -148,9 +137,8 @@ def initialize_cases(project: Path, spec: Path, *, preview: bool = False) -> lis
     return [path.relative_to(project).as_posix() for path in files]
 
 
-# 命令不从实现推断规格，也不生成模型任务或启动代理。
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--preview", action="store_true")
     parser.add_argument(

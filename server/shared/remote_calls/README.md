@@ -3,12 +3,10 @@
 `remote.py` 定义外部系统的声明和配置，`service.py` 管理连接、超时、重试和概要记录，`gate.py` 限制模块只能访问声明过的外部系统。模块在 `module.py` 登记 `remotes`；步骤在 `@step(remotes=[...])` 里声明，通过 `remote` 参数调用。地址和凭据只写在 `APP_REMOTES` 里。没有请求编号的写入，遇到超时或发送后的连接中断时，需要先检查对方的结果。
 
 ```python
-# module.py
 supplier = remote("supplier", "供应商价格接口")
 module = Module(..., remotes=(supplier,))
 
 
-# steps/
 @step("查询供应商价格", reads=["sku"], writes=["cost"], remotes=[supplier])
 async def ask_supplier(data: QuoteWork, remote: RemoteClient) -> None:
     reply = await remote.get(supplier, f"/prices/{data.sku}")
@@ -61,10 +59,10 @@ module = Module(..., remotes=(supplier,), endpoints=(query, change))
 @step("查询价格", reads=["sku"], writes=["receipt"], remotes=[supplier], endpoints=[query])
 async def read_price(data: Work, remote: RemoteClient) -> None:
     reply = await remote.call(supplier, query, Query(sku=data.sku))
-    data.receipt = reply.data  # 已校验的Receipt；reply.status保留HTTP状态
+    data.receipt = reply.data
 ```
 
-input 和 output 是 Data；响应的包络和确定拒绝的回执也写进 output 的 Data。额外字段默认拒绝，确实需要兼容的额外字段由产品的 Data 显式配置。输入按 JSON 模式和字段别名序列化；GET/HEAD 放查询参数，其他方法放 JSON 正文。path 是声明的站内路径模板，路径参数通过path_fields声明；query_fields与body_fields分别分配查询和正文，未显式分配时沿用GET/HEAD查询、其他方法JSON正文。FilePart通过file_fields声明并检查总大小，文件名不包含本地路径；大批量原件使用产物引用。receipt_fields要求本次回执实际提供关键字段，运行记录保留模板路径，不记录路径参数原文。协议shape显示实际字段与扩展策略，空模型或任意扩展只标部分验证。
+`reply.data` 是已校验的 Receipt，`reply.status` 保留 HTTP 状态。input 和 output 是 Data；响应的包络和确定拒绝的回执也写进 output 的 Data。额外字段默认拒绝，确实需要兼容的额外字段由产品的 Data 显式配置。输入按 JSON 模式和字段别名序列化；GET/HEAD 放查询参数，其他方法放 JSON 正文。path 是声明的站内路径模板，路径参数通过path_fields声明；query_fields与body_fields分别分配查询和正文，未显式分配时沿用GET/HEAD查询、其他方法JSON正文。FilePart通过file_fields声明并检查总大小，文件名不包含本地路径；大批量原件使用产物引用。receipt_fields要求本次回执实际提供关键字段，运行记录保留模板路径，不记录路径参数原文。协议shape显示实际字段与扩展策略，空模型或任意扩展只标部分验证。
 
 安全性以 effect 为准，不从 HTTP 方法猜测：POST 做读取可以重试，GET 做写入仍然要有待确认保护。unknown_on 是上游协议额外的 HTTP 待确认状态（例如 202），它不会弱化原有的 408/499/5xx、超时、响应超限和较早未知写入的保护。accepted_statuses 沿用 2.2 的定义，只支持确定的 4xx，和 unknown_on 不能重叠；“受理/未受理”的具体含义由产品核对回执确认。成功写入的回执校验失败，也报待确认；确定拒绝的回执校验失败，报协议字段错误。记录里只有有限的字段路径和错误类别，不记录正文或取值；运行图显示接口名、状态和耗时。
 

@@ -1,8 +1,3 @@
-"""
-读取产品自行维护的回收证明，精确比较旧模板、产品补丁和新实现三份摘要。
-模板没有任何产品摘要；不提供证明时只使用普通三份比较。
-"""
-
 import hashlib
 import json
 import re
@@ -14,7 +9,6 @@ MAX_PROOF_BYTES = 1024 * 1024
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
-# 产品审查过的单个框架补丁及必要的人工接入项。
 @dataclass(frozen=True)
 class RecoveryEntry:
     base: str
@@ -23,7 +17,6 @@ class RecoveryEntry:
     manual_review: tuple[str, ...]
 
 
-# 显式加载外部证明，格式错误在预览前拒绝，不输出证明内容。
 def load_proof(path: Path | None) -> dict[str, RecoveryEntry]:
     if path is None:
         return {}
@@ -42,7 +35,6 @@ def load_proof(path: Path | None) -> dict[str, RecoveryEntry]:
     return {safe_name(name): entry_of(raw) for name, raw in document["files"].items()}
 
 
-# 校验一份证明的四个字段，摘要必须是明确的SHA256值。
 def entry_of(raw: Any) -> RecoveryEntry:
     if not isinstance(raw, dict) or set(raw) != {
         "base",
@@ -63,7 +55,6 @@ def entry_of(raw: Any) -> RecoveryEntry:
     )
 
 
-# 证明只能列产品内相对路径，不允许绝对路径、父目录或路径别名。
 def safe_name(name: Any) -> str:
     if not isinstance(name, str) or not name or "\\" in name:
         raise ValueError("回收证明路径不正确")
@@ -73,7 +64,6 @@ def safe_name(name: Any) -> str:
     return name
 
 
-# 任一份原文变化仍保留冲突，证明不能覆盖未知本地修改。
 def recovered_patch(
     proofs: dict[str, RecoveryEntry],
     name: str,

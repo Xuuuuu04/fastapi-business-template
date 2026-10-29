@@ -1,14 +1,9 @@
-"""
-完成时间和逾期策略在启动时验证，不等到定时业务实际执行才发现配置错误。
-"""
-
 from datetime import time
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from shared.pipelines.plan import Pipeline
 
 
-# 默认继续符合已有执行行为，显式暂停才停止新批次或新阶段。
 def check_deadline(pipeline: Pipeline) -> list[str]:
     problems = []
     if pipeline.on_overdue not in ("continue", "pause"):

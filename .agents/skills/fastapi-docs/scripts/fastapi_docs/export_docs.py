@@ -1,9 +1,3 @@
-"""
-从声明生成文档，不连接数据库；API/模块flows/AGENTS生成段提交。
-模块关系/开发图/进度汇总及业务现状只在本机；现状生成与手写分开，过期检查不自动刷新。
-命令参数与调用方法见本功能所属项目 Skill。
-"""
-
 import argparse
 import json
 import sys
@@ -32,7 +26,6 @@ from shared.modules.catalog import Catalog
 API_DIR = PROJECT / "doc" / "api"
 
 
-# 生成 doc/modules.md：全部模块和它们之间的调用关系。
 def modules_doc(catalog: Catalog) -> str:
     lines = ["# 模块关系", "", HEADER.replace("needs.md 和 rules.md", "各模块目录"), ""]
     lines += ["| 模块 | 名称 | 版本 | 业务文档 |", "| --- | --- | --- | --- |"]
@@ -43,7 +36,6 @@ def modules_doc(catalog: Catalog) -> str:
     return "\n".join(lines)
 
 
-# 列出全部应生成的文档及其内容。
 def generated(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
     plan = read_plan(project)
     problems = check_entries(catalog, project, plan)
@@ -63,7 +55,6 @@ def generated(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
     return files
 
 
-# 找出内容已过期的生成文档。
 def outdated(catalog: Catalog, project: Path = PROJECT) -> list[Path]:
     result = [
         path
@@ -82,7 +73,6 @@ def outdated(catalog: Catalog, project: Path = PROJECT) -> list[Path]:
     return result
 
 
-# 已展开的流程入口先还原，避免重复生成JobPlan；内置运维只进入本机业务现状。
 def state_catalog(catalog: Catalog, settings: Settings) -> Catalog:
     if not settings.operations.enabled():
         return catalog
@@ -101,7 +91,6 @@ def state_catalog(catalog: Catalog, settings: Settings) -> Catalog:
     return Catalog(with_operations(settings, modules))
 
 
-# 汇总文档可重新生成，不参与源码提交或过期比较。
 def summaries(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
     return {
         project / "doc" / "modules.md": modules_doc(catalog),
@@ -110,7 +99,6 @@ def summaries(catalog: Catalog, project: Path = PROJECT) -> dict[Path, str]:
     }
 
 
-# 写入全部文档；check 为真时只比较。
 def main() -> None:
     parser = argparse.ArgumentParser(description="从声明生成接口文档、模块流程文档和进度文档")
     parser.add_argument("--check", action="store_true", help="只检查文档是否过期，不写入")

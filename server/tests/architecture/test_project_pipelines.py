@@ -1,7 +1,3 @@
-"""
-项目摘要默认不读业务库；流程缓存明确证据时间和未知，操作详情定位到扇出子阶段。
-"""
-
 from pathlib import Path
 
 import pytest
@@ -16,7 +12,6 @@ from tests.framework.test_pipelines import drain, piped, start
 __all__ = ["piped"]
 
 
-# 未刷新数据库之前只显示未知，不从声明猜业务运行状态。
 def test_pipeline_summary_unknown_and_operation_membership(tmp_path: Path) -> None:
     catalog = Catalog([module, fanout_module])
     info = overview(catalog, tmp_path)
@@ -27,7 +22,6 @@ def test_pipeline_summary_unknown_and_operation_membership(tmp_path: Path) -> No
     ]
 
 
-# --runs使用的刷新动作读取实际结果，后续默认摘要使用同一缓存并标观察时间。
 @pytest.mark.anyio
 async def test_pipeline_snapshot_from_real_run(piped, tmp_path: Path) -> None:
     run_id = await start(piped, "summary")

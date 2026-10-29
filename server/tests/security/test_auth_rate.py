@@ -1,7 +1,3 @@
-"""
-无效凭据同样受来源额度限制，合法账号继续使用独立额度。
-"""
-
 from pathlib import Path
 
 import pytest
@@ -12,7 +8,6 @@ from app.setup.web import create_app
 from tests.testing_app import KEY, make_settings, reset_database_now
 
 
-# 错误密钥和损坏令牌都受来源额度限制，正常身份额度独立。
 @pytest.mark.parametrize(
     "headers",
     [
@@ -31,7 +26,6 @@ def test_invalid_credentials_share_source_limit(tmp_path: Path, headers: dict[st
         assert client.get("/api/system/modules", headers=KEY).status_code == 200
 
 
-# 更换错误凭据不能通过创建新身份绕过来源计数。
 def test_rotating_invalid_credentials_does_not_create_new_buckets(tmp_path: Path) -> None:
     settings = make_settings(tmp_path, request_rate_per_minute=1)
     reset_database_now(settings.database_url)

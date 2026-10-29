@@ -1,7 +1,3 @@
-"""
-测试/演练的可选PostgreSQL计划摘要，只解释查询，不运行ANALYZE，不保存条件或SQL。
-"""
-
 from typing import Any
 
 from sqlalchemy import Executable, Select, text
@@ -12,7 +8,6 @@ from shared.records.models import DatabaseCallRecord, StepRecord
 SAFE_KEYS = ("Node Type", "Relation Name", "Plan Rows", "Plan Width", "Total Cost")
 
 
-# 仅在已超额时取少量计划；保存点保护原事务，诊断失败保持未知。
 async def attach(
     connection: AsyncConnection,
     record: StepRecord | None,
@@ -45,7 +40,6 @@ async def attach(
     if sum(bool(item.explain_status) for item in record.database) >= 3:
         return
     try:
-        # 使用默认具名绑定，SQLAlchemy按连接方言转换参数，不把字面值写入SQL。
         compiled = statement.compile(compile_kwargs={"render_postcompile": True})
         async with connection.begin_nested():
             result = await connection.scalar(
@@ -57,7 +51,6 @@ async def attach(
         call.explain_status = "未知"
 
 
-# 只保留固定安全字段；Filter/Index Cond/Output等可能含业务值，一律不复制。
 def plan_summary(result: Any) -> list[dict[str, Any]]:
     if not isinstance(result, list) or not result:
         return []

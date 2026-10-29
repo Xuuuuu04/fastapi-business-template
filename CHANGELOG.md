@@ -2,6 +2,13 @@
 
 按[语义化版本](https://semver.org/lang/zh-CN/)：框架公开写法（`shared.public`、模块结构、检查规则）有不兼容改动时升主版本号；新增能力升次版本号；修正升修订号。业务规则的变化记在各模块的 `doc/模块名/changes.md`。
 
+## 未发布
+
+- 代码里不再写注释和文档字符串：质量检查的 `file_header`、`class_comment`、`function_comment`、`comment_run`、`todo` 换成 `comment` 和 `docstring` 两条，出现任何 `#` 注释或文档字符串都报错，不登记例外。模板里 505 个 Python 文件的注释和文档字符串已删除（逐文件比对语法树，只少了这两样）；`migrations/versions` 下已发布的迁移不动。
+- 原来的 31 处 `type: ignore` 和 `noqa` 改成不需要注释的写法：`cast`、`MonkeyPatch.context()`，缺类型的第三方包放进 pyproject 的 mypy overrides，任务表登记的导入移到文件头并在 ruff per-file-ignores 登记 F401。
+- 生成器（new-library、new-operation、new-pipeline、skeleton、模块清单、迁移合并、新产品入口）不再生成说明注释和文件头说明；各 README 示例代码里的注释改成正文或真实代码。
+- 已有产品接入：升级后旧代码的注释会被新检查报出，用同样的方式删除；意图改用名字、类型、`meaning()` 和测试表达，修改原因写进提交说明。
+
 ## 3.2.0（2026-10-14）
 
 - 新增按需生成的最小账号包：`uv run dev new-module user_access --title 账号登录 --preset access`。模板仍然 `MODULES=[]`，不登记任何业务包；生成后和普通业务包一样登记。包里有 `包名.login`（public）和 `包名.create_account`（`包名.manage`）两个操作、账号表迁移（接在当前唯一迁移头后面）、规则与需求文档、步骤和接口测试。

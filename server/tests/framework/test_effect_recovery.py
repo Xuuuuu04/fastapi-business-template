@@ -1,7 +1,3 @@
-"""
-迟到回执、重复确认与账号切换的持久证据，用实际条件更新验证恢复不会覆盖新状态。
-"""
-
 from dataclasses import replace
 from pathlib import Path
 
@@ -18,7 +14,6 @@ from tests.framework.test_provider_effects import Input, Output, service_at
 pytestmark = pytest.mark.anyio
 
 
-# 迟到的旧回执只能追加证据，不能把已经完成的新尝试覆盖成拒绝。
 async def test_late_receipt_preserves_new_attempt(tmp_path: Path) -> None:
     service, original, adapter, database = await service_at(tmp_path)
     spec = replace(original, repeat_safe=True)
@@ -56,7 +51,6 @@ async def test_late_receipt_preserves_new_attempt(tmp_path: Path) -> None:
         await database.close()
 
 
-# 供应商账号切换后，旧意图不能被新账号继续发送或查证。
 async def test_adapter_account_change_rejects_old_intent(tmp_path: Path) -> None:
     service, spec, adapter, database = await service_at(tmp_path)
     try:

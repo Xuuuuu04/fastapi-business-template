@@ -1,8 +1,3 @@
-"""
-任务查询：调用方查看自己登记的任务；拥有 system.jobs 权限的调用方可以列出全部任务。
-重试、取消等人工处理只通过命令行 fastapi_operations.jobs 进行，这里不提供。
-"""
-
 from dataclasses import asdict
 from typing import Annotated, Any
 
@@ -19,14 +14,12 @@ router = APIRouter(tags=["后台任务"])
 PERMISSION = "system.jobs"
 
 
-# 表示“任务不存在”的失败，由统一错误入口返回给调用方。
 class JobMissing(BusinessError):
     code = "job_missing"
     kind = Kind.NOT_FOUND
     message = "任务不存在"
 
 
-# 查看一个任务的状态和结果；只能查看自己登记的任务。
 @router.get("/api/jobs/{job_id}", summary="查看任务", operation_id="get_job")
 async def job(job_id: str, request: Request, caller: CallerDep) -> dict[str, Any]:
     found = await get_job(request.app.state.services.database, job_id)
@@ -41,7 +34,6 @@ async def job(job_id: str, request: Request, caller: CallerDep) -> dict[str, Any
     return result
 
 
-# 按状态和操作列出最近的任务。
 @router.get("/api/system/jobs", summary="列出任务", operation_id="system_jobs")
 async def jobs(
     request: Request,
@@ -56,7 +48,6 @@ async def jobs(
     return {"items": [asdict(item) for item in found]}
 
 
-# 查看本任务的段证据，权限与任务详情相同，不返回业务游标原文。
 @router.get("/api/jobs/{job_id}/segments", summary="已提交段", operation_id="job_segments")
 async def job_segments(
     job_id: str,

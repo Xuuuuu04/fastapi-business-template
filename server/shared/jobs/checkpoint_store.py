@@ -1,8 +1,3 @@
-"""
-分段恢复位置、外部写入意图与已提交段的持久化。
-段结果与业务写入共用事务；提交前锁住并核对任务尝试和租约，旧尝试全部回滚。
-"""
-
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -21,7 +16,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import Ticket
 
 
-# 取得上一批的恢复位置；待确认的外部写入不能自动重做。
 async def load(database: Database, job_id: str) -> tuple[int, dict[str, Any], int]:
     async with database.read() as connection:
         row = (
@@ -36,7 +30,6 @@ async def load(database: Database, job_id: str) -> tuple[int, dict[str, Any], in
     return int(row["number"]), json.loads(row["cursor_json"]), int(row["total_rows"])
 
 
-# 核对本次领取仍有效，并持有任务行锁直到段提交完成。
 async def own(connection: AsyncConnection, ticket: "Ticket") -> None:
     now = business_now()
     changed = await connection.execute(
@@ -53,7 +46,6 @@ async def own(connection: AsyncConnection, ticket: "Ticket") -> None:
         raise StaleAttempt()
 
 
-# 发送外部写入之前独立提交意图，进程被强杀后也不能重新发送这一批。
 async def mark_external(database: Database, ticket: "Ticket", number: int) -> None:
     async with database.write() as connection:
         await own(connection, ticket)
@@ -66,7 +58,6 @@ async def mark_external(database: Database, ticket: "Ticket", number: int) -> No
             raise StaleAttempt()
 
 
-# 在业务段事务中保存游标与段证据，只有提交成功后才能进入下一段。
 async def save(
     connection: AsyncConnection,
     ticket: "Ticket",
@@ -104,7 +95,6 @@ async def save(
     await connection.execute(update(jobs).where(jobs.c.id == ticket.id).values(last_run_id=run_id))
 
 
-# 判断任务是否有未确认的外部效果，领取和失败处理共用。
 async def external_pending(connection: AsyncConnection, job_id: str) -> bool:
     return bool(
         await connection.scalar(
@@ -113,7 +103,6 @@ async def external_pending(connection: AsyncConnection, job_id: str) -> bool:
     )
 
 
-# 仅显式分段任务初始化游标，普通任务不访问新表。
 async def create_checkpoint(connection: AsyncConnection, job_id: str) -> None:
     await connection.execute(
         insert(checkpoints).values(
@@ -126,7 +115,6 @@ async def create_checkpoint(connection: AsyncConnection, job_id: str) -> None:
     )
 
 
-# 有外部写入意图的故障保守保留待确认，不进入自动重试。
 async def protect_failure(
     connection: AsyncConnection, job_id: str, state: str, values: dict[str, Any]
 ) -> str:
@@ -141,7 +129,6 @@ async def protect_failure(
     return state
 
 
-# 分页查看已提交段，崩溃后仍能查到每段的行数和耗时。
 async def list_segments(
     database: Database, job_id: str, *, after: int = 0, limit: int = 50
 ) -> list[dict[str, Any]]:
@@ -164,7 +151,6 @@ async def list_segments(
     return [{**dict(row), "cursor": json.loads(row["cursor_json"])} for row in rows]
 
 
-# 租约失效只有安全且没有在途外部写入的任务可重新领取。
 async def may_resume(
     connection: AsyncConnection, plan: JobPlan | None, job_id: str, attempt: int
 ) -> bool:
@@ -173,7 +159,6 @@ async def may_resume(
     return not (plan.segmented and await external_pending(connection, job_id))
 
 
-# 任务查看的当前恢复位置与累计数据，普通任务没有分段状态。
 async def progress(database: Database, job_id: str) -> dict[str, Any] | None:
     async with database.read() as connection:
         row = (
@@ -203,7 +188,6 @@ async def progress(database: Database, job_id: str) -> dict[str, Any] | None:
     }
 
 
-# 续租只更新仍属于本次领取的任务；分段任务额外禁止复活已过期租约。
 async def extend_lease(
     database: Database, ticket: "Ticket", until: float, *, require_current: bool = False
 ) -> bool:

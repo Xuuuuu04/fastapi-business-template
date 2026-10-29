@@ -1,7 +1,3 @@
-"""
-统一开发入口，从命令所属产品读取声明，生产服务不导入本包。
-"""
-
 import argparse
 import json
 import os
@@ -45,7 +41,6 @@ COMMANDS = {
 }
 
 
-# 当前产品优先，编辑安装的源码位置作为备用，不扫描其他项目或凭据目录。
 def project_root() -> Path:
     for root in (Path.cwd(), *Path.cwd().parents, *Path(__file__).resolve().parents):
         if (root / "server/pyproject.toml").is_file() and (root / ".agents/skills").is_dir():
@@ -53,14 +48,12 @@ def project_root() -> Path:
     raise SystemExit("找不到产品，请在产品或server目录执行dev")
 
 
-# 已有命令共用一份实现，入口不改变检查、生成或恢复的实际行为。
 def bootstrap(root: Path) -> None:
     folders = sorted((root / ".agents/skills").glob("*/scripts"))
     sys.path[:0] = [str(root / "server"), *map(str, folders)]
     os.chdir(root / "server")
 
 
-# inspect只输出声明，既不创建服务也不读取环境配置。
 def inspect_application() -> None:
     from app.setup.application import application, application_libraries, application_modules
 
@@ -70,9 +63,8 @@ def inspect_application() -> None:
     print(json.dumps(description, ensure_ascii=False, indent=2))
 
 
-# 参数交给所选工具，未知命令在任何生成或数据库操作之前拒绝。
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["inspect", *COMMANDS])
     arguments = parser.parse_args(sys.argv[1:2])
     remaining = sys.argv[2:]
@@ -88,6 +80,5 @@ def main() -> None:
     runpy.run_module(COMMANDS[arguments.command], run_name="__main__")
 
 
-# 检查等工具在子进程里用 python -m fastapi_dev.main 调用同一入口。
 if __name__ == "__main__":
     main()

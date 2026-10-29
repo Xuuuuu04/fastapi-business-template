@@ -1,7 +1,3 @@
-"""
-骨架模拟明确注入并保留模拟身份，不能在生产运行或被交付检查视作实际实现。
-"""
-
 from dataclasses import replace
 from pathlib import Path
 
@@ -21,7 +17,6 @@ from tests.framework.test_observation_points import Input, Output, module, opera
 from tests.testing_app import make_settings
 
 
-# 标记独立测试步骤，模拟提供者只接收受限StepView，实际业务目录仍为空。
 def skeleton_module():
     return replace(
         module,
@@ -36,17 +31,14 @@ def skeleton_module():
     )
 
 
-# 模拟计算不从确认预期生成，最终断言仍由测试单独书写。
 def calculate(data) -> None:
     data.partial = data.amount * 2
 
 
-# 独立测试提供者按公开数据模型构造返回，正式步骤没有这份提供者。
 def produce(data) -> None:
     data.result = Output(total=data.partial + 1)
 
 
-# 骨架只能在test配置显式提供者范围内执行，记录和压缩历史都保留模拟身份。
 @pytest.mark.anyio
 async def test_simulation_requires_explicit_context_and_marks_evidence(tmp_path: Path) -> None:
     built = build(make_settings(tmp_path), modules=[skeleton_module()])
@@ -70,7 +62,6 @@ async def test_simulation_requires_explicit_context_and_marks_evidence(tmp_path:
         await built.close()
 
 
-# 生产组装在打开实际资源之前拒绝模拟实现。
 def test_production_build_rejects_skeleton(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     settings.env = "production"
@@ -78,7 +69,6 @@ def test_production_build_rejects_skeleton(tmp_path: Path) -> None:
         build(settings, modules=[skeleton_module()])
 
 
-# 默认开发仍能观察骨架，交付才要求全部换成实际实现。
 def test_delivery_refuses_mock_implementation(tmp_path: Path, monkeypatch) -> None:
     catalog = Catalog([skeleton_module()])
     monkeypatch.setenv("APP_DEVELOPMENT_DELIVERY", "1")

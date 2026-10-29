@@ -1,8 +1,3 @@
-"""
-任务的查询和人工处理：查看任务、按状态列出、人工重新排队、取消尚未执行的任务。
-查询供接口和命令行使用；人工处理只通过命令行进行，不放进只读的排查接口。
-"""
-
 import json
 from dataclasses import dataclass
 from typing import Any
@@ -31,7 +26,6 @@ STATE_TEXT = {
 }
 
 
-# 供接口或命令行返回的任务状态、执行时间和运行编号。
 @dataclass(frozen=True)
 class JobView:
     id: str
@@ -49,7 +43,6 @@ class JobView:
     result: Any
 
 
-# 把数据库行整理成任务视图。
 def view_of(row: RowMapping) -> JobView:
     caller = json.loads(row["caller_json"])
     return JobView(
@@ -69,14 +62,12 @@ def view_of(row: RowMapping) -> JobView:
     )
 
 
-# 按编号读取一个任务。
 async def get_job(database: Database, job_id: str) -> JobView | None:
     async with database.read() as connection:
         row = (await connection.execute(select(jobs).where(jobs.c.id == job_id))).mappings().first()
     return view_of(row) if row else None
 
 
-# 按状态和操作列出最近的任务。
 async def list_jobs(
     database: Database, *, state: str = "", contract: str = "", limit: int = 50
 ) -> list[JobView]:
@@ -90,7 +81,6 @@ async def list_jobs(
     return [view_of(row) for row in rows]
 
 
-# 统计各状态的任务数量。
 async def count_jobs(database: Database) -> dict[str, int]:
     query = select(jobs.c.state, func.count()).group_by(jobs.c.state)
     async with database.read() as connection:
@@ -98,7 +88,6 @@ async def count_jobs(database: Database) -> dict[str, int]:
     return {str(state): int(count) for state, count in rows}
 
 
-# 人工把失败、待检查或等待兼容版本的任务重新排队；accept_version 表示接受按当前版本执行。
 async def requeue(
     database: Database, catalog: Catalog, job_id: str, *, accept_version: bool
 ) -> str:
@@ -139,7 +128,6 @@ async def requeue(
     return "已重新排队"
 
 
-# 取消尚未开始执行的任务。
 async def cancel(database: Database, job_id: str) -> str:
     async with database.write() as connection:
         if (

@@ -1,7 +1,3 @@
-"""
-200成员完整链验收，证明队列有界、固定来源及成功成员结果不重复不遗漏。
-"""
-
 import pytest
 from sqlalchemy import func, insert, select
 
@@ -23,7 +19,6 @@ pytestmark = pytest.mark.anyio
 __all__ = ["fanout", "drain", "start"]
 
 
-# 第一阶段后插入新的上游版本，200个成员仍全部消费旧的固定来源。
 async def test_200_members_wait_join_and_frozen_sources(fanout: Services) -> None:
     run_id = await start(fanout)
     ticket = await fanout.queue.claim(now())
@@ -55,14 +50,12 @@ async def test_200_members_wait_join_and_frozen_sources(fanout: Services) -> Non
     assert result == '{"count":200,"value":20100,"versions":[1]}'
 
 
-# 成功成员保留真实主键与运行号，修好一个成员后只补这个成员当前阶段。
 async def test_retry_only_failed_member(fanout: Services, monkeypatch) -> None:
     from shared.pipelines.recovery import resume
     from tests.framework.fanout_sample import Store
 
     original = Store.collect
 
-    # 成员5在SQL写入后出错，事务必须撤销它。
     async def fail(self, id, version):
         result = await original(self, id, version)
         if id == 5:
@@ -94,7 +87,6 @@ async def test_retry_only_failed_member(fanout: Services, monkeypatch) -> None:
         assert await connection.scalar(select(func.count()).select_from(collected)) == 20
 
 
-# Ratio只纳入达到比例时的结果，剩余成员不会偷偷混进本次汇算。
 async def test_ratio_seals_accepted_results(fanout: Services) -> None:
     from dataclasses import replace
 
@@ -128,7 +120,6 @@ async def test_ratio_seals_accepted_results(fanout: Services) -> None:
     assert total["value"] == sum(int(key) for key in accepted)
 
 
-# 未知外部效果始终停下，即使Ratio本来可能达标也不自动推进。
 async def test_unknown_member_requires_separate_confirmation(fanout: Services, monkeypatch) -> None:
     from shared.errors.framework import InvalidInput, RemoteResultUnknown
     from shared.pipelines.recovery import resume
@@ -136,7 +127,6 @@ async def test_unknown_member_requires_separate_confirmation(fanout: Services, m
 
     original = Store.collect
 
-    # 只模拟结果未知，不发送真实请求。
     async def unknown(self, id, version):
         if id == 2:
             raise RemoteResultUnknown("成员2结果未知")
@@ -148,7 +138,6 @@ async def test_unknown_member_requires_separate_confirmation(fanout: Services, m
     with pytest.raises(InvalidInput, match="待确认"):
         await resume(fanout.database, fanout.catalog, run_id)
     worker = Worker(fanout.runtime, fanout.queue, [], WorkerOptions())
-    # 把暂停后仍排队的动作领取为暂停状态，不继续访问上游。
     for _ in range(20):
         ticket = await fanout.queue.claim(now() + 1)
         if ticket is None:
@@ -161,7 +150,6 @@ async def test_unknown_member_requires_separate_confirmation(fanout: Services, m
         assert await connection.scalar(select(func.count()).select_from(collected)) == 8
 
 
-# 同周期按组织各自登记，成员结果和来源状态互不覆盖。
 async def test_members_are_organization_scoped(fanout: Services) -> None:
     from dataclasses import replace
 
@@ -184,7 +172,6 @@ async def test_members_are_organization_scoped(fanout: Services) -> None:
     assert dict(rows) == {"org-a": 6, "org-b": 6}
 
 
-# 子阶段声明变化暂停，内部模块版本变化继续，并保留前面的实际结果。
 async def test_member_version_pause_and_resume(fanout: Services) -> None:
     from dataclasses import replace
 
@@ -205,7 +192,6 @@ async def test_member_version_pause_and_resume(fanout: Services) -> None:
     )
     fanout.queue.pipelines.catalog = fanout.catalog
     assert (await drain(fanout, run_id))["state"] == "version_blocked"
-    # 领取暂停的排队任务，使它们释放队列名额。
     for _ in range(10):
         ticket = await fanout.queue.claim(now() + 1)
         if ticket is None:

@@ -1,7 +1,3 @@
-"""
-从规则账本生成规则状态和修订文档；历史手写规则保持兼容，不覆盖未采纳的业务文字。
-"""
-
 from pathlib import Path
 
 from fastapi_project.development.ledger import read_ledger
@@ -16,7 +12,6 @@ STATES = {
 }
 
 
-# 每个业务包的独立账本文档同时展示状态和变更来源，不把代码存在当作规则确认。
 def ledger_documents(project: Path) -> dict[Path, str]:
     ledger = read_ledger(project)
     modules = sorted({rule.id.split(".")[0] for rule in ledger.rules})
@@ -51,7 +46,6 @@ def ledger_documents(project: Path) -> dict[Path, str]:
     return documents
 
 
-# 常用规则和变化入口展示账本状态，正文和历史修订仍以完整账本文档及JSON为准。
 def index_documents(project: Path, module: str, ledger: RuleLedger) -> dict[Path, str]:
     rules = [rule for rule in ledger.rules if rule.id.startswith(module + ".")]
     events = [event for event in ledger.events if event.rule.startswith(module + ".")]

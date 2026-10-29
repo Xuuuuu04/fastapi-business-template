@@ -1,7 +1,3 @@
-"""
-本机证据固定与清理入口；清理默认预览，真正应用需要引用未变化的预览摘要。
-"""
-
 import argparse
 import json
 import sys
@@ -10,9 +6,8 @@ from fastapi_check.quality.rules import PROJECT
 from fastapi_project.development.evidence_retention import collect, pin
 
 
-# 两个命令只访问当前产品本机证据，不访问数据库、不改变源码或检查结果。
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     if sys.argv[0].endswith("pin"):
         parser.add_argument("identity")
         parser.add_argument("--reason", default="")

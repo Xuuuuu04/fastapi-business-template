@@ -1,9 +1,3 @@
-"""
-导入导出用的表格文件读写：CSV（UTF-8，可带 BOM，Excel 另存的 CSV 也能读）和 Excel（.xlsx）。
-读取时按表头对应字段，每行带上在文件中的行号，便于逐行报告错误；只做格式转换，不做业务检查。
-文件太大、没有表头、缺少必需的列时报 invalid_input，不静默跳过。
-"""
-
 import csv
 import io
 from collections.abc import Mapping, Sequence
@@ -21,8 +15,6 @@ MEDIA = {
 }
 
 
-# 读取表格文件，返回 (行号, {字段: 文字}) 列表。columns 把表头（中文或字段名）对应到字段名，
-# required 是必需的字段及其表头名称，缺少时按表头名称报错。
 def read_sheet(
     content: bytes, filename: str, columns: Mapping[str, str], required: Mapping[str, str]
 ) -> list[tuple[int, dict[str, str]]]:
@@ -44,7 +36,6 @@ def read_sheet(
     return rows
 
 
-# 读取 CSV；不是 UTF-8 编码时报错，提示另存为 UTF-8。
 def read_csv(content: bytes) -> list[list[str]]:
     try:
         text = content.decode("utf-8-sig")
@@ -53,7 +44,6 @@ def read_csv(content: bytes) -> list[list[str]]:
     return [row for row in csv.reader(io.StringIO(text))]
 
 
-# 读取 Excel 的第一个工作表。
 def read_xlsx(content: bytes) -> list[list[Any]]:
     try:
         book = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
@@ -65,12 +55,10 @@ def read_xlsx(content: bytes) -> list[list[Any]]:
     return rows
 
 
-# 单元格转成去掉首尾空白的文字；空单元格是空文字。
 def text_of(cell: Any) -> str:
     return "" if cell is None else str(cell).strip()
 
 
-# 生成表格文件：columns 把字段名对应到表头文字，按顺序输出。
 def write_sheet(rows: Sequence[Mapping[str, Any]], columns: Mapping[str, str], kind: Kind) -> bytes:
     header = list(columns.values())
     body = [[plain(row.get(field)) for field in columns] for row in rows]
@@ -88,7 +76,6 @@ def write_sheet(rows: Sequence[Mapping[str, Any]], columns: Mapping[str, str], k
     return output.getvalue()
 
 
-# 导出时的单元格值：空值写成空文字，布尔值写成“是”“否”，其余转成文字。
 def plain(value: Any) -> str:
     if value is None:
         return ""

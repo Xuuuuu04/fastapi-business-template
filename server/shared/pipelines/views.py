@@ -1,7 +1,3 @@
-"""
-流程摘要与阶段运行图；产出内容不在查询页面公开，只展示状态和已登记引用。
-"""
-
 import json
 from typing import Any
 
@@ -14,7 +10,6 @@ from shared.pipelines.member_views import group_summaries
 from shared.pipelines.tables import notifications, runs, stages
 
 
-# 最近流程仅返回摘要，组织过滤在查询中完成。
 async def list_runs(
     database: Database, *, org_id: str = "*", limit: int = 50
 ) -> list[dict[str, Any]]:
@@ -26,7 +21,6 @@ async def list_runs(
     return [summary(dict(row)) for row in rows]
 
 
-# 运行细节附每阶段耗时、实际版本、分段进度与运行记录链接。
 async def detail(database: Database, run_id: str, *, org_id: str = "*") -> dict[str, Any] | None:
     query = select(runs).where(runs.c.id == run_id)
     if org_id != "*":
@@ -79,7 +73,6 @@ async def detail(database: Database, run_id: str, *, org_id: str = "*") -> dict[
     return result
 
 
-# 不返回内部身份、业务输入或产出原文。
 def summary(row: dict) -> dict[str, Any]:
     return {
         key: row[key]
@@ -102,7 +95,6 @@ def summary(row: dict) -> dict[str, Any]:
     }
 
 
-# 用固定序号作为节点，避免名称进入图语法；状态未知时明确写未知。
 def graph(items: list[dict[str, Any]]) -> str:
     lines = ["flowchart LR"]
     for index, item in enumerate(items):
@@ -114,7 +106,6 @@ def graph(items: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-# 运行图始终保留整条声明链，尚未执行阶段明确显示未开始及耗时未知。
 def complete_stages(
     declared: list[dict[str, str]], items: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -141,7 +132,6 @@ def complete_stages(
     return result + list(actual.values())
 
 
-# 通知只显示实际队列状态，未找到记录时保持未知。
 async def notification_state(database: Database, run_id: str) -> str | None:
     async with database.read() as connection:
         return await connection.scalar(

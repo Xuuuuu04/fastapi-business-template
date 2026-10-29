@@ -1,7 +1,3 @@
-"""
-成员夹具销毁前保存流程、成员及任务状态；不保存身份、输入产出正文或数据库连接。
-"""
-
 import json
 
 import pytest
@@ -12,7 +8,6 @@ from shared.jobs.tables import job_counts, jobs
 from shared.pipelines.tables import members, runs, stages
 from tests.failure_reports import FAILURE_FILE
 
-# 列白名单保留派发/汇合/租约证据，失败操作的安全摘要已由运行记录保存。
 COLUMNS = {
     runs: ("id", "pipeline", "org_id", "state", "current_stage", "reason", "updated_at"),
     stages: ("id", "pipeline_id", "name", "state", "job_id", "run_id", "error"),
@@ -50,7 +45,6 @@ COLUMNS = {
 }
 
 
-# 报告路径仅在本测试实际失败后创建，正常测试不额外访问数据库。
 async def save_failed_pipeline(item: pytest.Item, database: Database) -> None:
     path = item.stash.get(FAILURE_FILE, None)
     if path is None:

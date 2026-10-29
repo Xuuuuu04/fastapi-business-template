@@ -1,8 +1,3 @@
-"""
-检查 README：每个含代码的目录都要有 README；长度不超过上限；
-业务模块的 README 必须包含固定小节，并列出本模块的每个公开操作。
-"""
-
 from pathlib import Path
 
 from fastapi_check.quality.report import Problem, files_under, relative
@@ -15,7 +10,6 @@ from fastapi_check.quality.rules import (
 )
 
 
-# 检查全部 README；测试只要求 tests/ 和下一层分类目录有 README，按模块再分的目录不要求。
 def check_readmes(
     root: Path = ROOT, contracts: dict[str, list[str]] | None = None
 ) -> list[Problem]:
@@ -43,12 +37,10 @@ def check_readmes(
     return problems
 
 
-# 判断目录是否需要 README。
 def needs_readme(parts: tuple[str, ...]) -> bool:
     return not (parts[:1] == ("tests",) and len(parts) > 2)
 
 
-# 检查 README 的行数。
 def check_length(readme: Path, root: Path) -> list[Problem]:
     count = len(readme.read_text(encoding="utf-8").splitlines())
     limit = MAX_MODULE_README_LINES if readme.parent.parent.name == "service" else MAX_README_LINES
@@ -65,7 +57,6 @@ def check_length(readme: Path, root: Path) -> list[Problem]:
     ]
 
 
-# 检查业务模块 README 的固定小节和公开操作清单。
 def check_module_readme(readme: Path, names: list[str], root: Path) -> list[Problem]:
     name = relative(readme, root)
     if not readme.exists():

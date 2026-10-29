@@ -1,8 +1,3 @@
-"""
-操作记录保存到独立表，不随排查记录清理。成功的业务操作与业务写入同一事务提交。
-拒绝和失败的操作在回滚后单独写入，避免失败事务撤销操作记录。
-"""
-
 import secrets
 import time
 
@@ -29,7 +24,6 @@ audit_records = Table(
 )
 
 
-# 在给定事务中写入一条不包含业务正文和密钥的操作记录。
 async def record(
     connection: AsyncConnection,
     caller: Caller,
@@ -52,7 +46,6 @@ async def record(
     )
 
 
-# 失败或权限拒绝后，使用独立事务保存操作记录。
 async def record_after(
     database: Database,
     caller: Caller,
@@ -65,7 +58,6 @@ async def record_after(
         await record(connection, caller, contract, status, request_id, run_id)
 
 
-# 查询最近的操作记录；只返回元数据，不读取业务输入或输出。
 async def recent(database: Database, limit: int, org_id: str = "") -> list[dict[str, object]]:
     query = select(audit_records).order_by(audit_records.c.created_at.desc()).limit(limit)
     if org_id:

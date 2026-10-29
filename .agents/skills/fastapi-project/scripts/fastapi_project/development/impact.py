@@ -1,7 +1,3 @@
-"""
-从改动路径和完整模块声明计算检查范围，不执行检查或访问业务数据。
-"""
-
 import shlex
 from collections import deque
 from collections.abc import Iterable
@@ -24,7 +20,6 @@ MODULE_AREAS = (
 CHECK = "APP_DISABLED_MODULES='[]' uv run dev check"
 
 
-# 检查范围独立于运行配置；列表与原因均保持排序，便于机器稳定读取。
 @dataclass(frozen=True)
 class ImpactScope:
     direct: list[str]
@@ -40,7 +35,6 @@ class ImpactScope:
     unmapped: list[str]
 
 
-# 只认项目约定的模块位置，不把测试文件内部的同名目录当成模块归属。
 def module_area(path: str, modules: Iterable[str] = ()) -> tuple[str, str] | None:
     for prefix, area in MODULE_AREAS:
         if not path.startswith(prefix):
@@ -68,7 +62,6 @@ def module_area(path: str, modules: Iterable[str] = ()) -> tuple[str, str] | Non
     return None
 
 
-# 框架路径按目录边界匹配，避免 shared_extra 等无关名字误报为共享框架。
 def framework_files(files: Iterable[str]) -> list[str]:
     return sorted(
         path
@@ -81,7 +74,6 @@ def framework_files(files: Iterable[str]) -> list[str]:
     )
 
 
-# 公共接口、迁移和无法归属的应用代码不能安全缩小到某一个模块。
 def shared_reason(path: str, framework: set[str], modules: Iterable[str] = ()) -> str:
     if path in framework:
         return f"框架改动：{path}；需检查全部登记模块"
@@ -98,7 +90,6 @@ def shared_reason(path: str, framework: set[str], modules: Iterable[str] = ()) -
     return ""
 
 
-# 沿 Catalog.edges 的反方向找所有调用方，保留操作名称和后台任务说明。
 def dependent_reasons(catalog: Catalog, direct: Iterable[str]) -> dict[str, list[str]]:
     reverse: dict[str, list[tuple[str, str]]] = {}
     for caller, provider, operation in sorted(set(catalog.edges())):
@@ -118,7 +109,6 @@ def dependent_reasons(catalog: Catalog, direct: Iterable[str]) -> dict[str, list
     return {name: sorted(items) for name, items in sorted(reasons.items())}
 
 
-# 未登记模块仍列为直接改动；其调用方未知时建议全检查，不生成不可执行的模块命令。
 def impact_scope(
     files: Iterable[str],
     catalog: Catalog,
@@ -171,7 +161,6 @@ def impact_scope(
     )
 
 
-# 工具文件只投射到实际登记的调用者，找不到调用者时继续标记未知。
 def record_tool_impact(
     path: str, tools: dict[str, list[str]], catalog: Catalog, reasons: dict[str, list[str]]
 ) -> bool:
@@ -186,7 +175,6 @@ def record_tool_impact(
     return bool(users)
 
 
-# 工具的使用者也包括间接工具与调用模块，不把未声明关系猜成无影响。
 def tool_users(name: str, links: dict[str, list[str]]) -> set[str]:
     found = set()
     pending = [name]
@@ -199,7 +187,6 @@ def tool_users(name: str, links: dict[str, list[str]]) -> set[str]:
     return found
 
 
-# 同一层只给一个多包命令，避免每个包重复执行公共检查。
 def check_commands(affected: list[str], full: bool) -> list[str]:
     if full:
         return [CHECK]
@@ -208,7 +195,6 @@ def check_commands(affected: list[str], full: bool) -> list[str]:
     return [CHECK + " " + " ".join(f"--module {shlex.quote(name)}" for name in affected)]
 
 
-# 原变化报告之后追加建议；建议不是检查已通过的证明。
 def scope_markdown(scope: ImpactScope) -> list[str]:
     lines = [
         "检查范围按完整登记模块计算（含 Step.uses 与 Step.later），不因关闭模块缩小。",

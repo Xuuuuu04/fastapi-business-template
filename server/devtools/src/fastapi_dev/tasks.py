@@ -1,7 +1,3 @@
-"""
-start创建开工卡，finish实际运行相关检查；契约修改请求只生成资料，不改公开接口。
-"""
-
 import argparse
 import json
 import uuid
@@ -22,7 +18,6 @@ from app.setup.application import application_modules
 from shared.modules.catalog import Catalog
 
 
-# 完成必须使用命令这次实际生成的唯一记录，多个并发轮次不混成一个结论。
 def finish(project: Path, catalog: Catalog, identity: str, postgres: str) -> dict:
     card = read_card(project, identity)
     selected = related_modules(catalog, card.package)
@@ -70,7 +65,6 @@ def finish(project: Path, catalog: Catalog, identity: str, postgres: str) -> dic
     }
 
 
-# 契约变更只保存请求，不改契约，也不假定主代理已经批准。
 def ask_contract(project: Path, package: str, reason: str, suggestion: str) -> Path:
     if not package or any(
         character not in "abcdefghijklmnopqrstuvwxyz0123456789_" for character in package
@@ -95,9 +89,8 @@ def ask_contract(project: Path, package: str, reason: str, suggestion: str) -> P
     return path
 
 
-# 实际项目由统一dev入口选定，摘要不展开数百份源码基线和任何数据库地址。
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["start", "finish", "ask-contract", "review-pack"])
     parser.add_argument("--package")
     parser.add_argument("--cases")

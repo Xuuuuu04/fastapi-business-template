@@ -1,7 +1,3 @@
-"""
-新包骨架的完整文件清单；已存在的业务包不覆盖，确认样例只作测试资料引用。
-"""
-
 import json
 from pathlib import Path
 
@@ -16,7 +12,6 @@ from pydantic import TypeAdapter
 from shared.scenarios.observations import ObservationPoint
 
 
-# 测试引用独立JSON，没有取值会写入服务代码；替换真实实现后继续跑相同样例。
 def test_code(package: SkeletonPackage, operation: SkeletonOperation) -> str:
     dependencies = {call.operation: call.case for call in operation.calls}
     marks = ",\n".join(
@@ -24,9 +19,8 @@ def test_code(package: SkeletonPackage, operation: SkeletonOperation) -> str:
         for case in operation.cases
     )
     return (
-        code.HEADER + "from pathlib import Path\nimport pytest\n"
+        "from pathlib import Path\nimport pytest\n"
         "from tests.framework.skeleton_cases import run_case\n\n"
-        "# 同一份独立预期验证模拟与真实实现，模拟通过不代表可交付。\n"
         f"@pytest.mark.anyio\n@pytest.mark.parametrize('identity', [\n{marks}\n])\n"
         "async def test_case(services, identity) -> None:\n"
         f"    actual, expected = await run_case(services, Path(__file__).resolve().parents[4], "
@@ -35,7 +29,6 @@ def test_code(package: SkeletonPackage, operation: SkeletonOperation) -> str:
     )
 
 
-# 标准目录一次生成，数据表与外部动作留给真实业务的独立实现和增量迁移。
 def package_files(project: Path, package: SkeletonPackage, operations: dict) -> dict[Path, str]:
     root = project / "server"
     folder = root / "service" / package.name
@@ -74,8 +67,7 @@ def package_files(project: Path, package: SkeletonPackage, operations: dict) -> 
         )
         names += [operation.name]
     files[folder / "data.py"] = (
-        code.HEADER
-        + "".join(
+        "".join(
             f"from service.{package.name}.data_{name} import "
             f"{code.camel(name)}Input, {code.camel(name)}Output, {code.camel(name)}Work\n"
             for name in names
@@ -88,12 +80,11 @@ def package_files(project: Path, package: SkeletonPackage, operations: dict) -> 
     return files
 
 
-# 独立存储占位与业务文档只补缺失内容，不覆盖先写好的规则。
 def support_files(project: Path, package: SkeletonPackage) -> dict[Path, str]:
     folder = project / "server/service" / package.name
     files: dict[Path, str] = {}
     for name in ("contract", "sql", "tables"):
-        files[folder / "store" / (name + ".py")] = code.HEADER
+        files[folder / "store" / (name + ".py")] = ""
     for name, text in (
         ("needs", "业务需求由产品独立填写，目前生成了声明骨架。"),
         ("rules", "规则与样例由产品独立提供，尚未确认的含义保持待确认。"),
@@ -105,7 +96,6 @@ def support_files(project: Path, package: SkeletonPackage) -> dict[Path, str]:
     return files
 
 
-# 规格全部检查完成再计算清单，预览不登记或写入任何业务。
 def bundle_files(project: Path, bundle: SkeletonBundle) -> dict[Path, str]:
     bundle.validate_links()
     operations = {pkg.name + "." + op.name: op for pkg in bundle.packages for op in pkg.operations}
@@ -124,10 +114,8 @@ def bundle_files(project: Path, bundle: SkeletonBundle) -> dict[Path, str]:
         {path.parent.name for path in (root / "service").glob("*/module.json")}
         | {package.name for package in bundle.packages}
     )
-    catalog = (
-        code.HEADER
-        + "from shared.modules.module import Module\n"
-        + "".join(f"from service.{name}.module import module as {name}\n" for name in names)
+    catalog = "from shared.modules.module import Module\n" + "".join(
+        f"from service.{name}.module import module as {name}\n" for name in names
     )
     files[root / "app/setup/catalog.py"] = (
         catalog + "\nMODULES: list[Module] = [" + ", ".join(names) + "]\n"
@@ -152,7 +140,6 @@ def bundle_files(project: Path, bundle: SkeletonBundle) -> dict[Path, str]:
     return files
 
 
-# 读取全部独立样例，保留每个文件的解析错误。
 def read_cases(project: Path, folder: Path) -> tuple[list[CaseFixture], list[str]]:
     cases: list[CaseFixture] = []
     problems: list[str] = []
@@ -165,7 +152,6 @@ def read_cases(project: Path, folder: Path) -> tuple[list[CaseFixture], list[str
     return cases, problems
 
 
-# 检查观察位置、状态初始化和测试引用，不修改用户资料。
 def metadata_problems(case: CaseFixture, test: str) -> list[str]:
     problems = []
     if case.initial or case.database or case.effects:
@@ -188,7 +174,6 @@ def metadata_problems(case: CaseFixture, test: str) -> list[str]:
     return problems
 
 
-# 逐字段核对样例输入和预期类型，保留全部错误。
 def field_problems(case: CaseFixture, operation: SkeletonOperation) -> list[str]:
     problems = []
     types = {
@@ -216,7 +201,6 @@ def field_problems(case: CaseFixture, operation: SkeletonOperation) -> list[str]
     return problems
 
 
-# 确认样例必须已有，并准确引用即将生成的测试；不修改用户预期或引用。
 def validate_cases(project: Path, package: SkeletonPackage) -> None:
     folder = project / "doc" / package.name / "cases"
     cases, problems = read_cases(project, folder)
@@ -236,7 +220,6 @@ def validate_cases(project: Path, package: SkeletonPackage) -> None:
         raise ValueError("\n".join(problems))
 
 
-# 固定README小节维持可读的结构，不用登记数量表达业务完成。
 def readme(package: SkeletonPackage) -> str:
     return (
         f"# {package.title}\n\n## 用途\n\n从明确字段与连接声明生成，业务尚未实现。\n\n"
@@ -249,18 +232,15 @@ def readme(package: SkeletonPackage) -> str:
     )
 
 
-# 接口目录检查实际OpenAPI路径，业务运算由模块及整链样例验证。
 def interface_test(package: SkeletonPackage) -> str:
     paths = [f"/api/v1/{package.name.replace('_', '-')}/{op.name}" for op in package.operations]
     return (
-        code.HEADER + "\n# 所有公开操作都已接到真实HTTP目录。\n"
         "def test_interfaces(client) -> None:\n"
         "    response = client.get('/openapi.json')\n    assert response.status_code == 200\n"
         f"    assert set({paths!r}) <= set(response.json()['paths'])\n"
     )
 
 
-# 计划已有的节点保持预期范围，新声明必须符合已有包类型与操作计划。
 def bundle_plan(project: Path, bundle: SkeletonBundle) -> str:
     plan = read_plan(project) or {"schema_version": 2, "name": project.name, "lines": []}
     plan["schema_version"] = 2

@@ -1,9 +1,3 @@
-"""
-执行器 Runtime：接口、后台任务和模块之间的调用都经过这里。
-入口调用检查权限，成功结束时提交写入、失败时回滚；模块之间的调用沿用上层的事务和剩余时间。
-每次运行都留下运行记录，异常会带上运行编号，方便按编号查询排查信息。
-"""
-
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import replace
@@ -55,11 +49,9 @@ log = logging.getLogger("server.runtime")
 MAX_DEPTH = 8
 
 
-# 执行已登记的业务操作，管理步骤、事务、模块调用与运行记录。
 class Runtime:
     allow_simulation: bool = False
 
-    # 汇总执行所需的模块目录、数据库、记录器、大模型服务和任务登记入口。
     def __init__(
         self,
         catalog: Catalog,
@@ -103,7 +95,6 @@ class Runtime:
         self.clock = clock or RealClock()
         self._started: dict[str, float] = {}
 
-    # 从接口或任务入口执行一个操作：检查权限，结束时提交或回滚写入。
     @clocked
     async def run[In: Data, Out: Data](
         self,
@@ -154,7 +145,6 @@ class Runtime:
                     otel_context.detach(token)
                     span.end()
 
-    # 执行入口并在同一事务中写成功操作记录；失败时回滚并单独写失败操作记录。
     async def execute_entry(
         self,
         binding: Binding,
@@ -192,14 +182,12 @@ class Runtime:
                 raise
             raise problem from error
 
-    # 把声明为 stream 的操作变成 SSE；客户端断开时取消后台执行并等待回滚。
     async def stream[In: Data, Out: Data](
         self, item: Contract[In, Out], input: In, *, caller: Caller, request_id: str = ""
     ) -> AsyncIterator[bytes]:
         async for event in stream_events(self, item, input, caller=caller, request_id=request_id):
             yield event
 
-    # 执行模块之间的调用：沿用上层事务和剩余时间，记录为下一层运行。
     async def call[In: Data, Out: Data](
         self,
         item: Contract[In, Out],
@@ -250,7 +238,6 @@ class Runtime:
                 otel_context.detach(token)
                 span.end()
 
-    # 在独立的短事务中登记一个后台任务，返回任务编号。
     @clocked
     async def submit(
         self,
@@ -263,11 +250,9 @@ class Runtime:
     ) -> str:
         return await submit_entry(self, item, input, caller, key, request_id)
 
-    # 处理入口调用的失败：回滚写入、整理错误、结束运行记录。
     async def settle(self, scope: Scope, run: RunRecord, error: BaseException) -> BaseException:
         return await settle_entry(self, scope, run, error)
 
-    # 创建一条运行记录并交给记录器。
     def open_run(
         self, binding: Binding, scope: Scope, parent: RunRecord | None, step: StepRecord | None
     ) -> RunRecord:
@@ -275,7 +260,6 @@ class Runtime:
         self._started[run.id] = self.clock.monotonic()
         return run
 
-    # 结束运行记录；记录器出错只写日志，不影响业务结果。
     async def close_run(self, run: RunRecord, status: str) -> None:
         if not run.query_budget:
             check_query_budget(self, run, self.catalog.by_name[run.contract].contract, failed=True)

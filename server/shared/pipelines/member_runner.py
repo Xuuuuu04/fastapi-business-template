@@ -1,7 +1,3 @@
-"""
-成员任务执行前核对剩余格式、组织流程与等待容量；完成回调复用worker的原事务。
-"""
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -25,7 +21,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue, Ticket
 
 
-# worker只需allowed及finish，不理解成员规划、等待和汇合规则。
 @dataclass
 class MemberContext:
     queue: "JobQueue"
@@ -38,12 +33,10 @@ class MemberContext:
     stage: Stage | None
     allowed: bool = True
 
-    # 成员键和任务尝试来自持久状态机。
     @property
     def observation_position(self) -> ObservationPosition:
         return ObservationPosition(member=self.member["key"], attempt=self.ticket.attempt)
 
-    # 数据保存、子任务和外层下一阶段全部使用同一个业务提交事务。
     async def finish(self, connection: AsyncConnection, result: Data, run_id: str) -> None:
         assert self.group is not None and self.stage is not None
         await own(connection, self.ticket)
@@ -80,7 +73,6 @@ class MemberContext:
         )
 
 
-# 未登记成员不拥有流程语义，伪造专用键仍按普通任务处理。
 async def prepare(queue: "JobQueue", ticket: "Ticket") -> MemberContext | None:
     async with queue.database.write() as connection:
         member = await member_for(connection, ticket.id)
@@ -116,7 +108,6 @@ async def prepare(queue: "JobQueue", ticket: "Ticket") -> MemberContext | None:
     return context
 
 
-# 已成功子阶段不比较；只在真正要执行的成员阶段及未来外层格式变化时暂停。
 async def decision(connection: AsyncConnection, context: MemberContext) -> tuple[str, str, str]:
     root, parent, member, group, stage = (
         context.root,
@@ -162,7 +153,6 @@ async def decision(connection: AsyncConnection, context: MemberContext) -> tuple
     return "", "", ""
 
 
-# 同一等待子阶段跨组织受检查并发限制，容量不足时任务短暂重新排队。
 async def wait_capacity(connection: AsyncConnection, context: MemberContext) -> bool:
     assert isinstance(context.stage, Wait)
     await connection.execute(

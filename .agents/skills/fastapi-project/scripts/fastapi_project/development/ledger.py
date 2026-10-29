@@ -1,7 +1,3 @@
-"""
-规则账本的原子存储与生命周期操作；原始敏感材料默认不进入可提交规则文件。
-"""
-
 import hashlib
 import json
 from datetime import UTC, datetime
@@ -20,18 +16,15 @@ from fastapi_project.development.ledger_models import (
 from fastapi_project.development.ledger_store import read_store, write_store
 
 
-# 读取不到账本表示未建立，不能从代码自动生成已确认规则。
 def read_ledger(project: Path) -> RuleLedger:
     return read_store(project)
 
 
-# 一次替换整个小账本，索引坏了可以从文件和版本历史恢复。
 @serialized
 def save_ledger(project: Path, ledger: RuleLedger) -> Path:
     return write_store(project, ledger)
 
 
-# 每次规则动作保存快照和原因，不只保存一个会变的摘要。
 def record(ledger: RuleLedger, rule: LedgerRule, action: str, reason: str) -> None:
     ledger.events.append(
         RuleEvent(
@@ -45,7 +38,6 @@ def record(ledger: RuleLedger, rule: LedgerRule, action: str, reason: str) -> No
     )
 
 
-# 原文仅保存在本机忽略目录，引用只提交脱敏摘要和内容指纹。
 @serialized
 def add_source(project: Path, source: RuleSource, *, raw: str | None = None) -> RuleSource:
     ledger = read_ledger(project)
@@ -63,7 +55,6 @@ def add_source(project: Path, source: RuleSource, *, raw: str | None = None) -> 
     return source
 
 
-# 修订确认规则会恢复为推定，新文本必须重新经过采纳与确认，旧确认留在历史。
 @serialized
 def propose(project: Path, rule: LedgerRule, *, reason: str) -> LedgerRule:
     ledger = read_ledger(project)
@@ -86,7 +77,6 @@ def propose(project: Path, rule: LedgerRule, *, reason: str) -> LedgerRule:
     return rule
 
 
-# 采纳与废止保留来源，废止不能被误解释为没有需求。
 @serialized
 def transition(
     project: Path, id: str, state: Literal["adopted", "retired"], *, reason: str
@@ -102,7 +92,6 @@ def transition(
     return rule
 
 
-# 明确确认记录是人类确认声明，不声称记录者身份已被摘要或工具验证。
 @serialized
 def confirm(project: Path, id: str, confirmation: RuleConfirmation) -> LedgerRule:
     from fastapi_project.development.confirmed_cases import rule_cases
@@ -132,13 +121,11 @@ def confirm(project: Path, id: str, confirmation: RuleConfirmation) -> LedgerRul
     return rule
 
 
-# 内容摘要用于检查过期，不证明确认人的身份。
 def ledger_digest(ledger: RuleLedger) -> str:
     body = json.dumps(ledger.model_dump(mode="json"), ensure_ascii=False, sort_keys=True)
     return hashlib.sha256(body.encode()).hexdigest()
 
 
-# 包级版本只包含实际依赖规则和引用来源，无关资料变化不使所有包过期。
 def scoped_digest(ledger: RuleLedger, names: list[str]) -> str:
     rules = [rule for rule in ledger.rules if rule.id.split(".")[0] in names]
     sources = {name for rule in rules for name in rule.sources}

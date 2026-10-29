@@ -1,7 +1,3 @@
-"""
-受控等待、校时和截止使用事件循环真实取消，但不等待真实业务秒数。
-"""
-
 import asyncio
 
 import pytest
@@ -11,7 +7,6 @@ from shared.timing.clock import FakeClock, RealClock
 pytestmark = pytest.mark.anyio
 
 
-# 业务校时不改变单调预算，等待只在主动推进足够时间后结束。
 async def test_controlled_sleep_and_wall_adjustment() -> None:
     clock = FakeClock(100)
     sleeper = asyncio.create_task(clock.sleep(10))
@@ -25,12 +20,10 @@ async def test_controlled_sleep_and_wall_adjustment() -> None:
     assert clock.now() == 51 and clock.monotonic() == 10
 
 
-# 超时真正取消未完成操作，不把完成状态写成成功。
 async def test_controlled_deadline_cancels_work() -> None:
     clock = FakeClock()
     started, cancelled = asyncio.Event(), asyncio.Event()
 
-    # 业务等待模拟外部响应，截止后需要收到取消。
     async def work() -> None:
         started.set()
         try:
@@ -47,11 +40,9 @@ async def test_controlled_deadline_cancels_work() -> None:
     assert cancelled.is_set()
 
 
-# 操作提前完成，计时等待会被清理，不需要把时间推进到截止。
 async def test_completed_work_does_not_wait_for_deadline() -> None:
     clock = FakeClock()
 
-    # 一个即时纯计算结果。
     async def work() -> int:
         return 7
 
@@ -60,14 +51,11 @@ async def test_completed_work_does_not_wait_for_deadline() -> None:
     assert not clock.waiters
 
 
-# 模拟 loop.time() 比 time.monotonic() 快一千秒的事件循环（macOS 上的 uvloop 就是这样）。
 class ShiftedLoop(asyncio.SelectorEventLoop):
-    # 事件循环自己的时钟整体偏移，调度仍然自洽。
     def time(self) -> float:
         return super().time() + 1000
 
 
-# 正式时钟的截止按剩余秒数交给事件循环，不受事件循环时钟起点影响。
 def test_real_deadline_ignores_loop_clock_offset() -> None:
     clock, loop = RealClock(), ShiftedLoop()
     try:

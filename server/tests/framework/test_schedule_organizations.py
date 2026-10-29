@@ -1,8 +1,3 @@
-"""
-多组织定时：按组织去重、旧单组织周期不重复、失败隔离和实际时段输入。
-所有操作使用独立测试模块，不预置任何业务组织。
-"""
-
 import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -24,7 +19,6 @@ from tests.framework.sample_modules import SlowInput, calc_module, slow
 pytestmark = pytest.mark.anyio
 
 
-# 同计划两组织各登记一份，多进程反复触发也不重复。
 async def test_schedule_runs_once_per_org(sample: Services) -> None:
     timer = Schedule("minute", "每分钟", slow, SlowInput(mark="t"), every=timedelta(minutes=1))
     first = Scheduler([timer], sample.queue, sample.database, org_ids=("alpha", "beta"))
@@ -40,7 +34,6 @@ async def test_schedule_runs_once_per_org(sample: Services) -> None:
     assert {json.loads(row["caller_json"])["id"] for row in rows} == {SYSTEM.id}
 
 
-# 模块声明可选择组织，明确空元组表示全局，不被部署的组织列表复制执行。
 async def test_module_org_selection_and_global_task(sample: Services) -> None:
     timer = Schedule(
         "minute", "每分钟", slow, SlowInput(mark="t"), every=timedelta(minutes=1), org_ids=("beta",)
@@ -60,7 +53,6 @@ async def test_module_org_selection_and_global_task(sample: Services) -> None:
     assert {json.loads(row)["org_id"] for row in rows} == {"beta", "*"}
 
 
-# 旧单组织已经提交本周期时复用原任务，不改变已有任务或重新触发。
 async def test_existing_single_org_slot_is_reused(sample: Services) -> None:
     timer = Schedule("minute", "每分钟", slow, SlowInput(mark="t"), every=timedelta(minutes=1))
     now = datetime(2026, 10, 8, 0, 0, tzinfo=UTC)
@@ -81,14 +73,12 @@ async def test_existing_single_org_slot_is_reused(sample: Services) -> None:
     assert len(rows) == 1
 
 
-# 周期元组没有分隔符碰撞，组织长编号也不超过数据库键长度。
 def test_period_key_is_unambiguous_and_bounded() -> None:
     slot = datetime(2026, 10, 8, tzinfo=UTC)
     assert period_key("x:a", "b", slot) != period_key("x", "a:b", slot)
     assert len(period_key("name" * 20, "a" * 64, slot)) <= 120
 
 
-# 配置有重复、通配或旧新范围矛盾时启动前拒绝。
 @pytest.mark.parametrize(
     "values",
     [
@@ -103,17 +93,14 @@ def test_invalid_org_configuration_is_rejected(values) -> None:
         Settings(_env_file=None, **values)
 
 
-# 周期字段是嵌套输入的一部分，构建时不修改声明过的静态输入。
 class Window(Data):
     end: datetime = meaning("本次计划时段")
 
 
-# 仅用于证明多层字段替换，替换后的时段随任务输入保存。
 class WindowInput(Data):
     request: Window = meaning("窗口")
 
 
-# 使用新的不可变模型，延迟和重试不重新计算时段。
 def test_slot_input_preserves_original() -> None:
     from shared.public import contract
 
@@ -129,7 +116,6 @@ def test_slot_input_preserves_original() -> None:
     assert replaced.request.end == current and old.request.end.day == 1
 
 
-# 计划时间、组织、周期字段和任务参数都参与目录摘要。
 def test_job_and_schedule_configuration_changes_digest() -> None:
     from shared.modules.digest import digest_of
 

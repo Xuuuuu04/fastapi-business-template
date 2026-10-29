@@ -1,7 +1,3 @@
-"""
-租约过期后的状态判断：可安全重复的重新排队，无法确认的保存为未知。
-"""
-
 from typing import Any
 
 from sqlalchemy import update
@@ -14,7 +10,6 @@ from shared.modules.catalog import Catalog
 from shared.pipelines.failure import recoverable_wait
 
 
-# 处理一个过期任务。
 async def expire(
     connection: AsyncConnection,
     catalog: Catalog,

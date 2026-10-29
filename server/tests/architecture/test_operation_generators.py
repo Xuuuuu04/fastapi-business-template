@@ -1,7 +1,3 @@
-"""
-独立模板副本验收生成器：预览无写入、文件报告准确、新操作和流程不手工补文件通过模块检查。
-"""
-
 import json
 import os
 import subprocess
@@ -17,7 +13,6 @@ from tests.template_project import initialize
 COPY_FLAG = "TEMPLATE_COPY_RUN"
 
 
-# 单个副本共用环境，所有步骤只使用隔离SQLite或显式测试PostgreSQL。
 def run(copy: Path, arguments: list[str], env: dict[str, str]) -> str:
     result = subprocess.run(
         [sys.executable, *arguments],
@@ -31,7 +26,6 @@ def run(copy: Path, arguments: list[str], env: dict[str, str]) -> str:
     return result.stdout
 
 
-# 实际源文件快照排除运行缓存及不提交汇总，与生成器Git影响清单口径相同。
 def snapshot(copy: Path) -> dict[str, bytes]:
     excluded = {"var", "__pycache__", ".mypy_cache", ".ruff_cache", ".venv"}
     summaries = {"doc/development.md", "doc/modules.md", "doc/progress.md"}
@@ -44,7 +38,6 @@ def snapshot(copy: Path) -> dict[str, bytes]:
     }
 
 
-# 原模块的基线迁移建立一次，新增操作本身不需要手工补其他代码或环境。
 @pytest.mark.sqlite_template
 def test_new_operation_and_pipeline_check_without_manual_edits(tmp_path: Path) -> None:
     if os.environ.get(COPY_FLAG):

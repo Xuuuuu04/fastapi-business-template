@@ -1,8 +1,3 @@
-"""
-把同一业务规则表中的确认样例对应到实际 pytest 记录。
-无声明不代表无规则；没有当前、明确标记的证据时保持 unrecorded。
-"""
-
 import re
 from pathlib import Path
 from typing import Any
@@ -12,12 +7,10 @@ from fastapi_docs.progress_doc import RULE_HEADING
 STATUSES = ("passed", "failed", "skipped", "unrecorded")
 
 
-# 只拆未转义的 Markdown 分隔符，保留单元格内的文字。
 def cells(line: str) -> list[str]:
     return [part.strip().replace(r"\|", "|") for part in re.split(r"(?<!\\)\|", line)[1:-1]]
 
 
-# 样例表只有编号、输入或情况、结果三列，格式错误直接报出原位置。
 def scenario_table(lines: list[str], start: int, path: Path) -> tuple[list[list[str]], int]:
     header = cells(lines[start])
     if not lines[start].rstrip().endswith("|") or header not in (
@@ -47,7 +40,6 @@ def scenario_table(lines: list[str], start: int, path: Path) -> tuple[list[list[
     return rows, position
 
 
-# 编号必须属于当前标题的规则，重复定义不能被后来的行覆盖。
 def declared_cases(path: Path, module: str) -> tuple[bool, list[dict[str, Any]]]:
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     declared, rule, position = False, "", 0
@@ -82,7 +74,6 @@ def declared_cases(path: Path, module: str) -> tuple[bool, list[dict[str, Any]]]
     return declared, cases
 
 
-# 多个实际测试对应同一样例时，任一失败优先；跳过或未知也不能被通过掩盖。
 def evidence_status(evidence: list[dict[str, Any]]) -> str:
     outcomes = {case["outcome"] for case in evidence}
     if "failed" in outcomes:
@@ -92,7 +83,6 @@ def evidence_status(evidence: list[dict[str, Any]]) -> str:
     return "passed" if outcomes == {"passed"} else "unrecorded"
 
 
-# 保留准确测试名称与旧结果，但旧结果不计为当前样例通过。
 def database_case(identity: str, suite: dict[str, Any]) -> dict[str, Any]:
     evidence = [case for case in suite["cases"] if identity in case.get("scenario_ids", [])]
     current = suite["current"] and all(case.get("current", True) for case in evidence)
@@ -104,7 +94,6 @@ def database_case(identity: str, suite: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-# 整轮检查与单个样例结果分开；current 为假时明确没有当前证据。
 def database_check(suite: dict[str, Any]) -> dict[str, Any]:
     return {
         "current": suite["current"],
@@ -116,7 +105,6 @@ def database_check(suite: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-# 公共入口：tests 是现有 test_status 返回的各数据库最近轮次，不重新读取历史。
 def scenario_status(project: Path, module: str, tests: dict[str, Any]) -> dict[str, Any]:
     declared, cases = declared_cases(project / "doc" / module / "rules.md", module)
     latest = tests.get("latest", {})

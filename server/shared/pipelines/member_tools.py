@@ -1,7 +1,3 @@
-"""
-阶段工具的来源读取、成员规划与有界结果页；独立操作不能越过流程声明访问。
-"""
-
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -22,7 +18,6 @@ if TYPE_CHECKING:
     from shared.pipelines.gate import PipelineGate
 
 
-# 沿用现有写入事务，否则只打开一个短只读连接。
 @asynccontextmanager
 async def reader(gate: "PipelineGate") -> AsyncIterator[AsyncConnection]:
     if gate.scope.tx.connection is not None:
@@ -32,7 +27,6 @@ async def reader(gate: "PipelineGate") -> AsyncIterator[AsyncConnection]:
             yield connection
 
 
-# 工具只认当前任务的真实关联，且组织与声明必须一致。
 async def locate(
     gate: "PipelineGate", connection: AsyncConnection
 ) -> tuple[dict, dict, Pipeline, Stage]:
@@ -63,7 +57,6 @@ async def locate(
     return root, row, pipeline, stage
 
 
-# 只能读取首阶段已经封存的同一份来源，后来的新版本不参与本次运行。
 async def source[Source: Data](gate: "PipelineGate", model: type[Source]) -> Source:
     async with reader(gate) as connection:
         root, _, _, stage = await locate(gate, connection)
@@ -74,7 +67,6 @@ async def source[Source: Data](gate: "PipelineGate", model: type[Source]) -> Sou
     return model.model_validate_json(root["source_json"])
 
 
-# 规划只登记成员，阶段提交后才按并发和队列上限派发。
 async def add_members(gate: "PipelineGate", values: list[Member]) -> int:
     if not gate.saves:
         raise StepRuleBroken("登记成员需要saves=True")
@@ -87,7 +79,6 @@ async def add_members(gate: "PipelineGate", values: list[Member]) -> int:
     return await add(connection, root, row, stage, values, gate.scope.runtime.catalog)
 
 
-# 成功成员结果按稳定键分页；Ratio只返回本次冻结纳入的成员。
 async def results[Output: Data](
     gate: "PipelineGate", name: str, model: type[Output], after: str = "", limit: int = 50
 ) -> MemberPage[Output]:

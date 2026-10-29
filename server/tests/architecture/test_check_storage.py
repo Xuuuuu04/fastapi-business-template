@@ -1,7 +1,3 @@
-"""
-检查结果的轻量读取、轨迹完整性、旧格式转换与并发写入必须给出真实证据。
-"""
-
 import gzip
 import json
 import shutil
@@ -14,7 +10,6 @@ from fastapi_project.development.check_storage import load_cases
 from fastapi_project.development.history import read_checks, save_check
 
 
-# SQL细节只进入压缩轨迹，测试结果流保留定位所需的轻量步骤。
 def record() -> dict:
     run = {
         "id": "run1",
@@ -40,7 +35,6 @@ def record() -> dict:
     }
 
 
-# 清单与轻量结果不嵌入SQL，重复轨迹只存一次；按需查看仍能取回原来的细节。
 def test_manifest_and_content_addressed_detail(tmp_path: Path) -> None:
     path = save_check(tmp_path, record())
     assert json.loads(path.read_text())["schema_version"] == 2
@@ -54,7 +48,6 @@ def test_manifest_and_content_addressed_detail(tmp_path: Path) -> None:
     assert len(list((path.parent / "_runs").glob("*.gz"))) == 1
 
 
-# 查询摘要不需要读轨迹；真正请求细节时，丢失或损坏必须报错。
 def test_missing_and_corrupt_details_are_visible(tmp_path: Path) -> None:
     path = save_check(tmp_path, record())
     run = read_checks(tmp_path)[0]["suites"][0]["cases"][0]["runs"][0]
@@ -68,7 +61,6 @@ def test_missing_and_corrupt_details_are_visible(tmp_path: Path) -> None:
         expand_run(run)
 
 
-# 原记录不变时索引不重读旧大JSON；索引损坏后从原证据重建。
 def test_legacy_import_is_incremental_and_rebuildable(tmp_path: Path, monkeypatch) -> None:
     folder = tmp_path / "server/var/development/checks"
     folder.mkdir(parents=True)
@@ -86,7 +78,6 @@ def test_legacy_import_is_incremental_and_rebuildable(tmp_path: Path, monkeypatc
     assert expand_run(first[0]["suites"][0]["cases"][0]["runs"][0])["id"] == "run1"
 
 
-# 多个完成者独立写入，索引串行提交不丢检查，也不把同轮复制计成新结果。
 def test_concurrent_results_and_imported_duplicates(tmp_path: Path) -> None:
     with ThreadPoolExecutor(max_workers=4) as pool:
         paths = list(pool.map(lambda _: save_check(tmp_path, record()), range(12)))
@@ -96,7 +87,6 @@ def test_concurrent_results_and_imported_duplicates(tmp_path: Path) -> None:
     assert len(read_checks(tmp_path, [imported], include_cases=False)) == 12
 
 
-# 结果流被改动不能继续提供通过证据。
 def test_case_stream_integrity(tmp_path: Path) -> None:
     path = save_check(tmp_path, record())
     metadata = read_checks(tmp_path, include_cases=False)[0]

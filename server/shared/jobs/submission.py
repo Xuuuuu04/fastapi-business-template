@@ -1,7 +1,3 @@
-"""
-任务提交的去重与排队计数，跨事务共享的名额由条件更新维护。
-"""
-
 import hashlib
 import json
 import secrets
@@ -25,7 +21,6 @@ if TYPE_CHECKING:
     from shared.flow.runtime import Runtime
 
 
-# 公开提交入口沿用权限与短事务，不复制后台登记实现。
 async def submit_entry(
     runtime: "Runtime", item: Contract, input: Data, caller: Caller, key: str, request_id: str
 ) -> str:
@@ -38,7 +33,6 @@ async def submit_entry(
         )
 
 
-# 按请求编号查找已有任务；内容不同则报冲突。
 async def same_key(
     connection: AsyncConnection,
     name: str,
@@ -60,13 +54,11 @@ async def same_key(
     return str(matches[0].id) if matches else ""
 
 
-# 新键包括组织与身份类型；旧键仍核对冻结身份，避免升级后重复未知任务。
 def scope_for(caller: Caller) -> str:
     body = json.dumps([caller.kind, caller.id, caller.org_id])
     return hashlib.sha256(body.encode()).hexdigest()
 
 
-# 旧身份缺失或损坏时不猜组织，不通过新登记覆盖不明确的历史。
 def matching_scope(body: str, caller: Caller) -> bool:
     try:
         raw = json.loads(body)
@@ -77,7 +69,6 @@ def matching_scope(body: str, caller: Caller) -> bool:
     return scope_for(caller_from_record(raw)) == scope_for(caller)
 
 
-# 占用一个排队名额；已满时报错。
 async def reserve(connection: AsyncConnection, item: Contract[Any, Any], limit: int) -> None:
     counts = job_counts.c
     change = (
@@ -99,7 +90,6 @@ async def reserve(connection: AsyncConnection, item: Contract[Any, Any], limit: 
     raise QueueFull(f"“{item.title}”排队已满（上限 {limit}），请稍后再试")
 
 
-# 释放一个排队名额。
 async def release(connection: AsyncConnection, name: str) -> None:
     counts = job_counts.c
     lowered = case((counts.active > 0, counts.active - 1), else_=0)
@@ -108,7 +98,6 @@ async def release(connection: AsyncConnection, name: str) -> None:
     )
 
 
-# 输入、身份、业务约束和串行顺序作为同一份冻结登记保存。
 async def job_row(
     connection: AsyncConnection,
     plan: JobPlan,

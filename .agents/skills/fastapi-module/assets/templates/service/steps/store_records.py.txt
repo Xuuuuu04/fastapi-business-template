@@ -1,19 +1,13 @@
-"""
-$title 读写记录的步骤。保存步骤声明了 saves=True，在写入事务中执行。
-"""
-
 from service.$name.data import ${Camel}Missing, CreateWork, ReadWork
 from service.$name.store.contract import ${Camel}Store
 from shared.public import step
 
 
-# 保存新记录。
 @step("保存记录", reads=["clean_title"], writes=["record"], saves=True)
 async def save_record(data: CreateWork, store: ${Camel}Store) -> None:
     data.record = await store.add(data.clean_title)
 
 
-# 按编号读取记录，不存在时报错。
 @step("读取记录", reads=["record_id"], writes=["record"])
 async def read_record(data: ReadWork, store: ${Camel}Store) -> None:
     found = await store.find(data.record_id)

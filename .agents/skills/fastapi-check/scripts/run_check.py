@@ -1,7 +1,3 @@
-"""
-运行本 Skill 的命令；可从任意目录调用，项目位置以脚本自身为准。
-"""
-
 import os
 import runpy
 import sys

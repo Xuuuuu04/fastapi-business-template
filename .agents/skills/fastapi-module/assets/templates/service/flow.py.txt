@@ -1,7 +1,3 @@
-"""
-$title 的流程：每个公开操作对应一个流程，按顺序列出步骤。
-"""
-
 from service.$name.data import CreateWork, ReadWork
 from service.$name.steps.check_record import clean_title
 from service.$name.steps.store_records import read_record, save_record

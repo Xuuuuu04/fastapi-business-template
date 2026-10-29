@@ -1,13 +1,8 @@
-"""
-SQL运行图节点，明细与完整累计分开显示，位置不受细节截断影响。
-"""
-
 from shared.graphs.mermaid import label
 from shared.records.models import StepRecord
 from shared.records.summary import duration
 
 
-# SQL 节点深入到存储函数和调用行；超出保留数量时标出未保留的细节。
 def database_nodes(node: str, step: StepRecord) -> list[str]:
     lines = []
     for index, call in enumerate(step.database, start=1):

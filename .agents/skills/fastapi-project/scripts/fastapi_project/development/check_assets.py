@@ -1,7 +1,3 @@
-"""
-检查轨迹按内容摘要压缩保存；摘要不展开SQL明细，按编号查看时校验内容。
-"""
-
 import gzip
 import hashlib
 import json
@@ -51,7 +47,6 @@ STEP_FIELDS = (
 )
 
 
-# 临时文件与目标在同一目录，替换前不会暴露半份检查结果。
 def atomic_bytes(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, name = tempfile.mkstemp(dir=path.parent, prefix=".writing-")
@@ -65,7 +60,6 @@ def atomic_bytes(path: Path, content: bytes) -> None:
         Path(name).unlink(missing_ok=True)
 
 
-# 引用只接受本检查目录内的普通文件，不跟随链接。
 def asset_path(root: Path, relative: str) -> Path:
     path = root / relative
     if Path(relative).is_absolute() or ".." in Path(relative).parts:
@@ -80,7 +74,6 @@ def asset_path(root: Path, relative: str) -> Path:
     return path
 
 
-# 每次运行保留轻量步骤与实际状态；完整轨迹只保存一份压缩对象。
 def compact_run(run: dict[str, Any], root: Path) -> dict[str, Any]:
     result = {key: run[key] for key in RUN_FIELDS if key in run}
     result["steps"] = [
@@ -100,7 +93,6 @@ def compact_run(run: dict[str, Any], root: Path) -> dict[str, Any]:
     return result
 
 
-# 测试结果不重复嵌入完整轨迹；保留通过、失败、跳过与确认样例的独立证据。
 def compact_case(case: dict[str, Any], root: Path) -> dict[str, Any]:
     return {
         **{key: value for key, value in case.items() if key != "runs"},
@@ -108,7 +100,6 @@ def compact_case(case: dict[str, Any], root: Path) -> dict[str, Any]:
     }
 
 
-# 按需读取有界轨迹；缺失、损坏和摘要不一致都明确失败，不返回伪造的空成功。
 def expand_run(run: dict[str, Any]) -> dict[str, Any]:
     reference = run.get("detail_ref")
     if not reference:

@@ -1,7 +1,3 @@
-"""
-四阶段流程验收：定时全自动、周期去重、从失败阶段恢复、重叠周期与声明变化。
-"""
-
 import time
 from collections import Counter
 from dataclasses import replace
@@ -32,7 +28,6 @@ CALLER = Caller(
 )
 
 
-# 每个样例独立建库；同一夹具在SQLite和PostgreSQL上运行。
 @pytest.fixture
 async def piped(tmp_path: Path):
     settings = make_settings(tmp_path)
@@ -49,13 +44,11 @@ async def piped(tmp_path: Path):
         await built.close()
 
 
-# 通过公开启动操作登记流程，后续完全由worker推进。
 async def start(services: Services, cycle: str) -> str:
     data = pipeline.start.input(request=StartRequest[Ref](data=Ref(), cycle_key=cycle))
     return await services.runtime.submit(pipeline.start, data, caller=CALLER)
 
 
-# 不依赖固定sleep，领取下一次明确到期的任务，直到队列为空。
 async def drain(services: Services) -> None:
     worker = Worker(services.runtime, services.queue, [], WorkerOptions())
     for _ in range(30):
@@ -66,7 +59,6 @@ async def drain(services: Services) -> None:
     raise AssertionError("流程没有在有限阶段内结束")
 
 
-# 读取状态和实际业务执行次数。
 async def snapshot(services: Services, run_id: str):
     async with services.database.read() as connection:
         root = (await connection.execute(select(runs).where(runs.c.id == run_id))).mappings().one()
@@ -83,7 +75,6 @@ async def snapshot(services: Services, run_id: str):
     return root, rows, marks
 
 
-# 定时只登记第一阶段，同周期重复触发不重复，含等待的四阶段无需人工完成。
 async def test_scheduled_four_stages_complete(piped: Services) -> None:
     scheduler = Scheduler(piped.catalog.schedules, piped.queue, piped.database, "")
     now = time.time()
@@ -101,7 +92,6 @@ async def test_scheduled_four_stages_complete(piped: Services) -> None:
     assert rows[2]["poll_count"] == 1
 
 
-# 同周期复用原运行，重叠周期明确记录跳过原因。
 async def test_duplicate_cycle_and_skip_overlap(piped: Services) -> None:
     first = await start(piped, "one")
     assert await start(piped, "one") == first
@@ -111,13 +101,11 @@ async def test_duplicate_cycle_and_skip_overlap(piped: Services) -> None:
     await drain(piped)
 
 
-# 故障修好后只恢复采集阶段，来源选择保留。
 async def test_resume_failed_stage_only(piped: Services, monkeypatch) -> None:
     from shared.pipelines.recovery import resume
 
     original = Store.record
 
-    # 写入后抛错，检查整阶段回滚。
     async def fail(self, name, reference):
         result = await original(self, name, reference)
         if name == "collect":
@@ -139,7 +127,6 @@ async def test_resume_failed_stage_only(piped: Services, monkeypatch) -> None:
     assert marks == {"choose": 1, "collect": 1, "wait": 2, "publish": 1}
 
 
-# 内部实现版本变化不暂停；后续声明变化暂停并明确原因。
 async def test_version_compatibility(piped: Services) -> None:
     from shared.modules.catalog import Catalog
     from shared.pipelines.recovery import resume
@@ -178,7 +165,6 @@ async def test_version_compatibility(piped: Services) -> None:
     assert (await snapshot(piped, run_id))[0]["state"] == "succeeded"
 
 
-# queue周期在前周期完成时自动开始；组织之间互不影响。
 async def test_queued_cycle_and_organizations(piped: Services) -> None:
     from shared.modules.catalog import Catalog
 

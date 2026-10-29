@@ -1,14 +1,9 @@
-"""
-重复实现提示比较跨包函数的实际语法结构，只提示审查，不推定业务完全相同。
-"""
-
 import ast
 import hashlib
 from collections.abc import Iterator
 from pathlib import Path
 
 
-# 短包装函数不参与提示，忽略函数名称和首行文档，保留全部真实计算表达式。
 def function_shape(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
     body = node.body
     if (
@@ -24,7 +19,6 @@ def function_shape(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
     return hashlib.sha256(shape.encode()).hexdigest()
 
 
-# 仅列业务计算与步骤，框架、生成占位和测试数据不参与比较。
 def business_files(project: Path) -> Iterator[tuple[str, Path]]:
     for folder in (project / "server/service").glob("*/"):
         for name in ("calc", "steps"):
@@ -33,7 +27,6 @@ def business_files(project: Path) -> Iterator[tuple[str, Path]]:
                     yield folder.name, path
 
 
-# 同结构跨包实现保留源码出处，是否合并仍需结合实际业务判断。
 def duplicate_hints(project: Path) -> list[dict]:
     groups: dict[str, list[dict]] = {}
     for package, path in business_files(project):

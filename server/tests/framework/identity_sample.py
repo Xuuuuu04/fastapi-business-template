@@ -1,19 +1,13 @@
-"""
-框架身份解析样例，不使用任何产品账号或业务表，也不进入产品MODULES。
-"""
-
 from pydantic import SecretStr
 
 from shared.errors.framework import NotSignedIn
 from shared.public import Data, Flow, Module, WorkData, contract, meaning, step
 
 
-# 不透明令牌由产品数据模型限定长度。
 class Token(Data):
     token: SecretStr = meaning("合成登录令牌", secret=True, max_length=64)
 
 
-# 身份字段来自解析结果，不读取请求正文自报权限。
 class Identity(Data):
     username: str = meaning("身份编号")
     name: str = meaning("名称")
@@ -21,7 +15,6 @@ class Identity(Data):
     permissions: list[str] = meaning("已验证权限")
 
 
-# 流程数据只保留令牌形状与返回身份。
 class IdentityWork(Token, WorkData):
     result: Identity = meaning("身份")
 
@@ -31,7 +24,6 @@ resolve = contract(
 )
 
 
-# 模拟有效会话与失效会话，框架只适配这个已登记操作。
 @step("验证合成会话", reads=["token"], writes=["result"])
 def identify(data: IdentityWork) -> None:
     if data.token.get_secret_value() != "opaque-valid":

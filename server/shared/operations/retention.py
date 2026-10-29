@@ -1,7 +1,3 @@
-"""
-按固定截止分批清理；活动/失败待处理流程和待确认任务永不自动删除。
-"""
-
 import asyncio
 import time
 from pathlib import Path
@@ -19,7 +15,6 @@ from shared.records.tables import run_records
 PHASES = ("members", "stages", "pipelines", "jobs", "runs", "audit", "uploads", "originals")
 
 
-# 每阶段只清理一批，最后一批之后由Checkpoint切换下一阶段。
 async def clean_db(db: Db, phase: str, cutoff: float, config: OperationsConfig) -> int:
     terminal = select(runs.c.id).where(
         runs.c.state.in_(("succeeded", "skipped")),
@@ -61,7 +56,6 @@ async def clean_db(db: Db, phase: str, cutoff: float, config: OperationsConfig) 
     return await db.change(delete(table).where(table.c.id.in_(ids)))
 
 
-# 只遍历明确配置范围，拒绝目录逃逸与符号链接，不删除整个正式文件区。
 def file_batch(root: Path, prefixes: list[str], older: float, limit: int) -> int:
     root = root.resolve()
     count = 0
@@ -81,7 +75,6 @@ def file_batch(root: Path, prefixes: list[str], older: float, limit: int) -> int
     return count
 
 
-# 文件删除可安全重复，退出前只处理本段数量，原件目录由配置明确。
 async def clean_files(settings: Any, phase: str, cutoff: float) -> int:
     config = settings.operations
     if phase == "originals" and settings.file_storage == "s3":
@@ -94,7 +87,6 @@ async def clean_files(settings: Any, phase: str, cutoff: float) -> int:
     )
 
 
-# S3只删除明确原件前缀内超过期限的当前对象；不会删除历史版本。
 def clean_s3(settings: Any, cutoff: float) -> int:
     from shared.files.storage import S3Files, S3Options
 
@@ -126,6 +118,5 @@ def clean_s3(settings: Any, cutoff: float) -> int:
     return count
 
 
-# 初始化时冻结截止时间，重试不扩大本次删除范围。
 def initial_cursor(cursor: dict[str, Any]) -> tuple[int, float]:
     return int(cursor.get("phase", 0)), float(cursor.get("cutoff", time.time()))

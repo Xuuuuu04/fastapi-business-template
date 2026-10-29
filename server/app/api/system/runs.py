@@ -1,8 +1,3 @@
-"""
-运行记录查询：最近的运行、一次运行的全部步骤（含下一层调用）、中文排查报告、进程运行状态。
-只读，不提供重试、清理等修改能力。需要权限 system.diagnostics；每次查询都写一条日志。
-"""
-
 import logging
 import os
 import time
@@ -27,14 +22,12 @@ router = APIRouter(prefix="/api/system", tags=["运行排查"])
 PERMISSION = "system.diagnostics"
 
 
-# 表示“没有找到这次运行的记录，可能已过期清理或保存时丢失”的失败，由统一错误入口返回给调用方。
 class RunMissing(BusinessError):
     code = "run_missing"
     kind = Kind.NOT_FOUND
     message = "没有找到这次运行的记录，可能已过期清理或保存时丢失"
 
 
-# 列出最近的运行，每条带一句中文摘要；同时说明记录是否完整。
 @router.get("/runs", summary="最近的运行", operation_id="system_runs")
 async def runs(
     request: Request,
@@ -67,7 +60,6 @@ async def runs(
     return {"items": items, "records": completeness(recorder)}
 
 
-# 返回一次运行及其下一层调用的全部记录和实际执行图。
 @router.get("/runs/{run_id}", summary="一次运行的详情", operation_id="system_run")
 async def run_detail(run_id: str, request: Request, caller: CallerDep) -> dict[str, Any]:
     require(caller, PERMISSION)
@@ -78,7 +70,6 @@ async def run_detail(run_id: str, request: Request, caller: CallerDep) -> dict[s
     return {"summary": root.summary, "runs": runs, "graph": run_graph(tree)}
 
 
-# 返回一次运行的中文排查报告（Markdown），供人阅读和 Agent 排查。
 @router.get(
     "/runs/{run_id}/report",
     summary="一次运行的中文排查报告",
@@ -92,7 +83,6 @@ async def run_text(run_id: str, request: Request, caller: CallerDep) -> PlainTex
     return PlainTextResponse(run_report(tree, run_id), media_type="text/markdown; charset=utf-8")
 
 
-# 返回进程和资源的当前状态：内存、在途请求、连接池、运行记录缓冲、任务数量、连续失败后暂停调用状态。
 @router.get("/runtime", summary="进程运行状态", operation_id="system_runtime")
 async def runtime(request: Request, caller: CallerDep) -> dict[str, Any]:
     require(caller, PERMISSION)
@@ -120,7 +110,6 @@ async def runtime(request: Request, caller: CallerDep) -> dict[str, Any]:
     }
 
 
-# 按操作和状态统计已结束的运行，说明尚未保存的记录数。
 @router.get("/stats", summary="运行统计", operation_id="system_stats")
 async def stats(
     request: Request,
@@ -136,7 +125,6 @@ async def stats(
     return {"since": since, "hours": hours, "items": rows, "records": completeness(recorder)}
 
 
-# 读取一次运行所在的整棵调用树。
 async def load_tree(request: Request, run_id: str) -> list[Any]:
     recorder: Recorder = request.app.state.services.recorder
     found = await recorder.get(run_id)
@@ -146,7 +134,6 @@ async def load_tree(request: Request, run_id: str) -> list[Any]:
     return tree if any(run.id == run_id for run in tree) else [found]
 
 
-# 说明运行记录的保存方式和丢失情况。
 def completeness(recorder: Recorder) -> dict[str, Any]:
     state = asdict(recorder.state())
     state["storage"] = "memory" if recorder.store.immediate else "database"

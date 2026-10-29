@@ -1,9 +1,3 @@
-"""
-对本机已启动的服务施加有界的并发压力，输出响应耗时和失败率。
-只用于比较改动前后的变化，结果不能当作生产容量承诺。
-用法：uv run python -m tests.load.run --port 8000 --key 服务密钥 --count 500 --workers 20
-"""
-
 import argparse
 import asyncio
 import json
@@ -13,7 +7,6 @@ from statistics import median
 import httpx2
 
 
-# 发送一个请求，返回耗时（毫秒）和是否成功。
 async def hit(
     client: httpx2.AsyncClient, path: str, limit: asyncio.Semaphore
 ) -> tuple[float, bool]:
@@ -27,7 +20,6 @@ async def hit(
         return (time.perf_counter() - started) * 1000, passed
 
 
-# 按指定并发发送请求并汇总结果。
 async def measure(port: int, key: str, path: str, count: int, workers: int) -> dict[str, float]:
     headers = {"X-API-Key": key} if key else {}
     limit = asyncio.Semaphore(workers)
@@ -50,7 +42,6 @@ async def measure(port: int, key: str, path: str, count: int, workers: int) -> d
     }
 
 
-# 解析参数并输出结果；有失败时返回非零。
 def main() -> None:
     parser = argparse.ArgumentParser(description="本机压力检查")
     parser.add_argument("--port", type=int, default=8000)

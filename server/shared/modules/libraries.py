@@ -1,7 +1,3 @@
-"""
-纯工具包的声明与静态依赖，共享数据与协议不需要数据库业务操作。
-"""
-
 import ast
 import json
 import keyword
@@ -13,7 +9,6 @@ from typing import Any
 from shared.errors.framework import DeclarationError
 
 
-# 导出名称和业务含义由定位、依赖图与文档共同读取。
 @dataclass(frozen=True)
 class LibrarySpec:
     name: str
@@ -21,7 +16,6 @@ class LibrarySpec:
     exports: tuple[str, ...]
     aliases: tuple[str, ...] = ()
 
-    # 只描述声明，不调用工具函数。
     def shape(self) -> dict[str, Any]:
         return dict(
             name=self.name,
@@ -32,7 +26,6 @@ class LibrarySpec:
         )
 
 
-# 只读取包内静态描述，拒绝链接和不一致归属。
 def library_specs(root: Path) -> list[LibrarySpec]:
     result = []
     for folder in sorted((root / "library").glob("*/")):
@@ -62,7 +55,6 @@ def library_specs(root: Path) -> list[LibrarySpec]:
     return result
 
 
-# 数据类允许大写名称；错误字段类型与重复导出明确报告，不执行公开入口。
 def export_names(raw: dict[str, Any], folder: Path) -> tuple[str, ...]:
     values = raw.get("exports")
     if (
@@ -85,7 +77,6 @@ def export_names(raw: dict[str, Any], folder: Path) -> tuple[str, ...]:
     return tuple(values)
 
 
-# 静态导入只记录工具包名称，内部文件不成为跨包入口。
 def imported_libraries(folder: Path) -> set[str]:
     found = set()
     for path in folder.rglob("*.py"):
@@ -103,7 +94,6 @@ def imported_libraries(folder: Path) -> set[str]:
     return found
 
 
-# 实际依赖来自导入，计划不覆盖这些事实。
 def library_links(root: Path) -> dict[str, list[str]]:
     names = {spec.name for spec in library_specs(root)}
     result = {name: sorted(imported_libraries(root / "library" / name) - {name}) for name in names}
@@ -117,7 +107,6 @@ def library_links(root: Path) -> dict[str, list[str]]:
     return result
 
 
-# 缺失目标与循环明确失败，传递依赖没有人为的三层限制。
 def library_closure(name: str, links: dict[str, list[str]], names: set[str]) -> set[str]:
     found: set[str] = set()
     pending = list(links.get(name, []))

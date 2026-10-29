@@ -1,15 +1,9 @@
-"""
-提供开发视图和测试历史所需的安全步骤信息，不复制说明文字、业务取值或身份。
-字段产出只保留形状；数据库调用只保留函数位置、表名、耗时和行数。
-"""
-
 from dataclasses import asdict
 from typing import Any
 
 from shared.records.models import RunRecord, StepRecord
 
 
-# 使用固定字段清单，运行记录新增业务数据时不会自动进入开发历史。
 def step_evidence(step: StepRecord) -> dict[str, Any]:
     names = (
         "simulated",
@@ -53,7 +47,6 @@ def step_evidence(step: StepRecord) -> dict[str, Any]:
     return result
 
 
-# 一次实际运行的名称、状态、时间和步骤；保留版本用于判断历史记录。
 def run_evidence(run: RunRecord) -> dict[str, Any]:
     names = (
         "simulated",
@@ -77,7 +70,6 @@ def run_evidence(run: RunRecord) -> dict[str, Any]:
     }
 
 
-# 远程调用安全证据与步骤证据使用相同的固定字段原则。
 def remote_evidence(step: StepRecord) -> list[dict[str, Any]]:
     remote_fields = (
         "remote",

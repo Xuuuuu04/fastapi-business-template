@@ -1,19 +1,12 @@
-"""
-全项目文本摘要限定一屏：模块各一行，未展开的信息通过模块/操作查看，不隐藏总数。
-每行写成完整的话，让第一次读的人不用解码。
-"""
-
 from typing import Any
 
 
-# 每个数据库的检查状态写成一句话：版本新旧、是否通过、通过多少。
 def suite_text(database: str, suite: dict[str, Any]) -> str:
     age = "当前版本" if suite["current"] else "过期版本（源码已经变了，需要重新检查）"
     result = "通过" if suite["checks_passed"] else "没有通过"
     return f"{database} 上最近一轮检查：{age}，{result}（{suite['counts']}）"
 
 
-# 只显示最需要下一步行动的信息，完整JSON及单模块视图仍保留详情。
 def render(summary: dict[str, Any]) -> str:
     lines = [f"# {summary['name']}：项目摘要"]
     check = summary.get("latest_full_check") or summary.get("latest_check")
@@ -66,7 +59,6 @@ def render(summary: dict[str, Any]) -> str:
     return "\n".join(lines[:28]) + "\n"
 
 
-# 模块一页列出待确认、各数据库状态和继续读取的入口。
 def module_markdown_summary(module: dict[str, Any]) -> list[str]:
     lines = [
         f"## {module['title']}（{module['name']}）",

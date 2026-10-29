@@ -1,7 +1,3 @@
-"""
-dev merge在临时工作树整合真实源码，完整双库和迁移验证通过后才更新原分支。
-"""
-
 import argparse
 import json
 import subprocess
@@ -21,7 +17,6 @@ WORKER = (
 )
 
 
-# 子进程日志留在本机资料目录，报告不复制连接地址或实际业务轨迹。
 def validation(project: Path, tree: Path, postgres: str, *, workers: int = 4) -> dict:
     if not 0 <= workers <= 32:
         raise ValueError("整合检查进程预算应为0至32")
@@ -58,7 +53,6 @@ def validation(project: Path, tree: Path, postgres: str, *, workers: int = 4) ->
     }
 
 
-# 成功应用后用当前产品自己的声明刷新面板，失败不能隐瞒原分支已经更新。
 def refresh(project: Path, report: dict) -> None:
     if not report["applied"]:
         return
@@ -76,9 +70,8 @@ def refresh(project: Path, report: dict) -> None:
     save_report(project, report)
 
 
-# 分支参数明确授权本机整合，preview只保留验证候选，不执行远程推送或生产数据库操作。
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     parser.add_argument("branch")
     parser.add_argument("--postgres", required=True)
     parser.add_argument("--preview", action="store_true")

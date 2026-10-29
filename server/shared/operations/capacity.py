@@ -1,7 +1,3 @@
-"""
-磁盘和数据库容量观察，超阈值共享暂停非关键任务，恢复后自动解除。
-"""
-
 import asyncio
 import json
 import shutil
@@ -18,7 +14,6 @@ from shared.operations.notifications import enqueue
 from shared.operations.tables import state
 
 
-# 旧队列不查询运维表；开启后跨worker使用共享暂停条件。
 async def capacity_filter(queue: Any, connection: Any, pick: Any) -> Any:
     if not queue.capacity_enabled:
         return pick
@@ -29,7 +24,6 @@ async def capacity_filter(queue: Any, connection: Any, pick: Any) -> Any:
     return pick
 
 
-# 目录未创建时检查其最近存在父目录所在磁盘。
 def disk_usage(path: str) -> float:
     folder = Path(path).resolve()
     while not folder.exists():
@@ -38,7 +32,6 @@ def disk_usage(path: str) -> float:
     return disk.used / disk.total * 100
 
 
-# 容量来源明确：PG整库实际大小，SQLite文件与WAL；不把未知当零。
 async def observe(db: Db, settings: Any) -> dict[str, Any]:
     url = make_url(settings.database_url)
     if url.get_backend_name() == "postgresql":
@@ -62,7 +55,6 @@ async def observe(db: Db, settings: Any) -> dict[str, Any]:
     return dict(database_bytes=size, disk_percent=max(percentages), exceeded=exceeded)
 
 
-# 状态与提醒一起提交，所有worker在领取下一任务时读取同一事实。
 async def save(db: Db, settings: Any, result: dict[str, Any]) -> None:
     now = time.time()
     values = dict(

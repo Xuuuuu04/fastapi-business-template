@@ -1,7 +1,3 @@
-"""
-真实生成项目的两包两迁移整合验收，不在正式空模板或任何产品数据库上开发业务。
-"""
-
 import json
 import os
 import subprocess
@@ -33,7 +29,6 @@ raise SystemExit(1 if report.get('error') or report.get('panel_error') else 0)
 """
 
 
-# 每个分支从同一框架旧版生成自己的增量，DB文件在忽略目录且只用于本例。
 def branch(copy: Path, name: str, env: dict[str, str]) -> None:
     run(copy, [*ENTRY, "new-module", name, "--title", "合成独立业务包"], env)
     database = copy / ".agents/records" / (name + ".db")
@@ -60,7 +55,6 @@ def branch(copy: Path, name: str, env: dict[str, str]) -> None:
     git(copy, "commit", "-m", "synthetic package and migration")
 
 
-# 两个真包与接口/迁移冲突整合，完整双库证据必须导出并在原项目重读。
 @pytest.mark.anyio
 @pytest.mark.postgres_only
 async def test_real_two_package_merge_and_dual_database_evidence(tmp_path: Path) -> None:

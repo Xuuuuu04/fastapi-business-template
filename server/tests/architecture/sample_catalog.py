@@ -1,11 +1,6 @@
-"""
-开发工具测试专用的模块声明，不进入应用登记、接口或数据库迁移。
-"""
-
 from shared.public import Module, contract
 from tests.framework.sample_modules import CalcInput, CalcResult, NoteStore, calc_flow
 
-# 为状态与版本测试提供五个独立操作，不携带文件或账号业务实现。
 records = Module(
     "sample_records",
     "记录样例",

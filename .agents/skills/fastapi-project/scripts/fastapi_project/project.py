@@ -1,8 +1,3 @@
-"""
-一次取得项目计划、模块图、开发包、真实测试轮次与操作执行情况。
-默认不启动服务和访问数据库；--runs 按需增加最近的数据库运行记录。
-"""
-
 import argparse
 import asyncio
 import json
@@ -26,7 +21,6 @@ from app.setup.application import application, application_modules
 from shared.modules.catalog import Catalog
 
 
-# 参数仅选择查看范围，默认不访问数据库。
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="查看项目开发状态与设计图")
     parser.add_argument("--module", default="", help="只显示一个模块的步骤、条件和测试情况")
@@ -64,7 +58,6 @@ def arguments() -> argparse.Namespace:
     return args
 
 
-# 全局或单模块视图均支持 JSON，供主干 Agent 直接抽取与分配工作。
 def main() -> None:
     args = arguments()
     settings = application().settings("runtime" if args.runs else "offline")
@@ -82,7 +75,6 @@ def main() -> None:
 
         from shared.db.database import Database
 
-        # 刷新后关闭隔离查询连接，默认摘要继续只读缓存。
         async def refresh_pipelines() -> None:
             database = Database(settings.database_url)
             try:
@@ -107,7 +99,6 @@ def main() -> None:
         print(module_markdown(result) if args.module else project_markdown(status))
 
 
-# 摘要与细节分开选择，保留已有全局、模块 JSON 的用法。
 def select_view(status: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     if args.summary:
         return project_summary(status, args.module)

@@ -1,7 +1,3 @@
-"""
-外部响应按实际解压字节限制，超限提前停止并关闭；写入仍需确认结果。
-"""
-
 import gzip
 from collections.abc import AsyncIterator
 
@@ -16,30 +12,24 @@ from shared.remote_calls.service import RemoteRequest, RemoteService
 pytestmark = pytest.mark.anyio
 
 
-# 合成分块流，记录读取块数与是否关闭，不访问真实服务。
 class ChunkStream(httpx2.AsyncByteStream):
-    # 保存待发送块与读取、关闭计数。
     def __init__(self, chunks: list[bytes]) -> None:
         self.chunks, self.reads, self.closed = chunks, 0, False
 
-    # 逐块发送合成内容，方便判断是否提前停止。
     async def __aiter__(self) -> AsyncIterator[bytes]:
         for chunk in self.chunks:
             self.reads += 1
             yield chunk
 
-    # 记录响应上下文已经关闭底层流。
     async def aclose(self) -> None:
         self.closed = True
 
 
-# 不信任较小声明长度，超限读取停止，写入结果仍需确认。
 @pytest.mark.parametrize("method,error", [("GET", RemoteRejected), ("POST", RemoteResultUnknown)])
 async def test_chunked_response_stops_at_limit(method: str, error: type[Exception]) -> None:
     stream = ChunkStream([b"x" * 65536] * 8)
     calls = []
 
-    # 合成服务器故意声明较小长度，以实际字节检查为准。
     def handle(request: httpx2.Request) -> httpx2.Response:
         calls.append(request)
         return httpx2.Response(200, stream=stream, headers={"Content-Length": "1"})
@@ -57,7 +47,6 @@ async def test_chunked_response_stops_at_limit(method: str, error: type[Exceptio
         await service.close()
 
 
-# 压缩后的传输量小，也不能绕过解压内容上限。
 async def test_compressed_model_response_is_limited_after_decompression() -> None:
     stream = ChunkStream([gzip.compress(b"x" * 200_000)])
     transport = httpx2.MockTransport(
@@ -83,7 +72,6 @@ async def test_compressed_model_response_is_limited_after_decompression() -> Non
         await provider.close()
 
 
-# 正常响应保留既有 JSON、文本与二进制约定。
 async def test_small_external_json_preserves_reply_contract() -> None:
     service = RemoteService(
         {"partner": RemoteConfig(base_url="https://partner.test")},

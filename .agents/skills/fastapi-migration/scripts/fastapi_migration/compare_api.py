@@ -1,9 +1,3 @@
-"""
-比较两份 OpenAPI 描述，列出接口的增加、删除和声明变化，供人判断是否需要新版本接口。
-命令参数与调用方法见本功能所属项目 Skill。
-报告只提示变化，兼容性由开发者判断。
-"""
-
 import argparse
 import json
 from pathlib import Path
@@ -12,7 +6,6 @@ from typing import Any
 from fastapi_docs.api_doc import METHODS
 
 
-# 把接口按“方法 路径”整理成索引。
 def operations(schema: dict[str, Any]) -> dict[str, Any]:
     return {
         f"{method.upper()} {path}": item
@@ -22,7 +15,6 @@ def operations(schema: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-# 列出接口和数据模型的变化。
 def compare(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     old, new = operations(before), operations(after)
     changes = [f"删除接口：{key}" for key in sorted(old.keys() - new.keys())]
@@ -41,7 +33,6 @@ def compare(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
     return changes
 
 
-# 读取前后两份描述并打印变化。
 def main() -> None:
     parser = argparse.ArgumentParser(description="比较两份 OpenAPI 描述")
     parser.add_argument("--before", type=Path, required=True)

@@ -1,7 +1,3 @@
-"""
-流程查看与当前阶段恢复：查看需系统诊断权限，恢复另需流程管理权限，按组织限制。
-"""
-
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -15,13 +11,11 @@ from shared.pipelines.views import detail, list_runs
 router = APIRouter(tags=["多阶段流程"])
 
 
-# 版本变化和未知外部结果需分别明确确认，默认都不接受。
 class ResumeRequest(BaseModel):
     accept_schema: bool = False
     confirm_unknown: bool = False
 
 
-# 只列当前组织的摘要，跨组织系统身份需明确拥有组织通配权限。
 @router.get("/api/system/pipelines", summary="流程运行", operation_id="pipeline_runs")
 async def listing(
     request: Request, caller: CallerDep, limit: Annotated[int, Query(ge=1, le=200)] = 50
@@ -46,7 +40,6 @@ async def listing(
     }
 
 
-# 运行记录链接复用已有的运行查看接口，业务内容不在流程摘要里公开。
 @router.get("/api/system/pipelines/{run_id}", summary="流程详情", operation_id="pipeline_detail")
 async def show(run_id: str, request: Request, caller: CallerDep) -> dict[str, Any]:
     require(caller, "system.diagnostics")
@@ -56,7 +49,6 @@ async def show(run_id: str, request: Request, caller: CallerDep) -> dict[str, An
     return result
 
 
-# 先检查组织可见性，再人工恢复当前阶段；框架不会自动重做未知外部效果。
 @router.post(
     "/api/system/pipelines/{run_id}/resume", summary="恢复当前阶段", operation_id="pipeline_resume"
 )
@@ -74,7 +66,6 @@ async def restart(run_id: str, data: ResumeRequest, request: Request, caller: Ca
     return {"message": message}
 
 
-# 成员查询先沿用流程组织与权限过滤，只返回有界摘要。
 @router.get(
     "/api/system/pipelines/{run_id}/members", summary="扇出成员", operation_id="pipeline_members"
 )

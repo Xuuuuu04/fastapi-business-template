@@ -1,7 +1,3 @@
-"""
-扇出摘要和有界成员详情，不公开业务输入、来源内容或产出正文。
-"""
-
 import json
 from typing import Any
 
@@ -11,7 +7,6 @@ from shared.db.database import Database
 from shared.pipelines.tables import members, stages
 
 
-# 所有成员只取计数进入流程摘要，避免在大项目里展开200行正文。
 async def group_summaries(database: Database, run_id: str) -> dict[str, dict[str, Any]]:
     query = (
         select(stages.c.name, members.c.state, func.count())
@@ -35,7 +30,6 @@ async def group_summaries(database: Database, run_id: str) -> dict[str, dict[str
     return result
 
 
-# 按稳定键查看成员，每个子阶段保留实际版本和运行记录链接。
 async def listing(
     database: Database, run_id: str, stage: str, *, after: str = "", limit: int = 50
 ) -> dict[str, Any]:

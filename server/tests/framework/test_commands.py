@@ -1,9 +1,3 @@
-"""
-命令行功能：按运行编号打印报告、人工处理后台任务，
-fastapi_operations.make_key 生成服务密钥。命令从 APP_ 环境变量读取数据库地址，这里指向测试数据库，
-模块清单换成测试用的示例模块，不依赖可以删除的业务模块。
-"""
-
 import asyncio
 import json
 import sys
@@ -38,13 +32,10 @@ from tests.testing_app import make_settings, reset_database_now
 MODULES = [calc_module, outer_module]
 
 
-# 测试命令行工具的输入与输出，避免真实终端交互。
 class Console:
-    # 用给定的参数执行命令行入口，返回打印的内容。
     def __init__(self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
         self.monkeypatch, self.capsys = monkeypatch, capsys
 
-    # 执行一条命令。
     def __call__(self, main: Callable[[], None], *args: str) -> str:
         self.capsys.readouterr()
         self.monkeypatch.setattr(sys, "argv", ["tool", *args])
@@ -52,7 +43,6 @@ class Console:
         return self.capsys.readouterr().out
 
 
-# 准备测试数据库，并让命令行工具连接它、使用示例模块。
 @pytest.fixture
 def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
     settings = make_settings(tmp_path, run_records="database")
@@ -64,7 +54,6 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
     return settings
 
 
-# 执行一次计算并登记一个任务，返回运行编号和任务编号。
 async def prepare(settings: Settings) -> tuple[str, str]:
     services = build(settings, modules=MODULES, provider=FakeModel())
     try:
@@ -83,7 +72,6 @@ async def prepare(settings: Settings) -> tuple[str, str]:
         await services.close()
 
 
-# 直接修改任务状态，模拟任务失败或等待兼容版本。
 async def set_state(url: str, job_id: str, state: str) -> None:
     database = Database(url)
     try:
@@ -93,7 +81,6 @@ async def set_state(url: str, job_id: str, state: str) -> None:
         await database.close()
 
 
-# 排查命令能列出运行、打印报告和统计，并说明操作的流程和字段来源。
 def test_diagnose_commands(
     settings: Settings, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -109,7 +96,6 @@ def test_diagnose_commands(
     assert "应付" in console(main, "field", "sample_calc.calc", "total")
 
 
-# 任务命令：修改状态必须加 --yes；取消、重新排队、确认版本后重新排队按状态给出结果。
 def test_job_commands(
     settings: Settings, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -130,7 +116,6 @@ def test_job_commands(
     assert "任务不存在" in console(main, "requeue", "missing", "--yes")
 
 
-# 生成的密钥原文与配置中的摘要对应，组织和权限按参数写入。
 def test_make_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     printed = Console(monkeypatch, capsys)(
         fastapi_operations.make_key.main,
@@ -147,7 +132,6 @@ def test_make_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
     assert (config["org_id"], config["permissions"]) == ("north", ["sample_calc.use"])
 
 
-# 关闭需要加密的模块后不要求字段加密配置；文件服务按实际模块需求检查。
 def test_deploy_checks_enabled_modules(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.setup.build.MODULES", [file_module, secret_module])
     settings = make_settings(
@@ -171,7 +155,6 @@ def test_deploy_checks_enabled_modules(tmp_path: Path, monkeypatch: pytest.Monke
     assert check_configuration(settings) == []
 
 
-# 关闭带提示词的模块后，部署检查不再要求大模型配置。
 def test_deploy_ignores_disabled_model_module(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

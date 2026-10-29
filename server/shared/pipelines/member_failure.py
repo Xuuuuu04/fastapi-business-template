@@ -1,7 +1,3 @@
-"""
-成员故障同步到扇出阶段；未知结果和格式变化立即暂停，普通失败收齐其他成员后汇合判断。
-"""
-
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select, update
@@ -19,7 +15,6 @@ if TYPE_CHECKING:
     from shared.modules.catalog import Catalog
 
 
-# 旧任务已不再关联成员时不修改成员当前阶段，成功结果永远保留。
 async def failed(
     connection: AsyncConnection,
     queue: "JobQueue",
@@ -62,7 +57,6 @@ async def failed(
         await advance(connection, queue, root, parent, group)
 
 
-# 未知状态不会被其他成员的普通故障覆盖，外部结果必须人工核实。
 async def pause(
     connection: AsyncConnection, root: dict, parent: dict, state: str, message: str
 ) -> None:
@@ -76,7 +70,6 @@ async def pause(
     )
 
 
-# 等待次数不是错误重试次数，租约恢复继续使用原等待截止时间。
 async def recoverable_wait(connection: AsyncConnection, catalog: "Catalog", job_id: str) -> bool:
     member = await member_for(connection, job_id)
     if member is None:

@@ -1,7 +1,3 @@
-"""
-开工资料与收工核对使用实际声明、规则和本次检查，模拟、旧证据和跳过不能算完成。
-"""
-
 import json
 import uuid
 from datetime import UTC, datetime
@@ -27,7 +23,6 @@ from fastapi_project.development.task_scope import rules_digest, scope_modules
 from shared.modules.catalog import Catalog
 
 
-# 必须引用独立样例，未知编号不创建一张看似已定义好完成条件的任务卡。
 def fixtures(project: Path, package: str, identities: list[str]) -> list[CaseFixture]:
     found = [
         CaseFixture.model_validate_json(path.read_bytes())
@@ -39,7 +34,6 @@ def fixtures(project: Path, package: str, identities: list[str]) -> list[CaseFix
     return selected
 
 
-# 阅读资料只列有界引用，不把原话或样例里的业务原文复制进任务卡输出。
 def start_task(project: Path, catalog: Catalog, package: str, identities: list[str]) -> TaskCard:
     if package not in catalog.modules:
         raise ValueError("业务包还未登记，请先声明契约与骨架")
@@ -74,7 +68,6 @@ def start_task(project: Path, catalog: Catalog, package: str, identities: list[s
     return card
 
 
-# 本包与相邻步骤提供有界引用，原话资料保留原件，不自动复制到卡片。
 def reading_paths(
     project: Path,
     catalog: Catalog,
@@ -104,7 +97,6 @@ def reading_paths(
     return list(dict.fromkeys(reading))
 
 
-# 当前包和所有实际调用方一起检查，避免只测孤立步骤就宣布整条链可用。
 def related_modules(catalog: Catalog, package: str) -> tuple[str, ...]:
     links = catalog.links()
     selected = {package}
@@ -116,7 +108,6 @@ def related_modules(catalog: Catalog, package: str) -> tuple[str, ...]:
     return tuple(sorted(selected))
 
 
-# 变化清单包含新增和删除，不能只检查仍然存在的文件。
 def changed_files(card: TaskCard, project: Path) -> list[str]:
     current = source_snapshot(project)
     return sorted(
@@ -126,7 +117,6 @@ def changed_files(card: TaskCard, project: Path) -> list[str]:
     )
 
 
-# 检查来源时间、范围和代码指纹，当前样例成功不代表完整相关链已检查。
 def freshness_problems(
     card: TaskCard, project: Path, catalog: Catalog, record: dict[str, Any]
 ) -> list[str]:
@@ -159,7 +149,6 @@ def freshness_problems(
     return []
 
 
-# 读取新鲜本次证据；模拟轨迹、跳过和源版本变化都不能成为完成条件。
 def evidence_problems(
     card: TaskCard,
     project: Path,
@@ -193,7 +182,6 @@ def evidence_problems(
     return problems
 
 
-# 任务范围、契约和确认样例各自核对；范围外改动列入审查，不藏进检查成功里。
 def finish_task(
     project: Path,
     catalog: Catalog,

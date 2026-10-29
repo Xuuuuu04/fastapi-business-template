@@ -1,8 +1,3 @@
-"""
-框架增量更新的业务保护：独立修改可合并，冲突时全部保留，
-业务目录、迁移历史、配置与依赖文件不会被框架文件覆盖。
-"""
-
 import hashlib
 import json
 from pathlib import Path
@@ -18,7 +13,6 @@ from fastapi_template.template.files import (
 from fastapi_template.template.merge import apply_plan, update_plan
 
 
-# 新版改公共文件，产品自己的模块、迁移、依赖与环境必须保持。
 def test_update_preserves_product_files(tmp_path: Path) -> None:
     base, source, target = projects(tmp_path)
     write(base, "server/shared/a.py", "VALUE = 1\n")
@@ -48,7 +42,6 @@ def test_update_preserves_product_files(tmp_path: Path) -> None:
     check_base(target, source)
 
 
-# 两边改动不同段时保留产品修改，并使第二次更新继续使用正确的新版来源。
 def test_independent_edits_merge_and_next_update(tmp_path: Path) -> None:
     base, source, target = projects(tmp_path)
     original = "first = 1\n\nmiddle = 1\n\nlast = 1\n"
@@ -68,7 +61,6 @@ def test_independent_edits_merge_and_next_update(tmp_path: Path) -> None:
     assert "last = 3" in (target / "server/shared/a.py").read_text()
 
 
-# 一个冲突必须阻止同批其他正常文件写入，来源记录也保持原样。
 def test_conflict_keeps_every_file_unchanged(tmp_path: Path) -> None:
     base, source, target = projects(tmp_path)
     for root, value in ((base, 1), (source, 2), (target, 3)):
@@ -87,7 +79,6 @@ def test_conflict_keeps_every_file_unchanged(tmp_path: Path) -> None:
     assert (target / "template-source.json").read_bytes() == origin
 
 
-# 新增重名、修改与删除冲突不可自动覆盖；只删除产品没有修改的上游删除项。
 @pytest.mark.parametrize(
     "old,local,new,state",
     [
@@ -109,7 +100,6 @@ def test_add_delete_conflicts(
     assert len(changes) == 1 and changes[0].state == state
 
 
-# 旧模板不一致和预览后再次修改都阻止保存。
 def test_wrong_base_and_changed_preview(tmp_path: Path) -> None:
     base, source, target = projects(tmp_path)
     for root, value in ((base, 1), (source, 2), (target, 1)):
@@ -123,8 +113,6 @@ def test_wrong_base_and_changed_preview(tmp_path: Path) -> None:
         apply_plan(target, base, source, changes)
 
 
-# 升级用新模板自己的清单：旧工具写的来源记录没登记的文件单独列出、按新增处理，
-# 来源记录换成新格式（含 framework_lock），下次升级不再被拒绝。
 @pytest.mark.parametrize(
     "local,state",
     [(None, "update"), ("HELPER = 1\n", None), ("MINE = 1\n", "conflict")],
@@ -160,7 +148,6 @@ def test_source_manifest_adds_newly_managed_files(
     assert check_base(target, source) == []
 
 
-# 模板和产品链接均不能把写入引向项目之外。
 def test_symlink_is_rejected(tmp_path: Path) -> None:
     base, source, target = projects(tmp_path)
     outside = tmp_path / "outside"
@@ -172,7 +159,6 @@ def test_symlink_is_rejected(tmp_path: Path) -> None:
     assert not list(outside.iterdir())
 
 
-# 依赖变化明确列出，不能静默忽略或复制到产品。
 def test_dependencies_require_manual_review(tmp_path: Path) -> None:
     base, source, target = projects(tmp_path)
     write(source, "server/pyproject.toml", '[project]\nversion = "2.1.0"\n')
@@ -180,7 +166,6 @@ def test_dependencies_require_manual_review(tmp_path: Path) -> None:
     assert manual == ["server/pyproject.toml"]
 
 
-# 建立三个独立版本，没有 Git 共同祖先也可以比较。
 def projects(tmp_path: Path) -> tuple[Path, Path, Path]:
     roots = tuple(tmp_path / name for name in ("base", "source", "target"))
     for root in roots:
@@ -188,7 +173,6 @@ def projects(tmp_path: Path) -> tuple[Path, Path, Path]:
     return roots
 
 
-# 保存明确样例，不访问真实项目或数据库。
 def write(root: Path, name: str, content: str) -> None:
     path = root / name
     path.parent.mkdir(parents=True, exist_ok=True)

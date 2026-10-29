@@ -1,7 +1,3 @@
-"""
-按实际Schedule入口在新数据库上跑完整流程，所有外部请求只回放原件，输出可审查阶段证据。
-"""
-
 import asyncio
 import json
 import shutil
@@ -27,7 +23,6 @@ from shared.pipelines.tables import runs
 from shared.remote_calls.remote import RemoteConfig
 
 
-# 只使用演练自有文件/数据库/模拟模型，清空真实配置，不继承.env和服务密钥。
 def settings_for(url: str, folder: Path, names: set[str]) -> Settings:
     return Settings(
         _env_file=None,
@@ -49,7 +44,6 @@ def settings_for(url: str, folder: Path, names: set[str]) -> Settings:
     )
 
 
-# 可显式导入隔离库数据；表必须来自模块登记，JSONL按批加载，不读取真实业务库。
 async def seed(services: Services, config: dict[str, Any], root: Path) -> None:
     from sqlalchemy import insert
 
@@ -65,7 +59,6 @@ async def seed(services: Services, config: dict[str, Any], root: Path) -> None:
         await load_seed(services, insert(tables[item["table"]]), path)
 
 
-# 一张表独立分批导入，事务只覆盖一个批次。
 async def load_seed(services: Services, statement: Any, path: Path) -> None:
     batch = []
     with path.open() as source:
@@ -80,7 +73,6 @@ async def load_seed(services: Services, statement: Any, path: Path) -> None:
             await connection.execute(statement, batch)
 
 
-# 建表只发生在刚创建的新文件/schema，迁移版本标明当前演练框架。
 async def prepare(services: Services) -> None:
     groups = {id(metadata): metadata}
     for module in services.catalog.modules.values():
@@ -97,7 +89,6 @@ async def prepare(services: Services) -> None:
         )
 
 
-# 真实规模输入由业务Schedule或seed声明，框架不把规模数字当已处理行数。
 async def execute(
     modules: Sequence[Module],
     config: dict[str, Any],
@@ -148,7 +139,6 @@ async def execute(
     return result
 
 
-# 只选择本流程的实际定时入口，Worker完成后才报告成功；等待超时明确需要人工。
 async def scheduled(services: Services, config: dict[str, Any]) -> tuple[str, bool, str]:
     pipeline = services.catalog.pipelines.get(config["pipeline"])
     if pipeline is None:
@@ -196,7 +186,6 @@ async def scheduled(services: Services, config: dict[str, Any]) -> tuple[str, bo
         return run_id, True, "timed_out"
 
 
-# 回放覆盖来自实际远程运行记录，不从清单存在推测已覆盖阶段。
 def covered(
     stages: list[dict[str, Any]], replay: dict[str, Replay], services: Services
 ) -> dict[str, Any]:

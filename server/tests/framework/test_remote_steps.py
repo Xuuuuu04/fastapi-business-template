@@ -1,8 +1,3 @@
-"""
-通过执行器验证 remote 和 cache 的注入：步骤参数和存储构造参数都能拿到，
-调用写进运行记录；未声明的外部系统和写入事务之后的外部调用在启动时被拒绝。
-"""
-
 from pathlib import Path
 
 import httpx2
@@ -34,30 +29,24 @@ from tests.testing_app import make_settings, reset_database
 partner = remote("partner", "合作方")
 
 
-# 外部接口测试输入的商品编号。
 class Sku(Data):
     sku: str = meaning("商品编号")
 
 
-# 外部接口测试返回的价格，单位为分。
 class Price(Data):
     price: int = meaning("合作方报价", unit="分")
 
 
-# 外部接口测试各步骤共享的编号、价格和结果。
 class PriceWork(WorkData):
     sku: str = meaning("商品编号")
     price: int = meaning("合作方报价", unit="分")
     result: Price = meaning("操作结果")
 
 
-# 外部接口测试的数据访问实现，同时使用外部请求与缓存。
 class PriceStore:
-    # 构造参数名 remote 和 cache 决定框架注入外部接口和缓存。
     def __init__(self, remote: RemoteClient, cache: ModuleCache) -> None:
         self.remote, self.cache = remote, cache
 
-    # 先查缓存，没有时询问合作方并缓存一分钟。
     async def price(self, sku: str) -> int:
         cached = await self.cache.get_text(f"price:{sku}")
         if cached is not None:
@@ -71,20 +60,17 @@ ask_price = contract("price_probe.ask", "询价", input=Sku, output=Price, acces
 cached_price = contract("price_probe.cached", "缓存询价", input=Sku, output=Price, access="public")
 
 
-# 步骤直接通过 remote 参数询价。
 @step("询问合作方", reads=["sku"], writes=["price"], remotes=[partner])
 async def ask(data: PriceWork, remote: RemoteClient) -> None:
     reply = await remote.get(partner, f"/prices/{data.sku}", params={"token": "secret"})
     data.price = int(reply.data["price"])
 
 
-# 通过存储实现询价，存储实现自己决定是否使用缓存。
 @step("读取价格", reads=["sku"], writes=["price"])
 async def read_price(data: PriceWork, store: PriceStore) -> None:
     data.price = await store.price(data.sku)
 
 
-# 把价格整理成结果。
 @step("整理结果", reads=["price"], writes=["result"])
 def finish(data: PriceWork) -> None:
     data.result = Price(price=data.price)
@@ -103,9 +89,7 @@ price_module = Module(
 )
 
 
-# 组装只含询价模块的服务，并把合作方替换成计数的模拟接口。
 async def services_with(tmp_path: Path, seen: list[str]) -> Services:
-    # 按路径返回固定报价，并记下收到的请求路径。
     def respond(request: httpx2.Request) -> httpx2.Response:
         seen.append(request.url.path)
         graph = run_graph(list(services.recorder.active.values()))
@@ -121,7 +105,6 @@ async def services_with(tmp_path: Path, seen: list[str]) -> Services:
     return services
 
 
-# 步骤的 remote 参数发出请求，运行记录保存调用概要但不保存查询参数。
 @pytest.mark.anyio
 async def test_remote_step_is_recorded(tmp_path: Path) -> None:
     seen: list[str] = []
@@ -144,7 +127,6 @@ async def test_remote_step_is_recorded(tmp_path: Path) -> None:
         await services.close()
 
 
-# 存储实现按构造参数名拿到 remote 和 cache；第二次读取命中缓存，不再请求合作方。
 @pytest.mark.anyio
 async def test_store_gets_remote_and_cache(tmp_path: Path) -> None:
     seen: list[str] = []
@@ -165,17 +147,14 @@ async def test_store_gets_remote_and_cache(tmp_path: Path) -> None:
         await services.close()
 
 
-# 步骤使用未在模块登记的外部系统，或在保存步骤之后调用外部系统，启动检查都会报出。
 def test_remote_declarations_are_checked() -> None:
     other = remote("other", "未登记系统")
     save = contract("remote_order.save", "保存后询价", input=Sku, output=Price, access="public")
 
-    # 声明了未登记的外部系统。
     @step("询问未登记系统", reads=["sku"], writes=["price"], remotes=[other])
     async def ask_other(data: PriceWork, remote: RemoteClient) -> None:
         data.price = 0
 
-    # 先写入数据库。
     @step("先保存", reads=["sku"], saves=True)
     async def save_first(data: PriceWork, store: NoteStore) -> None:
         await store.add(data.sku)

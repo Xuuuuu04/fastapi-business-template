@@ -1,13 +1,7 @@
-"""
-定义错误的种类和业务错误的写法。
-错误种类决定 HTTP 状态码和任务能否重试；中文说明可以改，种类和错误码不能随意改。
-"""
-
 from enum import StrEnum
 from typing import ClassVar
 
 
-# 统一错误类型，用于决定接口状态码及错误处理方式。
 class Kind(StrEnum):
     INVALID = "invalid"
     NOT_FOUND = "not_found"
@@ -37,13 +31,11 @@ KIND_TEXT = {
 RETRY_KINDS = frozenset({Kind.TEMPORARY, Kind.TIMEOUT})
 
 
-# 可预期失败的共同格式，携带稳定错误码和中文原因。
 class BusinessError(Exception):
     code: ClassVar[str] = ""
     kind: ClassVar[Kind] = Kind.INVALID
     message: ClassVar[str] = ""
 
-    # 用类上的默认说明或本次的具体说明创建错误；fields 记录字段名和问题。
     def __init__(self, detail: str = "", *, fields: dict[str, str] | None = None) -> None:
         self.detail = detail or self.message
         self.fields = dict(fields or {})

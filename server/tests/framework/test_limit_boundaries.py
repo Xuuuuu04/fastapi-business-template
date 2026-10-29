@@ -1,7 +1,3 @@
-"""
-新约束不能猜旧任务事实，资源调整与线程取消必须有可验证的边界。
-"""
-
 import asyncio
 import threading
 from dataclasses import replace
@@ -23,7 +19,6 @@ from tests.framework.test_job_limits import Input, operation, setup
 pytestmark = pytest.mark.anyio
 
 
-# 未冻结串行约束的旧任务不能按当前输入重新推定业务键。
 async def test_old_job_without_new_limits_is_blocked(tmp_path: Path) -> None:
     services, _, clock = await setup(tmp_path, serial=True)
     try:
@@ -43,7 +38,6 @@ async def test_old_job_without_new_limits_is_blocked(tmp_path: Path) -> None:
         await services.close()
 
 
-# 存在在途位置时不改变容量，结束后才允许明确调整。
 async def test_resource_reconfiguration_requires_idle(tmp_path: Path) -> None:
     services, _, clock = await setup(tmp_path)
     try:
@@ -66,7 +60,6 @@ async def test_resource_reconfiguration_requires_idle(tmp_path: Path) -> None:
         await services.close()
 
 
-# 顶层存在不代表子字段存在，检查必须指出完整路径。
 async def test_nested_missing_serial_field_is_rejected(tmp_path: Path) -> None:
     services, _, _ = await setup(tmp_path)
     try:
@@ -78,14 +71,12 @@ async def test_nested_missing_serial_field_is_rejected(tmp_path: Path) -> None:
         await services.close()
 
 
-# 取消等待时线程尚未结束，下一次发送不能因此取得新的真实线程位置。
 async def test_smtp_cancellation_keeps_actual_thread_limit(monkeypatch) -> None:
     started, release = threading.Event(), threading.Event()
     adapter = SmtpAdapter(SmtpConfig(account="test", host="synthetic.invalid"))
     adapter.configure_limit(1)
     calls = 0
 
-    # 不连接真实SMTP，保留正式线程准入与取消行为。
     def send_once(input, key):
         nonlocal calls
         calls += 1

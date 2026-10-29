@@ -1,7 +1,3 @@
-"""
-实际成员与分段恢复样例：步骤地址携带持久成员、尝试和批次，数据库及外部效果单独断言。
-"""
-
 from dataclasses import replace
 
 import pytest
@@ -24,7 +20,6 @@ __all__ = ["fanout", "segmented"]
 pytestmark = pytest.mark.anyio
 
 
-# 只对独立测试模块添加观察点，正式MODULES仍为空。
 def observed(module):
     return replace(
         module,
@@ -40,20 +35,17 @@ def observed(module):
     )
 
 
-# 模块替换发生在fixture组装之前，每个测试退出后恢复原声明。
 @pytest.fixture(autouse=True)
 def capture_modules(monkeypatch):
     monkeypatch.setattr(fanout_driver, "module", observed(fanout_driver.module))
     monkeypatch.setattr(test_segmented_jobs, "module", observed(test_segmented_jobs.module))
 
 
-# 成员失败后新尝试保留可区分地址；原成功成员不重跑，失败SQL被撤销。
 async def test_member_retry_has_real_positions(fanout, monkeypatch) -> None:
     from shared.pipelines.recovery import resume
 
     original = Store.collect
 
-    # 第二个成员在真实SQL之后失败，不能把未完成步骤当作有观察结果。
     async def fail(self, id, version):
         value = await original(self, id, version)
         if id == 2:
@@ -78,7 +70,6 @@ async def test_member_retry_has_real_positions(fanout, monkeypatch) -> None:
         assert await connection.scalar(select(func.count()).select_from(collected)) == 4
 
 
-# 实际分段执行器生成1、2、3批地址；相同步骤不能被最后一批覆盖。
 async def test_segment_positions_follow_actual_checkpoint(segmented) -> None:
     job = await submit(segmented, total=6, batch_size=2)
     journal = ObservationJournal()
@@ -92,7 +83,6 @@ async def test_segment_positions_follow_actual_checkpoint(segmented) -> None:
     await test_segmented_jobs.assert_complete(segmented, job, 6)
 
 
-# 外部受理和实际发送次数分别检查，重启服务不能生成第二次效果。
 async def test_effect_count_and_restart_are_independent_expectations(tmp_path) -> None:
     from shared.access.caller import SYSTEM
     from shared.effects.service import EffectService

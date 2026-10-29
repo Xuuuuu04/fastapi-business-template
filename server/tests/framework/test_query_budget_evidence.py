@@ -1,7 +1,3 @@
-"""
-查询额度的未知状态、历史读取、子操作累计及演练/项目输出。
-"""
-
 from typing import Any
 
 import pytest
@@ -18,7 +14,6 @@ from shared.records.models import RunRecord, StepRecord
 from tests.framework.query_budget_sample import module_for
 
 
-# 最小记录只包含框架字段，不添加预置业务。
 def record() -> RunRecord:
     return RunRecord(
         "r",
@@ -37,7 +32,6 @@ def record() -> RunRecord:
     )
 
 
-# scalar的结果值已测大小，但原查询返回行数仍未知，不等同于count聚合值。
 @pytest.mark.anyio
 async def test_unknown_scalar(tmp_path: Any) -> None:
     database = Database(f"sqlite+aiosqlite:///{tmp_path}/unknown.db")
@@ -60,7 +54,6 @@ async def test_unknown_scalar(tmp_path: Any) -> None:
         await database.close()
 
 
-# 上层预算不能靠多次调用子操作绕过；每个位置仍记录真实次数。
 def test_child_totals_and_latest_failed() -> None:
     run = record()
     child = record()
@@ -94,7 +87,6 @@ def test_child_totals_and_latest_failed() -> None:
     assert view["query_budget"]["queries"] == 20
 
 
-# 老测试证据可以没有运行号/时刻，新增视图必须给未知而不是抛异常。
 def test_old_query_evidence_is_unknown() -> None:
     cases = [dict(outcome="passed", runs=[dict(operation="query_sample.read", steps=[])])]
     view = latest_query(cases, "query_sample.read")
@@ -102,7 +94,6 @@ def test_old_query_evidence_is_unknown() -> None:
     assert view["measured"] == "未知" and view["status"] == "未知"
 
 
-# 保留主干2.11.0公开约定中别名的原位置，新增额度仍是可选字段。
 def test_alias_contract_position_is_compatible() -> None:
     from shared.modules.contract import Contract
     from tests.framework.query_budget_sample import Input, Output

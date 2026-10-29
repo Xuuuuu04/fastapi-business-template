@@ -1,8 +1,3 @@
-"""
-旧项目显式采用标准业务包结构。全部包检查通过后才写入 module.json，不改业务代码或登记表。
-新开发包仍应通过 uv run dev new-module 创建。
-"""
-
 import json
 import sys
 
@@ -14,7 +9,6 @@ from shared.modules.layout import check_layout, descriptor
 from shared.modules.validation.imports import check_imports
 
 
-# 不跳过违规，也不替旧代码猜位置；先修好结构再重试。
 def main() -> None:
     problems = check_layout(ROOT, (module.name for module in MODULES), markers=False)
     problems += step_locations(MODULES)

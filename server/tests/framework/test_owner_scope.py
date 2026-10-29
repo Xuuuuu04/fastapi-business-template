@@ -1,8 +1,3 @@
-"""
-按负责人隔离：没有 see_all 权限时每层查询都要限定负责人是自己，写入的负责人必须是自己，
-不能改负责人；有 see_all 权限的调用者不受限制。
-"""
-
 import pytest
 from sqlalchemy import Column, Integer, MetaData, Table, func, insert, select, update
 
@@ -21,7 +16,6 @@ SALES = Caller("u7", "user", "销售", frozenset({"probe.read"}), "north")
 BOSS = Caller("u1", "user", "主管", frozenset({"probe.manage"}), "north")
 
 
-# 普通调用者必须限定负责人；子查询也要单独限定；主管不受限制。
 def test_owner_conditions() -> None:
     mine = deals.c.owner_id == SALES.id
     check_owner(select(deals).where(mine), SALES)

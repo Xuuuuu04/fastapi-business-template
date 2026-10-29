@@ -1,7 +1,3 @@
-"""
-按同一协议构造HTTP请求，路径和查询字段不再次复制进正文，文件正文有明确容量上限。
-"""
-
 import json
 
 from shared.data.models import Data
@@ -11,7 +7,6 @@ from shared.remote_calls.request import FilePart, RemoteRequest
 from shared.remote_calls.routing import render_path, routing_problems
 
 
-# 字段别名只用于上游传输，声明始终使用本地字段名。
 def request_for(
     endpoint: Endpoint, input: Data, key: str = "", files: tuple[FilePart, ...] = ()
 ) -> RemoteRequest:
@@ -55,13 +50,11 @@ def request_for(
     )
 
 
-# 模型自己的字段别名是协议唯一来源，不另外维护手写字段映射。
 def alias(endpoint: Endpoint, name: str) -> str:
     field = endpoint.input.model_fields.get(name)
     return (field.serialization_alias or field.alias or name) if field else name
 
 
-# 文件数量和总大小都检查；字段名不得与普通表单字段混用。
 def check_files(endpoint: Endpoint, files: tuple[FilePart, ...]) -> None:
     names = [part.field for part in files]
     if len(names) != len(set(names)) or set(names) != set(endpoint.file_fields):

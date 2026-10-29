@@ -1,7 +1,3 @@
-"""
-摘要不能丢跨包失败、沿用旧证据，或让局部检查掩盖全量检查失败。
-"""
-
 import json
 import shlex
 import subprocess
@@ -21,7 +17,6 @@ from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
 
 
-# 独立规则和源码只用于元数据检查，不执行任何业务写入。
 def prepare(project: Path) -> None:
     doc = project / "doc/sample_records/rules.md"
     doc.parent.mkdir(parents=True)
@@ -40,7 +35,6 @@ def prepare(project: Path) -> None:
     test.write_text("# 调用方测试第一版\n", encoding="utf-8")
 
 
-# 调用方显式检查被调用模块的确认样例，setup失败时没有业务运行。
 def case(name: str, outcome: str = "passed", *, runs: bool = True) -> dict[str, Any]:
     return {
         "nodeid": f"tests/integration/sample_accounts/test_call.py::{name}",
@@ -52,7 +46,6 @@ def case(name: str, outcome: str = "passed", *, runs: bool = True) -> dict[str, 
     }
 
 
-# 记录输入中的范围明确，局部检查不能冒充完整框架检查。
 def record(project: Path, cases: list[dict[str, Any]], *, scope: str = "all") -> None:
     names = [module.name for module in MODULES] if scope == "all" else [scope]
     passed = all(item["outcome"] == "passed" for item in cases)
@@ -69,7 +62,6 @@ def record(project: Path, cases: list[dict[str, Any]], *, scope: str = "all") ->
     )
 
 
-# setup失败没有run，但明确样例标记仍必须保留，不能被另一项通过遮住。
 def test_cross_module_setup_failure_remains_scenario_failure(tmp_path: Path) -> None:
     prepare(tmp_path)
     record(tmp_path, [case("test_ok"), case("test_setup_error", "failed", runs=False)])
@@ -79,7 +71,6 @@ def test_cross_module_setup_failure_remains_scenario_failure(tmp_path: Path) -> 
     assert len(item["by_database"]["sqlite"]["nodeids"]) == 2
 
 
-# 只改调用方测试，也不能继续用它给被调用模块的样例提供当前通过证据。
 def test_cross_module_evidence_checks_its_test_owner_version(tmp_path: Path) -> None:
     prepare(tmp_path)
     record(tmp_path, [case("test_ok")])
@@ -91,13 +82,12 @@ def test_cross_module_evidence_checks_its_test_owner_version(tmp_path: Path) -> 
     assert not status["modules"]["sample_records"]["operations"][1]["test_executions"]
     summary = project_summary(status)
     suite = summary["modules"]["sample_records"]["tests"]["latest"]["sqlite"]
-    assert suite["counts"]["passed"] == 1  # 历史结果保留，不冒充当前证据。
+    assert suite["counts"]["passed"] == 1
     assert suite["current_counts"]["passed"] == 0 and suite["stale_count"] == 1
     assert suite["problems"][0]["current"] is False
     assert any(item["kind"] == "stale_source" for item in summary["attention"])
 
 
-# 完整检查失败后，各包单独通过仍须报告框架失败，并保留失败测试入口。
 def test_local_success_does_not_hide_full_framework_failure(tmp_path: Path) -> None:
     prepare(tmp_path)
     failed = {
@@ -125,7 +115,6 @@ def test_local_success_does_not_hide_full_framework_failure(tmp_path: Path) -> N
     assert "test_framework" in json.dumps(result["latest_full_check"])
 
 
-# 调用操作标题数量增长不应进入项目级摘要；具体标题只在单包查看。
 def test_dependency_titles_do_not_expand_project_summary(tmp_path: Path) -> None:
     prepare(tmp_path)
     status = project_status(Catalog(MODULES), tmp_path)
@@ -138,7 +127,6 @@ def test_dependency_titles_do_not_expand_project_summary(tmp_path: Path) -> None
     assert "title_19999" not in json.dumps(result)
 
 
-# 大量过期通过记录在前时，真正失败仍须优先进入有限预览。
 @pytest.mark.parametrize("outcome", ["passed", "skipped"])
 def test_failure_preview_precedes_stale_successes(tmp_path: Path, outcome: str) -> None:
     prepare(tmp_path)
@@ -155,7 +143,6 @@ def test_failure_preview_precedes_stale_successes(tmp_path: Path, outcome: str) 
     assert suite["problem_count"] == 7 and suite["omitted_problems"] == 2
 
 
-# 外部检查目录是证据来源，摘要给出的继续读取命令必须保留它。
 def test_imported_check_next_command_keeps_its_source_directory(tmp_path: Path) -> None:
     prepare(tmp_path)
     record(tmp_path, [case("test_imported_failure", "failed", runs=False)])

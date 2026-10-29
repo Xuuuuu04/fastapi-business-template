@@ -1,7 +1,3 @@
-"""
-后台失败与维护错误处理，未知结果不进入自动重试，维护失败保留失败事实。
-"""
-
 import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
@@ -18,7 +14,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue, Ticket
 
 
-# 根据错误种类和已尝试次数决定下一个状态。
 def next_state(kind: Kind, attempt: int, retries: int, wait_after: Any) -> tuple[str, float]:
     if kind in RETRY_KINDS and attempt <= retries:
         return "waiting_retry", business_now() + float(wait_after(attempt))
@@ -27,7 +22,6 @@ def next_state(kind: Kind, attempt: int, retries: int, wait_after: Any) -> tuple
     return "failed", 0.0
 
 
-# 明确延后不计作失败；外部效果已产生时执行器会先把RetryLater转为未知结果。
 async def save_business_failure(
     queue: "JobQueue", ticket: "Ticket", error: BusinessError, retries: int, wait_after: Any
 ) -> None:
@@ -57,7 +51,6 @@ async def save_business_failure(
     )
 
 
-# 执行一项后台维护，出错只写日志，避免 worker 主循环退出。
 async def guarded[T](
     name: str, work: Awaitable[T], on_failure: Callable[[], None] | None = None
 ) -> T | None:

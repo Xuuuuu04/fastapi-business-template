@@ -1,7 +1,3 @@
-"""
-只处理明确派生文件和有身份的JSON冲突，其他源码冲突保留给实际开发者处理。
-"""
-
 import re
 from pathlib import Path
 
@@ -25,12 +21,10 @@ DERIVED = {
 }
 
 
-# 可再生文件有固定范围，手写需求、规则和变化文档不会被通配覆盖。
 def derived(name: str) -> bool:
     return name in DERIVED or bool(re.fullmatch(r"doc/[a-z][a-z0-9_]*/(?:flows|ledger)\.md", name))
 
 
-# 三方提交原件先验证再写临时树，系统接口变化和普通源码冲突仍会停止。
 def resolve(tree: Path, start: dict) -> None:
     ancestor = git(tree, "merge-base", start["head"], start["incoming"])
     commits = (ancestor, start["head"], start["incoming"])
@@ -55,7 +49,6 @@ def resolve(tree: Path, start: dict) -> None:
             handled.append(name)
             continue
         if derived(name):
-            # 只在临时树取一份占位，后续docs必须重新生成并通过一致性检查。
             git(tree, "checkout", "--ours", "--", name)
             handled.append(name)
     for name in handled:

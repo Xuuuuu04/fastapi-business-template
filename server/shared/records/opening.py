@@ -1,7 +1,3 @@
-"""
-创建操作运行记录，固定版本、计划步骤及上层关系。
-"""
-
 import secrets
 from typing import TYPE_CHECKING
 
@@ -15,7 +11,6 @@ if TYPE_CHECKING:
     from shared.flow.runtime import Runtime
 
 
-# 创建记录并注册；继续保留Runtime.open_run作为执行器统一入口。
 def open_record(
     runtime: "Runtime",
     binding: Binding,

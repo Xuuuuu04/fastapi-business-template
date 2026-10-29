@@ -1,7 +1,3 @@
-"""
-$title 的数据库表。表名以模块名开头，只有本模块的 store 可以读写。
-"""
-
 from sqlalchemy import Column, Integer, String, Table
 
 from shared.public import UtcTime, metadata

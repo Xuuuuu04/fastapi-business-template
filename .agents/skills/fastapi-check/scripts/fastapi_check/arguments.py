@@ -1,19 +1,13 @@
-"""
-检查参数与实际执行分开，非法范围在启动子进程前拒绝。
-"""
-
 import argparse
 import os
 
 from fastapi_project.development.selection import module_names
 
 
-# 保留两个CPU给主机和嵌套命令，小机器至少两个、大机器最多四个测试进程。
 def default_workers() -> int:
     return max(2, min(4, (os.cpu_count() or 2) - 2))
 
 
-# 依次运行全部检查并汇总结果。
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="快速调试、分层验收或完整检查")
     parser.add_argument(

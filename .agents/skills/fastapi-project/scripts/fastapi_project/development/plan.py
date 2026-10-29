@@ -1,8 +1,3 @@
-"""
-读取项目的预先设计：业务线、开发包与预期操作。
-计划不登记代码、不生成业务规则；未实现的模块和操作可以先写进来。
-"""
-
 import json
 import re
 from pathlib import Path
@@ -12,7 +7,6 @@ NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)+$")
 OPERATION = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
 
 
-# 读取计划；缺少计划时保留未知，不从当前实现猜出总目标。
 def read_plan(project: Path) -> dict[str, Any] | None:
     path = project / "project-plan.json"
     if not path.exists():
@@ -22,7 +16,6 @@ def read_plan(project: Path) -> dict[str, Any] | None:
     return plan
 
 
-# 验证设计图，避免重复开发包和空操作让完成比例失去意义。
 def check_plan(plan: Any) -> None:
     if not isinstance(plan, dict) or plan.get("schema_version") not in {1, 2}:
         raise ValueError("project-plan.json 的 schema_version 必须为 1或2")
@@ -46,7 +39,6 @@ def check_plan(plan: Any) -> None:
     check_dependencies(lines)
 
 
-# 依赖目标必须存在且不成环，计划不能引用想象中的模块。
 def check_dependencies(lines: list[dict[str, Any]]) -> None:
     packages = [package for line in lines for package in line["packages"]]
     edges = {package["module"]: package.get("dependencies", []) for package in packages}
@@ -68,7 +60,6 @@ def check_dependencies(lines: list[dict[str, Any]]) -> None:
                 pending.extend(edges.get(current, []))
 
 
-# 一个模块只属于一个开发包，公开操作按本模块内的名称列出。
 def check_package(package: Any, seen: set[str], *, allow_empty: bool = False) -> None:
     if not isinstance(package, dict):
         raise ValueError("开发包必须为对象")
@@ -95,7 +86,6 @@ def check_package(package: Any, seen: set[str], *, allow_empty: bool = False) ->
         raise ValueError(f"开发包 {name} 的dependencies无效")
 
 
-# 显式已实现操作仍必须属于计划，保持可审查的历史登记证据。
 def check_implemented(package: dict) -> None:
     values = package.get("implemented_operations", [])
     if not isinstance(values, list) or any(not isinstance(value, str) for value in values):

@@ -1,9 +1,3 @@
-"""
-组织列和数据库语句检查：访问带组织列的表必须明确限定为调用者的组织。
-每一层查询（包括子查询、表别名、关联的表）都单独检查自己的条件；
-无法证明隔离条件成立的语句一律拒绝执行，由存储实现改成简单语句。
-"""
-
 from collections.abc import Callable, Iterable, Iterator
 from typing import Any, cast
 
@@ -22,12 +16,10 @@ from shared.access.caller import Caller
 from shared.errors.framework import NotAllowed, StepRuleBroken
 
 
-# 标记一个需要组织隔离的表列，供 Db 在执行前检查。
 def org_column() -> Column[str]:
     return Column("org_id", String(64), nullable=False, index=True, info={"org_scoped": True})
 
 
-# 对带组织列的表执行语句时，检查每一层查询的条件和写入的值。
 def check_org(statement: Executable, caller: Caller) -> None:
     nodes = list(visitors.iterate(cast(ClauseElement, statement)))
     owners = [node.table for node in nodes if isinstance(node, ColumnClause)]
@@ -49,8 +41,6 @@ def check_org(statement: Executable, caller: Caller) -> None:
         raise StepRuleBroken(f"无法确认访问 {names} 时带有组织条件，请改成简单的单表或关联查询")
 
 
-# 一层查询中每个按组织隔离的来源都必须在这一层的条件中限定组织；
-# column、scoped、what 让按负责人隔离（owner.py）复用同一套检查。
 def check_select(
     select: Select[Any],
     org_id: str,
@@ -66,7 +56,6 @@ def check_select(
     return sources
 
 
-# 插入的组织必须是调用者的组织；修改和删除必须限定组织，且不能改组织编号。
 def check_change(
     statement: Insert | Update | Delete,
     org_id: str,
@@ -89,7 +78,6 @@ def check_change(
         raise StepRuleBroken(f"不能通过更新语句修改 {name_of(table)} 的{what}")
 
 
-# AND 中有一个组织条件即可；OR 的每个分支都必须有组织条件。
 def guarded(expr: Any, column: Any, org_id: str) -> bool:
     if isinstance(expr, BooleanClauseList):
         checks = [guarded(child, column, org_id) for child in expr.clauses]
@@ -103,7 +91,6 @@ def guarded(expr: Any, column: Any, org_id: str) -> bool:
     return False
 
 
-# 展开关联查询，得到参与查询的每个表或别名。
 def flatten(froms: Iterable[FromClause]) -> Iterator[FromClause]:
     for item in froms:
         if isinstance(item, Join):
@@ -112,7 +99,6 @@ def flatten(froms: Iterable[FromClause]) -> Iterator[FromClause]:
             yield item
 
 
-# 带组织列的表，或者这种表的别名。
 def is_scoped(node: Any) -> bool:
     table = node.element if is_alias(node) else node
     return (
@@ -122,11 +108,9 @@ def is_scoped(node: Any) -> bool:
     )
 
 
-# 判断是否为某个表的别名（子查询不算）。
 def is_alias(node: Any) -> bool:
     return isinstance(node, Alias) and isinstance(node.element, Table)
 
 
-# 报错中使用的表名。
 def name_of(source: Any) -> str:
     return str(getattr(source, "name", source))

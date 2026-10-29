@@ -1,8 +1,3 @@
-"""
-最小账号包的生成清单：登录、新建账号、账号表迁移、文档和测试。模板本身不登记任何业务包，
-产品需要时运行 uv run dev new-module 包名 --title 标题 --preset access。
-"""
-
 import secrets
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,7 +11,6 @@ from fastapi_module.new_module import camel
 TEMPLATES = Path(__file__).resolve().parents[2] / "assets/templates/access"
 
 
-# 模板文件按目录对应到业务包、测试、业务文档、接口和迁移的位置。
 def preset_targets(name: str, revision: str) -> dict[Path, Path]:
     places = {
         "service": ROOT / "service" / name,
@@ -37,7 +31,6 @@ def preset_targets(name: str, revision: str) -> dict[Path, Path]:
     return targets
 
 
-# 迁移接在当前唯一的迁移头后面；有多个头时先合并，不替产品猜顺序。
 def migration_head() -> str | None:
     try:
         return ScriptDirectory(str(ROOT / "migrations")).get_current_head()
@@ -45,7 +38,6 @@ def migration_head() -> str | None:
         raise SystemExit(f"迁移有多个头，请先合并迁移再生成账号包：{error}") from error
 
 
-# 按模板写出账号包全部文件，返回写入的路径。
 def write_preset(name: str, title: str) -> list[Path]:
     revision = secrets.token_hex(6)
     head = migration_head()
@@ -66,7 +58,6 @@ def write_preset(name: str, title: str) -> list[Path]:
     return written
 
 
-# 生成后要做的事：建表、建第一个管理账号、导出文档和检查。
 def next_steps(name: str) -> list[str]:
     return [
         f"1. 读 doc/{name}/rules.md，确认登录规则；角色、停用、改口令等按产品需要再加",

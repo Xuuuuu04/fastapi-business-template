@@ -1,7 +1,3 @@
-"""
-worker 的显式分段执行：每批重新调用操作并创建事务，不跨批持有连接或业务中间对象。
-"""
-
 import asyncio
 from time import perf_counter
 from typing import Any
@@ -20,7 +16,6 @@ from shared.scenarios.observations import ObservationPosition
 from shared.timing.current import now as business_now
 
 
-# 从数据库游标恢复；每批成功后继续下一批，最终结果只在 finish 后写入任务。
 async def run_segments(
     runtime: Runtime,
     queue: JobQueue,
@@ -70,7 +65,6 @@ async def run_segments(
         number, cursor, total_rows = await checkpoint_store.load(runtime.database, ticket.id)
 
 
-# 写入意图的尝试编号和段号固定在本批，不读取已变化的循环变量。
 def make_checkpoint(
     runtime: Runtime,
     ticket: Ticket,
@@ -79,7 +73,6 @@ def make_checkpoint(
     total_rows: int,
     shutdown_seconds: float,
 ) -> Checkpoint:
-    # 所有层级的外部写入共用这个持久化保护。
     async def before_write() -> None:
         await checkpoint_store.mark_external(runtime.database, ticket, number)
 
@@ -94,13 +87,11 @@ def make_checkpoint(
     )
 
 
-# 固定本批提交点，段证据与业务结果同事务，最后一批同时完成任务。
 def commit_batch(
     queue: JobQueue, ticket: Ticket, checkpoint: Checkpoint, before_finish: Hook | None = None
 ) -> Hook:
     started = perf_counter()
 
-    # 尝试过期或提交失败时，数据和游标一起回滚。
     async def commit(connection: AsyncConnection, result: Data, run_id: str) -> None:
         await checkpoint_store.save(
             connection, ticket, checkpoint, run_id, (perf_counter() - started) * 1000
@@ -115,7 +106,6 @@ def commit_batch(
     return commit
 
 
-# 批次边界处理逾期与退出，不在尚未保存游标的位置停止。
 async def continue_batch(queue: JobQueue, ticket: Ticket, stop: asyncio.Event) -> bool:
     from shared.pipelines.overdue import may_continue
 

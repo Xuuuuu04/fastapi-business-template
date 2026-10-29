@@ -1,7 +1,3 @@
-"""
-$title 对外提供的操作约定和公开数据。其他模块和接口层只能导入本文件。
-"""
-
 from service.$name.data import (
     Account,
     AccountExists,

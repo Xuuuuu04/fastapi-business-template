@@ -1,7 +1,3 @@
-"""
-必需缓存有连接与操作总期限，认证不能在缓存故障时放行。
-"""
-
 import asyncio
 from pathlib import Path
 
@@ -15,14 +11,12 @@ from shared.errors.framework import CacheUnavailable
 from tests.testing_app import KEY, make_settings, reset_database_now
 
 
-# 卡住的读写与计数在总期限后取消，连接预算也明确有限。
 @pytest.mark.anyio
 @pytest.mark.parametrize("method", ["get", "incr"])
 async def test_redis_operation_timeout(method: str, monkeypatch: pytest.MonkeyPatch) -> None:
     cache = RedisCache("redis://127.0.0.1:16389/15", timeout=0.02, max_connections=2)
     cancelled = asyncio.Event()
 
-    # 合成 Redis 客户端一直等待，不建立实际网络连接。
     async def waiting(*args: object, **kwargs: object) -> str:
         try:
             await asyncio.Event().wait()
@@ -41,7 +35,6 @@ async def test_redis_operation_timeout(method: str, monkeypatch: pytest.MonkeyPa
         await cache.close()
 
 
-# 真实 HTTP 认证与就绪检查遇到不可用缓存都返回 503，不进入允许路径。
 def test_unavailable_cache_refuses_authentication(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -50,7 +43,6 @@ def test_unavailable_cache_refuses_authentication(
     services = build(settings, modules=[])
     cache = RedisCache("redis://127.0.0.1:16389/15", timeout=0.02)
 
-    # 模拟缓存服务不回应，以总期限决定失败。
     async def waiting(*args: object, **kwargs: object) -> str:
         await asyncio.Event().wait()
         return ""

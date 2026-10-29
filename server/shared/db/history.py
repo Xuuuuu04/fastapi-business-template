@@ -1,9 +1,3 @@
-"""
-数据变更历史：谁在什么时候、通过哪次运行，把哪张表哪条记录的哪个字段从什么值改成了什么值。
-由 Db.update_tracked 在同一事务中写入，业务回滚时历史也一起撤销；不随运行记录清理。
-标记为 secret 的列（例如密码摘要）只记“已修改”，不保存前后的值。
-"""
-
 import secrets
 import time
 from collections.abc import Mapping, Sequence
@@ -39,7 +33,6 @@ change_history = Table(
 )
 
 
-# 列出一批记录修改前后不同的字段，写成历史行。
 def history_rows(
     table: Table,
     key: str,
@@ -72,12 +65,10 @@ def history_rows(
     return rows
 
 
-# 值的文字形式；空值写成空文字，过长的截断。
 def text_of(value: Any) -> str:
     return "" if value is None else str(value)[:MAX_VALUE]
 
 
-# 在给定事务中写入历史行。
 async def save_history(
     connection: AsyncConnection,
     rows: list[dict[str, Any]],
@@ -93,7 +84,6 @@ async def save_history(
                 call.bytes = 0
 
 
-# 查询变更历史；org_id 为空表示全部组织，table 和 key 为空表示不筛选。
 async def recent_changes(
     database: Database, limit: int, org_id: str = "", table: str = "", key: str = ""
 ) -> list[dict[str, object]]:

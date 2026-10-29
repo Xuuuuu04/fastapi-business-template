@@ -1,7 +1,3 @@
-"""
-端到端演练命令：新数据库/schema、实际定时入口、原件回放与阶段指标，失败返回非零。
-"""
-
 import argparse
 import asyncio
 import json
@@ -14,7 +10,6 @@ from app.setup.drill import execute
 from shared.drills.isolation import isolated
 
 
-# 只有明确--sample才导入独立框架样例，不改正式MODULES。
 async def run(args: argparse.Namespace) -> dict:
     modules = MODULES
     root = args.config.resolve().parent if args.config else Path.cwd()
@@ -44,7 +39,6 @@ async def run(args: argparse.Namespace) -> dict:
             return await execute(modules, config, url, folder, root, args.output.resolve())
 
 
-# 默认新SQLite文件；PostgreSQL只创建新schema，输出没有凭据或上游原始正文。
 def main() -> None:
     parser = argparse.ArgumentParser(description="按定时入口演练完整Pipeline并回放原件")
     parser.add_argument("config", type=Path, nargs="?")

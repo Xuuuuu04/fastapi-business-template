@@ -1,7 +1,3 @@
-"""
-实际HTTP、SMTP和SDK适配器使用替换传输，验证受理含义与未知结果不能盲目重发。
-"""
-
 from dataclasses import replace
 from pathlib import Path
 
@@ -22,25 +18,19 @@ from tests.framework.test_provider_effects import Input, Output, expire_intent, 
 pytestmark = pytest.mark.anyio
 
 
-# SMTP网络完全替换，保留真实消息构造与SMTP适配器的受理判断。
 async def test_smtp_acceptance_is_not_delivery(monkeypatch) -> None:
     seen = []
 
-    # 单收件人发送成功只表示服务器接受了消息。
     class Client:
-        # 接收SSL连接参数，不连接真实网络。
         def __init__(self, *args, **kwargs):
             pass
 
-        # 为真实适配器提供连接上下文。
         def __enter__(self):
             return self
 
-        # 结束合成连接。
         def __exit__(self, *args):
             return None
 
-        # 保留消息编号和信封收件人，用于验证重复键与单收件人。
         def send_message(self, message, sender, recipients):
             seen.append((str(message["Message-ID"]), recipients))
             return {}
@@ -61,12 +51,10 @@ async def test_smtp_acceptance_is_not_delivery(monkeypatch) -> None:
     assert (await adapter.lookup(request, "stable-intent")).state == "unknown"
 
 
-# HTTP适配器不继承旧key即重试的行为，首次响应丢失就保存原意图待确认。
 async def test_http_adapter_does_not_retry_lost_reply(tmp_path: Path) -> None:
     service, spec, _, database = await service_at(tmp_path, "http")
     count = 0
 
-    # 上游可能已经受理后丢失HTTP回执。
     def lose_reply(request: httpx2.Request) -> httpx2.Response:
         nonlocal count
         count += 1
@@ -80,7 +68,6 @@ async def test_http_adapter_does_not_retry_lost_reply(tmp_path: Path) -> None:
         retry_waits=(0,),
     )
 
-    # 权威查询与写入分开，查询已经受理的原编号。
     async def lookup(input: Data, key: str) -> AdapterReply:
         return AdapterReply("accepted", Output(reference="vendor-1"), "vendor-1")
 
@@ -104,7 +91,6 @@ async def test_http_adapter_does_not_retry_lost_reply(tmp_path: Path) -> None:
         await database.close()
 
 
-# 只有权威确认未执行，或协议明确安全重复，才允许未知意图再次发送。
 @pytest.mark.parametrize("repeat_safe", [False, True])
 async def test_unknown_recovery_requires_proof_or_safe_protocol(
     tmp_path: Path, repeat_safe: bool
@@ -113,7 +99,6 @@ async def test_unknown_recovery_requires_proof_or_safe_protocol(
     spec = replace(original, repeat_safe=repeat_safe)
     count = 0
 
-    # 第一次连接失败不能由框架猜测是否已经执行。
     async def send(input: Data, key: str) -> AdapterReply:
         nonlocal count
         count += 1
@@ -121,7 +106,6 @@ async def test_unknown_recovery_requires_proof_or_safe_protocol(
             raise OSError("synthetic-lost-reply")
         return AdapterReply("completed", Output(reference="vendor-1"), "vendor-1")
 
-    # 这里的明确未执行来自供应商查询，不是本地错误名称。
     async def lookup(input: Data, key: str) -> AdapterReply:
         return AdapterReply("not_sent", Output(reference="confirmed-absent"))
 

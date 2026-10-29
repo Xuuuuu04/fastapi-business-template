@@ -1,7 +1,3 @@
-"""
-启动检查协议登记与可静态识别的调用，旧调用先提醒迁移。
-"""
-
 import ast
 import inspect
 import logging
@@ -19,7 +15,6 @@ if TYPE_CHECKING:
 log = logging.getLogger("server.remote_calls")
 
 
-# 同名不同对象是重复定义；共享同一公开声明无需复制协议。
 def check_endpoints(modules: Sequence["Module"], *, strict: bool = False) -> list[str]:
     problems: list[str] = []
     defined: dict[str, Endpoint[Any, Any]] = {}
@@ -39,7 +34,6 @@ def check_endpoints(modules: Sequence["Module"], *, strict: bool = False) -> lis
     return problems
 
 
-# 步骤无论直接调用还是经store调用，都声明接口；存储不扩大步骤权限。
 def check_step_endpoints(module: "Module", part: "Step", strict: bool) -> list[str]:
     place = f"步骤“{part.title}”（{part.source}）"
     problems = []
@@ -59,7 +53,6 @@ def check_step_endpoints(module: "Module", part: "Step", strict: bool) -> list[s
     return problems
 
 
-# 识别remote.call中的直接声明与旧请求；动态选择仅能在运行时校验。
 def inspect_calls(
     func: Any, allowed: tuple[Endpoint[Any, Any], ...], place: str, strict: bool
 ) -> list[str]:
@@ -96,7 +89,6 @@ def inspect_calls(
     return problems
 
 
-# 只解析源码名字和模块属性，不执行表达式或调用业务函数。
 def resolve(node: ast.expr | None, namespace: dict[str, Any]) -> Any:
     if isinstance(node, ast.Name):
         return namespace.get(node.id)
@@ -106,7 +98,6 @@ def resolve(node: ast.expr | None, namespace: dict[str, Any]) -> Any:
     return None
 
 
-# 存储只检查当前步骤直接使用的方法，其余动态路径在运行时受同一声明限制。
 def store_methods(func: Any) -> set[str]:
     try:
         tree = ast.parse(textwrap.dedent(inspect.getsource(func)))

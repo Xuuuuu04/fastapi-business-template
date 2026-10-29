@@ -1,7 +1,3 @@
-"""
-流程声明及运行摘要：默认只读本机缓存，明确未知；--runs才查询数据库并刷新缓存。
-"""
-
 import json
 import time
 from pathlib import Path
@@ -15,7 +11,6 @@ from shared.pipelines.views import list_runs
 CACHE = "server/var/development/pipeline-state.json"
 
 
-# 所有流程均列声明，最近运行没有证据时标未知，不把登记当作执行完成。
 def overview(catalog: Catalog, project: Path, *, module: str = "") -> list[dict[str, Any]]:
     path = project / CACHE
     try:
@@ -40,7 +35,6 @@ def overview(catalog: Catalog, project: Path, *, module: str = "") -> list[dict[
     return result
 
 
-# 逐个流程只保留最新一条有界摘要，刷新动作不会修改业务库。
 async def refresh(database: Database, catalog: Catalog, project: Path) -> None:
     found = await list_runs(database, limit=1000)
     latest: dict[str, dict[str, Any]] = {}
@@ -53,7 +47,6 @@ async def refresh(database: Database, catalog: Catalog, project: Path) -> None:
     )
 
 
-# 一个操作属于哪些流程和阶段，扇出子阶段也提供完整定位。
 def memberships(catalog: Catalog, operation: str) -> list[dict[str, str]]:
     result = []
     for pipeline in catalog.pipelines.values():

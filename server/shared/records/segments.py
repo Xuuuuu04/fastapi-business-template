@@ -1,13 +1,8 @@
-"""
-分段运行图的简短说明，只显示已确认累计数量，长游标在详情中完整显示。
-"""
-
 import json
 
 from shared.records.models import RunRecord
 
 
-# 图只显示已知事实，尚未统计的本批行数保持未知。
 def segment_text(run: RunRecord) -> str:
     if not run.segment_number:
         return ""
@@ -23,7 +18,6 @@ def segment_text(run: RunRecord) -> str:
     )
 
 
-# 提醒超出退出等待预算的批次，不改变提交、停止或恢复行为。
 def warn_slow_batch(run: RunRecord) -> None:
     budget = run.segment_shutdown_seconds
     if not run.segment_number or budget is None or run.elapsed_ms <= budget * 1000:

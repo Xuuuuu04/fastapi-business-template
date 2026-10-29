@@ -1,9 +1,3 @@
-"""
-分层检查：快速调试、多包验收与整批交付完整检查，实际耗时和范围随结果保存。
-默认运行完整检查；--module 可重复或使用逗号列表；--quick 仅用于包内调试。
---affected --base 分支根据新旧依赖选择范围；压力和浏览器测试仍需另行执行。
-"""
-
 import json
 import subprocess
 import sys
@@ -38,11 +32,9 @@ INTEGRITY = (
     "tests/architecture/test_structure.py::test_registry_is_complete",
     "tests/architecture/test_structure.py::test_migrations_match_tables",
 )
-# 包级检查加跑的质量规则；APP_DEVELOPMENT_MODULES 让它们只报本包路径的问题。
 QUALITY = "tests/quality/test_project_quality.py"
 
 
-# 列出全部检查；类型检查只含有 Python 文件的目录，指定包时风格和格式只看本包文件。
 def steps(selection: Selection | None = None) -> list[tuple[str, list[str]]]:
     selection = selection or Selection()
     typed = [name for name in TYPED if any((ROOT / name).rglob("*.py"))]
@@ -72,7 +64,6 @@ def steps(selection: Selection | None = None) -> list[tuple[str, list[str]]]:
     ]
 
 
-# 运行一项检查，返回是否通过。
 def run(title: str, command: list[str], env: dict[str, str]) -> bool:
     direct = command[0] == "-m" or command[0].endswith(".py")
     runner = [sys.executable, *command] if direct else [sys.executable, "-m", *command]
@@ -80,7 +71,6 @@ def run(title: str, command: list[str], env: dict[str, str]) -> bool:
     return subprocess.run(runner, cwd=ROOT, env=env, check=False).returncode == 0
 
 
-# 测试结果从 pytest 的结束钩子读取，启动失败时也留下明确失败记录。
 def run_tests(
     title: str, command: list[str], env: dict[str, str], database: str
 ) -> tuple[bool, dict[str, object]]:
@@ -99,7 +89,6 @@ def run_tests(
     }
 
 
-# 迁移历史与启动使用同一检查，旧产品默认提醒。
 def migration_check() -> bool:
     from app.setup.application import application
     from app.setup.catalog import MODULES
@@ -111,7 +100,6 @@ def migration_check() -> bool:
     return not errors
 
 
-# 保存每轮的检查结果；检查期间源码改变时，该轮不能证明当前版本。
 def execute(
     selection: Selection, postgres: str, options: CheckOptions | None = None
 ) -> list[tuple[str, bool]]:
@@ -159,7 +147,6 @@ def execute(
     return results
 
 
-# 风格、类型、文档与迁移归属只执行一遍，数据库矩阵共用结果；失败原因逐项留在记录里。
 def run_static_checks(
     selected: list[tuple[str, list[str]]], env: dict[str, str]
 ) -> tuple[list[tuple[str, bool]], dict[str, float], list[str]]:
@@ -179,7 +166,6 @@ def run_static_checks(
     return results, timings, problems
 
 
-# 模块、依赖实现和完整框架指纹一起参与检查版本。
 def check_versions(
     selection: Selection,
 ) -> tuple[list[str], dict[str, dict[str, list[str]]], dict[str, str], str]:
@@ -192,7 +178,6 @@ def check_versions(
     return modules, links, fingerprints(PROJECT, modules, links), system_fingerprint(PROJECT)
 
 
-# 测试环境明确选择数据库，产品策略从隔离配置读取。
 def check_environment(
     selection: Selection, postgres: str, options: CheckOptions | None = None
 ) -> dict[str, str]:
@@ -215,7 +200,6 @@ def check_environment(
     return env
 
 
-# 版本在执行前后比较，计时包括版本读取；记录不保存连接地址或测试数据。
 def finish_check(
     selection: Selection,
     before: dict[str, str],
@@ -259,7 +243,6 @@ def finish_check(
     )
 
 
-# 范围选择与实际执行分开；没有改动明确报告未执行，不写一条成功记录。
 def main() -> None:
     from app.setup.catalog import MODULES
     from shared.modules.catalog import Catalog

@@ -1,7 +1,3 @@
-"""
-任务状态只读重新计算，契约和规则变化立即显示过期，不把旧卡的complete当作当前证据。
-"""
-
 from pathlib import Path
 
 from fastapi_project.development.history import read_checks
@@ -12,7 +8,6 @@ from fastapi_project.development.tasks import freshness_problems
 from shared.modules.catalog import Catalog
 
 
-# 原卡状态保留作为历史，当前状态由契约、规则与当前源码证据计算。
 def effective_task(project: Path, catalog: Catalog, card: TaskCard, checks: dict) -> dict:
     modules = card.contract_modules or None
     reasons = []
@@ -43,7 +38,6 @@ def effective_task(project: Path, catalog: Catalog, card: TaskCard, checks: dict
     }
 
 
-# 状态视图不改卡片、数据库或分支，索引和面板都复用相同事实。
 def task_status(project: Path, catalog: Catalog) -> list[dict]:
     paths = sorted((project / ".agents/records/tasks").glob("*.json"))
     if not paths:

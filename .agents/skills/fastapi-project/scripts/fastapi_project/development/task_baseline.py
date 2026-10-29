@@ -1,7 +1,3 @@
-"""
-任务本机原件生成准确差异，独立复核只提供规则、样例和差异，不附作者说明或检查成功信号。
-"""
-
 import difflib
 import hashlib
 import io
@@ -13,13 +9,11 @@ from fastapi_project.development.task_models import TaskCard, card_path, source_
 from fastapi_template.template.files import safe_path
 
 
-# 编号复用任务路径检查，压缩原件只放本机忽略目录，不进入模板副本或生产镜像。
 def baseline_path(project: Path, identity: str) -> Path:
     card_path(project, identity)
     return project / ".agents/records/task-baselines" / (identity + ".zip")
 
 
-# 来源摘要与保存时的原件必须相符，开工期间变动时重新生成卡。
 def save_baseline(project: Path, identity: str, before: dict[str, str]) -> None:
     payload = io.BytesIO()
     with zipfile.ZipFile(payload, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -33,7 +27,6 @@ def save_baseline(project: Path, identity: str, before: dict[str, str]) -> None:
     path.chmod(0o600)
 
 
-# 确认样例与规则原件有限展开，其余完整资料保留明确文件引用。
 def review_material(project: Path, card: TaskCard) -> list[str]:
     files = [
         project / "doc" / card.package / "rules.md",
@@ -60,7 +53,6 @@ def review_material(project: Path, card: TaskCard) -> list[str]:
     return lines
 
 
-# 精确逐文件差异包含新增删除，不用当前源码冒充开工前的版本。
 def review_pack(project: Path, card: TaskCard) -> Path:
     path = baseline_path(project, card.id)
     if not path.is_file():

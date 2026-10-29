@@ -1,7 +1,3 @@
-"""
-已安装的短命令必须使用本产品目录，检查与生成仍走同一套工具。
-"""
-
 import ast
 import json
 import os
@@ -15,7 +11,6 @@ from fastapi_check.quality.rules import ROOT
 from tests.environment import subprocess_environment
 
 
-# 子进程从实际已安装的开发包启动；部署环境不参与离线声明。
 def test_dev_inspect_ignores_real_environment() -> None:
     environment = {**os.environ, "APP_ENV": "production", "APP_DATABASE_URL": "invalid-live"}
     result = subprocess.run(
@@ -31,7 +26,6 @@ def test_dev_inspect_ignores_real_environment() -> None:
     assert "invalid-live" not in result.stdout
 
 
-# 每个兼容长命令都有 dev 写法，说明和输出只需要用 dev；分步文档命令由 dev docs 一起执行。
 def test_every_compat_command_has_dev_entry() -> None:
     from fastapi_dev.main import COMMANDS
 
@@ -51,7 +45,6 @@ def test_every_compat_command_has_dev_entry() -> None:
     assert missing == []
 
 
-# 未知命令不得开始生成，也不建立任何数据库连接。
 def test_unknown_dev_command_fails_before_bootstrap(tmp_path: Path) -> None:
     result = subprocess.run(
         [sys.executable, "-c", "from fastapi_dev.main import main; main()", "unknown-command"],
@@ -62,7 +55,6 @@ def test_unknown_dev_command_fails_before_bootstrap(tmp_path: Path) -> None:
     assert result.returncode == 2 and list(tmp_path.iterdir()) == []
 
 
-# 只提供server内容的生产安装不能查找外部Skill元数据，也不能安装开发入口或pytest。
 def test_server_only_locked_production_install(tmp_path: Path) -> None:
     target = tmp_path / "server"
     target.mkdir()
@@ -98,7 +90,6 @@ def test_server_only_locked_production_install(tmp_path: Path) -> None:
     assert checked.returncode == 0, checked.stderr
 
 
-# 开发入口源码变化必须让完整证据过期，生产启动范围则允许不携带开发工具。
 def test_development_source_is_fingerprinted(tmp_path: Path) -> None:
     from fastapi_project.development.evidence import system_fingerprint
 

@@ -1,14 +1,9 @@
-"""
-面板状态只由当前源码和正式检查计算；规则确认与业务验收不混入绿色。
-"""
-
 from typing import Any
 
 from fastapi_project.development.check_storage import load_cases
 from fastapi_project.development.evidence import check_scope
 
 
-# 真实调用方链参加整链覆盖，计划中尚不存在的依赖不能当作已经检查。
 def callers(name: str, links: dict) -> set[str]:
     selected = {name}
     while True:
@@ -20,7 +15,6 @@ def callers(name: str, links: dict) -> set[str]:
         selected = expanded
 
 
-# 框架级失败也保留，快速检查和未知范围不能提供正式完成证据。
 def formal_checks(checks: list[dict], name: str) -> list[dict]:
     return [
         check
@@ -30,7 +24,6 @@ def formal_checks(checks: list[dict], name: str) -> list[dict]:
     ]
 
 
-# 每个相关包必须有实际测试，全部操作须执行通过，不能用空suite染绿。
 def suite_covers(suite: dict, names: set[str], operations: set[str]) -> bool:
     if suite.get("exit_code") != 0:
         return False
@@ -53,7 +46,6 @@ def suite_covers(suite: dict, names: set[str], operations: set[str]) -> bool:
     return operations <= executed
 
 
-# 同轮双库、实际调用链及当前全部相关源码一起判断，不拼接不同时间的成功。
 def chain_passed(check: dict, names: set[str], modules: dict) -> bool:
     if not check["passed"] or check["source_changed"]:
         return False
@@ -67,7 +59,6 @@ def chain_passed(check: dict, names: set[str], modules: dict) -> bool:
     )
 
 
-# 历史成功保留来源但不会冒充当前通过；最近三次均完整成功才显示稳定绿色。
 def node_evidence(name: str, status: dict, checks: list[dict]) -> dict[str, Any]:
     module = status["modules"].get(name)
     if module is None:

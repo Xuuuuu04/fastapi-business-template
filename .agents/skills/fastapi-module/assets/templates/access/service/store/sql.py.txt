@@ -1,7 +1,3 @@
-"""
-$title 的数据库实现，SQL 都集中在这里。不负责提交或回滚。
-"""
-
 import json
 
 from sqlalchemy import RowMapping, insert, select
@@ -12,13 +8,10 @@ from service.$name.store.tables import accounts
 from shared.public import Db
 
 
-# $title 的数据库访问实现，不自行提交或回滚事务。
 class Sql${Camel}Store:
-    # 使用框架提供的数据库入口。
     def __init__(self, db: Db) -> None:
         self.db = db
 
-    # 按组织代码和账号读取；每次查询都写明组织条件。
     async def find(self, org_id: str, username: str) -> StoredAccount | None:
         query = select(accounts).where(
             accounts.c.org_id == org_id, accounts.c.username == username
@@ -26,7 +19,6 @@ class Sql${Camel}Store:
         row = await self.db.first(query)
         return account_of(row) if row else None
 
-    # 保存新账号；并发重名由唯一约束挡住，返回 None 交给步骤报冲突。
     async def add(
         self, org_id: str, username: str, password_hash: str, permissions: list[str]
     ) -> StoredAccount | None:
@@ -43,7 +35,6 @@ class Sql${Camel}Store:
         return account_of(row)
 
 
-# 把数据库行转成步骤使用的账号。
 def account_of(row: RowMapping) -> StoredAccount:
     return StoredAccount(
         id=row["id"],

@@ -1,8 +1,3 @@
-"""
-生成 Mermaid 图时共用的文字处理：转义标签、生成节点编号、定义节点样式。
-标签中的输入文本一律转义，不把业务数据当成图语言执行。
-"""
-
 import re
 
 MAX_LABEL = 80
@@ -20,7 +15,6 @@ STYLES = [
 ]
 
 
-# 转义节点标签中的特殊字符，并限制长度。
 def label(text: str, *, limit: int | None = MAX_LABEL) -> str:
     clean = " ".join(str(text).split())
     if limit is not None and len(clean) > limit:
@@ -30,6 +24,5 @@ def label(text: str, *, limit: int | None = MAX_LABEL) -> str:
     return clean
 
 
-# 把任意名称转成合法的节点编号。
 def node_id(prefix: str, text: str) -> str:
     return prefix + "_" + re.sub(r"[^A-Za-z0-9_]", "_", text)

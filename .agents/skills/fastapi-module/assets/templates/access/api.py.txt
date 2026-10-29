@@ -1,8 +1,3 @@
-"""
-$title 的 HTTP 接口：登录、登录失败限流和签发访问令牌，新建账号交给 $name 模块。
-路径固定为 /api/v1/access，请求和回包字段与前端模板 src/app/login.config.ts 的默认约定一致。
-"""
-
 import hashlib
 
 from fastapi import APIRouter, Request
@@ -19,7 +14,6 @@ router = APIRouter(prefix="/api/v1/access", tags=["$title"])
 FAILURE_SECONDS = 900
 
 
-# 登录成功的回包：访问令牌、令牌类型、有效秒数和账号所属组织。
 class LoginReply(BaseModel):
     access_token: str = Field(description="访问令牌，请求时放在 Authorization: Bearer 后面")
     token_type: str = Field(default="Bearer", description="令牌类型，固定为 Bearer")
@@ -27,7 +21,6 @@ class LoginReply(BaseModel):
     org_id: str = Field(description="账号所属组织代码")
 
 
-# R-04：失败计数分两层，同一来源地址对同一账号、同一账号来自所有地址；成功后清零。
 @router.post(
     "/login",
     summary="登录",
@@ -63,7 +56,6 @@ async def login(body: $name.LoginInput, request: Request, run: RunDep) -> LoginR
     return LoginReply(access_token=token, expires_in=settings.token_minutes * 60, org_id=account.org_id)
 
 
-# 两层失败计数的缓存键和上限；账号和地址先做摘要，缓存里不出现原文。
 def failure_limits(body: $name.LoginInput, request: Request) -> dict[str, int]:
     settings = request.app.state.settings
     source = request.client.host if request.client else "unknown"
@@ -74,12 +66,10 @@ def failure_limits(body: $name.LoginInput, request: Request) -> dict[str, int]:
     }
 
 
-# 失败计数的缓存键。
 def failure_key(kind: str, text: str) -> str:
     return f"login-failed:{kind}:{hashlib.sha256(text.encode()).hexdigest()}"
 
 
-# 新建账号，需要 $name.manage 权限。
 @router.post(
     "/accounts",
     status_code=201,

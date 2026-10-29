@@ -1,7 +1,3 @@
-"""
-骨架只接受明确的数据字段、权限和调用映射；不读取确认预期来生成正式实现。
-"""
-
 import keyword
 import re
 from typing import Literal
@@ -21,14 +17,12 @@ TYPES = {
 }
 
 
-# 公开字段描述不包含业务样例取值。
 class SkeletonField(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: str
     meaning: str = Field(min_length=1, max_length=500)
 
 
-# 每个参数和最终结果都显式指定来源，不猜相同名字字段的业务含义。
 class SkeletonCall(BaseModel):
     model_config = ConfigDict(extra="forbid")
     operation: str
@@ -36,7 +30,6 @@ class SkeletonCall(BaseModel):
     case: str
 
 
-# 可用骨架或真实连接步骤，但权限与效果必须由声明提供。
 class SkeletonOperation(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(pattern=NAME)
@@ -50,7 +43,6 @@ class SkeletonOperation(BaseModel):
     returns: dict[str, str] = Field(default_factory=dict)
 
 
-# 新业务包从完整声明生成，已有业务不会被覆写或归类。
 class SkeletonPackage(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(pattern=r"^[a-z][a-z0-9]*(_[a-z0-9]+)+$")
@@ -59,13 +51,11 @@ class SkeletonPackage(BaseModel):
     operations: list[SkeletonOperation] = Field(min_length=1)
 
 
-# 一批新包的调用关系必须完整、有序且无循环。
 class SkeletonBundle(BaseModel):
     model_config = ConfigDict(extra="forbid")
     line: str = Field(min_length=1, max_length=100)
     packages: list[SkeletonPackage] = Field(min_length=1)
 
-    # 生成文件之前核对全部名称、字段和跨包连接。
     def validate_links(self) -> None:
         if len({package.name for package in self.packages}) != len(self.packages):
             raise ValueError("骨架业务包名称重复：" + ", ".join(p.name for p in self.packages))
@@ -86,7 +76,6 @@ class SkeletonBundle(BaseModel):
         check_cycles(graph)
 
 
-# 逐个包登记操作，名称、样例编号、权限和字段的问题都在写文件前报出。
 def collect_operations(package: SkeletonPackage, operations: dict[str, SkeletonOperation]) -> None:
     cases: set[str] = set()
     for operation in package.operations:
@@ -105,7 +94,6 @@ def collect_operations(package: SkeletonPackage, operations: dict[str, SkeletonO
             raise ValueError(f"{identity}：{error}") from error
 
 
-# 核对单操作的权限命名与独立样例编号，并报告完整操作名。
 def validate_identity(package: str, operation: SkeletonOperation) -> None:
     identity = package + "." + operation.name
     if operation.access not in {"public", "signed_in"} and not (
@@ -122,7 +110,6 @@ def validate_identity(package: str, operation: SkeletonOperation) -> None:
         raise ValueError(f"{identity}：样例编号无效或重复：{operation.cases}")
 
 
-# 调用图独立核对循环，不能靠生成文件顺序规避循环依赖。
 def check_cycles(graph: dict[str, list[str]]) -> None:
     for identity in graph:
         pending, seen = list(graph[identity]), set()
@@ -135,7 +122,6 @@ def check_cycles(graph: dict[str, list[str]]) -> None:
                 pending.extend(graph[target])
 
 
-# 保留框架中间字段名，类型采用固定白名单，不执行外来的类型表达式。
 def validate_fields(operation: SkeletonOperation) -> None:
     for fields in (operation.input, operation.output):
         if not fields:
@@ -151,12 +137,10 @@ def validate_fields(operation: SkeletonOperation) -> None:
                 raise ValueError(f"字段 {name} 的名称或类型 {field.type!r} 不支持")
 
 
-# 调用产出按被调用的完整操作名存放，例如 order_pricing.quote 存在 order_pricing_quote。
 def call_field(operation: str) -> str:
     return operation.replace(".", "_")
 
 
-# 字段引用写成 input.字段 或 包.操作.字段，只能来自原始输入或前面已经调用过的操作。
 def reference_type(reference: str, available: dict[str, dict[str, SkeletonField]]) -> str:
     source, separator, name = reference.rpartition(".")
     if not separator or source not in available or name not in available[source]:
@@ -165,7 +149,6 @@ def reference_type(reference: str, available: dict[str, dict[str, SkeletonField]
     return available[source][name].type
 
 
-# 每个调用的完整入参和最后输出都逐项核对类型；重复同位置调用不能伪造观察成功。
 def validate_calls(operation: SkeletonOperation, operations: dict[str, SkeletonOperation]) -> None:
     available = {"input": operation.input}
     if len({call.operation for call in operation.calls}) != len(operation.calls):
@@ -191,7 +174,6 @@ def validate_calls(operation: SkeletonOperation, operations: dict[str, SkeletonO
         raise ValueError("模拟骨架不能包含根据预期取值生成的返回映射")
 
 
-# 参数与产出采用同一完整映射约定，字段没有明确来源时不能靠名字推断。
 def validate_mapping(
     values: dict[str, str],
     target: dict[str, SkeletonField],

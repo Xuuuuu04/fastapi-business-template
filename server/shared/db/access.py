@@ -1,8 +1,3 @@
-"""
-store 使用的数据库入口 Db：只能执行语句，不能提交、回滚或关闭连接。
-事务由框架按步骤声明安排；没有 saves=True 的步骤拿到只读的 Db，写入会立刻报错。
-"""
-
 import re
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
@@ -39,9 +34,7 @@ READ_WORDS = ("select", "with", "explain", "show", "values")
 WRITE_WORDS = ("insert", "update", "delete", "merge")
 
 
-# 步骤使用的数据库入口，检查写入权限和组织条件并记录变更。
 class Db:
-    # 包装框架准备好的连接；place 是使用它的步骤名称，用于报错。
     def __init__(
         self,
         connection: AsyncConnection,
@@ -62,7 +55,6 @@ class Db:
         self._record, self._target = record, target
         self._org_setting = org_setting
 
-    # 执行查询并返回全部行，每行可以按列名取值。
     async def all(self, statement: Executable) -> Sequence[RowMapping]:
         with query_record(self._record, statement, "all", self._target) as call:
             self._check(statement)
@@ -74,7 +66,6 @@ class Db:
             await attach(self._connection, self._record, statement, call)
             return rows
 
-    # 执行查询并返回第一行，没有结果时返回 None。
     async def first(self, statement: Executable) -> RowMapping | None:
         with query_record(self._record, statement, "first", self._target) as call:
             self._check(statement)
@@ -86,7 +77,6 @@ class Db:
             await attach(self._connection, self._record, statement, call)
             return row
 
-    # 执行语句并返回恰好一行；没有或多于一行时报错，适合 insert ... returning。
     async def one(self, statement: Executable) -> RowMapping:
         with query_record(self._record, statement, "one", self._target) as call:
             self._check(statement)
@@ -98,7 +88,6 @@ class Db:
             await attach(self._connection, self._record, statement, call)
             return row
 
-    # 执行查询并返回第一行第一列的值。
     async def scalar(self, statement: Executable) -> Any:
         with query_record(self._record, statement, "scalar", self._target) as call:
             self._check(statement)
@@ -109,9 +98,6 @@ class Db:
             await attach(self._connection, self._record, statement, call)
             return value
 
-    # 执行插入、修改或删除，返回受影响的行数。
-    # SQLAlchemy 2.0.28 起默认只保证修改和删除的行数；PostgreSQL 上插入会自动带 RETURNING，
-    # 不打开 preserve_rowcount 时行数是 -1。这里统一打开，插入、修改、删除都拿到真实行数。
     async def change(self, statement: Executable) -> int:
         with query_record(self._record, statement, "change", self._target) as call:
             self._check(statement)
@@ -125,9 +111,7 @@ class Db:
                 call.bytes = 0
             return count
 
-    # 使用一次实际SQL批插，保持权限、默认值及行数记录。
     async def insert_many(self, table: Table, rows: list[dict[str, Any]]) -> int:
-        """一次 SQL 批插：使用可缓存的标准 INSERT，保留逐行默认值及全部权限检查。"""
         if not rows:
             return 0
         if not rows[0]:
@@ -144,7 +128,6 @@ class Db:
             raise StepRuleBroken("当前数据库不支持一次 SQL 批插")
         statement = insert(table).returning(literal(1))
         with query_record(self._record, statement, "change", self._target) as call:
-            # 权限检查仍逐行核对写入值；执行时用参数列表复用编译结果。
             self._check(insert(table).values(rows))
             await self._bind_org()
             result = await self._connection.execute(statement, rows)
@@ -153,8 +136,6 @@ class Db:
                 call.rows, call.bytes = count, 0
             return count
 
-    # 按位置续读一页：按唯一且可排序的列 key 排序，after 是上一页返回的位置；
-    # 数据量大时不必跳过前面的行，越往后也一样快。返回本页的行和下一页的位置（没有下一页为空）。
     async def page_after(
         self, statement: Select[Any], key: ColumnElement[Any], after: str, limit: int
     ) -> tuple[Sequence[RowMapping], str]:
@@ -165,9 +146,6 @@ class Db:
             return rows, ""
         return rows[:limit], str(rows[limit - 1][key.name])
 
-    # 修改并记录变更历史：先加锁读出要改的记录，修改后把前后不同的字段写进变更历史，与修改同一事务。
-    # values 只能是普通值，不能是 SQL 表达式；quiet 中的列（例如修改时间）一起修改但不记历史；
-    # key 是记录的主键列名。
     async def update_tracked(
         self,
         table: Table,
@@ -187,7 +165,6 @@ class Db:
         await save_history(self._connection, rows, self._record, self._target)
         return count
 
-    # 加锁读取全部行：只能在 saves=True 的步骤中使用。
     async def all_for_update(self, statement: Select[Any]) -> Sequence[RowMapping]:
         if self._read_only:
             raise StepRuleBroken(
@@ -195,15 +172,12 @@ class Db:
             )
         return await self.all(statement.with_for_update())
 
-    # 带条件修改：语句的条件中写上读到的状态或版本，一行都没有改到时报 missing 这个业务错误，
-    # 用于“先读后写”时发现数据已被别人改过。
     async def change_or_fail(self, statement: Executable, missing: BusinessError) -> int:
         count = await self.change(statement)
         if count == 0:
             raise missing
         return count
 
-    # 加锁读取第一行：只能在 saves=True 的步骤中使用，读到的行在本次事务结束前不会被别人修改。
     async def first_for_update(self, statement: Select[Any]) -> RowMapping | None:
         if self._read_only:
             raise StepRuleBroken(
@@ -211,7 +185,6 @@ class Db:
             )
         return await self.first(statement.with_for_update())
 
-    # 在保存点中执行一段写入；失败时只撤销这一段，事务可以继续。
     @asynccontextmanager
     async def savepoint(self) -> AsyncIterator[None]:
         if self._read_only:
@@ -219,7 +192,6 @@ class Db:
         async with self._connection.begin_nested():
             yield
 
-    # 产品选择RLS配置名，值只来自可信调用者；空组织和通配身份不扩大数据库权限。
     async def _bind_org(self) -> None:
         if not self._org_setting or self._connection.dialect.name != "postgresql":
             return
@@ -235,7 +207,6 @@ class Db:
         await self._connection.execute(select(func.set_config(self._org_setting, org, True)))
         sync.info["org_binding"] = (sync.get_transaction(), self._org_setting, org)
 
-    # 只读步骤中遇到写入语句时立刻报错。
     def _check(self, statement: Executable) -> None:
         if self._caller is not None:
             if isinstance(statement, TextClause):
@@ -249,7 +220,6 @@ class Db:
             )
 
 
-# 判断一条语句是否会修改数据；查询中带有写入的公共表表达式（WITH ... DELETE）也算写入。
 def is_write(statement: Executable) -> bool:
     if isinstance(statement, TextClause):
         words = re.findall(r"[a-z_]+", statement.text.lower())
@@ -261,11 +231,9 @@ def is_write(statement: Executable) -> bool:
     )
 
 
-# 位置文字转回列的 Python 类型，例如整数编号；转不了时报参数错误，不静默当成从头读。
 def type_of(key: ColumnElement[Any]) -> Callable[[str], Any]:
     kind = key.type.python_type
 
-    # 转换并在失败时说明原因。
     def convert(text: str) -> Any:
         try:
             return kind(text)

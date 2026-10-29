@@ -1,10 +1,3 @@
-"""
-大模型服务的统一约定 ModelProvider，以及两个实现：
-OpenAICompatible 调用 OpenAI 兼容的 /chat/completions 接口，覆盖多数国内外服务商；
-FakeModel 返回固定文本，用于测试和没有配置模型的本地开发，不产生费用。
-要接入 Claude，请另写一个基于官方 anthropic SDK 的实现，不要通过兼容接口转接。
-"""
-
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -16,7 +9,6 @@ from shared.data.limits import ResponseTooLarge, limited_bytes
 from shared.errors.framework import ModelRejected, ModelUnavailable
 
 
-# 发送给大模型服务的提示内容和生成参数。
 @dataclass(frozen=True)
 class ModelRequest:
     prompt: str
@@ -27,7 +19,6 @@ class ModelRequest:
     wants_json: bool
 
 
-# 大模型返回的文本、模型名称和用量信息。
 @dataclass(frozen=True)
 class ModelReply:
     text: str
@@ -37,22 +28,17 @@ class ModelReply:
     finish: str = ""
 
 
-# 大模型服务实现需要提供的请求和资源释放操作。
 class ModelProvider(Protocol):
     name: str
 
-    # 发送一次请求并返回回复；暂时故障抛 ModelUnavailable，请求被拒绝抛 ModelRejected。
     async def complete(self, request: ModelRequest) -> ModelReply: ...
 
-    # 释放网络连接。
     async def close(self) -> None: ...
 
 
-# 通过 OpenAI 兼容接口发送大模型请求并读取响应。
 class OpenAICompatible:
     name = "openai_compatible"
 
-    # 设置服务地址、密钥、模型名和超时时间；transport 只在测试中替换。
     def __init__(
         self,
         base_url: str,
@@ -71,7 +57,6 @@ class OpenAICompatible:
             transport=transport,
         )
 
-    # 调用 /chat/completions，并把网络和状态码错误转成框架的错误种类。
     async def complete(self, request: ModelRequest) -> ModelReply:
         try:
             async with self.client.stream(
@@ -95,7 +80,6 @@ class OpenAICompatible:
         except ValueError as error:
             raise ModelUnavailable("大模型服务返回的格式无法识别") from error
 
-    # 组装请求正文。
     def body(self, request: ModelRequest) -> dict[str, Any]:
         messages = [{"role": "user", "content": request.user}]
         if request.system:
@@ -110,7 +94,6 @@ class OpenAICompatible:
             body["response_format"] = {"type": "json_object"}
         return body
 
-    # 从响应正文取出文本和用量。
     def reply(self, data: dict[str, Any]) -> ModelReply:
         try:
             choice = data["choices"][0]
@@ -126,7 +109,6 @@ class OpenAICompatible:
             finish=str(choice.get("finish_reason", "")),
         )
 
-    # 关闭连接池。
     async def close(self) -> None:
         await self.client.aclose()
 
@@ -134,22 +116,18 @@ class OpenAICompatible:
 Answer = str | Callable[[ModelRequest], str]
 
 
-# 开发和测试使用的模拟回复，不发送真实大模型请求。
 class FakeModel:
     name = "fake"
 
-    # replies 按提示词名称给出固定回复或生成回复的函数；未指定的提示词返回默认文本。
     def __init__(self, replies: Mapping[str, Answer] | None = None) -> None:
         self.replies = dict(replies or {})
         self.requests: list[ModelRequest] = []
 
-    # 返回预设的回复，并记下收到的请求，方便测试检查。
     async def complete(self, request: ModelRequest) -> ModelReply:
         self.requests.append(request)
         answer = self.replies.get(request.prompt, "（本地模拟回复，没有调用真实模型）")
         text = answer(request) if callable(answer) else answer
         return ModelReply(text=text, model="fake", input_tokens=0, output_tokens=0, finish="stop")
 
-    # 模拟实现没有需要释放的资源。
     async def close(self) -> None:
         return None

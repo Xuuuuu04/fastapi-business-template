@@ -1,7 +1,3 @@
-"""
-迁移保护与真实双库分段导入对账，覆盖兼容提醒和失败回滚。
-"""
-
 import time
 from dataclasses import replace
 from pathlib import Path
@@ -27,7 +23,6 @@ from tests.framework.import_sample import Input, module, operation, rows, sample
 from tests.testing_app import make_settings, prepare_test_database
 
 
-# 历史drop/rename、批量改列、命名参数与原始SQL都有明确位置；默认兼容。
 def test_history_scan(tmp_path: Path, caplog) -> None:
     versions = tmp_path / "migrations" / "versions"
     versions.mkdir(parents=True)
@@ -61,7 +56,6 @@ def upgrade():
     )
 
 
-# 只比较本样例创建的表，共享PostgreSQL中其他测试表不属于本次反例。
 def compare_owned(sync, options):
     context = MigrationContext.configure(
         sync,
@@ -75,7 +69,6 @@ def compare_owned(sync, options):
     return produce_migrations(context, MetaData()).upgrade_ops.as_diffs()
 
 
-# 未登记表不能删除；external只保留，owned历史表才允许显式迁移管理。
 @pytest.mark.anyio
 async def test_autogenerate_refuses_unknown(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
@@ -115,7 +108,6 @@ async def test_autogenerate_refuses_unknown(tmp_path: Path) -> None:
         await services.close()
 
 
-# 非分段、空来源和未登记目标在启动前就发现。
 def test_import_declarations() -> None:
     job = module.jobs[0]
     with pytest.raises(DeclarationError, match="segmented"):
@@ -127,7 +119,6 @@ def test_import_declarations() -> None:
         Catalog([replace(module, tables=())])
 
 
-# 一次通过；少行、质量缺失和引用缺失均失败，已经提交的第一批保留。
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "fault,failed",

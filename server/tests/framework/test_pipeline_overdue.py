@@ -1,7 +1,3 @@
-"""
-最晚完成时间与通知队列：默认逾期继续，显式暂停可恢复，未知结果不被逾期覆盖。
-"""
-
 from dataclasses import replace
 from datetime import UTC, datetime
 from datetime import time as daily_time
@@ -23,7 +19,6 @@ pytestmark = pytest.mark.anyio
 __all__ = ["piped", "fanout"]
 
 
-# 共用四阶段模块和夹具，仅新增明确的截止声明。
 async def start_due(services: Services, policy: str = "continue") -> str:
     changed = replace(pipeline, complete_by=DailyTime(daily_time(9, 30)), on_overdue=policy)
     owner = replace(
@@ -41,7 +36,6 @@ async def start_due(services: Services, policy: str = "continue") -> str:
     )
 
 
-# 默认逾期继续产出，重复检查只登记一个pending通知，不能说已经提醒。
 async def test_overdue_continues_and_enqueues_once(piped: Services) -> None:
     run_id = await start_due(piped)
     await check(piped.queue, datetime(2020, 1, 2, tzinfo=UTC).timestamp())
@@ -56,7 +50,6 @@ async def test_overdue_continues_and_enqueues_once(piped: Services) -> None:
     assert root["state"] == "succeeded" and root["overdue"] is True
 
 
-# pause阻止首个尚未开始的阶段，人工继续不会重新选来源或抹去逾期事实。
 async def test_overdue_pause_and_resume(piped: Services) -> None:
     run_id = await start_due(piped, "pause")
     await check(piped.queue, datetime(2020, 1, 2, tzinfo=UTC).timestamp())
@@ -70,14 +63,12 @@ async def test_overdue_pause_and_resume(piped: Services) -> None:
     assert marks["choose"] == 1
 
 
-# 夜间周期明确跨日，截止日期不从字符串周期键猜，也不会因后续声明改变而漂移。
 def test_deadline_is_explicit_local_cycle_time() -> None:
     changed = replace(pipeline, complete_by=DailyTime(daily_time(9, 30), days_after=1))
     request = StartRequest[Ref](data=Ref(), period=datetime(2020, 1, 1, 14, tzinfo=UTC))
     assert deadline(changed, request, 0) == datetime(2020, 1, 2, 1, 30, tzinfo=UTC).timestamp()
 
 
-# 逾期发生在阶段执行中，本阶段业务照常提交，再停在下一阶段。
 async def test_pause_after_inflight_stage_commits(piped: Services, monkeypatch) -> None:
     import time
 
@@ -87,7 +78,6 @@ async def test_pause_after_inflight_stage_commits(piped: Services, monkeypatch) 
     original = Store.record
     run_id = await start_due(piped, "pause")
 
-    # 模拟截止时间恰好在业务计算期间到达，不用固定sleep安排先后顺序。
     async def due_during(self, name, reference):
         if name == "choose":
             await check(piped.queue, datetime(2020, 1, 2, tzinfo=UTC).timestamp())
@@ -107,7 +97,6 @@ async def test_pause_after_inflight_stage_commits(piped: Services, monkeypatch) 
     assert (await snapshot(piped, run_id))[2]["choose"] == 1
 
 
-# 分段任务在已提交5000行之后暂停，继续时从原游标处理剩余数据。
 async def test_segmented_member_pauses_at_batch_boundary(fanout, monkeypatch) -> None:
     from shared.jobs import checkpoint_store
     from tests.framework.fanout_sample import Begin
@@ -123,7 +112,6 @@ async def test_segmented_member_pauses_at_batch_boundary(fanout, monkeypatch) ->
     fanout.queue.pipelines.catalog = fanout.catalog
     original = checkpoint_store.load
 
-    # 已提交第一批后才使周期逾期，第二批不进入操作，不依赖时间猜测。
     async def due_after_commit(database, job_id):
         loaded = await original(database, job_id)
         if loaded[0] == 1:
@@ -137,7 +125,6 @@ async def test_segmented_member_pauses_at_batch_boundary(fanout, monkeypatch) ->
     run_id = await fanout.runtime.submit(
         changed.start, changed.start.input(request=request), caller=CALLER
     )
-    # 每轮维护会发现过去时间，先用操作领取执行到段边界，不预先调用维护器。
     import time
 
     from shared.jobs.worker import Worker, WorkerOptions

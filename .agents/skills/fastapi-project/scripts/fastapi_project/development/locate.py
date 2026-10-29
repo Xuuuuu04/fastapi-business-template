@@ -1,7 +1,3 @@
-"""
-从声明和规则文档即时匹配，不扫全仓测试/历史，不保存第二份索引。
-"""
-
 import ast
 import inspect
 from pathlib import Path
@@ -19,7 +15,6 @@ DETAIL_LIMIT = 12
 COMMAND = "uv run dev "
 
 
-# 模块声明只有一个固定文件，按AST定位Module调用；缺文件不捏造位置。
 def declaration_source(project: Path, module: str) -> str:
     path = project / "server/service" / module / "module.py"
     if not path.is_file():
@@ -34,7 +29,6 @@ def declaration_source(project: Path, module: str) -> str:
     return "未知"
 
 
-# 模型位置只在命中后读取，运行或源码位置缺失明确未知。
 def model_source(model: type, project: Path) -> str:
     try:
         path = Path(inspect.getfile(model)).resolve()
@@ -44,7 +38,6 @@ def model_source(model: type, project: Path) -> str:
         return "未知"
 
 
-# 递归读取嵌套模型字段，不重复展开相同模型。
 def field_terms(model: type[BaseModel], seen: set[type] | None = None) -> list[str]:
     seen = seen if seen is not None else set()
     if model in seen:
@@ -57,7 +50,6 @@ def field_terms(model: type[BaseModel], seen: set[type] | None = None) -> list[s
     return terms
 
 
-# 每模块只读一次规则标题；不把正文当成别名。
 def rule_details(project: Path, module: str) -> dict[str, dict[str, str]]:
     path = project / "doc" / module / "rules.md"
     found = {}
@@ -69,7 +61,6 @@ def rule_details(project: Path, module: str) -> dict[str, dict[str, str]]:
     return found
 
 
-# 单操作的检索词，表是模块归属而非推断某步骤实际访问。
 def operation_terms(binding: Binding, rules: dict, routes: list[dict]) -> list[str]:
     module, item, flow = binding.module, binding.contract, binding.flow
     terms = [module.name, module.title, *module.aliases, item.name, item.title, *item.aliases]
@@ -94,12 +85,10 @@ def operation_terms(binding: Binding, rules: dict, routes: list[dict]) -> list[s
     return terms
 
 
-# 明细也有界，明确省略数量；调用者可按准确操作继续读取。
 def bounded(values: list) -> dict[str, Any]:
     return {"items": values[:DETAIL_LIMIT], "omitted": max(0, len(values) - DETAIL_LIMIT)}
 
 
-# 只为命中的有界操作展开文件位置，不扫描无关目录。
 def result_of(binding: Binding, project: Path, rules: dict, routes: list[dict]) -> dict[str, Any]:
     module, item = binding.module, binding.contract
     steps = [
@@ -141,7 +130,6 @@ def result_of(binding: Binding, project: Path, rules: dict, routes: list[dict]) 
     }
 
 
-# 大小写不敏感的子串匹配，稳定按模块/操作排序，优先完整匹配。
 def locate(
     catalog: Catalog,
     project: Path,

@@ -1,13 +1,7 @@
-"""
-计算当前实际运行代码的摘要，区分旧版本成功样例与当前版本成功样例。
-服务创建时计算一次；不包含环境、数据库、文档、测试和运行记录，也不逐请求读取文件。
-"""
-
 import hashlib
 from pathlib import Path
 
 
-# 路径相对于 server/，本地目录与部署镜像中的相同源码得到相同结果。
 def source_version(root: Path) -> str:
     paths = {root / "pyproject.toml", root / "uv.lock"}
     for area in ("app", "service", "library", "shared", "migrations"):

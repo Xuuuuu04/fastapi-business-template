@@ -1,7 +1,3 @@
-"""
-入口操作的权限检查与错误整理。运行记录只保存对排查有用的错误信息。
-"""
-
 import asyncio
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any, cast
@@ -25,7 +21,6 @@ if TYPE_CHECKING:
     from shared.flow.scope import Scope
 
 
-# 没有身份时报未登录，有身份但缺权限时报无权限。
 def check_access(item: Contract[Any, Any], caller: Caller) -> None:
     if caller.can(item.access):
         return
@@ -34,7 +29,6 @@ def check_access(item: Contract[Any, Any], caller: Caller) -> None:
     raise NotAllowed(f"没有权限执行“{item.title}”，需要权限 {item.access}")
 
 
-# 把超时、数据库断连和只读违规转成框架的错误种类。
 def translate(error: BaseException) -> BaseException:
     if isinstance(error, BusinessError) or not isinstance(error, Exception):
         return error
@@ -47,7 +41,6 @@ def translate(error: BaseException) -> BaseException:
     return error
 
 
-# 外部写入不能随数据库回滚撤销；上下层调用共享的实际效果决定是否允许整体重试。
 def after_external_write(problem: BaseException, effects: list[RemoteCallRecord]) -> BaseException:
     if not isinstance(problem, Exception):
         return problem
@@ -60,7 +53,6 @@ def after_external_write(problem: BaseException, effects: list[RemoteCallRecord]
     return problem
 
 
-# 保存失败步骤、错误种类和安全的错误信息。
 def fill_error(run: RunRecord, problem: BaseException) -> None:
     failed = next((step for step in reversed(run.steps) if step.status == "failed"), None)
     run.failed_step = failed.title if failed else ""
@@ -79,7 +71,6 @@ def fill_error(run: RunRecord, problem: BaseException) -> None:
         ) or f"程序异常：{type(problem).__name__}"
 
 
-# 入口失败保持原回滚与外部未知保护，关闭记录后附上可排查的运行编号。
 async def settle_entry(
     runtime: "Runtime", scope: "Scope", run: RunRecord, error: BaseException
 ) -> BaseException:

@@ -1,7 +1,3 @@
-"""
-面板规模、指标与待处理资料来自已有文件，只导出摘要，不复制原话或运行值。
-"""
-
 import json
 from pathlib import Path
 
@@ -12,7 +8,6 @@ from fastapi_project.development.ledger import read_ledger
 SIZE_LIMITS = {"lines": 1000, "steps": 20, "dependencies": 8}
 
 
-# 备注只作文字展示，不参加代码指纹或检查颜色；原件保留在忽略目录。
 def package_note(project: Path, name: str) -> str:
     path = project / ".agents/records/notes" / (name + ".md")
     if path.is_symlink():
@@ -20,7 +15,6 @@ def package_note(project: Path, name: str) -> str:
     return path.read_text()[:4000] if path.is_file() else ""
 
 
-# 包规模是整理建议，与框架单文件和函数质量阈值分开，不降低已有检查要求。
 def package_size(project: Path, name: str, module: dict, links: dict) -> dict:
     folder = (
         project / "server" / ("library" if module.get("kind") == "library" else "service") / name
@@ -42,7 +36,6 @@ def package_size(project: Path, name: str, module: dict, links: dict) -> dict:
     }
 
 
-# 本机请求与审查单只列明确字段，损坏资料保留文件和错误说明。
 def pending_records(project: Path, folder: str, fields: tuple[str, ...]) -> list[dict]:
     result = []
     for path in sorted((project / ".agents/records" / folder).glob("*.json")):
@@ -64,7 +57,6 @@ def pending_records(project: Path, folder: str, fields: tuple[str, ...]) -> list
     return result
 
 
-# 高风险待确认优先列出，业务原文和本机来源档案不会进入HTML。
 def attention(project: Path) -> dict:
     ledger = read_ledger(project)
     rules = [rule for rule in ledger.rules if rule.state not in {"confirmed", "retired"}]
@@ -81,7 +73,6 @@ def attention(project: Path) -> dict:
     }
 
 
-# 时间曲线与通过率保留范围，最慢测试只取最近完整轮，不把不同库合成一项。
 def metrics(checks: list[dict], project: Path) -> dict:
     complete = [check for check in checks if check.get("scope", {}).get("kind") == "all"]
     latest = latest_full_check(checks)

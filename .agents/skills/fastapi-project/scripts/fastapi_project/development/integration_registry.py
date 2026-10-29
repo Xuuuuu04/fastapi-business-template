@@ -1,7 +1,3 @@
-"""
-登记与路由从合并后的包和已有公开绑定重生成，含独立逻辑的登记文件不覆盖。
-"""
-
 import ast
 import json
 import keyword
@@ -11,14 +7,12 @@ from fastapi_project.development.check_assets import atomic_bytes
 from fastapi_project.development.versions import catalog_bindings, route_ownership
 
 
-# 包与接口标识只能用Python名称，不能通过登记内容插入任意代码。
 def name_checked(name: str) -> str:
     if not name.isidentifier() or keyword.iskeyword(name):
         raise ValueError("派生登记包含非法名称")
     return name
 
 
-# 只有导入、文档与明确MODULES列表属于派生登记，其他代码需要显式处理。
 def catalog_names(source: str) -> set[str]:
     bindings = catalog_bindings(source)
     if bindings is None:
@@ -49,7 +43,6 @@ def catalog_names(source: str) -> set[str]:
     return set(bindings)
 
 
-# 旧包显式登记仍保留，新包自身module.json参与清单，未定义实现不能伪造启用。
 def regenerate_catalog(project: Path, sources: list[str]) -> Path:
     names = set.union(*(catalog_names(source) for source in sources))
     for path in (project / "server/service").glob("*/module.json"):
@@ -64,8 +57,7 @@ def regenerate_catalog(project: Path, sources: list[str]) -> Path:
         f"from service.{name}.module import module as {name}\n" for name in sorted(names)
     )
     text = (
-        '"""\n模块清单由业务包声明生成，新增与删除后重新生成。\n"""\n\n'
-        + imports
+        imports
         + "from shared.modules.module import Module\n\n"
         + "MODULES: list[Module] = [\n"
         + "".join(f"    {name},\n" for name in sorted(names))
@@ -76,7 +68,6 @@ def regenerate_catalog(project: Path, sources: list[str]) -> Path:
     return target
 
 
-# 只移除业务导入与业务字典，系统接口及自定义逻辑用语法结构逐项比较。
 def router_core(source: str) -> tuple[str, dict[str, list[str]]]:
     mapping = route_ownership(source)
     if mapping is None:
@@ -123,7 +114,6 @@ def router_core(source: str) -> tuple[str, dict[str, list[str]]]:
     return "".join(lines), mapping
 
 
-# 系统路由两边变更不猜取舍；业务路由按真正绑定的接口文件合并。
 def regenerate_routers(project: Path, sources: list[str]) -> Path:
     cores = [router_core(source) for source in sources]
     shapes = [ast.dump(ast.parse(core), include_attributes=False) for core, _ in cores]

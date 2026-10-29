@@ -1,7 +1,3 @@
-"""
-规则与项目计划按业务身份做三方合并，冲突不猜取舍，来源与确认语义完整保留。
-"""
-
 import hashlib
 import json
 import subprocess
@@ -16,7 +12,6 @@ from fastapi_project.development.plan import check_plan
 from fastapi_template.template.files import safe_path
 
 
-# Git原件取自明确提交，不读取工作树里尚未处理的冲突标记。
 def blob(project: Path, commit: str, name: str) -> bytes | None:
     result = subprocess.run(
         ["git", "show", commit + ":" + name],
@@ -32,7 +27,6 @@ def blob(project: Path, commit: str, name: str) -> bytes | None:
     return result.stdout
 
 
-# 同一身份双方都改成不同内容时拒绝；一边未变则使用真正改动的一边。
 def choose(old: Any, local: Any, incoming: Any, location: str) -> Any:
     if local == incoming or incoming == old:
         return local
@@ -41,7 +35,6 @@ def choose(old: Any, local: Any, incoming: Any, location: str) -> Any:
     raise ValueError("语义冲突需要处理：" + location)
 
 
-# 当前规则与脱敏来源按ID合并，删除与修订竞争不被列表顺序掩盖。
 def identity_merge(
     old: list[dict], local: list[dict], incoming: list[dict], key: str
 ) -> list[dict]:
@@ -61,7 +54,6 @@ def identity_merge(
     return result
 
 
-# 两种账本原件均汇总为同一模型，旧资料不会在合并中被自动标为确认。
 def committed_ledger(project: Path, commit: str) -> RuleLedger:
     content = blob(project, commit, INDEX)
     if content is None:
@@ -76,7 +68,6 @@ def committed_ledger(project: Path, commit: str) -> RuleLedger:
     return decode_ledger(index, packages)
 
 
-# 当前状态三方合并，完整历史用事件内容摘要去重，不以新generation选择业务事实。
 def merge_ledgers(project: Path, commits: tuple[str, str, str]) -> dict[str, str]:
     ledgers = [committed_ledger(project, commit).model_dump(mode="json") for commit in commits]
     sources = identity_merge(
@@ -95,7 +86,6 @@ def merge_ledgers(project: Path, commits: tuple[str, str, str]) -> dict[str, str
     return store_files(project, merged)
 
 
-# 计划集合按显式增删合并；同包说明或归属冲突需要处理，不猜业务目的。
 def plan_value(old: Any, local: Any, incoming: Any, location: str) -> Any:
     if local in (incoming, old) or incoming == old:
         return choose(old, local, incoming, location)
@@ -112,7 +102,6 @@ def plan_value(old: Any, local: Any, incoming: Any, location: str) -> Any:
     return choose(old, local, incoming, location)
 
 
-# 包名是唯一业务身份，计划中的未实现包保留，不按当前代码缩减用户目标。
 def merge_plans(values: list[dict]) -> dict:
     packages = [
         {
@@ -140,7 +129,6 @@ def merge_plans(values: list[dict]) -> dict:
     return plan
 
 
-# 所有内容先计算成功再落到临时树，原工作区仍由整合生命周期保护。
 def resolve_json(project: Path, commits: tuple[str, str, str]) -> list[str]:
     files = merge_ledgers(project, commits)
     plans = [blob(project, commit, "project-plan.json") for commit in commits]

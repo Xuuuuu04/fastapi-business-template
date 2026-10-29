@@ -1,7 +1,3 @@
-"""
-面板生成保留空模板与计划节点，离线资源和文本转义不依赖业务服务。
-"""
-
 import json
 from pathlib import Path
 
@@ -12,7 +8,6 @@ from fastapi_template.template.files import managed_files
 from shared.modules.catalog import Catalog
 
 
-# 二十个尚未开发的包形成计划链，不能从计划声明伪造实现或测试成功。
 def planned_project(project: Path) -> dict:
     packages = [
         {
@@ -36,7 +31,6 @@ def planned_project(project: Path) -> dict:
     return panel_data(project, Catalog([]))
 
 
-# 单HTML包含布局脚本，没有外部资源地址，标题中的脚本终止符只作为数据。
 def test_offline_panel_has_twenty_planned_nodes_and_safe_text(tmp_path: Path) -> None:
     data = planned_project(tmp_path)
     assert len(data["nodes"]) == 20 and len(data["edges"]) == 19
@@ -53,7 +47,6 @@ def test_offline_panel_has_twenty_planned_nodes_and_safe_text(tmp_path: Path) ->
     assert json.loads(payload)["name"] == "@@SCRIPT@@"
 
 
-# 备注只写文字，不能通过标题或备注中的完成声明改变实际计划状态。
 def test_notes_do_not_change_evidence_state(tmp_path: Path) -> None:
     before = planned_project(tmp_path)
     note = tmp_path / ".agents/records/notes/sample_package0.md"
@@ -64,7 +57,6 @@ def test_notes_do_not_change_evidence_state(tmp_path: Path) -> None:
     assert after["nodes"][0]["note"] == note.read_text()
 
 
-# 实际生成只写派生页面，计划与规则不改，没有数据库或原话目录也能完成。
 def test_panel_generation_preserves_source_and_empty_template(tmp_path: Path) -> None:
     planned_project(tmp_path)
     plan = (tmp_path / "project-plan.json").read_bytes()
@@ -75,7 +67,6 @@ def test_panel_generation_preserves_source_and_empty_template(tmp_path: Path) ->
     assert not (tmp_path / ".agents/records/tasks").exists()
 
 
-# 离线样式和供应商摘要进入三方升级范围，旧项目不能只得到新Python而缺页面资产。
 def test_panel_assets_are_managed_upgrade_files(tmp_path: Path) -> None:
     folder = tmp_path / ".agents/skills/fastapi-project/assets/panel"
     folder.mkdir(parents=True)
@@ -90,7 +81,6 @@ def test_panel_assets_are_managed_upgrade_files(tmp_path: Path) -> None:
     }
 
 
-# 尚未生成源码的计划包仍显示已经提出的高风险规则，不借登记缺失隐藏待确认事项。
 def test_planned_package_keeps_high_risk_unconfirmed_rules(tmp_path: Path) -> None:
     from fastapi_project.development.ledger import add_source, propose
     from fastapi_project.development.ledger_models import LedgerRule, RuleSource

@@ -1,7 +1,3 @@
-"""
-项目图只维护业务计划，实际实现与依赖始终从源码读取；包级计划可以先于操作存在。
-"""
-
 import argparse
 import json
 from pathlib import Path
@@ -11,7 +7,6 @@ from fastapi_project.development.check_assets import atomic_bytes
 from fastapi_project.development.plan import check_plan, read_plan
 
 
-# 计划文件使用一次完整替换，避免写一半留下无法读取的JSON。
 def save_plan(project: Path, plan: dict) -> None:
     check_plan(plan)
     atomic_bytes(
@@ -20,7 +15,6 @@ def save_plan(project: Path, plan: dict) -> None:
     )
 
 
-# 模块类型与依赖只是计划，不能据此声称已经实现或通过检查。
 def add_package(
     project: Path,
     name: str,
@@ -52,9 +46,8 @@ def add_package(
     return plan
 
 
-# 命令不导入业务实现，也不创建数据库或假实现。
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("show")
     add = commands.add_parser("add-package")

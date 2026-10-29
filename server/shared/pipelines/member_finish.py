@@ -1,7 +1,3 @@
-"""
-成员阶段结果与下一子阶段同事务提交，汇合后不再启动未纳入的新动作。
-"""
-
 import json
 from typing import TYPE_CHECKING
 
@@ -20,7 +16,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue, Ticket
 
 
-# 同一成员每个子阶段独立事务，等待结果不占一个长事务。
 async def finish(
     connection: AsyncConnection,
     queue: "JobQueue",
@@ -47,7 +42,6 @@ async def finish(
     await advance(connection, queue, root, parent, group)
 
 
-# 成功产出、已完成子阶段和下一子阶段输入作为同一份成员进度保存。
 async def save_result(
     connection: AsyncConnection,
     member: dict,
@@ -99,7 +93,6 @@ async def save_result(
     await connection.execute(update(members).where(members.c.id == member["id"]).values(**values))
 
 
-# 显式输入来源只能是原始成员Data或已成功子阶段。
 def next_input(stage: Stage, member: dict, history: list[dict], previous: str) -> str:
     if stage.input_from == "previous":
         body = previous
@@ -111,7 +104,6 @@ def next_input(stage: Stage, member: dict, history: list[dict], previous: str) -
     return data_json(stage.operation.input, data, member["key"] + "/" + stage.name)
 
 
-# 等待每次只做一个检查，同一任务按间隔重新领取，保留原截止时间。
 async def wait_again(
     connection: AsyncConnection,
     ticket: "Ticket",

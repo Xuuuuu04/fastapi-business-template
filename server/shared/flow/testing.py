@@ -1,8 +1,3 @@
-"""
-单独运行一个步骤的测试工具，供 tests/modules 中的业务测试使用。
-同样检查读写声明和字段类型；store、其他模块的调用和大模型都由测试传入替身。
-"""
-
 import secrets
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -22,7 +17,6 @@ from shared.records.models import StepRecord
 Fake = Callable[[Any], Awaitable[Data]]
 
 
-# 独立运行步骤后的结果，供模块测试查看写入字段和任务登记。
 @dataclass
 class StepResult:
     values: dict[str, Any]
@@ -30,7 +24,6 @@ class StepResult:
     later: list[tuple[str, Data]] = field(default_factory=list)
 
 
-# 运行一个普通函数写的步骤，返回它写入的字段和数据说明。
 def try_step(part: Step, work: type[WorkData], **values: Any) -> StepResult:
     if part.is_async:
         raise StepRuleBroken("async 步骤请使用 try_step_async")
@@ -42,7 +35,6 @@ def try_step(part: Step, work: type[WorkData], **values: Any) -> StepResult:
     return finish(part, view, values, record, [])
 
 
-# 运行任意步骤；calls 按操作给出替身函数，store、model 直接传入替身。
 async def try_step_async(
     part: Step,
     work: type[WorkData],
@@ -66,7 +58,6 @@ async def try_step_async(
     return finish(part, view, values, record, submitted)
 
 
-# 准备步骤视图和步骤记录。
 def prepare(
     part: Step, work: type[WorkData], values: dict[str, Any]
 ) -> tuple[StepView, StepRecord]:
@@ -78,7 +69,6 @@ def prepare(
     return view, record
 
 
-# 检查声明的字段都已写入，并整理结果。
 def finish(
     part: Step,
     view: StepView,
@@ -93,9 +83,7 @@ def finish(
     return StepResult(written, list(record.notes), submitted)
 
 
-# 生成模块调用的替身：只允许调用步骤声明过的操作。
 def fake_call(part: Step, calls: dict[Contract[Any, Any], Fake]) -> Callable[..., Awaitable[Data]]:
-    # 按操作找到测试给出的替身函数并调用。
     async def call(item: Contract[Any, Any], input: Data) -> Data:
         if item not in part.uses:
             raise StepRuleBroken(f"步骤“{part.title}”调用了未声明的操作 {item.name}")
@@ -106,9 +94,7 @@ def fake_call(part: Step, calls: dict[Contract[Any, Any], Fake]) -> Callable[...
     return call
 
 
-# 生成任务登记的替身：记录登记了哪些任务。
 def fake_later(part: Step, submitted: list[tuple[str, Data]]) -> Callable[..., Awaitable[str]]:
-    # 记下登记的任务并返回一个假编号。
     async def later(item: Contract[Any, Any], input: Data, *, key: str = "") -> str:
         if item not in part.later:
             raise StepRuleBroken(f"步骤“{part.title}”登记了未声明的任务 {item.name}")

@@ -1,7 +1,3 @@
-"""
-生成器的可审查文件改动：先计算全部目标，再写入；AST只定位登记表达式，保留其余源码。
-"""
-
 import ast
 import re
 from pathlib import Path
@@ -11,7 +7,6 @@ from fastapi_check.quality.rules import PROJECT, ROOT
 NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
 
 
-# 目标只允许已有标准模块内的简单名称，避免路径或代码片段进入生成器。
 def validate(module: str, name: str) -> Path:
     if not NAME.fullmatch(module) or not NAME.fullmatch(name):
         raise ValueError("模块和操作名只能使用小写字母、数字、下划线")
@@ -21,7 +16,6 @@ def validate(module: str, name: str) -> Path:
     return folder
 
 
-# 把新项加入Module的一个字典或元组声明，不改无关函数和注释。
 def extend_module(text: str, keyword: str, entry: str, *, mapping: bool = False) -> str:
     tree = ast.parse(text)
     calls = [
@@ -58,12 +52,10 @@ def extend_module(text: str, keyword: str, entry: str, *, mapping: bool = False)
     return text[:end] + f"\n    {keyword}={value},\n" + text[end:]
 
 
-# public导出以追加形式扩展，保留产品已有公开符号及组织方式。
 def append(text: str, code: str) -> str:
     return text.rstrip() + "\n\n" + code.strip() + "\n"
 
 
-# 预览和实施共享同一改动清单，报告仅列真正内容不同的文件。
 def write(changes: dict[Path, str], *, preview: bool = False) -> list[str]:
     actual = {
         path: value
@@ -77,12 +69,10 @@ def write(changes: dict[Path, str], *, preview: bool = False) -> list[str]:
     return [str(path.relative_to(PROJECT)) for path in actual]
 
 
-# AST列偏移按UTF8字节计，中文标题不影响登记表达式定位。
 def column(line: str, byte_offset: int) -> int:
     return len(line.encode("utf-8")[:byte_offset].decode("utf-8"))
 
 
-# 新导入放在文档和future声明之后，交给统一格式整理。
 def add_import(text: str, line: str) -> str:
     tree = ast.parse(text)
     after = 0
@@ -103,6 +93,5 @@ def add_import(text: str, line: str) -> str:
     return "".join(lines[:after]) + "\n" + line + "\n" + "".join(lines[after:])
 
 
-# 后处理文档目标列入文件清单；本机汇总文件单独生成，不计入Git影响范围。
 def snapshot(paths: list[Path]) -> dict[Path, str | None]:
     return {path: path.read_text() if path.exists() else None for path in paths}

@@ -1,9 +1,3 @@
-"""
-定义提示词 prompt() 的写法和填充方法。
-提示词写在模块 prompts/ 目录下的 Markdown 文件中，用“## system”和“## user”分成两段，
-变量写作 {name}；文件和版本号一起写进运行记录，作用与业务规则版本相同。
-"""
-
 import string
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,7 +6,6 @@ from shared.data.models import Data
 from shared.errors.framework import StepRuleBroken
 
 
-# 一个提示词的版本、文件和输出要求，用于登记与运行记录。
 @dataclass(frozen=True, eq=False)
 class Prompt:
     name: str
@@ -24,7 +17,6 @@ class Prompt:
     temperature: float = 0.2
 
 
-# 读取后的提示词正文及占位字段，用于检查调用输入。
 @dataclass(frozen=True)
 class PromptText:
     system: str
@@ -32,7 +24,6 @@ class PromptText:
     names: frozenset[str]
 
 
-# 声明一个提示词；output 给出结构化结果的数据类型，不给则返回文本。
 def prompt(
     name: str,
     title: str,
@@ -46,7 +37,6 @@ def prompt(
     return Prompt(name, title, version, file, output, max_tokens, temperature)
 
 
-# 读取提示词文件，拆成 system 和 user 两段并找出其中的变量名。
 def load_prompt(item: Prompt) -> PromptText:
     text = item.file.read_text(encoding="utf-8")
     parts: dict[str, list[str]] = {"system": [], "user": []}
@@ -65,7 +55,6 @@ def load_prompt(item: Prompt) -> PromptText:
     return PromptText(system, user, frozenset(names))
 
 
-# 用变量填充提示词；变量缺少或多出都会报错，避免悄悄漏填。
 def fill_prompt(item: Prompt, text: PromptText, values: dict[str, object]) -> tuple[str, str]:
     missing = text.names - values.keys()
     extra = values.keys() - text.names

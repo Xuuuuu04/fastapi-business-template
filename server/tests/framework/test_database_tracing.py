@@ -1,7 +1,3 @@
-"""
-数据库记录验证实际返回值、延迟、失败和只读限制，并检查容量截断不会假装记录完整。
-"""
-
 import asyncio
 from dataclasses import asdict
 from pathlib import Path
@@ -19,7 +15,6 @@ from shared.records.models import StepRecord
 pytestmark = pytest.mark.anyio
 
 
-# 测试通过真实 SQLite 连接读取；只延迟驱动执行，不替换业务返回值。
 async def test_query_latency_values_and_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -31,7 +26,6 @@ async def test_query_latency_values_and_failure(
         async with engine.connect() as connection:
             original = type(connection).execute
 
-            # 模拟确实花时间的数据库请求。
             async def delayed(current, statement):
                 await asyncio.sleep(0.02)
                 return await original(current, statement)
@@ -55,7 +49,6 @@ async def test_query_latency_values_and_failure(
         await engine.dispose()
 
 
-# 超出容量的查询继续执行和统计，图不能把被省略的调用假装成没有发生。
 async def test_query_detail_limit_is_explicit(tmp_path: Path) -> None:
     engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/limit.db")
     record = StepRecord("s", "count", "计数", "read", "", "step.py:1", database_complete=True)

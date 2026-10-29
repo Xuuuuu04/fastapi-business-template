@@ -1,9 +1,3 @@
-"""
-启动时检查一个流程的声明是否自洽，返回全部问题，不在第一处就停下。
-检查内容：字段说明、输入与结果类型、读写字段是否存在、每个字段只有一个写入者、
-读取的字段在之前是否已经有值、步骤参数与声明是否一致、写入事务开始后是否还调用大模型。
-"""
-
 from typing import Any
 
 from shared.data.fields import FieldNote, check_notes, notes_of
@@ -19,7 +13,6 @@ MAX_STEPS = 12
 ONE_KIND = ("store", "call", "model", "remote", "effects")
 
 
-# 检查一个流程与它实现的操作约定，返回问题清单。
 def check_flow(
     flow: Flow,
     contract: Contract[Any, Any],
@@ -48,7 +41,6 @@ def check_flow(
     return problems
 
 
-# 检查输入字段、结果字段和步骤数量。
 def check_shape(flow: Flow, contract: Contract[Any, Any], place: str) -> list[str]:
     problems = []
     fields = flow.work.model_fields
@@ -75,7 +67,6 @@ def check_shape(flow: Flow, contract: Contract[Any, Any], place: str) -> list[st
     return problems
 
 
-# 检查单个步骤：读写字段存在、参数与声明一致。
 def check_step(
     item: Step,
     notes: dict[str, FieldNote],
@@ -118,7 +109,6 @@ def check_step(
     return problems
 
 
-# 检查条件读取的字段是否存在。
 def check_condition(when: Condition, notes: dict[str, FieldNote]) -> list[str]:
     return [
         f"条件“{when.title}”读取的字段 {name} 不在流程数据中"
@@ -127,7 +117,6 @@ def check_condition(when: Condition, notes: dict[str, FieldNote]) -> list[str]:
     ]
 
 
-# 检查步骤参数名与 uses、prompts、later、saves 声明是否对应。
 def check_params(item: Step, place: str, has_store: bool) -> list[str]:
     params = set(item.params)
     problems = []
@@ -161,7 +150,6 @@ def check_params(item: Step, place: str, has_store: bool) -> list[str]:
     return problems + check_execution_style(item, place)
 
 
-# 检查同步或异步步骤的执行方式与所用工具相符。
 def check_execution_style(item: Step, place: str) -> list[str]:
     problems = []
     if item.heavy and item.is_async:
@@ -173,7 +161,6 @@ def check_execution_style(item: Step, place: str) -> list[str]:
     return problems
 
 
-# 检查每个字段最多只有一个写入者，且不覆盖输入字段。
 def check_writers(
     flow: Flow, contract: Contract[Any, Any], notes: dict[str, FieldNote]
 ) -> list[str]:
@@ -191,7 +178,6 @@ def check_writers(
     return problems
 
 
-# 检查每个被读取的字段在读取之前一定已经有值。
 def check_sources(
     flow: Flow, contract: Contract[Any, Any], notes: dict[str, FieldNote]
 ) -> list[str]:
@@ -221,7 +207,6 @@ def check_sources(
     return problems
 
 
-# 检查写入事务开始后是否还有大模型步骤。
 def check_model_order(flow: Flow) -> list[str]:
     saving = None
     problems = []

@@ -1,7 +1,3 @@
-"""
-临时工作树的整合验证进程，从本树加载声明，真实检查成功后输出可导出的证据。
-"""
-
 import asyncio
 import json
 import os
@@ -19,14 +15,12 @@ from fastapi_project.development.migration_verify import verify
 from fastapi_project.development.selection import Selection
 
 
-# 阶段信息只存本机，控制连接不写进报告或日志命令。
 def stage(name: str) -> None:
     atomic_bytes(
         PROJECT / ".agents/records/integration-stage.json", json.dumps({"stage": name}).encode()
     )
 
 
-# 复用短命令的实际实现，子进程bootstrap读取本树，避免父进程模块缓存。
 def command(name: str, *arguments: str) -> None:
     script = "from fastapi_dev.main import main; main()"
     result = subprocess.run(
@@ -36,7 +30,6 @@ def command(name: str, *arguments: str) -> None:
         raise ValueError("整合阶段命令没有通过：" + name)
 
 
-# 迁移只在隔离库验证，两条路径均通过后才继续框架和相关业务检查。
 def migrations(postgres: str) -> dict | None:
     plan = migration_plan(PROJECT)
     if len(plan["heads"]) <= 1:
@@ -49,7 +42,6 @@ def migrations(postgres: str) -> dict | None:
     }
 
 
-# 格式处理只覆盖本次派生文件，不改已有迁移历史。
 def format_generated(migration: dict | None) -> None:
     stage("format")
     paths = ["app/setup/catalog.py", "app/api/routers.py"]
@@ -59,7 +51,6 @@ def format_generated(migration: dict | None) -> None:
     subprocess.run([sys.executable, "-m", "ruff", "format", *paths], check=True)
 
 
-# 记录与当前源码及两类数据库逐项对应，成功不能用旧的记录补足。
 def checked_record(postgres: str) -> dict:
     before = {record["id"] for record in read_checks(PROJECT, include_cases=False)}
     stage("dual-database-check")
@@ -87,7 +78,6 @@ def checked_record(postgres: str) -> dict:
     return records[0]
 
 
-# 本次唯一完整双库记录、当前源码和整轮成功一起核对，不拼接旧检查。
 def main() -> None:
     postgres = os.environ.get("FASTAPI_MERGE_POSTGRES", "")
     if not postgres:

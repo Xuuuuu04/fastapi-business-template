@@ -1,8 +1,3 @@
-"""
-保存真实检查结果，并用文件摘要判断它是否仍适用于当前代码。
-记录只保存测试名称、状态和执行过的操作；不保存环境变量、连接地址或业务数据。
-"""
-
 import hashlib
 from pathlib import Path
 from typing import Any
@@ -50,7 +45,6 @@ COMMON = (
 )
 
 
-# 按路径和原始内容计算摘要；修改、增加、删除都会改变结果。
 def fingerprint(paths: list[Path], root: Path) -> str:
     digest = hashlib.sha256()
     files: set[Path] = set()
@@ -63,7 +57,6 @@ def fingerprint(paths: list[Path], root: Path) -> str:
     return digest.hexdigest()
 
 
-# 调用方包含被调用模块的版本，间接调用与后台任务也不能沿用旧检查。
 def dependency_modules(name: str, links: dict[str, dict[str, list[str]]]) -> list[str]:
     pending = [name]
     found: set[str] = set()
@@ -75,7 +68,6 @@ def dependency_modules(name: str, links: dict[str, dict[str, list[str]]]) -> lis
     return sorted(found)
 
 
-# 每个模块的业务代码、确认规则和测试共同决定它的检查版本。
 def module_paths(project: Path, name: str) -> list[Path]:
     server = project / "server"
     libraries = {spec.name for spec in library_specs(server)}
@@ -91,14 +83,11 @@ def module_paths(project: Path, name: str) -> list[Path]:
     ]
 
 
-# 把一个文件的内容计入摘要；路径和内容都参与，删除文件会少一条记录。
 def _feed(digest: "hashlib._Hash", path: Path, project: Path, content: bytes) -> None:
     digest.update(path.relative_to(project).as_posix().encode() + b"\0")
     digest.update(content + b"\0")
 
 
-# 公共部分的摘要：公共目录全部文件、非模块路由和登记文件的剩余公共部分。
-# 读不出模块归属时，全部接口文件保守地算公共，登记文件按原始内容参与。
 def _common_digest(project: Path, reader: Reader, owned: set[Path]) -> str:
     server = project / "server"
     files: set[Path] = set()
@@ -119,7 +108,6 @@ def _common_digest(project: Path, reader: Reader, owned: set[Path]) -> str:
     return digest.hexdigest()
 
 
-# 一个模块的版本 = 公共摘要 + 自身与全部声明依赖的业务文件、规则、测试和接口文件。
 def _module_digest(
     project: Path,
     name: str,
@@ -150,8 +138,6 @@ def _module_digest(
     return digest.hexdigest()
 
 
-# 公共代码与全部声明依赖参与版本计算；没有依赖参数时保留独立模块用法。
-# 公共文件一轮只读一次；总登记清单与模块自己的接口文件按归属参与对应模块的版本。
 def fingerprints(
     project: Path, modules: list[str], links: dict[str, dict[str, list[str]]] | None = None
 ) -> dict[str, str]:
@@ -176,19 +162,16 @@ def fingerprints(
     }
 
 
-# 原子保存一轮检查，独立编号避免并行工作覆盖彼此的结果。
 def save_check(project: Path, record: dict[str, Any]) -> Path:
     return save_record(project, record)
 
 
-# 读取已保留的轮次；损坏记录直接报错，不悄悄当成没有测试。
 def read_checks(
     project: Path, extra: list[Path] | None = None, *, include_cases: bool = True
 ) -> list[dict[str, Any]]:
     return read_records(project, extra, include_cases)
 
 
-# 每种数据库分别取最近一轮，旧版本结果保留但明确显示过期。
 def module_checks(checks: list[dict[str, Any]], module: str, current: str) -> dict[str, Any]:
     selected = [check for check in checks if module in check["fingerprints"]]
     latest: dict[str, Any] = {}

@@ -67,7 +67,7 @@ import_plan = ImportPlan(
         where=imported_rows.c.import_key == "门店A-20261008-固定来源范围",
     ),
 )
-# JobPlan(load, segmented=True, repeat_safe=True, import_plan=import_plan)
+job = JobPlan(load, segmented=True, repeat_safe=True, import_plan=import_plan)
 ```
 
 目标表和引用表登记在本模块的 tables 里；金额使用 ExactNumber 与 Decimal。预期值来自原件清单，不能用导入后的数量反过来推预期。多个来源分别登记计划与范围；where 限定本次导入，全表导入才省略 where。非空率统计的是 SQL 非 NULL；要判断空串或业务有效性，需要增加正式的规则步骤。来源范围键和对账预期会进入声明摘要和队列去重；同一计划重复提交时复用原任务，输入不同则拒绝。

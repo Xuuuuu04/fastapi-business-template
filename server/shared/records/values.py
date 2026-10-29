@@ -1,8 +1,3 @@
-"""
-把步骤写入的字段整理成一句安全的中文摘要。
-默认只记录数量、长度这类形状信息；字段声明了 log_value=True 才记录取值，secret=True 的字段从不记录。
-"""
-
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
@@ -14,7 +9,6 @@ from shared.data.fields import FieldNote, notes_of
 MAX_VALUE_TEXT = 120
 
 
-# 描述一个字段写入后的情况。
 def describe_value(value: Any, note: FieldNote) -> str:
     label = note.meaning or note.name
     unit = note.unit if note.unit else ""
@@ -27,7 +21,6 @@ def describe_value(value: Any, note: FieldNote) -> str:
     return f"{label}：{shape_text(value)}"
 
 
-# 把允许记录的取值转成短文本。
 def value_text(value: Any) -> str:
     if contains_secret(value):
         return "已写入（敏感字段，不记录内容）"
@@ -42,7 +35,6 @@ def value_text(value: Any) -> str:
     return text if len(text) <= MAX_VALUE_TEXT else text[:MAX_VALUE_TEXT] + "……"
 
 
-# 嵌套敏感字段使整个容器只显示提示；先检查原对象，避免序列化或截断时暴露内容。
 def contains_secret(value: Any, seen: set[int] | None = None) -> bool:
     seen = seen if seen is not None else set()
     identity = id(value)
@@ -64,7 +56,6 @@ def contains_secret(value: Any, seen: set[int] | None = None) -> bool:
     return False
 
 
-# 只描述数据的形状，不暴露内容。
 def shape_text(value: Any) -> str:
     if isinstance(value, bool):
         return "已写入是否标记"

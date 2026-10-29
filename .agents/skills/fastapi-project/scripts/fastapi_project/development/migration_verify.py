@@ -1,7 +1,3 @@
-"""
-迁移验证只使用新建的隔离数据库；旧版增量与全新建库比较结构，可插入独立合成旧行。
-"""
-
 import asyncio
 import hashlib
 import json
@@ -21,7 +17,6 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 
-# Alembic通过显式测试地址执行，原控制库地址不传入迁移进程。
 def upgrade(project: Path, url: str, revision: str) -> None:
     env = clean_environment() | {"APP_ENV": "test", "APP_DATABASE_URL": url}
     result = subprocess.run(
@@ -38,7 +33,6 @@ def upgrade(project: Path, url: str, revision: str) -> None:
         )
 
 
-# 结构包括列、索引、主键、外键和唯一约束；不读取生产连接或实际业务数据。
 def schema(connection: Any) -> dict:
     inspector = inspect(connection)
     result = {}
@@ -77,12 +71,10 @@ def schema(connection: Any) -> dict:
     return json.loads(json.dumps(result, default=str, sort_keys=True))
 
 
-# 反射回调明确绑定本次表名，异步循环不捕获后来变化的行变量。
 def reflected(connection: Connection, name: str) -> Table:
     return Table(name, MetaData(), autoload_with=connection)
 
 
-# JSON样例的ISO时间按实际列类型还原；SQLite文本时间保持原样，不以VARCHAR比较PG时间列。
 def seed_values(table: Table, row: dict) -> dict:
     result = dict(row["values"])
     for name, value in result.items():
@@ -95,7 +87,6 @@ def seed_values(table: Table, row: dict) -> dict:
     return result
 
 
-# 旧行由独立测试提供，表和列通过实际反射检查，SQL值使用绑定参数。
 async def seed(url: str, rows: list[dict]) -> list[dict]:
     engine = create_async_engine(url)
     try:
@@ -115,7 +106,6 @@ async def seed(url: str, rows: list[dict]) -> list[dict]:
         await engine.dispose()
 
 
-# 增量升级后检查合成旧行的原字段，结构比较另行检查所有新增列。
 async def preserved(url: str, rows: list[dict]) -> bool:
     engine = create_async_engine(url)
     try:
@@ -132,7 +122,6 @@ async def preserved(url: str, rows: list[dict]) -> bool:
         await engine.dispose()
 
 
-# 同库类型两条真实迁移路径比较，异常不得被成功结构快照掩盖。
 async def compare_paths(
     project: Path, urls: tuple[str, str], anchor: str, rows: list[dict]
 ) -> dict:
@@ -173,7 +162,6 @@ async def compare_paths(
     }
 
 
-# PostgreSQL只借新资源，始终按所有权标记归还，不在调用方控制库运行upgrade。
 async def postgres_paths(project: Path, control: str, anchor: str, rows: list[dict]) -> dict:
     leases: list[Any] = []
     try:
@@ -191,7 +179,6 @@ async def postgres_paths(project: Path, control: str, anchor: str, rows: list[di
             raise ValueError("隔离数据库归还失败：" + ",".join(errors))
 
 
-# 两类数据库都需要明确执行证据，不用SQLite成功补成PostgreSQL成功。
 async def verify(project: Path, anchor: str, postgres: str, rows: list[dict] | None = None) -> dict:
     rows = rows or []
     if len(rows) > 100 or not anchor:

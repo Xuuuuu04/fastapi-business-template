@@ -1,7 +1,3 @@
-"""
-业务现状验收：生成/手写分离，声明/源码/时刻过期错误，真实只读状态与摘要省略。
-"""
-
 import json
 import os
 import time
@@ -33,14 +29,12 @@ from tests.framework.drill_sample import module as drill_module
 from tests.framework.operations_sample import Input, critical, module
 
 
-# 最小源码目录仍参加版本摘要，记录目录不反过来让自己过期。
 def project(root: Path) -> None:
     folder = root / "server/service/ops_sample"
     folder.mkdir(parents=True)
     (folder / "module.py").write_text("# 独立测试源码\n")
 
 
-# 手写判断字节保留，未知明确；源/声明/过期时间/生成摘要手改都可检查。
 def test_generated_state_preserves_manual_and_detects_expiry(tmp_path: Path) -> None:
     project(tmp_path)
     catalog = Catalog([module])
@@ -66,7 +60,6 @@ def test_generated_state_preserves_manual_and_detects_expiry(tmp_path: Path) -> 
     assert path.read_text().endswith(manual) and outdated(catalog, tmp_path, set()) == []
 
 
-# 生成边界损坏只报错，不以覆盖文件方式丢掉人工业务判断。
 def test_broken_markers_do_not_erase_manual(tmp_path: Path) -> None:
     project(tmp_path)
     path = tmp_path / FOLDER / "ops_sample.md"
@@ -78,7 +71,6 @@ def test_broken_markers_do_not_erase_manual(tmp_path: Path) -> None:
     assert path.read_text() == "# 人工业务判断：不能丢失\n"
 
 
-# 过期/待确认数量完整，Markdown只放少量实例，完整事实保留同名JSON。
 def test_bounded_preview_keeps_complete_json(tmp_path: Path) -> None:
     catalog = Catalog([module])
     facts = {
@@ -100,7 +92,6 @@ def test_bounded_preview_keeps_complete_json(tmp_path: Path) -> None:
     assert outdated(catalog, tmp_path, set()) == []
 
 
-# 更换库/角色/搜索路径不能继续把旧观察当当前事实，目标和密码不写记录。
 def test_database_target_change_expires_observation(tmp_path: Path) -> None:
     catalog = Catalog([module])
     source = (
@@ -126,7 +117,6 @@ def test_database_target_change_expires_observation(tmp_path: Path) -> None:
     assert "secret" not in path.read_text()
 
 
-# 真实数据库只读观察最新操作/流程/逾期/待确认，不把历史成功当当前源码验收。
 @pytest.mark.anyio
 async def test_real_database_observation_is_read_only(tmp_path: Path) -> None:
     postgres = os.environ.get("APP_TEST_DATABASE_URL", "")

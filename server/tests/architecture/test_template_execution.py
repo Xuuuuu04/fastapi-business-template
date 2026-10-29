@@ -1,7 +1,3 @@
-"""
-长样例调度不丢测试，副本类型缓存互相独立，源码变化仍由真实 mypy 检出。
-"""
-
 import os
 import subprocess
 import sys
@@ -16,7 +12,6 @@ from tests.scheduling import LONG_TESTS, schedule
 from tests.template_project import initialize
 
 
-# 自动预算为主机保留CPU，未知或较小机器仍能运行并行双库。
 @pytest.mark.parametrize("cpus,expected", [(None, 2), (1, 2), (4, 2), (8, 4), (10, 4), (64, 4)])
 def test_automatic_worker_budget(
     cpus: int | None, expected: int, monkeypatch: pytest.MonkeyPatch
@@ -25,7 +20,6 @@ def test_automatic_worker_budget(
     assert default_workers() == expected
 
 
-# 长短交替只改变执行顺序，串行保持原顺序，所有原对象恰好出现一次。
 def test_scheduling_preserves_every_case(monkeypatch: pytest.MonkeyPatch) -> None:
     items = [SimpleNamespace(name=name) for name in ("a", "b", *reversed(LONG_TESTS))]
     original = items.copy()
@@ -39,7 +33,6 @@ def test_scheduling_preserves_every_case(monkeypatch: pytest.MonkeyPatch) -> Non
     assert [item.name for item in items[:4]] == [LONG_TESTS[0], "a", LONG_TESTS[1], "b"]
 
 
-# 缓存复制而非链接，修改副本不改来源；缓存存在时源码错误仍让类型检查失败。
 def test_copied_type_cache_is_independent_and_invalidates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -53,7 +46,6 @@ def test_copied_type_cache_is_independent_and_invalidates(
     first = subprocess.run(command, cwd=server, env=environment, capture_output=True)
     assert first.returncode == 0, first.stdout
 
-    # 最小来源只替代复制边界，不替代 mypy 的实际失效检查。
     def create(source: Path, target: Path, name: str) -> None:
         (target / "server").mkdir(parents=True)
         (target / "server/example.py").write_bytes((source / "server/example.py").read_bytes())

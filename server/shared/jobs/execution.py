@@ -1,7 +1,3 @@
-"""
-worker调用入口：普通操作保持原事务，显式分段任务使用批次提交点。
-"""
-
 import asyncio
 from collections.abc import Awaitable, Callable
 
@@ -16,7 +12,6 @@ from shared.jobs.segmented import run_segments
 from shared.scenarios.observations import ObservationPosition
 
 
-# 根据任务声明选择执行方式，最终完成回调由worker决定。
 async def invoke(
     runtime: Runtime,
     queue: JobQueue,

@@ -1,13 +1,8 @@
-"""
-总览中的计划预览和需要处理的事项；完整计划与证据由按需入口提供。
-"""
-
 from typing import Any
 
 PREVIEW_LIMIT = 5
 
 
-# 项目级只给各包数量和缺项预览，避免计划操作清单随规模重复输出。
 def plan_summary(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     result = []
     for line in lines:
@@ -31,7 +26,6 @@ def plan_summary(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
-# 模块业务问题、没有记录和过期结果各自说明原因。
 def module_attention(module: dict[str, Any]) -> list[dict[str, str]]:
     name = module["name"]
     result = []
@@ -70,7 +64,6 @@ def module_attention(module: dict[str, Any]) -> list[dict[str, str]]:
     return result
 
 
-# 明确区分需确认、未实现、未运行与过期；不给未知状态补一个通过。
 def attention(status: dict[str, Any]) -> list[dict[str, str]]:
     result = []
     full = status["latest_full_check"]

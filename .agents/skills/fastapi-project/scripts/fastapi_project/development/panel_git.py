@@ -1,14 +1,9 @@
-"""
-只读本地分支和工作树，按分支分别展示证据，不合并其他源码版本的结论。
-"""
-
 import json
 import re
 import subprocess
 from pathlib import Path
 
 
-# Git读命令失败保留说明，不操作分支、不拉取远程、不获取账号配置。
 def git(project: Path, *arguments: str) -> str:
     result = subprocess.run(
         ["git", *arguments], cwd=project, capture_output=True, text=True, check=False, timeout=15
@@ -18,7 +13,6 @@ def git(project: Path, *arguments: str) -> str:
     return result.stdout
 
 
-# 工作树路径允许空格，分离HEAD明确标出；列表只包含当前仓库自己的工作树。
 def worktrees(project: Path) -> list[dict]:
     entries = []
     for block in git(project, "worktree", "list", "--porcelain").strip().split("\n\n"):
@@ -34,7 +28,6 @@ def worktrees(project: Path) -> list[dict]:
     return entries
 
 
-# 代码包与工具包按实际路径归属，框架改动另列，不把它们伪装成某个业务包。
 def changed_packages(paths: list[str]) -> list[str]:
     return sorted(
         {
@@ -45,7 +38,6 @@ def changed_packages(paths: list[str]) -> list[str]:
     )
 
 
-# 其他工作树保留自己的最近记录，不加载其他项目的配置或生产数据库。
 def tree_evidence(tree: dict) -> dict:
     path = Path(tree["path"])
     try:
@@ -78,7 +70,6 @@ def tree_evidence(tree: dict) -> dict:
         return {**tree, "latest_check": None, "warning": str(error)}
 
 
-# 跨工作树不建立索引或转换历史原件，大旧记录明确提示在其自身工作树转换。
 def tree_checks(project: Path) -> tuple[list[dict], list[str]]:
     checks, warnings = [], []
     for path in (project / "server/var/development/checks").glob("*.json"):
@@ -92,7 +83,6 @@ def tree_checks(project: Path) -> tuple[list[dict], list[str]]:
     return sorted(checks, key=lambda check: check["finished_at"]), warnings
 
 
-# 分支重叠只提示同包同时有差异，实际冲突由临时整合检查确认。
 def branch_status(project: Path) -> dict:
     try:
         trees = worktrees(project)

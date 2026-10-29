@@ -1,7 +1,3 @@
-"""
-声明路径、查询、正文和文件的实际传输，以及关键回执与不完整兼容协议的反例。
-"""
-
 import json
 
 import httpx2
@@ -17,14 +13,12 @@ from shared.remote_calls.serialization import request_for
 from shared.remote_calls.service import RemoteService
 
 
-# 标识、条件和业务正文分别进入声明的位置。
 class Input(Data):
     record_id: str = meaning("上游记录标识")
     dry_run: bool = meaning("是否试运行")
     title: str = meaning("业务名称")
 
 
-# 模拟上游旧协议的可选编号，关键回执声明仍必须要求本次响应实际提供编号。
 class Receipt(Data):
     external_id: str | None = meaning("上游编号", default=None, empty="本次响应未提供编号")
 
@@ -43,11 +37,8 @@ endpoint = Endpoint(
 )
 
 
-# 固定模型加任意字段只能显示部分验证，不能成为完整协议依据。
 def test_open_empty_protocol_is_explicitly_partial() -> None:
     class Raw(Data):
-        """旧上游扩展字段只用于边界兼容。"""
-
         model_config = ConfigDict(extra="allow")
 
     loose = Endpoint("synthetic.raw", "GET", "/raw", Raw, Raw, "read")
@@ -57,12 +48,10 @@ def test_open_empty_protocol_is_explicitly_partial() -> None:
         request_for(endpoint, Input(record_id="..", dry_run=False, title="body"))
 
 
-# 真实HTTP编码把三个位置分开，运行记录保留模板路径而非业务标识原文。
 @pytest.mark.anyio
 async def test_typed_locations_and_missing_receipt() -> None:
     seen = []
 
-    # 合成响应保留真实请求供传输断言，第二次故意缺关键回执。
     def reply(request: httpx2.Request) -> httpx2.Response:
         seen.append(request)
         return httpx2.Response(200, json={"external_id": "ref"} if len(seen) == 1 else {})
@@ -88,7 +77,6 @@ async def test_typed_locations_and_missing_receipt() -> None:
         await service.close()
 
 
-# 文件字段必须有声明，总字节超额在发送前发现。
 @pytest.mark.anyio
 async def test_declared_multipart_and_file_limit() -> None:
     from dataclasses import replace
@@ -96,7 +84,6 @@ async def test_declared_multipart_and_file_limit() -> None:
     upload = replace(endpoint, file_fields=("attachment",), max_upload_bytes=4)
     seen = []
 
-    # HTTP库实际形成multipart正文，而不是把文件名称伪装成JSON发送。
     def reply(request: httpx2.Request) -> httpx2.Response:
         seen.append(request)
         return httpx2.Response(200, json={"external_id": "ref"})

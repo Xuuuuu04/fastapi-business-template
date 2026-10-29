@@ -1,13 +1,8 @@
-"""
-$title 的步骤需要的账号读写。数据库实现见 sql.py。
-"""
-
 from typing import Protocol
 
 from shared.public import Data, meaning
 
 
-# 保存的账号；口令摘要只在本包步骤之间传递，不出现在公开结果里。
 class StoredAccount(Data):
     id: int = meaning("账号编号")
     org_id: str = meaning("所属组织代码", rule="R-01")
@@ -16,12 +11,9 @@ class StoredAccount(Data):
     permissions: list[str] = meaning("账号拥有的权限名", rule="R-03")
 
 
-# $title 步骤允许使用的数据访问操作。
 class ${Camel}Store(Protocol):
-    # 按组织代码和账号读取，不存在时返回 None。
     async def find(self, org_id: str, username: str) -> StoredAccount | None: ...
 
-    # 保存新账号；同一组织里账号重名时返回 None。
     async def add(
         self, org_id: str, username: str, password_hash: str, permissions: list[str]
     ) -> StoredAccount | None: ...

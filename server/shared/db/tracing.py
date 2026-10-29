@@ -1,8 +1,3 @@
-"""
-记录通过 Db 执行的业务 SQL 耗时、行数和调用位置，不保存语句、参数或数据。
-每步骤最多保留 200 次调用的细节；超出后继续统计次数和总耗时，明确标记细节不完整。
-"""
-
 import sys
 import time
 from collections.abc import Iterator
@@ -18,7 +13,6 @@ from shared.records.models import DatabaseCallRecord, StepRecord
 MAX_DATABASE_CALLS = 200
 
 
-# 从最近的业务调用帧取得存储函数和准确行号，不保留帧或业务局部变量。
 def caller_location(record: StepRecord) -> tuple[str, str]:
     frame: FrameType | None = sys._getframe(1)
     try:
@@ -34,7 +28,6 @@ def caller_location(record: StepRecord) -> tuple[str, str]:
         del frame
 
 
-# 存储位置另加字段，保留旧步骤fallback的source/function字段行为。
 def storage_location(record: StepRecord) -> tuple[str, str]:
     frame: FrameType | None = sys._getframe(1)
     try:
@@ -51,7 +44,6 @@ def storage_location(record: StepRecord) -> tuple[str, str]:
         del frame
 
 
-# 表名来自 SQLAlchemy 表声明，包括以 Table 声明的视图；原始 SQL 不猜表名。
 def table_names(statement: Executable) -> list[str]:
     return sorted(
         {
@@ -62,7 +54,6 @@ def table_names(statement: Executable) -> list[str]:
     )
 
 
-# 包含权限检查、实际执行与结果读取；失败仍记录耗时，并原样抛出。
 @contextmanager
 def query_record(
     record: StepRecord | None, statement: Executable, method: str, target: str
@@ -98,7 +89,6 @@ def query_record(
         accumulate(record, call)
 
 
-# SQL明细截断后仍累计总量与存储函数；函数分组本身有界，超出明确标不完整。
 def accumulate(record: StepRecord, call: DatabaseCallRecord) -> None:
     for key in ("rows", "bytes"):
         value = getattr(call, key)

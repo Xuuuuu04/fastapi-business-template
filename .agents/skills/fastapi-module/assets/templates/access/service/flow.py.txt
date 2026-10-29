@@ -1,7 +1,3 @@
-"""
-$title 的流程：每个公开操作对应一个流程，按顺序列出步骤。
-"""
-
 from service.$name.data import CreateWork, LoginWork
 from service.$name.steps.accounts import build_password_hash, check_grant, save_account
 from service.$name.steps.sign_in import build_result, check_password, find_account

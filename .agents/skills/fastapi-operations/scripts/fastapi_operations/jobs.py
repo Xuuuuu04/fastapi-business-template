@@ -1,13 +1,3 @@
-"""
-后台任务的人工处理命令：
-  list [--state failed]                      列出任务
-  show 任务编号                               查看任务
-  requeue 任务编号 [--accept-version] --yes   把失败、待检查、等待兼容版本的任务重新排队
-  cancel 任务编号 --yes                       取消尚未开始的任务
-重新排队可能再次产生外部效果（例如再次发送通知），执行前请确认任务的实际情况；
-修改类命令必须加 --yes。
-"""
-
 import argparse
 import asyncio
 from dataclasses import asdict
@@ -22,7 +12,6 @@ from shared.modules.catalog import Catalog
 from shared.timing.current import now
 
 
-# 执行一个命令。
 async def run(args: argparse.Namespace) -> None:
     database = Database(application().settings().database_url)
     try:
@@ -54,7 +43,6 @@ async def run(args: argparse.Namespace) -> None:
         await database.close()
 
 
-# 定义命令行参数。
 def main() -> None:
     parser = argparse.ArgumentParser(description="查看和人工处理后台任务")
     commands = parser.add_subparsers(dest="command", required=True)

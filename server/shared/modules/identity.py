@@ -1,8 +1,3 @@
-"""
-产品可在模块声明中提供不透明登录令牌的身份解析操作，框架不导入任何业务包。
-只启用一个解析入口；JWT仍使用原签名与有效期校验，旧模板没有此声明时行为不变。
-"""
-
 import re
 from collections.abc import Sequence
 
@@ -12,7 +7,6 @@ from shared.access.caller import PUBLIC
 from shared.modules.module import Module
 
 
-# 检查解析操作归属、输入与输出，关闭模块后不留下认证旁路。
 def check_identity(modules: Sequence[Module]) -> list[str]:
     declared = [module for module in modules if module.identity is not None]
     problems = [

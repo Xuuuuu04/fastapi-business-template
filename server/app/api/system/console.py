@@ -1,7 +1,3 @@
-"""
-运行排查网页。页面本身不包含数据，查询和流程恢复均由系统接口检查权限。
-"""
-
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
@@ -11,7 +7,6 @@ router = APIRouter(tags=["运行排查"])
 PAGE = Path(__file__).with_suffix(".html")
 
 
-# 本地默认提供排查页；生产环境需要明确开启，所有数据请求仍需权限。
 @router.get("/system/console", summary="排查网页", include_in_schema=False)
 async def console(request: Request) -> HTMLResponse:
     if not request.app.state.settings.console_enabled():
@@ -19,7 +14,6 @@ async def console(request: Request) -> HTMLResponse:
     return HTMLResponse(PAGE.read_text(encoding="utf-8"))
 
 
-# 仅在页面开启时提供本地脚本，浏览器不依赖外部图表服务。
 @router.get("/system/console.js", include_in_schema=False)
 async def console_script(request: Request) -> Response:
     if not request.app.state.settings.console_enabled():

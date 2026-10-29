@@ -1,10 +1,3 @@
-"""
-用独立浏览器检查接口文档和运行页面，可保存截图供人工检查。
-需要额外安装：uv run --with playwright python -m playwright install chromium。
-用法：uv run --with playwright python -m tests.browser.run --port 8000 --output out/browser
-设置 APP_TEST_SERVICE_KEY 后，同时检查运行页面的五个查询入口、模块步骤和运行详情。
-"""
-
 import argparse
 import json
 import os
@@ -14,7 +7,6 @@ from urllib.request import urlopen
 from playwright.sync_api import Page, sync_playwright
 
 
-# 文档中应列出实际接口，并同时提供两种认证方式。
 def check_docs(page: Page, base: str, output: Path) -> int:
     with urlopen(f"{base}/openapi.json", timeout=10) as reply:
         schema = json.load(reply)
@@ -32,7 +24,6 @@ def check_docs(page: Page, base: str, output: Path) -> int:
     return shown
 
 
-# 未填写凭据时提示；列表、模块步骤和运行详情与接口中的业务名称和结果一致。
 def check_console(page: Page, base: str, key: str, output: Path) -> None:
     page.goto(f"{base}/system/console")
     page.get_by_role("button", name="最近运行", exact=True).click()
@@ -68,12 +59,10 @@ def check_console(page: Page, base: str, key: str, output: Path) -> None:
     page.get_by_label("凭据", exact=True).fill("")
 
 
-# 等待内容渲染完成，避免在请求刚返回时读取旧页面。
 def wait_results(page: Page) -> None:
     page.wait_for_function("document.querySelector('#notice').textContent === '查询完成。'")
 
 
-# 模块名称来自登记清单；打开第一个操作后，图中的步骤名称和顺序应与声明一致。
 def check_module_flow(page: Page, base: str, data: dict, output: Path) -> None:
     assert page.locator(".cards article h3").all_text_contents() == [
         item["title"] for item in data["modules"]
@@ -97,7 +86,6 @@ def check_module_flow(page: Page, base: str, data: dict, output: Path) -> None:
     wait_results(page)
 
 
-# 运行详情逐步显示状态、耗时和失败原因，下层调用独立成组。
 def check_run_detail(page: Page, base: str, run_id: str, output: Path) -> None:
     page.get_by_label("运行编号", exact=True).fill(run_id)
     with page.expect_response(f"{base}/api/system/runs/{run_id}") as pending:
@@ -118,7 +106,6 @@ def check_run_detail(page: Page, base: str, run_id: str, output: Path) -> None:
     page.screenshot(path=str(output / "console-report.png"))
 
 
-# 按指定地址运行页面检查并保存截图。
 def main() -> None:
     parser = argparse.ArgumentParser(description="本机页面检查")
     parser.add_argument("--port", type=int, default=8000)

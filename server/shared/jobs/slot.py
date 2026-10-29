@@ -1,7 +1,3 @@
-"""
-定时输入的周期字段检查：路径必须对应已有的datetime字段，父对象必须明确填写。
-"""
-
 from datetime import datetime
 from typing import get_args
 
@@ -9,7 +5,6 @@ from shared.data.models import Data
 from shared.jobs.plan import Schedule
 
 
-# 只检查结构和类型，不运行可能依赖当前时间的业务验证器。
 def check_slot(schedule: Schedule) -> list[str]:
     if not schedule.slot_input_field:
         return []

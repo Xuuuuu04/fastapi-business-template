@@ -1,7 +1,3 @@
-"""
-证据保留方案保护明确引用、失败历史和同版本最近三轮；所有原件校验后才允许清理。
-"""
-
 import hashlib
 import json
 import os
@@ -18,14 +14,12 @@ from fastapi_project.development.evidence_lock import evidence_lock
 IDENTITY = re.compile(r"(?<![a-f0-9])[a-f0-9]{32}(?![a-f0-9])")
 
 
-# 编号只指向当前产品的清单，不接受路径或跨项目定位。
 def manifest_path(root: Path, identity: str) -> Path:
     if not re.fullmatch(r"[a-f0-9]{32}", identity):
         raise ValueError("检查编号不合法")
     return asset_path(root, identity + ".json")
 
 
-# 显式固定的理由保存在本机，不能修改检查自身的结果或指纹。
 def pin(project: Path, identity: str, reason: str, *, remove: bool = False) -> dict:
     root = asset_path(project, "server/var/development/checks")
     with evidence_lock(root):
@@ -43,7 +37,6 @@ def pin(project: Path, identity: str, reason: str, *, remove: bool = False) -> d
         return pins
 
 
-# 任务、审查、交付与文档的实际编号引用都保护原件，不根据完成状态丢弃引用。
 def references(project: Path) -> tuple[set[str], dict[str, str]]:
     files = [project / "AGENTS.md", project / "README.md"]
     for folder in (project / "doc", project / ".agents/records"):
@@ -68,7 +61,6 @@ def references(project: Path) -> tuple[set[str], dict[str, str]]:
     return found, stamps
 
 
-# 完整校验结果流和轨迹，损坏原件不能通过清理消失，也不能假装还有完整证据。
 def assets(root: Path, record: dict) -> set[str]:
     result = set()
     for suite in record.get("suites", []):
@@ -83,7 +75,6 @@ def assets(root: Path, record: dict) -> set[str]:
     return result
 
 
-# 每组源码、范围保留最近三轮，所有失败和旧格式也保留，不能删成稳定绿色。
 def preserved(records: list[dict], explicit: set[str]) -> set[str]:
     result = set(explicit)
     groups: dict[str, list[str]] = {}
@@ -99,7 +90,6 @@ def preserved(records: list[dict], explicit: set[str]) -> set[str]:
     return result
 
 
-# 只扫描当前检查目录的清单和资产，旧转换缓存保持原样，不扩大删除范围。
 def snapshot(root: Path) -> dict[str, str]:
     paths = list(root.glob("*.json"))
     pin_path = root / "_pins/retained.json"
@@ -116,7 +106,6 @@ def snapshot(root: Path) -> dict[str, str]:
     return result
 
 
-# 导入的自定义文件名及旧清单永久保留，实际引用按各自资产根目录核对。
 def record_inventory(root: Path, stamps: dict[str, str]) -> tuple[dict, dict, set[str]]:
     records: dict[str, dict] = {}
     owned: dict[str, set[str]] = {}
@@ -141,7 +130,6 @@ def record_inventory(root: Path, stamps: dict[str, str]) -> tuple[dict, dict, se
     return records, owned, protected
 
 
-# 在同一发布锁中计算待删清单及共享对象，计划摘要包含引用和全部原件内容。
 def retention_plan(project: Path) -> dict:
     root = asset_path(project, "server/var/development/checks")
     stamps = snapshot(root)
@@ -161,7 +149,6 @@ def retention_plan(project: Path) -> dict:
     return {"preview_id": digest, "delete": delete, "keep": sorted(keep & owned.keys())}
 
 
-# 默认只给预览；应用必须带相同摘要并重新核对，普通失败把已移动的全部原件恢复。
 def collect(project: Path, expected: str | None = None) -> dict:
     root = asset_path(project, "server/var/development/checks")
     with evidence_lock(root):
@@ -182,7 +169,6 @@ def collect(project: Path, expected: str | None = None) -> dict:
             for name in reversed(moved):
                 (archive / name).replace(asset_path(root, name))
             raise
-        # 清理后留下隔离目录不会影响有效原件；目录仍存在时可人工回收磁盘空间。
         if archive.exists():
             shutil.rmtree(archive, ignore_errors=True)
         return plan | {"applied": True}

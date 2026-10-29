@@ -1,7 +1,3 @@
-"""
-分段任务的外部写入保护：正式入口及嵌套调用都先保存意图，进程退出后不自动重发。
-"""
-
 import asyncio
 import time
 from pathlib import Path
@@ -33,13 +29,11 @@ from tests.testing_app import make_settings, prepare_test_database
 pytestmark = pytest.mark.anyio
 
 
-# 只声明本批完成；后续失败时不能保存这个声明。
 @step("声明本批结束")
 def declare_batch(data: Work, checkpoint: Checkpoint) -> None:
     checkpoint.finish(rows=1)
 
 
-# 外部效果通过正式入口或嵌套操作产生，保护必须覆盖两种情况。
 def effect_module(nested: bool, fails: bool) -> Module:
     return Module(
         "effect_probe",
@@ -59,7 +53,6 @@ def effect_module(nested: bool, fails: bool) -> Module:
     )
 
 
-# 一次外部写入后失败停在待确认，读取的暂时故障仍可重试。
 @pytest.mark.parametrize("nested", [False, True])
 @pytest.mark.parametrize("method,state", [("GET", "waiting_retry"), ("POST", "unknown")])
 async def test_segmented_external_failure(tmp_path: Path, nested, method, state) -> None:
@@ -68,7 +61,6 @@ async def test_segmented_external_failure(tmp_path: Path, nested, method, state)
     services = build(settings, modules=[effect_module(nested, True)])
     calls = []
 
-    # 只发送到合成网络；实际执行器、外部入口和任务状态保持真实。
     def reply(request):
         calls.append(request.method)
         return httpx2.Response(200, json={"saved": True})
@@ -90,14 +82,12 @@ async def test_segmented_external_failure(tmp_path: Path, nested, method, state)
         await services.close()
 
 
-# 在等待 POST 回执期间取消执行，租约失效后仍待确认；未知记录不能自动领取。
 async def test_external_intent_survives_interrupted_attempt(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     await prepare_test_database(settings.database_url)
     services = build(settings, modules=[effect_module(True, False)])
     sent = asyncio.Event()
 
-    # 先确认实际进入网络发送，再让任务永远等待回执。
     async def reply(request):
         sent.set()
         await asyncio.Event().wait()

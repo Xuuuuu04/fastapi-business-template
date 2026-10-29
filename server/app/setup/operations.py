@@ -1,7 +1,3 @@
-"""
-内置运维挂载与恢复启动校验，组装层可以依赖HTTP启动而公共框架不反向依赖。
-"""
-
 import shutil
 from collections.abc import Sequence
 from pathlib import Path
@@ -15,7 +11,6 @@ from shared.operations.config import OperationsConfig
 from shared.operations.module import make_module
 
 
-# 只有开启的功能才登记；备份目录不得位于源文件/上传区，否则可能递归备份和误清理。
 def with_operations(settings: Settings, modules: Sequence[Module]) -> list[Module]:
     if not settings.operations.enabled():
         return list(modules)
@@ -34,14 +29,12 @@ def with_operations(settings: Settings, modules: Sequence[Module]) -> list[Modul
     if problems:
         raise ConfigError(problems)
 
-    # 用原产品声明启动恢复服务，不启用运维或后台入口。
     async def verify(url: str, files: Path) -> None:
         await restored_ready(settings, modules, url, files)
 
     return [*modules, make_module(settings, verify)]
 
 
-# 恢复只连接随机库与恢复文件，不跑worker或访问真实外部系统；实际应用ready检查迁移版本。
 async def restored_ready(
     settings: Settings, modules: Sequence[Module], url: str, files: Path
 ) -> None:

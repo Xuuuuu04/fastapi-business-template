@@ -1,13 +1,8 @@
-"""
-外部协议声明的文档表格，与内部业务流程章节分别维护。
-"""
-
 from fastapi_docs.progress_doc import cell
 
 from shared.modules.module import Module
 
 
-# 上游接口协议与模型从同一份声明生成，产品文档无需再手写解析格式。
 def endpoint_section(module: Module) -> list[str]:
     if not module.endpoints:
         return []
@@ -32,7 +27,6 @@ def endpoint_section(module: Module) -> list[str]:
     return [*lines, ""]
 
 
-# 外部发送协议与重复保证来自同一声明，运行受理和完成不从文档推定。
 def provider_section(module: Module) -> list[str]:
     if not module.providers:
         return []

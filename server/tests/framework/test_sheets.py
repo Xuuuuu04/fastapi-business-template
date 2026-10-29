@@ -1,8 +1,3 @@
-"""
-表格文件读写：CSV 与 Excel 往返一致，行号对应文件中的行，空行跳过；
-空文件、缺少必需的列、不是 UTF-8 的 CSV、超过行数上限、损坏的 Excel 都报 invalid_input。
-"""
-
 import pytest
 
 from shared.errors.framework import InvalidInput
@@ -13,7 +8,6 @@ COLUMNS = {"编码": "code", "名称": "name"}
 REQUIRED = {"code": "编码"}
 
 
-# 写出再读回，内容一致；行号从 2 开始，空行跳过但行号照算。
 @pytest.mark.parametrize("kind", ["csv", "xlsx"])
 def test_round_trip(kind: sheets.Kind) -> None:
     rows = [{"code": "A", "name": "甲"}, {"code": "", "name": ""}, {"code": "B", "name": "乙"}]
@@ -22,7 +16,6 @@ def test_round_trip(kind: sheets.Kind) -> None:
     assert found == [(2, {"code": "A", "name": "甲"}), (4, {"code": "B", "name": "乙"})]
 
 
-# 格式问题直接报错，不静默跳过。
 def test_bad_files(monkeypatch: pytest.MonkeyPatch) -> None:
     cases = [
         (b"", "f.csv", "文件是空的"),

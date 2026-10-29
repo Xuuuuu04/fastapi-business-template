@@ -1,7 +1,3 @@
-"""
-规则确认单、历史Markdown采纳和显式修订；历史文档只作为来源，不能自动变成人类确认。
-"""
-
 import json
 import re
 from pathlib import Path
@@ -12,7 +8,6 @@ from fastapi_project.development.ledger_models import LedgerRule, RuleSource
 from fastapi_project.development.ledger_sections import manual_text
 
 
-# 按风险排序，仅展示脱敏资料与独立样例，原话不会混入可分享的确认单。
 def confirm_sheet(project: Path) -> str:
     ledger = read_ledger(project)
     ranks = {"high": 0, "medium": 1, "low": 2}
@@ -35,7 +30,6 @@ def confirm_sheet(project: Path) -> str:
     return "\n".join(lines)
 
 
-# 精确标题分段，解析不出的原文仍保留，不擅自改写规则含义。
 @serialized
 def adopt_markdown(project: Path, module: str) -> list[str]:
     rules = markdown_rules(project, module)
@@ -59,7 +53,6 @@ def adopt_markdown(project: Path, module: str) -> list[str]:
     return [rule.id for rule in rules]
 
 
-# 全部解析检查成功才修改账本；缺少标题或重复编号都需要人先整理。
 def markdown_rules(project: Path, module: str) -> list[LedgerRule]:
     if not re.fullmatch(r"[a-z][a-z0-9_]*", module):
         raise ValueError("业务包名称不合法")
@@ -82,7 +75,6 @@ def markdown_rules(project: Path, module: str) -> list[LedgerRule]:
     return rules
 
 
-# 修订已确认规则必须有新原话；普通推定也需显式来源与理由。
 def supersede(project: Path, identity: str, text: str, source: str, reason: str) -> LedgerRule:
     ledger = read_ledger(project)
     previous = next(rule for rule in ledger.rules if rule.id == identity)

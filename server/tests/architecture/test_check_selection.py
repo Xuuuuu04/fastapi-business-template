@@ -1,7 +1,3 @@
-"""
-分层检查：多包去重、快速范围、旧调用方与未知变化，均用独立输入验证。
-"""
-
 import hashlib
 import json
 import subprocess
@@ -30,7 +26,6 @@ from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
 
 
-# 本例输入明确要求同一个包只测试一次，不重复四项公共检查。
 def test_multi_package_plan_runs_common_checks_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -54,7 +49,6 @@ def test_multi_package_plan_runs_common_checks_once(
     assert plan[1][1] == ["ruff", "format", "--check", "sample.py"]
 
 
-# 包级质量规则只报本包源码、测试、接口和业务文档的问题，别的包和公共文件不卡住本包。
 def test_module_quality_keeps_only_own_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "fastapi_project.development.selection.module_files",
@@ -62,21 +56,20 @@ def test_module_quality_keeps_only_own_paths(monkeypatch: pytest.MonkeyPatch) ->
     )
     own = [
         Problem("service/sample_records/steps/build_fee.py", 3, "step_name", "本包"),
-        Problem("tests/modules/sample_records/test_fee.py", 9, "function_comment", "本包"),
-        Problem("app/api/v1/sample_records.py", 1, "file_header", "本包接口"),
+        Problem("tests/modules/sample_records/test_fee.py", 9, "comment", "本包"),
+        Problem("app/api/v1/sample_records.py", 1, "docstring", "本包接口"),
         Problem("doc/sample_records/rules.md", 0, "rule_missing", "本包文档"),
         Problem("server/service/sample_records/README.md", 4, "writing_style", "本包说明"),
     ]
     others = [
         Problem("service/sample_records_extra/steps/build_fee.py", 3, "step_name", "名字相近"),
-        Problem("tests/conftest.py", 1, "function_comment", "框架文件"),
+        Problem("tests/conftest.py", 1, "comment", "框架文件"),
         Problem("doc/README.md", 0, "doc_index", "公共文档"),
     ]
     assert in_modules(own + others, ["sample_records"]) == own
     assert in_modules(own + others, []) == own + others
 
 
-# 快速检查不包含类型、生成文档或整合测试，记录范围也不能是完整检查。
 def test_quick_plan_is_local_and_not_acceptance(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -90,14 +83,12 @@ def test_quick_plan_is_local_and_not_acceptance(
     assert latest_full_check([{"scope": selection.scope()}]) is None
 
 
-# 旧依赖即使已经删除，原调用方与传递调用方仍属于受影响范围。
 def test_old_and_new_graph_union_keeps_removed_callers() -> None:
     old = {"order": ["stock"], "refund": ["order"], "job": ["stock"]}
     new = {"order": [], "refund": ["order"], "customer": []}
     assert affected_modules(["stock"], [old, new]) == {"stock", "order", "refund", "job"}
 
 
-# 创建只有业务源码的独立仓库；测试不调用当前项目 Git、不修改工作区。
 @pytest.fixture
 def repository(tmp_path: Path) -> Path:
     folder = tmp_path / "repo"
@@ -113,7 +104,6 @@ def repository(tmp_path: Path) -> Path:
     return folder
 
 
-# 修改业务步骤只选择本包；已删除旧调用方不在目录中时改为完整检查。
 def test_affected_selection_and_unknown_old_caller(
     repository: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -131,7 +121,6 @@ def test_affected_selection_and_unknown_old_caller(
     assert selected.modules == () and "已删除" in selected.reasons[0]
 
 
-# 公共改动、无法识别的文件与不能读取的历史版本均不缩小检查范围。
 @pytest.mark.parametrize("path", ["server/shared/new.py", "unknown.txt"])
 def test_affected_shared_or_unknown_changes_require_full(repository: Path, path: str) -> None:
     file = repository / path
@@ -141,7 +130,6 @@ def test_affected_shared_or_unknown_changes_require_full(repository: Path, path:
     assert not selected.modules and selected.reasons
 
 
-# 没有改动保持未执行，历史图读取失败时明确全检查，不伪造成功。
 def test_unchanged_and_unreadable_graph(repository: Path) -> None:
     catalog = Catalog(MODULES)
     assert select_affected(catalog, "HEAD", repository).unchanged
@@ -154,7 +142,6 @@ def test_unchanged_and_unreadable_graph(repository: Path) -> None:
         previous_graph(repository, "HEAD")
 
 
-# 当前包版本不变也不能沿用登记改变后的完整检查；删除模块也必须过期。
 def test_full_check_tracks_registration_and_exact_modules(tmp_path: Path) -> None:
     file = tmp_path / "server/app/setup/catalog.py"
     file.parent.mkdir(parents=True)
@@ -170,7 +157,6 @@ def test_full_check_tracks_registration_and_exact_modules(tmp_path: Path) -> Non
     assert not full_check_current(record, {"a": "1"}, tmp_path)
 
 
-# 空模板同样核对完整框架、工具、依赖与测试版本，不能把空模块列表当作当前证据。
 @pytest.mark.parametrize(
     "relative",
     [
@@ -195,7 +181,6 @@ def test_empty_template_expires_after_framework_change(tmp_path: Path, relative:
     assert not full_check_current(record, {}, tmp_path)
 
 
-# 不存在的模块和缺测试目录都明确失败；局部 Ruff 范围包含模块路由。
 def test_validation_and_local_files(tmp_path: Path) -> None:
     catalog = Catalog(MODULES)
     with pytest.raises(ValueError, match="没有登记"):
@@ -210,7 +195,6 @@ def test_validation_and_local_files(tmp_path: Path) -> None:
     assert not any("sample_accounts" in path for path in files)
 
 
-# 产品身份来自来源文件；只有模板工具自己的文件（Skill 脚本、devtools）改动才让工具测试回来。
 def test_product_template_validation_tracks_tool_files_only(tmp_path: Path) -> None:
     from tests.check_profile import template_tools_unchanged
 
@@ -255,7 +239,6 @@ def test_product_template_validation_tracks_tool_files_only(tmp_path: Path) -> N
     assert not template_tools_unchanged(root)
 
 
-# 模板工具测试只在模板仓库运行：产品交付也省略，显式 framework 组保留，结构安全检查始终保留。
 @pytest.mark.parametrize(
     ("group", "delivery", "count"), [("all", "0", 1), ("all", "1", 1), ("framework", "0", 2)]
 )

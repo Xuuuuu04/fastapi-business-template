@@ -1,7 +1,3 @@
-"""
-确认样例的语义快照与断言保护；辅助代码不锁定，改变预期必须带新规则修订和原话依据。
-"""
-
 import ast
 import hashlib
 import json
@@ -15,7 +11,6 @@ from fastapi_project.development.ledger_store_models import parse_index
 from pydantic import BaseModel, ConfigDict, Field
 
 
-# 预期由独立资料声明，输入、初始状态、结果、数据库和外部效果都参与确认。
 class CaseFixture(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str = Field(pattern=r"^[a-z][a-z0-9_]*\.R-\d+-C\d+$")
@@ -29,7 +24,6 @@ class CaseFixture(BaseModel):
     tests: list[str] = Field(min_length=1)
 
 
-# 路径只能指向本项目中的测试函数，符号链接也不能读出项目外文件。
 def test_assertions(project: Path, nodeid: str) -> list[str]:
     path, separator, name = nodeid.partition("::")
     target = (project / "server" / path).resolve()
@@ -49,7 +43,6 @@ def test_assertions(project: Path, nodeid: str) -> list[str]:
     return statements + assertion_inputs(functions[0])
 
 
-# 参数化输入和断言引用的局部赋值也保护，避免只改expected变量绕过assert摘要。
 def assertion_inputs(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
     dependencies = {
         node.id
@@ -85,7 +78,6 @@ def assertion_inputs(function: ast.FunctionDef | ast.AsyncFunctionDef) -> list[s
     return [ast.dump(node) for node in selected]
 
 
-# 只锁样例语义和关键断言，不把整个测试文件变成不可修改。
 def case_digest(project: Path, path: Path) -> tuple[str, str]:
     fixture = CaseFixture.model_validate_json(path.read_bytes())
     assertions = {test: test_assertions(project, test) for test in fixture.tests}
@@ -94,7 +86,6 @@ def case_digest(project: Path, path: Path) -> tuple[str, str]:
     return fixture.id, hashlib.sha256(content).hexdigest()
 
 
-# 确认时读取已独立写好的资料；没有机器样例的规则不能伪称样例已保护。
 def rule_cases(project: Path, rule: str) -> dict[str, str]:
     module = rule.split(".", 1)[0]
     found: dict[str, str] = {}
@@ -109,7 +100,6 @@ def rule_cases(project: Path, rule: str) -> dict[str, str]:
     return found
 
 
-# Git里的上次确认作为独立基线；改写当前摘要不能悄悄改变已确认预期。
 def baseline(project: Path) -> RuleLedger | None:
     result = subprocess.run(
         ["git", "show", "HEAD:doc/rules-ledger.json"],
@@ -136,7 +126,6 @@ def baseline(project: Path) -> RuleLedger | None:
     return decode_ledger(index, packages)
 
 
-# 同一确认修订不能改摘要，新修订改变样例必须引用新的原话。
 def revision_problems(rule: LedgerRule, old: LedgerRule | None) -> list[str]:
     if old is None or old.state != "confirmed" or rule.case_digests == old.case_digests:
         return []
@@ -154,7 +143,6 @@ def revision_problems(rule: LedgerRule, old: LedgerRule | None) -> list[str]:
     return [] if accepted else [f"规则 {rule.id} 的新样例缺少新的原话确认依据"]
 
 
-# 确认样例的当前内容必须匹配确认时的语义与断言摘要。
 def current_problems(project: Path, rule: LedgerRule) -> list[str]:
     if rule.state != "confirmed":
         return []
@@ -166,7 +154,6 @@ def current_problems(project: Path, rule: LedgerRule) -> list[str]:
     return []
 
 
-# 交付只看高风险规则确认，其余检查也持续检查已确认样例的实际内容。
 def case_problems(project: Path, ledger: RuleLedger, *, delivery: bool = False) -> list[str]:
     previous = baseline(project)
     old = {rule.id: rule for rule in previous.rules} if previous else {}

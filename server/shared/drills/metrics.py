@@ -1,7 +1,3 @@
-"""
-演练证据：实际阶段时间、已确认行数、SQL形状/位置和采样内存峰值，不保留SQL参数。
-"""
-
 import asyncio
 import json
 import time
@@ -18,14 +14,11 @@ from shared.records.recorder import Recorder
 from shared.records.stores import RunFilter
 
 
-# RSS按短间隔采样，报告说明采样峰值而非虚构操作系统精确峰值。
 class MemoryPeak:
-    # 每次演练独立采样，CPU使用不依赖全局状态。
     def __init__(self) -> None:
         self.peak = 0
         self.stop = asyncio.Event()
 
-    # 任务运行期间采样，退出时最后取一次。
     async def sample(self) -> None:
         process = psutil.Process()
         while not self.stop.is_set():
@@ -35,7 +28,6 @@ class MemoryPeak:
         self.peak = max(self.peak, process.memory_info().rss)
 
 
-# 每阶段以真实相关任务运行号汇总，不把计划数量或未知SQL行数算作处理量。
 async def report(database: Database, recorder: Recorder, run_id: str) -> list[dict[str, Any]]:
     async with database.read() as connection:
         rows = (
@@ -86,14 +78,12 @@ async def report(database: Database, recorder: Recorder, run_id: str) -> list[di
     return result
 
 
-# 行数只使用已提交批次或操作明确输出，不推测规模。
 def confirmed_rows(batches: Any, payload: dict[str, Any]) -> int | None:
     if batches:
         return sum(item["rows"] for item in batches)
     return payload.get("rows", payload.get("processed"))
 
 
-# SQL参数不进入报告，最多保留五条最慢语句。
 def slow_sql(runs: list[Any]) -> list[dict[str, Any]]:
     calls = [
         dict(
@@ -115,6 +105,5 @@ def slow_sql(runs: list[Any]) -> list[dict[str, Any]]:
     return sorted(calls, key=lambda call: call["elapsed_ms"], reverse=True)[:5]
 
 
-# 每次运行自己的额度对比，不把多批规模误作单次额度。
 def query_budgets(runs: list[Any]) -> list[dict[str, Any]]:
     return [dict(run_id=run.id, operation=run.contract, **run.query_budget) for run in runs]

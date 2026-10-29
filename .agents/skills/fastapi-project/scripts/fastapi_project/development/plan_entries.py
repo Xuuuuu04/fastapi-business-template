@@ -1,7 +1,3 @@
-"""
-计划操作的一致性：未实现计划可保留，已实现名称必须与当前登记对应，错误指出准确JSON位置。
-"""
-
 import json
 import re
 from pathlib import Path
@@ -12,7 +8,6 @@ from shared.modules.catalog import Catalog
 HEADING = re.compile(r"^## .+（([a-z0-9_.]+)）$", re.MULTILINE)
 
 
-# 旧提交的flows文档和显式implemented_operations都是已实现证据，不猜业务名字。
 def observed(project: Path, module: str) -> set[str]:
     path = project / "doc" / module / "flows.md"
     try:
@@ -24,7 +19,6 @@ def observed(project: Path, module: str) -> set[str]:
     }
 
 
-# 计划错误直接说明要改哪一项，普通planned名称不因尚未登记而失败。
 def check_entries(catalog: Catalog, project: Path, plan: dict[str, Any] | None) -> list[str]:
     if plan is None:
         return []
@@ -50,7 +44,6 @@ def check_entries(catalog: Catalog, project: Path, plan: dict[str, Any] | None) 
     return problems
 
 
-# 导出时记录实际对应过的操作，后续删除flows也仍能查到旧计划项。
 def capture(catalog: Catalog, project: Path, plan: dict[str, Any] | None) -> bool:
     if plan is None:
         return False

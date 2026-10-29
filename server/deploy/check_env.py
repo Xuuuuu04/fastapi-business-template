@@ -1,9 +1,3 @@
-"""
-部署前的环境检查：配置能否读取、生产配置要求、数据库连通与迁移版本、
-大模型配置、磁盘剩余空间。只读取和连接，不修改任何数据。
-用法：uv run python -m deploy.check_env；有问题时逐条列出并返回非零。
-"""
-
 import asyncio
 import shutil
 import sys
@@ -20,7 +14,6 @@ from shared.modules.catalog import Catalog
 MIN_FREE_GB = 2.0
 
 
-# 检查数据库能否连通，结构版本是否与代码一致。
 async def check_database(settings: Settings) -> list[str]:
     database = Database(settings.database_url, wait_seconds=5)
     try:
@@ -36,7 +29,6 @@ async def check_database(settings: Settings) -> list[str]:
     return []
 
 
-# 检查声明了提示词的模块是否配置了大模型服务。
 def check_model(settings: Settings, catalog: Catalog) -> list[str]:
     prompts = catalog.prompts()
     if prompts and not settings.has_model():
@@ -46,7 +38,6 @@ def check_model(settings: Settings, catalog: Catalog) -> list[str]:
     return []
 
 
-# 按实际启用的模块检查配置，与接口和后台进程的启动要求一致。
 def check_configuration(settings: Settings) -> list[str]:
     catalog = Catalog(enabled_modules(settings))
     needs = store_requirements(catalog)
@@ -58,13 +49,11 @@ def check_configuration(settings: Settings) -> list[str]:
     return problems
 
 
-# 检查磁盘剩余空间。
 def check_disk() -> list[str]:
     free = shutil.disk_usage(".").free / 1024**3
     return [] if free >= MIN_FREE_GB else [f"磁盘剩余 {free:.1f} GB，少于 {MIN_FREE_GB} GB"]
 
 
-# 依次运行全部检查并输出结果。
 def main() -> None:
     problems = []
     try:

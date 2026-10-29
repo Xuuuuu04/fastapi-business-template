@@ -1,7 +1,3 @@
-"""
-内置运维端到端验收：真实备份隔离恢复ready、分段保留、容量暂停与Webhook失败事实。
-"""
-
 import json
 import os
 import time
@@ -31,7 +27,6 @@ from tests.framework.operations_sample import critical, module, optional
 pytestmark = pytest.mark.anyio
 
 
-# 两库测试都在本任务的新空间，真实备份不修改外部业务库。
 def settings(url: str, root: Path, **options) -> Settings:
     return Settings(
         _env_file=None,
@@ -43,7 +38,6 @@ def settings(url: str, root: Path, **options) -> Settings:
     )
 
 
-# 按定时计划登记后逐个执行，运维任务真实进入运行记录与计算图。
 async def scheduled(services, now: float) -> None:
     scheduler = Scheduler(services.catalog.schedules, services.queue, services.database)
     await scheduler.tick(now)
@@ -52,7 +46,6 @@ async def scheduled(services, now: float) -> None:
         await worker.execute(ticket)
 
 
-# 每次备份真实恢复并ready；验证文件内容、行数、迁移与清理范围。
 async def test_scheduled_backup_restores_and_checks_ready(tmp_path: Path) -> None:
     postgres = os.environ.get("APP_TEST_DATABASE_URL", "")
     async with isolated(tmp_path, postgres if postgres.startswith("postgresql") else "") as url:
@@ -79,7 +72,6 @@ async def test_scheduled_backup_restores_and_checks_ready(tmp_path: Path) -> Non
             await built.close()
 
 
-# 构造过期历史和必须保留的待确认任务。
 async def retention_seed(built) -> tuple[str, str]:
     async with built.database.write() as conn:
         for index in range(7):
@@ -110,7 +102,6 @@ async def retention_seed(built) -> tuple[str, str]:
     return unknown, done
 
 
-# 500行以下批量同样走Checkpoint，不删除待确认任务或正式文件。
 async def test_segmented_retention_protects_confirmation_and_files(tmp_path: Path) -> None:
     postgres = os.environ.get("APP_TEST_DATABASE_URL", "")
     async with isolated(tmp_path, postgres if postgres.startswith("postgresql") else "") as url:
@@ -151,7 +142,6 @@ async def test_segmented_retention_protects_confirmation_and_files(tmp_path: Pat
             await built.close()
 
 
-# 超阈值只暂停非关键下一次领取，关键任务继续，恢复后解除。
 async def test_capacity_pause_is_shared_and_reversible(tmp_path: Path) -> None:
     async with isolated(tmp_path, os.environ.get("APP_TEST_DATABASE_URL", "")) as url:
         config = settings(url, tmp_path, capacity=True, database_bytes=1, pause_noncritical=True)
@@ -185,11 +175,9 @@ async def test_capacity_pause_is_shared_and_reversible(tmp_path: Path) -> None:
             await built.close()
 
 
-# HTTP或平台失败不标sent，重试能成功；待确认提醒按任务编号去重。
 async def test_webhook_failure_retry_and_confirmation(tmp_path: Path, monkeypatch) -> None:
     delivered = []
 
-    # 明确失败不访问真实平台，第二次使用相同pending。
     async def send(self, payload):
         delivered.append(payload)
         if len(delivered) == 1:
@@ -222,7 +210,6 @@ async def test_webhook_failure_retry_and_confirmation(tmp_path: Path, monkeypatc
             await built.close()
 
 
-# 三类Webhook包装与平台拒绝采用真实传输协议，只替换网络为本地MockTransport。
 @pytest.mark.parametrize("style", ["generic", "wecom", "feishu"])
 async def test_webhook_wire_format_and_platform_error(style: str, monkeypatch) -> None:
     import httpx2
@@ -232,7 +219,6 @@ async def test_webhook_wire_format_and_platform_error(style: str, monkeypatch) -
     payload = {"kind": "capacity", "key": "today", "details": {"bytes": 100}}
     requests = []
 
-    # HTTP200但平台明确拒绝时，send必须失败。
     def respond(request):
         requests.append(json.loads(request.content))
         return httpx2.Response(200, json={"errcode": 1})
@@ -255,7 +241,6 @@ async def test_webhook_wire_format_and_platform_error(style: str, monkeypatch) -
         assert "secret" not in json.dumps(requests[0])
 
 
-# 归档清理只删除验证成功且超期的自身归档，保留失败与未超期。
 def test_archive_retention_only_expires_verified(tmp_path: Path) -> None:
     from shared.operations.backup import expire
 
@@ -270,7 +255,6 @@ def test_archive_retention_only_expires_verified(tmp_path: Path) -> None:
     assert (tmp_path / "backup-failed").exists() and (tmp_path / "backup-fresh").exists()
 
 
-# 迁移版本错误导致真实恢复ready失败，并登记备份失败而非可用归档。
 async def test_backup_bad_revision_is_not_verified(tmp_path: Path) -> None:
     async with isolated(tmp_path, os.environ.get("APP_TEST_DATABASE_URL", "")) as url:
         built = build(settings(url, tmp_path, backup=True), modules=[module])

@@ -1,7 +1,3 @@
-"""
-批插必须保留逐行默认值、范围和只读检查，且实际只执行一条 INSERT。
-"""
-
 from itertools import count
 
 import pytest
@@ -17,7 +13,6 @@ from shared.records.models import StepRecord
 from tests.testing_app import database_url
 
 
-# 检查末行权限、只读及规模拒绝，核对实际SQL与逐行默认值。
 @pytest.mark.anyio
 async def test_bulk_defaults_scope_and_statement_count(tmp_path) -> None:
     metadata = MetaData()
@@ -33,7 +28,6 @@ async def test_bulk_defaults_scope_and_statement_count(tmp_path) -> None:
     engine = create_async_engine(database_url(tmp_path))
     inserts = []
 
-    # 记录真实驱动发出的批插语句次数。
     def observe(connection, cursor, statement, parameters, context, executemany):
         if statement.startswith("INSERT INTO strict_bulk_probe"):
             inserts.append(1)

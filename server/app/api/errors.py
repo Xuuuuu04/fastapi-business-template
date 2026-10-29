@@ -1,8 +1,3 @@
-"""
-把异常统一转成错误响应：业务错误、参数校验错误、路由不存在、未预料的程序异常。
-内部异常的细节不返回给调用方，只返回请求编号和运行编号，细节用排查接口查询。
-"""
-
 import logging
 from collections.abc import Awaitable, Callable, Iterable
 from itertools import islice
@@ -39,13 +34,11 @@ PROBLEM_TEXT = {
 }
 
 
-# 生成统一格式的错误响应。
 def error_response(
     request: Request, status: int, code: str, kind: str, message: str, **extra: Any
 ) -> JSONResponse:
     rid = getattr(request.state, "request_id", "")
     body = ErrorReply(code=code, kind=kind, message=message, request_id=rid, **extra)
-    # 未处理异常由最外层生成响应，可能不会再次经过请求中间件的 send 包装。
     headers = {
         name.decode("ascii"): value.decode("ascii")
         for name, value in security_headers(request.app.state.settings.hsts_seconds)
@@ -56,7 +49,6 @@ def error_response(
     return JSONResponse(body.model_dump(), status_code=status, headers=headers)
 
 
-# 业务错误：按错误种类决定状态码；程序与声明不一致时，生产环境只返回通用说明。
 async def business_error(request: Request, error: BusinessError) -> JSONResponse:
     message = error.detail
     if error.kind == Kind.BROKEN and request.app.state.settings.env == "production":
@@ -68,7 +60,6 @@ async def business_error(request: Request, error: BusinessError) -> JSONResponse
     )
 
 
-# 参数校验错误：逐个字段给出中文说明。
 async def validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
     fields = field_problems(
         (
@@ -83,7 +74,6 @@ async def validation_error(request: Request, error: RequestValidationError) -> J
     return error_response(request, 422, "invalid_input", Kind.INVALID, message, fields=fields)
 
 
-# 只返回有限字段问题；路径保持完整，过长路径只由整体错误说明，不能截断后误指控件。
 def field_problems(entries: Iterable[tuple[str, str]]) -> list[FieldProblem]:
     fields = []
     for name, text in islice(entries, 50):
@@ -97,7 +87,6 @@ def field_problems(entries: Iterable[tuple[str, str]]) -> list[FieldProblem]:
     return fields
 
 
-# 路由层面的错误：地址不存在、方法不支持等。
 async def http_error(request: Request, error: HTTPException) -> JSONResponse:
     status = error.status_code
     if status == 404:
@@ -110,7 +99,6 @@ async def http_error(request: Request, error: HTTPException) -> JSONResponse:
     return error_response(request, status, f"http_{status}", kind, str(error.detail))
 
 
-# 未预料的程序异常：记录日志，只返回编号。
 async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
     run_id = str(getattr(error, "run_id", ""))
     log.error("request_failed run_id=%s error=%s", run_id, safe_exception_text(error))
@@ -118,7 +106,6 @@ async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
     return error_response(request, 500, "internal_error", "unexpected", message, run_id=run_id)
 
 
-# 登记全部错误处理方法；FastAPI 按异常类型调用对应的方法。
 def add_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(BusinessError, cast(Handler, business_error))
     app.add_exception_handler(RequestValidationError, cast(Handler, validation_error))

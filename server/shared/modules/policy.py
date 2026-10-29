@@ -1,7 +1,3 @@
-"""
-包类型和操作效果共同约束真实依赖，流程状态可以持久化，领域数据仍有唯一所有者。
-"""
-
 from collections.abc import Sequence
 from typing import Any, get_args
 
@@ -12,7 +8,6 @@ from shared.modules.contract import Contract
 from shared.modules.module import Module
 
 
-# 明确查询不能保存或登记任务，能力包跨域写入必须经流程编排。
 def check_policy(modules: Sequence[Module]) -> list[str]:
     provided = {operation: module for module in modules for operation in module.provides}
     names = {module.name for module in modules}
@@ -57,7 +52,6 @@ def check_policy(modules: Sequence[Module]) -> list[str]:
     return problems
 
 
-# 供应商范围与模块声明一致，错误流程由既有流程检查报告，不在这里重复解析。
 def provider_problems(module: Module) -> list[str]:
     for spec in module.providers:
         spec.validate()
@@ -70,7 +64,6 @@ def provider_problems(module: Module) -> list[str]:
     ]
 
 
-# 声明只读依赖不能被后来的写操作悄悄替换。
 def dependency_problems(module: Module, operation: Contract, target: Contract) -> list[str]:
     if operation.effect == "query" and target.effect != "query":
         return [f"查询 {operation.name} 不能调用写入或效果未知的操作 {target.name}"]
@@ -85,7 +78,6 @@ def dependency_problems(module: Module, operation: Contract, target: Contract) -
     return []
 
 
-# 原始接口数据只能在明确的边界模型里使用，领域契约不能长期靠Any分发。
 def data_problems(module: Module, operation: Contract, work: type[BaseModel]) -> list[str]:
     problems = []
     for model in (operation.input, operation.output, work):
@@ -106,6 +98,5 @@ def data_problems(module: Module, operation: Contract, work: type[BaseModel]) ->
     return problems
 
 
-# 联合、集合与嵌套模型使用同一类型展开，不执行验证器或业务代码。
 def nested_types(annotation: Any) -> list[Any]:
     return [annotation, *(value for part in get_args(annotation) for value in nested_types(part))]

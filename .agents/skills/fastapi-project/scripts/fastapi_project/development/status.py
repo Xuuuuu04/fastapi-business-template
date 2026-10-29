@@ -1,8 +1,3 @@
-"""
-把预先设计、实际声明与检查记录对应起来。
-完成比例的单位是计划中的公开操作；没有设计时不计算比例。
-"""
-
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +22,6 @@ from shared.modules.catalog import Catalog
 from shared.modules.libraries import library_links, library_specs
 
 
-# 筛出属于本模块的测试，也保留其他模块测试中实际调用本模块的记录。
 def relevant_cases(suite: dict[str, Any], module: str) -> list[dict[str, Any]]:
     prefixes = (f"tests/modules/{module}/", f"tests/integration/{module}/")
     return [
@@ -39,7 +33,6 @@ def relevant_cases(suite: dict[str, Any], module: str) -> list[dict[str, Any]]:
     ]
 
 
-# 返回本模块最近的各数据库测试与适用于当前代码的测试记录。
 def test_status(
     checks: list[dict[str, Any]],
     name: str,
@@ -64,7 +57,6 @@ def test_status(
     return result, current
 
 
-# 一个模块的结构、规则、最近检查和运行证据。
 def module_status(
     catalog: Catalog,
     project: Path,
@@ -98,7 +90,6 @@ def module_status(
     }
 
 
-# 比较一个计划开发包；登记完整只证明静态结构存在。
 def package_status(package: dict[str, Any], modules: dict[str, Any]) -> dict[str, Any]:
     module = modules.get(package["module"])
     planned = [f"{package['module']}.{name}" for name in package["operations"]]
@@ -116,7 +107,6 @@ def package_status(package: dict[str, Any], modules: dict[str, Any]) -> dict[str
     }
 
 
-# 全局失败包含框架与质量测试，不仅是业务模块中的测试。
 def latest_check_status(check: dict[str, Any]) -> dict[str, Any]:
     from fastapi_project.development.summary import test_summary
 
@@ -140,13 +130,11 @@ def latest_check_status(check: dict[str, Any]) -> dict[str, Any]:
     result["timings"] = check.get("timings")
     result["elapsed_seconds"] = check.get("elapsed_seconds")
     result["suites"] = test_summary({"rounds": 1, "latest": suites})["latest"]
-    # 全局摘要仅知道该轮运行期间是否改过源码；当前适用性由各模块的版本判断。
     for suite in result["suites"].values():
         del suite["current"]
     return result
 
 
-# 完整检查独立保留，之后的局部成功不能遮住框架失败。
 def full_check_status(
     checks: list[dict[str, Any]], versions: dict[str, str], project: Path | None = None
 ) -> dict[str, Any] | None:
@@ -158,7 +146,6 @@ def full_check_status(
     )
 
 
-# 从项目根开始汇总；计划外模块另外列出，避免它们被遗漏。
 def project_status(
     catalog: Catalog,
     project: Path,
@@ -207,7 +194,6 @@ def project_status(
     }
 
 
-# 业务线按设计保留顺序，未实现的开发包也参加比较。
 def plan_lines(plan: dict[str, Any] | None, modules: dict[str, Any]) -> list[dict[str, Any]]:
     if plan is None:
         return []
@@ -220,7 +206,6 @@ def plan_lines(plan: dict[str, Any] | None, modules: dict[str, Any]) -> list[dic
     ]
 
 
-# 计划中尚未开发的操作也参加比较；无数据库证据或没有计划时比例保持未知。
 def runtime_progress(status: dict[str, Any], disabled: set[str], module: str = "") -> None:
     runtime = status["runtime"]
     planned = {

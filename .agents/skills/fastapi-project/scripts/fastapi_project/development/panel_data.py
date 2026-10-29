@@ -1,7 +1,3 @@
-"""
-离线面板数据按项目图组织，节点只含声明与摘要，禁止导出完整测试运行数据。
-"""
-
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -19,7 +15,6 @@ from fastapi_project.development.status import project_status
 from shared.modules.catalog import Catalog
 
 
-# 操作详情只列位置和实现身份；最近运行的输入、SQL、结果和外部回执不进面板。
 def module_detail(module: dict) -> dict:
     return {
         "name": module["name"],
@@ -52,7 +47,6 @@ def module_detail(module: dict) -> dict:
     }
 
 
-# 已登记但未写入计划的包也明确列出，工具包单独展示真实使用者。
 def node_detail(name: str, module: dict | None, rules: list[LedgerRule]) -> dict:
     if module:
         return module_detail(module)
@@ -66,7 +60,6 @@ def node_detail(name: str, module: dict | None, rules: list[LedgerRule]) -> dict
     }
 
 
-# 计划包的规则先于代码登记存在，高风险待确认状态不能被空实现掩盖。
 def nodes(project: Path, status: dict, checks: list[dict]) -> list[dict]:
     planned = {
         package["module"]: (line["name"], package)
@@ -116,7 +109,6 @@ def nodes(project: Path, status: dict, checks: list[dict]) -> list[dict]:
     return result
 
 
-# 实线来自当前声明，虚线仅来自计划；已登记只读例外另色并展示调用数量。
 def edges(catalog: Catalog, status: dict) -> list[dict]:
     result = []
     actual = status["dependencies"]
@@ -150,7 +142,6 @@ def edges(catalog: Catalog, status: dict) -> list[dict]:
     return result
 
 
-# 单一数据入口不访问业务服务；错误由命令明确报出而不是用空图冒充正常。
 def panel_data(project: Path, catalog: Catalog) -> dict:
     status = project_status(catalog, project)
     checks = read_checks(project, include_cases=False)

@@ -1,7 +1,3 @@
-"""
-主代理先读摘要，问题和未实现目标仍可见，详细证据按准确入口读取。
-"""
-
 import copy
 import json
 import os
@@ -27,7 +23,6 @@ from tests.architecture.sample_catalog import MODULES
 PROJECT_SCRIPT = "../.agents/skills/fastapi-project/scripts/run_project.py"
 
 
-# 长运行与框架失败样例用于检查摘要保留问题但省略运行详情。
 def sample_cases() -> list[dict[str, Any]]:
     cases = [
         {
@@ -54,7 +49,6 @@ def sample_cases() -> list[dict[str, Any]]:
     return cases
 
 
-# 独立计划包含未实现目标，长运行内容仅用于检查摘要不会把详情带进去。
 def sample_status(tmp_path: Path) -> dict[str, Any]:
     plan = {
         "schema_version": 1,
@@ -93,7 +87,6 @@ def sample_status(tmp_path: Path) -> dict[str, Any]:
     return project_status(Catalog(MODULES), tmp_path, {"sample_accounts"})
 
 
-# 摘要减少输入，但不能删掉失败、禁用、待确认和未实现目标。
 def test_summary_is_small_and_keeps_decision_facts(tmp_path: Path) -> None:
     status = sample_status(tmp_path)
     before = copy.deepcopy(status)
@@ -110,7 +103,6 @@ def test_summary_is_small_and_keeps_decision_facts(tmp_path: Path) -> None:
     assert status == before
 
 
-# 问题只预览少量，失败总数和准确继续入口必须保留。
 def test_problem_list_is_bounded_but_counts_and_next_steps_remain(tmp_path: Path) -> None:
     status = sample_status(tmp_path)
     suite = project_summary(status)["modules"]["sample_records"]["tests"]["latest"]["sqlite"]
@@ -124,7 +116,6 @@ def test_problem_list_is_bounded_but_counts_and_next_steps_remain(tmp_path: Path
     assert "current" not in global_suite
 
 
-# 源码变化后摘要必须提醒过期，操作不沿用旧成功。
 def test_changed_source_is_visible_in_summary(tmp_path: Path) -> None:
     sample_status(tmp_path)
     code = tmp_path / "server/service/sample_records/store.py"
@@ -142,7 +133,6 @@ def test_changed_source_is_visible_in_summary(tmp_path: Path) -> None:
     assert "过期" in summary_markdown(result)
 
 
-# 按需入口只展开所选范围，不重复其他操作详情。
 def test_module_and_operation_views_do_not_expand_other_operations(tmp_path: Path) -> None:
     status = sample_status(tmp_path)
     result = project_summary(status, "sample_records")
@@ -157,7 +147,6 @@ def test_module_and_operation_views_do_not_expand_other_operations(tmp_path: Pat
         selected_operation(status, "sample_records.future_record")
 
 
-# 单测试入口保留框架失败，并避免跨模块重复记录。
 def test_test_view_includes_global_failures_without_duplicate_records(tmp_path: Path) -> None:
     status = sample_status(tmp_path)
     nodeid = "tests/framework/test_example.py::test_framework"
@@ -170,7 +159,6 @@ def test_test_view_includes_global_failures_without_duplicate_records(tmp_path: 
         selected_test(status, "missing", "", read_checks(tmp_path))
 
 
-# 检查期间源码改变，该轮所有模块证据均不能记为当前。
 def test_test_view_never_marks_changed_during_check_as_current(tmp_path: Path) -> None:
     status = sample_status(tmp_path)
     checks = read_checks(tmp_path)
@@ -180,7 +168,6 @@ def test_test_view_never_marks_changed_during_check_as_current(tmp_path: Path) -
     assert all(not item["current"] for item in result["records"][0]["modules"].values())
 
 
-# 数据库摘要只保留运行入口，不展开执行详情。
 def test_optional_runtime_summary_keeps_ids_without_execution_payloads(tmp_path: Path) -> None:
     status = sample_status(tmp_path)
     status["runtime"] = {
@@ -203,7 +190,6 @@ def test_optional_runtime_summary_keeps_ids_without_execution_payloads(tmp_path:
     assert "DETAIL_ONLY" not in json.dumps(result)
 
 
-# 真实CLI只读源码和已有记录，默认及摘要均不连接数据库。
 def test_real_cli_keeps_old_json_and_does_not_open_database(tmp_path: Path) -> None:
     database = tmp_path / "must-not-open.db"
     env = {**os.environ, "APP_DATABASE_URL": f"sqlite+aiosqlite:///{database}"}
@@ -228,7 +214,6 @@ def test_real_cli_keeps_old_json_and_does_not_open_database(tmp_path: Path) -> N
     assert not database.exists()
 
 
-# 互斥视图、错误模块和无效运行数量必须明确失败。
 @pytest.mark.parametrize(
     "args",
     [
@@ -249,7 +234,6 @@ def test_real_cli_rejects_ambiguous_or_invalid_scope(args: list[str]) -> None:
     assert run.returncode == 2 and "error" in run.stderr
 
 
-# 被调用能力或其规则改变时，直接、间接调用方的旧结果都过期，无关模块不受影响。
 def test_dependency_versions_include_transitive_providers(tmp_path: Path) -> None:
     names = ["request_handler", "middle_service", "record_provider", "other_package"]
     for name in names:
@@ -268,7 +252,6 @@ def test_dependency_versions_include_transitive_providers(tmp_path: Path) -> Non
     assert before["other_package"] == after["other_package"]
 
 
-# 依赖表即使包含重复或循环，也只计算一次路径；缺省依赖保留旧独立用法。
 def test_dependency_versions_are_finite_and_optional(tmp_path: Path) -> None:
     from fastapi_project.development.history import dependency_modules
 
@@ -282,7 +265,6 @@ def test_dependency_versions_are_finite_and_optional(tmp_path: Path) -> None:
     )
 
 
-# 大计划只给数量与缺项预览，单包入口保留全部目标且不伪造已登记代码。
 def test_large_plan_is_previewed_and_missing_package_can_be_opened(tmp_path: Path) -> None:
     status = sample_status(tmp_path)
     package = status["lines"][0]["packages"][1]

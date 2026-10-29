@@ -1,8 +1,3 @@
-"""
-运行记录和图的测试：记录器出错不影响业务、内存保存有上限并计数、中文摘要、字段摘要不泄露内容、
-流程图与字段来源、图中的文字转义。
-"""
-
 from decimal import Decimal
 
 import pytest
@@ -23,14 +18,11 @@ from tests.framework.sample_modules import CalcInput, calc, calc_module
 pytestmark = pytest.mark.anyio
 
 
-# 故意保存失败的测试存储，用来检查记录不完整的提示。
 class BrokenStore(MemoryRunStore):
-    # 每次保存都失败，模拟排查存储不可用。
     async def save(self, runs: list[RunRecord]) -> None:
         raise OSError("排查存储不可用")
 
 
-# 运行记录保存失败时，业务照常完成，失败次数被记下。
 async def test_record_failure_does_not_break_business(sample: Services) -> None:
     sample.recorder.store = BrokenStore(10)
     result = await sample.runtime.run(calc, CalcInput(amount=Decimal("2")), caller=DEVELOPER)
@@ -38,7 +30,6 @@ async def test_record_failure_does_not_break_business(sample: Services) -> None:
     assert sample.recorder.state().failures == 1
 
 
-# 内存保存超过上限时丢弃最早的记录，并记下丢弃数量。
 async def test_memory_store_limit() -> None:
     store = MemoryRunStore(2)
     runs = [
@@ -51,7 +42,6 @@ async def test_memory_store_limit() -> None:
     assert list(store.rows) == ["1", "2"] and store.dropped == 1
 
 
-# 被拒绝的运行和失败的运行都有中文摘要。
 def test_summaries() -> None:
     run = RunRecord("r", "r", "", "", "c", "创建报价", "m", "1", "dev", "", "", "x", 0.0)
     run.status, run.error_message = "refused", "需要权限 order_quote.write"
@@ -65,7 +55,6 @@ def test_summaries() -> None:
     assert "quote_rules.py:40" in text and "需要修改代码" in text and "数据库回滚" in text
 
 
-# 字段摘要：默认只记录形状，声明了才记录取值，敏感字段从不记录。
 def test_value_descriptions() -> None:
     plain = FieldNote("phone", "手机号")
     shown = FieldNote("total", "应付", unit="元", log_value=True)
@@ -78,7 +67,6 @@ def test_value_descriptions() -> None:
     )
 
 
-# 流程图列出步骤和条件；节点只放序号和标题，类型用颜色表达。
 def test_flow_graph_and_lineage() -> None:
     binding = Catalog([calc_module]).bindings[calc]
     graph = flow_graph(binding)
@@ -89,7 +77,6 @@ def test_flow_graph_and_lineage() -> None:
     assert any("应付（total）：由步骤“计算应付”写入" in line for line in lines)
 
 
-# 图中的文字会被转义，输入内容不会被当成图语言执行。
 def test_labels_are_escaped() -> None:
     assert label('A"]; click x call evil()') == "A&quot;]; click x call evil()"
     assert "<" not in label("<script>")

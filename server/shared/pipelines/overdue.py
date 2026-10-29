@@ -1,7 +1,3 @@
-"""
-逾期只记录事实并登记通知，默认继续；显式pause在批次/阶段边界停止，通知未送达保持待发送。
-"""
-
 import json
 import secrets
 from datetime import UTC, datetime, timedelta
@@ -20,7 +16,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
 
 
-# 截止时间在登记周期时固定，声明调整不会偷偷改正在运行的期限。
 def deadline(pipeline: Pipeline, request: StartRequest, now: float) -> float | None:
     if pipeline.complete_by is None:
         return None
@@ -33,7 +28,6 @@ def deadline(pipeline: Pipeline, request: StartRequest, now: float) -> float | N
     return datetime.combine(day, point.at, zone).timestamp()
 
 
-# 一次最多处理100个逾期周期，各自短事务，已登记通知不重复。
 async def check(queue: "JobQueue", now: float) -> None:
     if not queue.catalog.pipelines:
         return
@@ -62,7 +56,6 @@ async def check(queue: "JobQueue", now: float) -> None:
             await mark(connection, root, now)
 
 
-# 逾期标记和通知登记同事务；继续策略不修改原业务状态。
 async def mark(connection: AsyncConnection, root: dict, now: float) -> None:
     values: dict[str, Any] = dict(overdue=True, overdue_at=now, updated_at=now)
     if root["on_overdue"] == "pause" and root["state"] in (
@@ -99,7 +92,6 @@ async def mark(connection: AsyncConnection, root: dict, now: float) -> None:
     )
 
 
-# 分段任务每批提交后再查询；暂停不会打断本批，也不会改变普通任务行为。
 async def may_continue(queue: "JobQueue", job_id: str) -> bool:
     from shared.pipelines.member_store import member_for
     from shared.pipelines.storage import stage_for

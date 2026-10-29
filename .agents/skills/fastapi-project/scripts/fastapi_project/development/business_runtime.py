@@ -1,7 +1,3 @@
-"""
-业务现状显式运行观察：只读当前配置数据库，有界编号/状态摘要，不读取业务正文。
-"""
-
 import time
 from typing import Any
 
@@ -15,7 +11,6 @@ from shared.pipelines.tables import runs
 from shared.records.tables import run_records
 
 
-# 数量完整，例子最多十条；省略数量明确，不把列表上限当真实总量。
 async def attention(
     connection: Any, table: Any, condition: Any, fields: list[Any]
 ) -> dict[str, Any]:
@@ -26,7 +21,6 @@ async def attention(
     )
 
 
-# 最近顶层操作只读取编号与状态，不读取包含业务字段的body。
 async def recent_operation(connection: Any, name: str) -> Any:
     query = (
         select(
@@ -39,11 +33,9 @@ async def recent_operation(connection: Any, name: str) -> Any:
     return (await connection.execute(query)).mappings().first()
 
 
-# 运行记录缺失时的统一说法。
 MISSING = "未知（数据库里没有保留这个流程的运行记录）"
 
 
-# 最近运行只列历史事实；当前源码是否成功、真实业务是否验收仍需相应证据。
 async def observe(database: Database, catalog: Catalog) -> dict[str, Any]:
     result = {}
     async with database.read() as connection:

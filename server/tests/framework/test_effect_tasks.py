@@ -1,7 +1,3 @@
-"""
-业务提交后发送、回滚后不发送与统一运行记录，使用真实事务和持久队列合成验证。
-"""
-
 from pathlib import Path
 
 import pytest
@@ -41,26 +37,22 @@ write = contract(
 )
 
 
-# 正文只在调用范围使用，意图与任务分开保存。
 class Work(WorkData):
     message: str = meaning("合成消息")
     result: Nothing = meaning("登记结果")
 
 
-# 不调用网络，意图与任务一起随业务事务提交。
 @step("登记外部任务", reads=["message"], writes=["result"], saves=True, providers=[provider])
 async def enqueue(data: Work, effects: EffectGate) -> None:
     await effects.enqueue(provider, Input(message=data.message), key="business-1")
     data.result = Nothing()
 
 
-# 最后一步失败，之前登记的两种持久数据必须一起撤销。
 @step("模拟后续失败")
 def fail(data: Work) -> None:
     raise ValueError("合成业务失败")
 
 
-# 构造临时声明，不把真实产品或合成业务登记到空模板。
 def module_for(*, failing: bool) -> Module:
     return Module(
         "message_queue",
@@ -79,7 +71,6 @@ def module_for(*, failing: bool) -> Module:
     )
 
 
-# 提交只保存，worker通过同一产品组装实际调用，回滚后worker无任务可领。
 @pytest.mark.parametrize("failing", [False, True])
 async def test_effect_task_is_atomic_with_business(tmp_path: Path, failing: bool) -> None:
     settings = make_settings(tmp_path)

@@ -1,8 +1,3 @@
-"""
-任务表的读写：登记、领取、完成、失败、延长期限和期限过期后的处理。
-登记与业务写入同事务提交，领取使用 FOR UPDATE SKIP LOCKED；排队计数原子更新。
-"""
-
 import json
 from dataclasses import dataclass
 from typing import Any
@@ -38,7 +33,6 @@ READY = ("queued", "waiting_retry")
 ACTIVE = ("queued", "running", "waiting_retry")
 
 
-# 后台进程取到的任务信息，包含本次尝试编号和输入。
 @dataclass(frozen=True)
 class Ticket:
     id: str
@@ -52,16 +46,13 @@ class Ticket:
     failed_attempts: int | None = 0
 
 
-# 通过数据库登记、领取和更新任务，保证状态变化有明确条件。
 class JobQueue:
-    # 使用模块目录查找任务声明，使用数据库保存任务。
     def __init__(self, catalog: Catalog, database: Database) -> None:
         self.clock: Clock = RealClock()
 
         self.catalog, self.database = catalog, database
         self.pipelines, self.capacity_enabled = PipelineEngine(self), False
 
-    # 在给定的写入事务中登记任务；同一请求编号重复登记时返回原任务。
     @clocked
     async def submit(
         self,
@@ -109,14 +100,12 @@ class JobQueue:
             raise
         return str(row["id"])
 
-    # 领取一个到期的任务，写入新的尝试编号和执行期限。
     @clocked
     async def claim(self, now: float) -> Ticket | None:
         async with self.database.write() as connection:
             row = await take(self, connection, now)
         return Ticket(**row) if row else None
 
-    # 在给定事务中把任务标为完成；尝试已过期时返回 False，调用方应放弃本次写入。
     @clocked
     async def finish(
         self, connection: AsyncConnection, ticket: Ticket, result_json: str, run_id: str
@@ -147,7 +136,6 @@ class JobQueue:
         await resources.release(connection, ticket.id, ticket.attempt, now)
         return True
 
-    # 记录一次失败：进入等待重试、失败、结果待确认或等待兼容版本。
     @clocked
     async def fail(
         self,
@@ -195,14 +183,12 @@ class JobQueue:
                 )
         return changed
 
-    # 延长执行期限；返回 False 表示任务已不属于这次尝试。
     @clocked
     async def extend(self, ticket: Ticket, until: float, *, require_current: bool = False) -> bool:
         plan = self.catalog.plan(ticket.contract)
         require_current = require_current or bool(plan and (plan.serial or plan.resources))
         return await extend_lease(self.database, ticket, until, require_current=require_current)
 
-    # 处理执行期限已过的任务：可安全重复的重新排队，其他的标为结果待确认。
     @clocked
     async def reclaim(self, now: float) -> int:
         async with self.database.write() as connection:
@@ -229,7 +215,6 @@ class JobQueue:
         return len(rows)
 
 
-# 任务领取后需要的列。
 def ticket_columns() -> list[Any]:
     names = (
         "id",
@@ -245,6 +230,5 @@ def ticket_columns() -> list[Any]:
     return [jobs.c[name] for name in names]
 
 
-# 把调用者转成可保存的 JSON 文本。
 def caller_text(caller: Caller) -> str:
     return json.dumps(caller.to_record(), ensure_ascii=False)

@@ -1,8 +1,3 @@
-"""
-给主代理的决策摘要：保留计划缺项、待确认和检查状态，具体步骤与运行按需读取。
-完整项目状态仍由 status.py 提供；这里不复制完整测试记录，也不推测业务已验收。
-"""
-
 import shlex
 from typing import Any
 
@@ -15,12 +10,10 @@ from fastapi_project.development.screen_summary import module_markdown_summary
 PROBLEM_LIMIT = 5
 
 
-# 生成可直接在 server 目录执行的下一步命令。
 def command(*arguments: str) -> str:
     return shlex.join(["uv", "run", "dev", "status", *arguments])
 
 
-# 各数据库分别保留新旧状态；问题过多时说明总数和省略数量。
 def test_summary(tests: dict[str, Any]) -> dict[str, Any]:
     latest = {}
     for database, suite in tests["latest"].items():
@@ -58,7 +51,6 @@ def test_summary(tests: dict[str, Any]) -> dict[str, Any]:
     return {"rounds": tests["rounds"], "latest": latest}
 
 
-# 模块摘要只展开操作入口；规则样例明细仅在单模块摘要中显示。
 def module_summary(module: dict[str, Any], *, details: bool = False) -> dict[str, Any]:
     result = {key: module[key] for key in ("name", "title", "enabled", "code", "pending")}
     result.update(
@@ -86,7 +78,6 @@ def module_summary(module: dict[str, Any], *, details: bool = False) -> dict[str
     return result
 
 
-# 可选数据库查询只列运行编号与结果，不把所有运行的步骤再展开。
 def runtime_summary(runtime: dict[str, Any] | None) -> dict[str, Any] | None:
     if runtime is None:
         return None
@@ -97,7 +88,6 @@ def runtime_summary(runtime: dict[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
-# 单包摘要保留计划缺项，尚未登记的包也能按需读取。
 def package_summary(status: dict[str, Any], module: str) -> dict[str, Any]:
     package = next(
         (item for line in status["lines"] for item in line["packages"] if item["module"] == module),
@@ -119,7 +109,6 @@ def package_summary(status: dict[str, Any], module: str) -> dict[str, Any]:
     return result
 
 
-# 完整 JSON 保持原用法；摘要是独立视图，不修改原始证据。
 def project_summary(status: dict[str, Any], module: str = "") -> dict[str, Any]:
     if module:
         result = package_summary(status, module)
@@ -169,7 +158,6 @@ def project_summary(status: dict[str, Any], module: str = "") -> dict[str, Any]:
     }
 
 
-# 一次只读取一个公开操作的图、步骤与最近实际测试。
 def selected_operation(status: dict[str, Any], name: str) -> dict[str, Any]:
     module_name = name.partition(".")[0]
     module = status["modules"].get(module_name)
@@ -189,7 +177,6 @@ def selected_operation(status: dict[str, Any], name: str) -> dict[str, Any]:
     raise ValueError(f"操作尚未登记：{name}；请先查看项目摘要")
 
 
-# 每种数据库分别查找该测试的最近执行，包含框架测试且不复制跨模块记录。
 def selected_test(
     status: dict[str, Any], nodeid: str, module: str, checks: list[dict[str, Any]]
 ) -> dict[str, Any]:
@@ -224,7 +211,6 @@ def selected_test(
     return {"view": "test", "nodeid": nodeid, "records": list(records.values())}
 
 
-# 简短文本与 JSON 使用同一摘要，失败、过期和待确认均不被成功数量遮住。
 def summary_markdown(summary: dict[str, Any]) -> str:
     if "modules" in summary:
         from fastapi_project.development.screen_summary import render
@@ -233,7 +219,6 @@ def summary_markdown(summary: dict[str, Any]) -> str:
     return detailed_markdown(summary)
 
 
-# 单模块摘要按需保留规则和检查细节，不受全项目一屏限制。
 def detailed_markdown(summary: dict[str, Any]) -> str:
     lines = [f"# {summary.get('title', summary['name'])}：主代理摘要", ""]
     if summary.get("registered") is False:

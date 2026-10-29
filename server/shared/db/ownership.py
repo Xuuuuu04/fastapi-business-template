@@ -1,7 +1,3 @@
-"""
-迁移只维护登记的表；外部表保留，历史迁移按兼容配置提醒或拒绝。
-"""
-
 import ast
 import logging
 from collections.abc import Sequence
@@ -17,13 +13,11 @@ from shared.modules.module import Module
 log = logging.getLogger("server.migrations")
 
 
-# 归属来自明确的框架文件与模块登记，不按表名前缀推定权限。
 @dataclass(frozen=True)
 class TableOwnership:
     owned: frozenset[str]
     external: frozenset[str]
 
-    # 已登记外部表仍不允许由本产品的迁移维护。
     def require_owned(self, table: str, action: str) -> None:
         if table not in self.owned:
             raise ValueError(
@@ -32,7 +26,6 @@ class TableOwnership:
                 "只保留的外部或历史表登记 external_tables / APP_EXTERNAL_TABLES。"
             )
 
-    # Alembic反射对象：未知表拒绝，外部表忽略，登记表正常比较。
     def include_object(
         self, obj: Any, name: str, kind: str, reflected: bool, compare_to: Any
     ) -> bool:
@@ -46,7 +39,6 @@ class TableOwnership:
         return True
 
 
-# 使用全部登记模块，关闭入口不意味着可以删除该模块的数据表。
 def ownership(modules: Sequence[Module], settings: Settings) -> TableOwnership:
     import shared.access.audit as audit
     import shared.db.history as history
@@ -77,7 +69,6 @@ def ownership(modules: Sequence[Module], settings: Settings) -> TableOwnership:
     return TableOwnership(frozenset(owned), frozenset(external))
 
 
-# 不执行迁移源码；扫描升级和降级中的显式破坏动作、批量操作与原始SQL。
 def migration_problems(folder: Path, tables: TableOwnership) -> list[str]:
     problems = []
     for path in sorted(folder.glob("*.py")):
@@ -116,7 +107,6 @@ def migration_problems(folder: Path, tables: TableOwnership) -> list[str]:
     return problems
 
 
-# Alembic操作直接导入或使用别名时仍按真实动作检查。
 def operation_aliases(tree: ast.AST) -> dict[str, str]:
     return {
         item.asname or item.name: item.name
@@ -126,7 +116,6 @@ def operation_aliases(tree: ast.AST) -> dict[str, str]:
     }
 
 
-# 不认识的调用不推定安全；直接SQL调用也保持未知。
 def operation_name(call: ast.Call, aliases: dict[str, str]) -> str:
     if isinstance(call.func, ast.Attribute):
         return call.func.attr
@@ -135,7 +124,6 @@ def operation_name(call: ast.Call, aliases: dict[str, str]) -> str:
     return ""
 
 
-# 批量迁移的内部调用沿用with里登记的原表名。
 def batch_tables(tree: ast.AST) -> dict[str, str]:
     batches = {}
     for node in ast.walk(tree):
@@ -153,7 +141,6 @@ def batch_tables(tree: ast.AST) -> dict[str, str]:
     return batches
 
 
-# 位置参数和命名参数都识别；无法静态确认的名称保持未知。
 def table_argument(call: ast.Call) -> str:
     names = {item.arg: item.value for item in call.keywords}
     value = names.get("table_name", call.args[0] if call.args else None)
@@ -166,7 +153,6 @@ def table_argument(call: ast.Call) -> str:
     return table
 
 
-# 旧产品先提醒，明确启用严格模式后同一问题成为错误。
 def check_migrations(root: Path, modules: Sequence[Module], settings: Settings) -> list[str]:
     tables = ownership(modules, settings)
     problems = migration_problems(root / "migrations" / "versions", tables)

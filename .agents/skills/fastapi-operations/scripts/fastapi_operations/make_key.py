@@ -1,16 +1,9 @@
-"""
-生成一把服务密钥：打印密钥原文（只显示这一次）和可以放进 APP_API_KEYS 的配置。
-用法：
-命令参数与调用方法见本功能所属项目 Skill。
-"""
-
 import argparse
 import json
 
 from shared.access.keys import hash_key, new_key
 
 
-# 生成密钥并打印配置。
 def main() -> None:
     parser = argparse.ArgumentParser(description="生成服务密钥")
     parser.add_argument("--name", required=True, help="密钥名称，例如调用方系统的名字")

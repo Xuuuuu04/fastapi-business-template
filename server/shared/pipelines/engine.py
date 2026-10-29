@@ -1,7 +1,3 @@
-"""
-流程的启动与阶段派发：周期唯一，重叠周期明确skip或queue，下一阶段与产出同事务登记。
-"""
-
 import json
 import secrets
 from typing import TYPE_CHECKING, Any
@@ -27,19 +23,15 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
 
 
-# 使用同一个任务队列，不在流程内部另造执行器。
 class PipelineEngine:
-    # 所有辅助函数继承所属应用时钟，不保留第二份时间状态。
     @property
     def clock(self) -> Clock:
         return self.queue.clock
 
-    # 保存目录与数据库入口，不在构造时访问数据库。
     def __init__(self, queue: "JobQueue") -> None:
         self.queue = queue
         self.catalog, self.database = queue.catalog, queue.database
 
-    # 每轮worker短事务检查成员空位，队列容量恢复后自动继续。
     @clocked
     async def reconcile(self) -> None:
 
@@ -49,7 +41,6 @@ class PipelineEngine:
         await check(self.queue, business_now())
         await reconcile(self.queue)
 
-    # 定时任务的启动入口直接派发第一阶段，不额外占用启动任务。
     @clocked
     async def submit(
         self, connection: AsyncConnection, item: Contract[Any, Any], input: Data, caller: Caller
@@ -61,7 +52,6 @@ class PipelineEngine:
         )
         return result.id
 
-    # 周期重复触发返回原流程；不同输入不能借用同一个周期。
     @clocked
     async def start(
         self, connection: AsyncConnection, pipeline: Pipeline, request: StartRequest, caller: Caller
@@ -110,7 +100,6 @@ class PipelineEngine:
         await self.enqueue(connection, dict(row), pipeline, 0)
         return PipelineView(id=row["id"], state="running")
 
-    # 起始数据与调用身份在登记时冻结。
     def new_root(self, pipeline: Pipeline, caller: Caller, key: str, body: str) -> dict:
         return dict(
             id=secrets.token_hex(8),
@@ -127,7 +116,6 @@ class PipelineEngine:
             reason="",
         )
 
-    # 唯一周期以数据库约束为准，重复请求只复用原记录。
     @clocked
     async def insert_root(self, connection: AsyncConnection, row: dict) -> PipelineView | None:
         try:
@@ -152,7 +140,6 @@ class PipelineEngine:
             return PipelineView(id=saved["id"], state=saved["state"], reused=True)
         return None
 
-    # 查询同组织同流程的活动周期，完成或失败后的周期不占名额。
     @clocked
     async def active(self, connection: AsyncConnection, name: str, org: str) -> str | None:
         return await connection.scalar(
@@ -165,7 +152,6 @@ class PipelineEngine:
             .with_for_update()
         )
 
-    # 取得唯一执行名额并登记第一阶段；初始输入只在启动时校验一次。
     @clocked
     async def claim_cycle(
         self, connection: AsyncConnection, root: dict, pipeline: Pipeline
@@ -181,7 +167,6 @@ class PipelineEngine:
             )
         )
 
-    # 排队周期取得名额后登记首阶段，提交仍在同一个事务。
     @clocked
     async def activate(self, connection: AsyncConnection, root: dict, pipeline: Pipeline) -> None:
         await self.claim_cycle(connection, root, pipeline)
@@ -191,7 +176,6 @@ class PipelineEngine:
                 update(runs).where(runs.c.id == root["id"]).values(state="overdue_paused")
             )
 
-    # 阶段输入来自初始Data或某个已成功阶段的有界产出。
     @clocked
     async def enqueue(
         self, connection: AsyncConnection, root: dict, pipeline: Pipeline, index: int
@@ -234,7 +218,6 @@ class PipelineEngine:
             )
         )
 
-    # 来源必须已成功，输入再次按当前阶段Data校验并限制大小。
     @clocked
     async def stage_input(
         self, connection: AsyncConnection, root: dict, pipeline: Pipeline, index: int
@@ -257,7 +240,6 @@ class PipelineEngine:
         body = data_json(stage.operation.input, input, stage.name)
         return input, body
 
-    # 结束一个周期后同事务唤醒最早排队周期，不依赖内存计时器。
     @clocked
     async def next_cycle(self, connection: AsyncConnection, root: dict) -> None:
         pipeline = self.catalog.pipelines.get(root["pipeline"])

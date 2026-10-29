@@ -1,14 +1,9 @@
-"""
-时间预算的静态诊断，指出上层期限小于下层配置的位置，不把排队或业务有效期混成调用超时。
-"""
-
 from typing import Any
 
 from shared.config.settings import Settings
 from shared.modules.catalog import Catalog
 
 
-# 配置默认值与运行观察分开，静态诊断不执行操作、不查询数据库。
 def budget_report(catalog: Catalog, settings: Settings) -> dict[str, Any]:
     rows, issues = [], []
     for operation, binding in sorted(catalog.by_name.items()):
@@ -42,7 +37,6 @@ def budget_report(catalog: Catalog, settings: Settings) -> dict[str, Any]:
     return dict(operations=rows, issues=issues, observation="声明与配置，不是实际耗时")
 
 
-# 只有同步调用的预算互相比较；Pipeline等待阶段的长期有效期不与单次轮询混用。
 def lower_budgets(catalog: Catalog, operation: str, settings: Settings) -> list[dict[str, Any]]:
     binding = catalog.by_name[operation]
     calls = []

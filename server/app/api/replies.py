@@ -1,8 +1,3 @@
-"""
-接口共用的返回格式：统一错误响应、任务受理响应，以及按操作生成接口文档中的错误说明。
-正常结果直接返回数据本身，不额外包一层；错误使用正确的 HTTP 状态码和稳定的错误码。
-"""
-
 from typing import Any
 
 from shared.data.fields import meaning
@@ -26,13 +21,11 @@ STATUS = {
 COMMON = (Kind.INVALID, Kind.NOT_SIGNED_IN, Kind.FORBIDDEN, Kind.TEMPORARY, Kind.BROKEN)
 
 
-# 输入校验失败的字段及原因，供调用方定位需要修改的内容。
 class FieldProblem(Data):
     field: str = meaning("有问题的字段路径，例如 lines.0.quantity")
     problem: str = meaning("问题说明")
 
 
-# 所有接口共用的失败响应，带错误类型、请求编号和运行编号。
 class ErrorReply(Data):
     code: str = meaning("稳定的错误码，程序按它判断，不要按说明文字判断")
     kind: str = meaning("错误种类，例如 invalid、not_found、conflict、temporary")
@@ -44,14 +37,12 @@ class ErrorReply(Data):
     )
 
 
-# 后台任务已受理的响应，提供任务编号和进度查询地址。
 class JobAccepted(Data):
     job_id: str = meaning("任务编号")
     state: str = meaning("任务状态，刚受理时为 queued")
     status_url: str = meaning("查询任务状态的地址")
 
 
-# 生成接口文档中的错误说明：公共错误加上操作声明的业务错误。
 def responses_for(*items: Contract[Any, Any]) -> dict[int | str, dict[str, Any]]:
     codes: dict[int, list[str]] = {STATUS[kind]: [KIND_TEXT[kind]] for kind in COMMON}
     for item in items:

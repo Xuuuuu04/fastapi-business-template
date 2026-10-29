@@ -1,7 +1,3 @@
-"""
-确认样例保护独立预期与关键断言，允许修改辅助代码；Git基线防止重算摘要掩盖变更。
-"""
-
 import json
 import subprocess
 from pathlib import Path
@@ -19,7 +15,6 @@ from fastapi_project.development.ledger import (
 from fastapi_project.development.ledger_models import LedgerRule, RuleConfirmation, RuleSource
 
 
-# 合成项目独立资料，不把任何规则登记到正式空模板中。
 def prepare(project: Path) -> Path:
     tests = project / "server/tests/modules/sample_rules/test_sample.py"
     tests.parent.mkdir(parents=True)
@@ -67,7 +62,6 @@ def prepare(project: Path) -> Path:
     return path
 
 
-# 保护每种关键语义，改测试辅助变量不等于改关键断言。
 @pytest.mark.parametrize("field", ["input", "initial", "expected", "database", "effects"])
 def test_confirmed_fixture_change_is_detected(tmp_path: Path, field: str) -> None:
     path = prepare(tmp_path)
@@ -78,7 +72,6 @@ def test_confirmed_fixture_change_is_detected(tmp_path: Path, field: str) -> Non
     assert "已经改变" in case_problems(tmp_path, read_ledger(tmp_path))[0]
 
 
-# 锁关键assert表达式，注释和无关辅助函数的修改仍可接受。
 def test_assertions_protected_without_locking_file(tmp_path: Path) -> None:
     prepare(tmp_path)
     test = tmp_path / "server/tests/modules/sample_rules/test_sample.py"
@@ -88,7 +81,6 @@ def test_assertions_protected_without_locking_file(tmp_path: Path) -> None:
     assert case_problems(tmp_path, read_ledger(tmp_path))
 
 
-# 在版本历史里保存独立确认基线，当前JSON改摘要也不能使变更变绿。
 def test_recomputed_digest_cannot_replace_git_confirmation(tmp_path: Path) -> None:
     path = prepare(tmp_path)
     for command in (
@@ -120,7 +112,6 @@ def test_recomputed_digest_cannot_replace_git_confirmation(tmp_path: Path) -> No
     assert any("被删除" in error for error in case_problems(tmp_path, ledger))
 
 
-# 高风险未确认规则只在交付时失败，普通开发可以继续试验。
 def test_delivery_requires_high_risk_confirmation(tmp_path: Path) -> None:
     prepare(tmp_path)
     ledger = read_ledger(tmp_path)
@@ -131,7 +122,6 @@ def test_delivery_requires_high_risk_confirmation(tmp_path: Path) -> None:
     )
 
 
-# 参数化或局部预期变量变化不能只靠保持assert语句原样而绕过保护。
 def test_assertion_inputs_cannot_be_changed(tmp_path: Path) -> None:
     prepare(tmp_path)
     test = tmp_path / "server/tests/modules/sample_rules/test_sample.py"
@@ -139,7 +129,6 @@ def test_assertion_inputs_cannot_be_changed(tmp_path: Path) -> None:
     assert case_problems(tmp_path, read_ledger(tmp_path))
 
 
-# 确认单只读独立样例，新的原话修订恢复推定，不复制旧确认。
 def test_sheet_and_supersede_keep_confirmation_separate(tmp_path: Path) -> None:
     from fastapi_project.development.rule_documents import confirm_sheet, supersede
 
@@ -161,7 +150,6 @@ def test_sheet_and_supersede_keep_confirmation_separate(tmp_path: Path) -> None:
     assert "sample_rules.R-01-C01" in sheet and "{'total': 4}" in sheet
 
 
-# 历史文档不能变成人类确认；格式无法解析时不新增半份来源。
 def test_markdown_adoption_does_not_confirm_or_partially_parse(tmp_path: Path) -> None:
     from fastapi_project.development.rule_documents import adopt_markdown
 

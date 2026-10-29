@@ -1,10 +1,3 @@
-"""
-测试夹具：配置、HTTP 客户端、组装好的服务。每个测试使用重置过的数据库，不读取项目的 .env。
-SQLite 上自动跳过标记 postgres_only 的测试。
-完整运行默认测试（不带路径和筛选参数）时，检查模块总目录中的每个操作至少被执行过一次。
-测试失败时附上失败运行的中文报告，见 failure_reports.py。
-"""
-
 import asyncio
 import json
 import os
@@ -37,12 +30,10 @@ pytest_plugins = ["tests.failure_reports", "tests.development_history", "tests.r
 EXECUTED: set[str] = set()
 
 
-# 记下测试期间实际执行过的操作。
 @pytest.fixture(autouse=True, scope="session")
 def track_operations() -> Iterator[None]:
     original = Runtime.open_run
 
-    # 在创建运行记录时记下操作名。
     def tracked(self: Runtime, binding: Any, scope: Any, parent: Any, step: Any) -> Any:
         EXECUTED.add(binding.contract.name)
         return original(self, binding, scope, parent, step)
@@ -52,7 +43,6 @@ def track_operations() -> Iterator[None]:
         yield
 
 
-# 完整运行时，模块总目录中没有被任何测试执行过的操作会让测试失败。
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     if hasattr(session.config, "workerinput"):
         session.config.workeroutput["executed_operations"] = sorted(EXECUTED)
@@ -88,13 +78,11 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
 
-# 控制进程汇总全部worker的操作覆盖，单个worker不对其他worker的测试结果下结论。
 @pytest.hookimpl(optionalhook=True)
 def pytest_testnodedown(node: Any, error: Any) -> None:
     EXECUTED.update(node.workeroutput.get("executed_operations", []))
 
 
-# 在 SQLite 上跳过只对 PostgreSQL 有意义的测试。
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     schedule(items)
     if os.environ.get("APP_DEVELOPMENT_REPEAT_DATABASE") == "1":
@@ -112,19 +100,16 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(skip)
 
 
-# 异步测试使用 asyncio。
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
 
 
-# 每个测试一份独立配置。
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
     return make_settings(tmp_path)
 
 
-# 从真实的应用工厂启动，返回 HTTP 客户端。
 @pytest.fixture
 def client(settings: Settings) -> Iterator[TestClient]:
     prepare_test_database_now(settings.database_url)
@@ -132,7 +117,6 @@ def client(settings: Settings) -> Iterator[TestClient]:
         yield test_client
 
 
-# 组装好的服务（使用模拟大模型），用于直接调用执行器的测试。
 @pytest.fixture
 async def services(settings: Settings) -> AsyncIterator[Services]:
     await prepare_test_database(settings.database_url)
@@ -143,12 +127,10 @@ async def services(settings: Settings) -> AsyncIterator[Services]:
         await built.close()
 
 
-# 模拟大模型：把提示词中的文字原样带回，方便检查变量是否填对。
 def echo(request: ModelRequest) -> str:
     return f"说明：{request.user}"
 
 
-# 用框架测试的示例模块组装的服务，并建好示例表。
 @pytest.fixture
 async def sample(settings: Settings) -> AsyncIterator[Services]:
     await prepare_test_database(settings.database_url)
@@ -163,14 +145,12 @@ async def sample(settings: Settings) -> AsyncIterator[Services]:
         await built.close()
 
 
-# 建好示例模块使用的表。
 async def create_sample_tables(services: Services) -> None:
     async with services.database.write() as connection:
         await connection.run_sync(sample_metadata.drop_all)
         await connection.run_sync(sample_metadata.create_all)
 
 
-# 只启用示例模块的应用，系统接口和安全测试使用它，不依赖可删除的示例业务。
 @pytest.fixture
 def sample_client(settings: Settings) -> Iterator[TestClient]:
     prepare_test_database_now(settings.database_url)

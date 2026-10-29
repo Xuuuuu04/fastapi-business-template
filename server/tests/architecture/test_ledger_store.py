@@ -1,7 +1,3 @@
-"""
-规则分包兼容旧账本；普通失败和进程中断恢复保持确认、原件与其他包不变。
-"""
-
 import json
 import signal
 import subprocess
@@ -20,7 +16,6 @@ from shared.modules.catalog import Catalog
 from tests.environment import subprocess_environment
 
 
-# 来源是合成资料，旧规则保持推定，不借格式迁移升级为人类确认。
 def ledger() -> RuleLedger:
     return RuleLedger(
         sources=[
@@ -33,7 +28,6 @@ def ledger() -> RuleLedger:
     )
 
 
-# 旧单文件在读取时不改，首次合法保存转换为包文件，另一包原件不被顺手改写。
 def test_legacy_to_package_files_preserves_rule_meaning(tmp_path: Path) -> None:
     path = tmp_path / "doc/rules-ledger.json"
     path.parent.mkdir()
@@ -54,7 +48,6 @@ def test_legacy_to_package_files_preserves_rule_meaning(tmp_path: Path) -> None:
     assert read_ledger(tmp_path).rules[0].revision == 2
 
 
-# 普通写入异常立即回滚，半份新规则不成为当前事实。
 @pytest.mark.parametrize("newline", [b"\n", b"\r\n"])
 def test_package_write_failure_restores_originals(
     tmp_path: Path, monkeypatch, newline: bytes
@@ -65,7 +58,6 @@ def test_package_write_failure_restores_originals(
     originals = {path: path.read_bytes() for path in (tmp_path / "doc").rglob("*.json")}
     real = ledger_store.atomic_bytes
 
-    # 只在新规则落盘后模拟失败，恢复旧原件的写入仍然正常。
     def failing(path, content):
         real(path, content)
         if path.name == "rules.json" and b"new-rule-text" in content:
@@ -82,12 +74,10 @@ def test_package_write_failure_restores_originals(
     assert not (tmp_path / ledger_store.JOURNAL).exists()
 
 
-# 中断不执行异常回滚，旧快照可读且交付要求先恢复，随后明确恢复原件。
 def test_interrupted_write_requires_recovery(tmp_path: Path, monkeypatch) -> None:
     save_ledger(tmp_path, ledger())
     real = ledger_store.atomic_bytes
 
-    # BaseException模拟进程退出，日志必须保留而不是当作普通失败删除。
     def interrupted(path, content):
         real(path, content)
         if path.name == "rules.json" and b"new-rule-text" in content:
@@ -111,7 +101,6 @@ def test_interrupted_write_requires_recovery(tmp_path: Path, monkeypatch) -> Non
     assert not recover_store(tmp_path)
 
 
-# 原话档案不会进入规则正文，来源索引只保留脱敏引用与摘要。
 def test_source_index_stays_separate_from_packages(tmp_path: Path) -> None:
     save_ledger(tmp_path, ledger())
     packages = {path: path.read_bytes() for path in (tmp_path / "doc").glob("*/rules.json")}
@@ -124,7 +113,6 @@ def test_source_index_stays_separate_from_packages(tmp_path: Path) -> None:
     assert "synthetic-sensitive-original" not in (tmp_path / "doc/rules-ledger.json").read_text()
 
 
-# 无关来源和另一包规则不影响本包，真实依赖方必须一起过期。
 def test_rule_fingerprints_follow_actual_dependency_scope(tmp_path: Path) -> None:
     save_ledger(tmp_path, ledger())
     names = ["sample_first", "sample_second"]
@@ -146,7 +134,6 @@ def test_rule_fingerprints_follow_actual_dependency_scope(tmp_path: Path) -> Non
     assert fingerprints(tmp_path, names, dependent)["sample_second"] != linked["sample_second"]
 
 
-# 真正杀死独立写入进程后，本机锁释放，日志恢复不需要重启服务或修改规则预期。
 @pytest.mark.skipif(sys.platform == "win32", reason="此反例使用POSIX SIGKILL")
 def test_sigkill_rule_writer_recovers_old_snapshot(tmp_path: Path) -> None:
     save_ledger(tmp_path, ledger())
@@ -179,7 +166,6 @@ propose(Path(sys.argv[1]), rule, reason='synthetic SIGKILL')
     assert all(rule.text == "original-rule-text" for rule in read_ledger(tmp_path).rules)
 
 
-# 错误索引和日志类型都以资料错误失败，不能变成静默忽略或继续使用旧页面。
 @pytest.mark.parametrize(
     "file,content",
     [

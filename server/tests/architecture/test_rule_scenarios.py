@@ -1,7 +1,3 @@
-"""
-确认样例只使用规则表预期与真实 pytest 标记，不把注释、旧结果或整轮失败当成通过。
-"""
-
 import json
 import os
 import subprocess
@@ -58,7 +54,6 @@ def test_skip_then_teardown_error(teardown_error):
 """
 
 
-# 临时业务文档保留预期的唯一来源。
 def write_rules(project: Path, text: str = TABLE) -> Path:
     path = project / "doc/demo/rules.md"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -66,7 +61,6 @@ def write_rules(project: Path, text: str = TABLE) -> Path:
     return path
 
 
-# 测试记录只含名称、状态和样例编号，不包含业务取值。
 def recorded(identity: str | None, outcome: str = "passed", nodeid: str = "test.py::case") -> Any:
     case = {"nodeid": nodeid, "outcome": outcome, "runs": []}
     if identity is not None:
@@ -74,12 +68,10 @@ def recorded(identity: str | None, outcome: str = "passed", nodeid: str = "test.
     return case
 
 
-# 每个数据库独立保留当前性和整轮结果。
 def suite(cases: list[Any], current: bool = True, exit_code: int = 0) -> dict[str, Any]:
     return {"current": current, "exit_code": exit_code, "checks_passed": False, "cases": cases}
 
 
-# 没有样例列的老模块照常返回，没有声明不能被解释为没有规则。
 @pytest.mark.parametrize(
     "text", ["", "### R-05 会话\n| 情况 | 结果 |\n| --- | --- |\n| 旧值 | 拒绝 |"]
 )
@@ -90,7 +82,6 @@ def test_legacy_tables_do_not_declare_scenarios(tmp_path: Path, text: str) -> No
     assert "没有声明不等于没有规则" in result["note"]
 
 
-# ID、所属规则、表列和分隔行错误必须可见，不能悄悄丢弃。
 @pytest.mark.parametrize(
     "text",
     [
@@ -113,7 +104,6 @@ def test_invalid_tables_raise(tmp_path: Path, text: str) -> None:
         scenario_status(tmp_path, "demo", {})
 
 
-# 当前证据与整轮失败分开；过期结果、老记录和只写规则注释的测试不增加通过数。
 def test_current_database_evidence_and_unknown_ids(tmp_path: Path) -> None:
     write_rules(
         tmp_path,
@@ -146,7 +136,6 @@ def test_current_database_evidence_and_unknown_ids(tmp_path: Path) -> None:
     assert not result["checks_by_database"]["sqlite"]["checks_passed"]
 
 
-# 一个样例被多个测试标记时，不能选择性只展示通过的测试。
 @pytest.mark.parametrize(
     "outcome,status", [("failed", "failed"), ("skipped", "skipped"), ("unrecorded", "unrecorded")]
 )
@@ -158,7 +147,6 @@ def test_all_matching_cases_are_accounted_for(tmp_path: Path, outcome: str, stat
     assert evidence["status"] == status and len(evidence["nodeids"]) == 2
 
 
-# 检查期间源码改变必须显示，不能仅用整轮通过掩盖当前性。
 def test_source_changed_is_explicit(tmp_path: Path) -> None:
     write_rules(tmp_path, TABLE + "| R-05-C01 | 输入 | 结果 |")
     checks = [
@@ -176,7 +164,6 @@ def test_source_changed_is_explicit(tmp_path: Path) -> None:
     assert result["cases"][0]["by_database"]["sqlite"]["status"] == "unrecorded"
 
 
-# 子进程使用真实插件和项目严格配置，不加载上层业务夹具。
 def run_pytest(
     folder: Path, source: str, *options: str
 ) -> tuple[subprocess.CompletedProcess[str], Any]:
@@ -207,7 +194,6 @@ def run_pytest(
     return result, json.loads(output.read_text(encoding="utf-8"))
 
 
-# 真正收集参数化测试不等于执行通过；未注册标记仍被 strict-markers 拒绝。
 def test_pytest_collection_is_not_pass_evidence(tmp_path: Path) -> None:
     result, evidence = run_pytest(tmp_path, PYTEST_SOURCE, "--collect-only")
     assert result.returncode == 0, result.stdout + result.stderr
@@ -218,7 +204,6 @@ def test_pytest_collection_is_not_pass_evidence(tmp_path: Path) -> None:
     assert result.returncode == 2 and evidence["cases"] == []
 
 
-# 真正参数化的每个 item 独立保存 ID；所有阶段的失败与 xfail 都不能冒充 pass。
 def test_pytest_real_phase_outcomes(tmp_path: Path) -> None:
     result, evidence = run_pytest(tmp_path, PYTEST_SOURCE)
     assert result.returncode == evidence["exit_code"] == 1
@@ -251,7 +236,6 @@ def test_pytest_real_phase_outcomes(tmp_path: Path) -> None:
     check_recorded_mapping(tmp_path, evidence)
 
 
-# 使用同一次真实执行验证样例统计，避免另造通过证据。
 def check_recorded_mapping(tmp_path: Path, evidence: dict[str, Any]) -> None:
     write_rules(
         tmp_path,
@@ -277,7 +261,6 @@ def check_recorded_mapping(tmp_path: Path, evidence: dict[str, Any]) -> None:
     assert not mapped["checks_by_database"]["sqlite"]["suite_passed"]
 
 
-# 显式标记也必须只有一个完整编号，错误不能被吞掉。
 @pytest.mark.parametrize("marker", ["rule_case()", "rule_case('R-05-C01')", "rule_case(5)"])
 def test_pytest_rejects_invalid_rule_case(tmp_path: Path, marker: str) -> None:
     result, evidence = run_pytest(

@@ -1,7 +1,3 @@
-"""
-意外异常日志保留实际调用位置，去除消息、源码与变量中的业务值。
-"""
-
 import json
 import logging
 import sys
@@ -16,7 +12,6 @@ from shared.records.recorder import Recorder
 from shared.records.stores import MemoryRunStore
 
 
-# 返回携带敏感消息及原因的异常，用于检查日志的两种实际输出格式。
 def failed_request() -> None:
     try:
         raise ValueError("synthetic-sensitive-token")
@@ -24,7 +19,6 @@ def failed_request() -> None:
         raise RuntimeError("synthetic-sensitive-password") from error
 
 
-# JSON 与本地文本日志都只保留类型与位置，不格式化原始异常消息和源码。
 @pytest.mark.parametrize("formatter", [JsonLines(), PlainText()])
 def test_exception_log_omits_messages(formatter: logging.Formatter) -> None:
     try:
@@ -43,20 +37,16 @@ def test_exception_log_omits_messages(formatter: logging.Formatter) -> None:
         assert "RuntimeError" in json.loads(text)["error"]
 
 
-# 已定义的业务错误保留公开的中文原因。
 def test_business_error_keeps_public_reason() -> None:
     error = FileTooLarge("文件超过 10 MB")
     assert safe_exception_text(error) == "FileTooLarge：文件超过 10 MB"
 
 
-# 保存故障模拟数据库驱动在异常消息中带出敏感参数。
 class BrokenRecordStore(MemoryRunStore):
-    # 只模拟保存错误，不写入任何真实记录。
     async def save(self, runs: list[RunRecord]) -> None:
         raise OSError("database parameter=synthetic-sensitive-password")
 
 
-# 记录器的故障入口不把原始异常交给日志处理器，同时保留失败计数。
 @pytest.mark.anyio
 async def test_recorder_failure_uses_safe_log(caplog: pytest.LogCaptureFixture) -> None:
     logger = logging.getLogger("server.records")

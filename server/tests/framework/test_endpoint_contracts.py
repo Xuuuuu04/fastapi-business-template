@@ -1,7 +1,3 @@
-"""
-上游协议的运行、保护、启动检查和原件回放验证。
-"""
-
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -37,13 +33,11 @@ from tests.framework.endpoint_sample import (
 from tests.testing_app import make_settings, reset_database
 
 
-# 同一组独立模块在当前测试数据库实际通过执行器运行。
 @pytest.mark.anyio
 @pytest.mark.parametrize("operation", [read, write])
 async def test_typed_call_and_graphs(tmp_path: Path, operation: object) -> None:
     seen: list[httpx2.Request] = []
 
-    # 保存收到的序列化请求，响应由框架校验成Data。
     def respond(request: httpx2.Request) -> httpx2.Response:
         seen.append(request)
         return httpx2.Response(200, json={"accepted": True, "count": 2})
@@ -72,7 +66,6 @@ async def test_typed_call_and_graphs(tmp_path: Path, operation: object) -> None:
         await services.close()
 
 
-# 外部响应替身不依赖真实产品。
 def service(respond: object) -> RemoteService:
     return RemoteService(
         {upstream.name: RemoteConfig(base_url="https://protocol.example")},
@@ -81,7 +74,6 @@ def service(respond: object) -> RemoteService:
     )
 
 
-# 字段错误只保存字段路径/错误类别，未知写入不丢失字段证据。
 @pytest.mark.anyio
 @pytest.mark.parametrize("operation", [read, write])
 async def test_invalid_output_recorded(tmp_path: Path, operation: object) -> None:
@@ -108,13 +100,11 @@ async def test_invalid_output_recorded(tmp_path: Path, operation: object) -> Non
         await services.close()
 
 
-# HTTP未知状态与发送后超时写操作都只发一次。
 @pytest.mark.anyio
 @pytest.mark.parametrize("status", [202, 408, 499, 503, 0])
 async def test_write_unknown(status: int) -> None:
     attempts = 0
 
-    # 模拟对方已收到请求但回执不能确认。
     def respond(request: httpx2.Request) -> httpx2.Response:
         nonlocal attempts
         attempts += 1
@@ -136,7 +126,6 @@ async def test_write_unknown(status: int) -> None:
         await client.close()
 
 
-# 确定拒绝保留已校验回执，拒绝响应坏格式也不会误报已写入。
 @pytest.mark.anyio
 @pytest.mark.parametrize("valid", [True, False])
 async def test_refusal(valid: bool) -> None:
@@ -159,12 +148,10 @@ async def test_refusal(valid: bool) -> None:
         await client.close()
 
 
-# read效果的POST在暂时失败后可重试，write效果的GET禁止安全重试。
 @pytest.mark.anyio
 async def test_effect_overrides_method() -> None:
     calls = 0
 
-    # 首次不可用，第二次响应成功。
     def respond(request: httpx2.Request) -> httpx2.Response:
         nonlocal calls
         calls += 1
@@ -185,7 +172,6 @@ async def test_effect_overrides_method() -> None:
         await client.close()
 
 
-# 新声明缺失与不同对象重复定义均在启动发现；同一公开对象可以共享。
 def test_startup_and_digest() -> None:
     with pytest.raises(DeclarationError, match="未在Module.endpoints登记"):
         Catalog([replace(module, endpoints=())])
@@ -202,7 +188,6 @@ def test_startup_and_digest() -> None:
     assert digest_of([module]) != digest_of([changed])
 
 
-# 原件按接口名回放；未覆盖明确失败，HTTP请求不泄漏专用回放头。
 @pytest.mark.anyio
 async def test_replay_endpoint_name(tmp_path: Path) -> None:
     (tmp_path / "receipt.json").write_text('{"accepted": true, "count": 1}')

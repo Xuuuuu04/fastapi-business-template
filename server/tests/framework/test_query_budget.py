@@ -1,7 +1,3 @@
-"""
-双库验证实际运行、兼容策略、截断后的累计与可选计划摘要。
-"""
-
 import pytest
 from sqlalchemy import insert
 
@@ -26,7 +22,6 @@ from tests.framework.query_budget_sample import (
 from tests.testing_app import prepare_test_database
 
 
-# 每轮真实数据库建独立样例表，原件不进正式metadata。
 async def sample(settings: Settings, budget: QueryBudget | None = SAMPLE_BUDGET) -> Services:
     await prepare_test_database(settings.database_url)
     built = build(settings, modules=[module_for(budget)])
@@ -37,7 +32,6 @@ async def sample(settings: Settings, budget: QueryBudget | None = SAMPLE_BUDGET)
     return built
 
 
-# 独立样例表用后删除，PostgreSQL共用隔离库的后续迁移检查不能看到它。
 async def close_sample(built: Services) -> None:
     try:
         async with built.database.write() as connection:
@@ -46,7 +40,6 @@ async def close_sample(built: Services) -> None:
         await built.close()
 
 
-# 坏样例失败保存完整位置，批量样例同样规模通过。
 @pytest.mark.anyio
 async def test_loop_fails_batch_passes(settings: Settings) -> None:
     built = await sample(settings)
@@ -71,7 +64,6 @@ async def test_loop_fails_batch_passes(settings: Settings) -> None:
         await close_sample(built)
 
 
-# 未声明旧产品仅警告；显式warn和生产error配置也不能打断业务。
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "declared,env,mode",
@@ -95,7 +87,6 @@ async def test_warning_compatibility(
         await close_sample(built)
 
 
-# 行数和大小独立超额，批量一次查询不能绕过规模检查。
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "budget,key", [(QueryBudget(rows=2), "rows"), (QueryBudget(bytes=2), "bytes")]
@@ -117,13 +108,11 @@ async def test_rows_and_bytes(settings: Settings, budget: QueryBudget, key: str)
         await close_sample(built)
 
 
-# 非法额度在Catalog创建时汇总拒绝，不等到运行。
 def test_invalid_declaration() -> None:
     with pytest.raises(DeclarationError, match="queries 必须是正整数"):
         Catalog([module_for(QueryBudget(queries=-1))])
 
 
-# 老产品可显式升级默认约束为测试错误。
 @pytest.mark.anyio
 async def test_default_error_opt_in(settings: Settings) -> None:
     built = await sample(settings, None)
@@ -137,7 +126,6 @@ async def test_default_error_opt_in(settings: Settings) -> None:
         await close_sample(built)
 
 
-# PostgreSQL实际附计划，生产禁用；不允许把参数条件写进摘要。
 @pytest.mark.anyio
 @pytest.mark.postgres_only
 async def test_postgres_explain(settings: Settings) -> None:
@@ -162,7 +150,6 @@ async def test_postgres_explain(settings: Settings) -> None:
         await close_sample(built)
 
 
-# 超额失败不能出现在业务提交之后；真实库核对写入已撤销。
 @pytest.mark.anyio
 async def test_budget_failure_rolls_back(settings: Settings) -> None:
     from sqlalchemy import select
@@ -196,7 +183,6 @@ async def test_budget_failure_rolls_back(settings: Settings) -> None:
         await close_sample(built)
 
 
-# 实际调用子操作两次，上层额度也累计，不能靠公开操作拆分绕过。
 @pytest.mark.anyio
 async def test_nested_operation_budget(settings: Settings) -> None:
     from shared.public import Call, Flow, contract, step
@@ -205,7 +191,6 @@ async def test_nested_operation_budget(settings: Settings) -> None:
     built = await sample(settings)
     child = next(iter(built.catalog.bindings))
 
-    # 子操作各自不过额，但上层合计超过一次SQL。
     @step("调用两次", reads=["size", "batch"], writes=["result"], uses=[child])
     async def load_twice(data: Work, call: Call) -> None:
         input = Input(size=data.size, batch=data.batch)
@@ -242,7 +227,6 @@ async def test_nested_operation_budget(settings: Settings) -> None:
         await close_sample(built)
 
 
-# 多步骤合计超额时，当前查询同样自动取计划，而不是只看单步次数。
 @pytest.mark.anyio
 @pytest.mark.postgres_only
 async def test_explain_uses_operation_total(settings: Settings) -> None:
@@ -255,7 +239,6 @@ async def test_explain_uses_operation_total(settings: Settings) -> None:
     built.runtime.query_policy = QueryPolicy("test", "warn", True)
     item = next(iter(built.catalog.bindings))
 
-    # 先读三次，后一步再读三次，单步均未超额。
     @step("先读取", reads=["size"])
     async def load_first(data: Work, store: Store) -> None:
         for identity in range(data.size):

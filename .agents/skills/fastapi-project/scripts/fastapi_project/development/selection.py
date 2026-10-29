@@ -1,7 +1,3 @@
-"""
-选择一轮检查的模块与文件：多包一次执行，修改前后的依赖共同决定受影响范围。
-"""
-
 import io
 import json
 import os
@@ -22,14 +18,11 @@ from shared.modules.catalog import Catalog
 
 @dataclass(frozen=True)
 class Selection:
-    """本轮检查范围；空模块列表表示完整检查，而不是没有测试。"""
-
     modules: tuple[str, ...] = ()
     quick: bool = False
     reasons: tuple[str, ...] = ()
     unchanged: bool = False
 
-    # 快速、单包、多包与完整检查分别留存，不把快速成功当成验收。
     def scope(self) -> dict[str, object]:
         if self.quick:
             return {"kind": "quick", "modules": list(self.modules)}
@@ -40,14 +33,12 @@ class Selection:
         return {"kind": "all"}
 
 
-# 重复参数与逗号列表都支持，名称去重后排序，避免重复执行同一个包。
 def module_names(values: list[str]) -> tuple[str, ...]:
     return tuple(
         sorted({name.strip() for value in values for name in value.split(",") if name.strip()})
     )
 
 
-# 模块测试目录必须存在，避免错误路径造成未运行却认为检查成功。
 def validate_modules(names: tuple[str, ...], catalog: Catalog, root: Path = ROOT) -> None:
     for name in names:
         if name not in catalog.modules:
@@ -57,7 +48,6 @@ def validate_modules(names: tuple[str, ...], catalog: Catalog, root: Path = ROOT
                 raise ValueError(f"模块缺少 tests/{group}/{name}/test_*.py")
 
 
-# 文件存在性与后缀同时检查；Ruff 不接受已经删除的路径。
 def module_files(names: tuple[str, ...], root: Path = ROOT) -> list[str]:
     files: set[Path] = set()
     for name in names:
@@ -76,7 +66,6 @@ def module_files(names: tuple[str, ...], root: Path = ROOT) -> list[str]:
     return sorted(path.relative_to(root).as_posix() for path in files if path.is_file())
 
 
-# Git 失败保留具体原因；没有可比较版本时不能假装没有改动。
 def git(project: Path, *arguments: str) -> bytes:
     result = subprocess.run(["git", *arguments], cwd=project, capture_output=True, check=False)
     if result.returncode:
@@ -84,7 +73,6 @@ def git(project: Path, *arguments: str) -> bytes:
     return result.stdout
 
 
-# 基准快照只用于导入静态声明，不启动服务、不连接数据库、不复制虚拟环境。
 def previous_graph(project: Path, revision: str) -> dict[str, list[str]]:
     archive = git(project, "archive", revision, "server")
     with TemporaryDirectory(prefix="check-dependencies-") as folder:
@@ -111,7 +99,6 @@ def previous_graph(project: Path, revision: str) -> dict[str, list[str]]:
         return {name: sorted(providers) for name, providers in links.items()}
 
 
-# 新旧依赖取并集；删除一条调用后，原调用方仍要接受检查。
 def affected_modules(direct: list[str], graphs: list[dict[str, list[str]]]) -> set[str]:
     reverse: dict[str, set[str]] = {}
     for graph in graphs:
@@ -128,7 +115,6 @@ def affected_modules(direct: list[str], graphs: list[dict[str, list[str]]]) -> s
     return found
 
 
-# 公共或未知变化保持完整检查；旧图读取失败也扩大范围并明确说明。
 def select_affected(catalog: Catalog, base: str, project: Path = PROJECT) -> Selection:
     revision = git(project, "merge-base", base, "HEAD").decode().strip()
     changed = git(project, "diff", "--name-only", "--no-renames", "-z", revision)

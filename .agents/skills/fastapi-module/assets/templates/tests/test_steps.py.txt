@@ -1,7 +1,3 @@
-"""
-$title 的步骤测试：单独运行步骤，检查规则 R-01。
-"""
-
 import pytest
 
 from service.$name.data import ${Camel}Invalid, CreateWork
@@ -9,20 +5,17 @@ from service.$name.steps.check_record import clean_title
 from shared.flow.testing import try_step
 
 
-# 标题去掉首尾空白。
 def test_clean_title_strips_spaces() -> None:
     result = try_step(clean_title, CreateWork, title="  月度计划 ")
     assert result.values["clean_title"] == "月度计划"
 
 
-# R-01：空格不能变成一条没有标题的记录。
 @pytest.mark.parametrize("title", [" ", "\t", "\n  ", "x" * 81])
 def test_blank_title_is_rejected(title: str) -> None:
     with pytest.raises(${Camel}Invalid):
         try_step(clean_title, CreateWork, title=title)
 
 
-# R-01：长度按整理后的标题计算，首尾空白不占用标题长度。
 def test_title_length_excludes_outer_spaces() -> None:
     result = try_step(clean_title, CreateWork, title=" " + "字" * 80 + " ")
     assert result.values["clean_title"] == "字" * 80

@@ -1,7 +1,3 @@
-"""
-声明与兼容边界：存储调用、旧产品警告/严格模式、共享依赖和未知记录不被覆盖。
-"""
-
 import logging
 from dataclasses import replace
 from pathlib import Path
@@ -33,24 +29,19 @@ from tests.framework.test_remote_steps import price_module
 from tests.testing_app import make_settings, reset_database
 
 
-# 存储协议仍由步骤声明，不让整个模块登记扩大当前步骤的权限。
 class ReceiptStore:
-    # 注入现有remote入口，存储不依赖具体传输实现。
     def __init__(self, remote: RemoteClient) -> None:
         self.remote = remote
 
-    # 公开共享协议对象通过remote.call复用。
     async def read(self, input: Request) -> Receipt:
         return (await self.remote.call(upstream, read_endpoint, input)).data
 
 
-# store路径也在计算图声明上游接口。
 @step("读存储协议", reads=["sku"], writes=["result"], endpoints=[read_endpoint])
 async def read_store(data: Work, store: ReceiptStore) -> None:
     data.result = await store.read(Request(sku=data.sku))
 
 
-# 存储样例不在模板目录登记。
 def store_module(declared: bool = True) -> object:
     part = read_store if declared else replace(read_store, endpoints=())
     return replace(
@@ -60,7 +51,6 @@ def store_module(declared: bool = True) -> object:
     )
 
 
-# SQLite/PostgreSQL均实际执行存储注入路径。
 @pytest.mark.anyio
 async def test_store_protocol(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
@@ -78,7 +68,6 @@ async def test_store_protocol(tmp_path: Path) -> None:
         Catalog([store_module(False)])
 
 
-# 旧产品默认警告仍启动；严格开关使同一源码启动报错。
 def test_legacy_warning_then_strict(caplog: pytest.LogCaptureFixture, tmp_path: Path) -> None:
     with caplog.at_level(logging.WARNING, logger="server.remote_calls"):
         Catalog([price_module])
@@ -87,7 +76,6 @@ def test_legacy_warning_then_strict(caplog: pytest.LogCaptureFixture, tmp_path: 
         build(make_settings(tmp_path, remote_endpoints_strict=True), modules=[price_module])
 
 
-# 动态旧路径在运行时也不能绕过严格开关；伪造名称不能改变写入效果。
 @pytest.mark.anyio
 async def test_runtime_strict_and_forgery() -> None:
     client = service(lambda request: httpx2.Response(200, json={"accepted": True, "count": 1}))
@@ -107,12 +95,10 @@ async def test_runtime_strict_and_forgery() -> None:
         await client.close()
 
 
-# 同一协议曾有未知写入时，后来的409不能覆盖它，即使请求编号稳定。
 @pytest.mark.anyio
 async def test_unknown_before_refusal() -> None:
     calls = 0
 
-    # 模拟首次超时、第二次拒绝；调用层必须保留第一次未知事实。
     def respond(request: httpx2.Request) -> httpx2.Response:
         nonlocal calls
         calls += 1
@@ -131,7 +117,6 @@ async def test_unknown_before_refusal() -> None:
         await client.close()
 
 
-# 协议的来源模块进入依赖图，提供者源码变化会使消费方检查过期。
 def test_shared_protocol_dependency() -> None:
     declaration = replace(read_endpoint)
     object.__setattr__(declaration, "source", "service.protocol_owner.store.contract")
@@ -142,14 +127,12 @@ def test_shared_protocol_dependency() -> None:
     assert "protocol_owner" in catalog.links()[consumer.name]
 
 
-# 动态选接口时仍能在启动发现完全没有声明，不必等请求触发才发现。
 @step("动态选择接口", reads=["sku"], writes=["result"], remotes=[upstream])
 async def read_dynamic(data: Work, remote: RemoteClient) -> None:
     chosen = read_endpoint
     data.result = (await remote.call(upstream, chosen, Request(sku=data.sku))).data
 
 
-# 目标名称不能静态解析时明确未知，并指出缺少步骤声明。
 def test_dynamic_call_without_declaration() -> None:
     dynamic = replace(
         module, provides={read: Flow("动态读", work=Work, result="result", steps=[read_dynamic])}
@@ -158,7 +141,6 @@ def test_dynamic_call_without_declaration() -> None:
         Catalog([dynamic])
 
 
-# 业务和上游共用Data时，生成文档只展开一次模型，避免重复维护和阅读。
 def test_protocol_docs_share_models() -> None:
     from fastapi_docs.flow_doc import model_name, module_doc
 
@@ -169,7 +151,6 @@ def test_protocol_docs_share_models() -> None:
     assert "### 上游数据" not in text
 
 
-# 未接入Endpoint的旧模块不改变登记摘要格式，别名能力也照常保留。
 def test_legacy_declaration_shape_is_unchanged() -> None:
     from shared.modules.digest import module_shape
 

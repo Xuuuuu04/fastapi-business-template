@@ -1,7 +1,3 @@
-"""
-生产令牌配置拒绝公开开发密钥，真实密钥轮换仍然有效。
-"""
-
 from pathlib import Path
 
 import pytest
@@ -17,7 +13,6 @@ CURRENT_SECRET = "synthetic-current-production-secret-123456789"
 PREVIOUS_SECRET = "synthetic-previous-production-secret-123456789"
 
 
-# 已公开开发密钥与过短密钥都必须在连接生产数据库前被拒绝。
 @pytest.mark.parametrize("previous", [LOCAL_JWT_SECRET, "short-secret"])
 def test_production_rejects_unsafe_previous_secret(tmp_path: Path, previous: str) -> None:
     settings = make_settings(
@@ -33,7 +28,6 @@ def test_production_rejects_unsafe_previous_secret(tmp_path: Path, previous: str
         build(settings, modules=[])
 
 
-# 合法旧密钥继续通过配置检查及签名校验；清除轮换配置后旧令牌被拒绝。
 def test_production_allows_independent_previous_secret(tmp_path: Path) -> None:
     settings = make_settings(
         tmp_path,

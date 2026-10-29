@@ -1,8 +1,3 @@
-"""
-开发期观察用的生成文档和命令：接口路径从路由读取、开发进度的统计、改动影响报告的分段比较。
-只使用保留的通用模块和临时目录，不依赖可删除的示例业务。
-"""
-
 import json
 from pathlib import Path
 
@@ -29,7 +24,6 @@ RULES = """# 示例：规则
 """
 
 
-# 接口路径按接口函数实际引用的操作得出；一个操作可以对应多个接口，定时任务不经接口。
 def test_route_map_reads_real_routes() -> None:
     actual = route_map(docs_app())
     declared = {contract.name for contract in Catalog(PROJECT_MODULES).bindings}
@@ -40,7 +34,6 @@ def test_route_map_reads_real_routes() -> None:
     assert route_map(app)["sample_calc.calc"] == ["POST /test/calc"]
 
 
-# 进度文档统计规则、测试标注、待确认和任务数，并列出没有测试标注的规则。
 def test_progress_counts(tmp_path: Path) -> None:
     catalog = Catalog([module for module in MODULES if module.name == "sample_records"])
     doc = tmp_path / "doc" / "sample_records"
@@ -60,7 +53,6 @@ def test_progress_counts(tmp_path: Path) -> None:
     assert "| sample_records | R-02 | 第二条 |" in text
 
 
-# 按规则编号分段比较，得出新增、删除和修改的规则。
 def test_rule_section_changes() -> None:
     before = sections(RULES, RULE_HEADING)
     after = sections(
@@ -71,7 +63,6 @@ def test_rule_section_changes() -> None:
     assert section_changes(before, appended) == []
 
 
-# 文件按目录或文件名归到模块；受摘要保护的文件列为框架改动。
 def test_module_and_framework_classification() -> None:
     assert belongs("server/app/api/v1/sample_records.py", "sample_records")
     assert belongs("doc/sample_records/rules.md", "sample_records")
@@ -80,7 +71,6 @@ def test_module_and_framework_classification() -> None:
     assert found[-1] == "- `server/shared/db/access.py`" and len(found) == 3
 
 
-# 在临时仓库中改一条规则、加一个待确认、删一个接口，报告逐项列出。
 def test_impact_report(tmp_path: Path) -> None:
     repo = Repo(tmp_path)
     write(tmp_path / "doc/sample_records/rules.md", RULES)
@@ -100,7 +90,6 @@ def test_impact_report(tmp_path: Path) -> None:
     assert "- 删除接口：GET /b" in text
 
 
-# 写入文件，按需要建立目录。
 def write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")

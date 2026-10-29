@@ -1,9 +1,3 @@
-"""
-启动时检查全部模块声明，返回全部问题。
-覆盖：名称格式与重复、操作归属与权限命名、流程声明、字段说明、表名归属、提示词文件、
-存储实现的构造参数、任务与定时计划、跨模块调用是否已登记、操作之间和模块之间有没有循环调用。
-"""
-
 import inspect
 import re
 from collections.abc import Sequence
@@ -29,7 +23,6 @@ NAME = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
 Provided = dict[Contract[Any, Any], Module]
 
 
-# 检查全部模块声明。
 def check_catalog(modules: Sequence[Module]) -> list[str]:
     problems = check_names(modules) + check_aliases(modules)
     problems += check_identity(modules)
@@ -50,7 +43,6 @@ def check_catalog(modules: Sequence[Module]) -> list[str]:
     return problems
 
 
-# 检查模块名和操作名的格式与唯一性。
 def check_names(modules: Sequence[Module]) -> list[str]:
     problems = []
     names = [module.name for module in modules]
@@ -69,7 +61,6 @@ def check_names(modules: Sequence[Module]) -> list[str]:
     return problems
 
 
-# 检查单个模块：操作归属、权限、流程、表、提示词、任务。
 def check_module(module: Module) -> list[str]:
     problems = []
     for item, flow in module.provides.items():
@@ -83,7 +74,6 @@ def check_module(module: Module) -> list[str]:
     return problems
 
 
-# 存储实现的构造参数名决定框架注入什么，只能使用约定的名称。
 def check_store(module: Module) -> list[str]:
     if module.store is None:
         return []
@@ -99,7 +89,6 @@ def check_store(module: Module) -> list[str]:
     return problems
 
 
-# 检查一个操作约定及其流程。
 def check_contract(module: Module, item: Contract[Any, Any], flow: Flow) -> list[str]:
     problems = []
     if item.module != module.name:
@@ -123,7 +112,6 @@ def check_contract(module: Module, item: Contract[Any, Any], flow: Flow) -> list
     return problems
 
 
-# 检查提示词名称唯一、文件存在且格式正确。
 def check_prompts(module: Module) -> list[str]:
     problems = []
     names = [item.name for item in module.prompts]
@@ -137,7 +125,6 @@ def check_prompts(module: Module) -> list[str]:
     return problems
 
 
-# 检查步骤调用和登记的操作都由已启用的模块提供。
 def check_uses(modules: Sequence[Module], provided: Provided) -> list[str]:
     problems = []
     problems += [
@@ -162,7 +149,6 @@ def check_uses(modules: Sequence[Module], provided: Provided) -> list[str]:
     return problems
 
 
-# 列出全部模块中的全部步骤。
 def steps_of(modules: Sequence[Module]) -> list[tuple[Module, Step]]:
     return [
         (module, item)
@@ -173,7 +159,6 @@ def steps_of(modules: Sequence[Module]) -> list[tuple[Module, Step]]:
     ]
 
 
-# 检查操作之间、模块之间没有循环调用。
 def check_cycles(modules: Sequence[Module], provided: Provided) -> list[str]:
     calls = {item: used_by(flow) for module in modules for item, flow in module.provides.items()}
     for module in modules:
@@ -193,19 +178,16 @@ def check_cycles(modules: Sequence[Module], provided: Provided) -> list[str]:
     return problems
 
 
-# 列出一个流程中所有步骤调用的操作。
 def used_by(flow: Flow) -> set[Contract[Any, Any]]:
     if not isinstance(flow, Flow):
         return set()
     return {used for item in flow.steps for used in item.uses}
 
 
-# 在有向图中找出循环，每个循环只报告一次。
 def find_loops[Node](graph: dict[Node, set[Node]]) -> list[list[Node]]:
     loops: list[list[Node]] = []
     done: set[Node] = set()
 
-    # 深度优先遍历，path 记录当前路径。
     def visit(node: Node, path: list[Node]) -> None:
         if node in path:
             loops.append([*path[path.index(node) :], node])
@@ -221,7 +203,6 @@ def find_loops[Node](graph: dict[Node, set[Node]]) -> list[list[Node]]:
     return loops
 
 
-# 检查写入事务开始后，是否还调用了会用到大模型的操作。
 def check_model_in_save(provided: Provided) -> list[str]:
     flows = {item: module.provides[item] for item, module in provided.items()}
     memo: dict[Contract[Any, Any], bool] = {}
@@ -242,7 +223,6 @@ def check_model_in_save(provided: Provided) -> list[str]:
     return problems
 
 
-# 判断一个操作（包括它调用的操作）是否会使用大模型。
 def uses_model(
     item: Contract[Any, Any],
     flows: dict[Contract[Any, Any], Flow],
@@ -262,7 +242,6 @@ def uses_model(
     return found
 
 
-# 检查不同的错误类没有使用相同的错误码。
 def check_error_codes(provided: Provided) -> list[str]:
     owners: dict[str, type[BusinessError]] = {}
     problems = []

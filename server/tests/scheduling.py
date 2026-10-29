@@ -1,8 +1,3 @@
-"""
-完整并行检查先分配耗时较长的真实验收，短测试填充首批任务，避免最后等待单个副本。
-这里只改变顺序，不改变收集范围、数据库或断言。
-"""
-
 import os
 
 import pytest
@@ -18,7 +13,6 @@ LONG_TESTS = (
 )
 
 
-# load 调度先给每个进程两个样例，长短交替使首批长样例分散到不同进程。
 def schedule(items: list[pytest.Item]) -> None:
     if int(os.environ.get("APP_TEST_WORKERS", "0")) < 1:
         return

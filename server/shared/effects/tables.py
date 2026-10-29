@@ -1,7 +1,3 @@
-"""
-外部效果意图与逐次尝试证据；业务正文加密保存，迁移和启动不发送任何历史请求。
-"""
-
 from sqlalchemy import Boolean, CheckConstraint, Column, Float, Integer, String, Table, Text
 
 from shared.db.tables import metadata

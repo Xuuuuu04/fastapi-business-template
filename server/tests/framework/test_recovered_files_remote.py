@@ -1,7 +1,3 @@
-"""
-回收的通用文件和远程能力：边界读取、模块前缀和显式捕获拒绝响应，未知写入保护保持。
-"""
-
 from pathlib import Path
 
 import httpx2
@@ -23,13 +19,11 @@ from shared.remote_calls.service import RemoteRequest, RemoteService
 pytestmark = pytest.mark.anyio
 
 
-# 文件入口可检查原件、保存生成文件、删除重复上传；增长后也不能越过读取上限。
 async def test_file_inputs_and_generated_output(tmp_path: Path) -> None:
     storage = LocalFiles(tmp_path / "files")
     uploads = UploadArea(tmp_path / "uploads", 100, [".txt"])
     files = ModuleFiles(storage, uploads, "sample_export")
 
-    # 合成上传数据，不使用任何业务原件。
     async def chunks():
         yield b"hello"
 
@@ -49,12 +43,10 @@ async def test_file_inputs_and_generated_output(tmp_path: Path) -> None:
         await files.save_bytes("../escape.txt", b"no")
 
 
-# 409未受理证明交给业务检查，默认仍拒绝，并且不会自动重发一次请求。
 async def test_explicit_409_capture_preserves_default_errors() -> None:
     target = Remote("partner", "合成外部服务", retries=2)
     calls = []
 
-    # 明确客户端拒绝的合成回执，正文不会进入调用记录。
     def reply(request):
         calls.append(request.method)
         return httpx2.Response(409, json={"accepted": False})
@@ -77,12 +69,10 @@ async def test_explicit_409_capture_preserves_default_errors() -> None:
         await service.close()
 
 
-# 503后即使随后捕获409，也不能抹掉更早的未知写入。
 async def test_captured_reply_does_not_clear_prior_unknown() -> None:
     target = Remote("partner", "合成服务", retries=1)
     count = 0
 
-    # 首次可能已经写入，第二次拒绝不能证明首次没有执行。
     def reply(request):
         nonlocal count
         count += 1
@@ -103,7 +93,6 @@ async def test_captured_reply_does_not_clear_prior_unknown() -> None:
         await service.close()
 
 
-# 暂时或未知状态不能通过状态白名单变成确定结果。
 @pytest.mark.parametrize("status", [200, 408, 499, 500, 503])
 async def test_unknown_status_cannot_be_captured(status) -> None:
     target = Remote("partner", "合成服务")

@@ -1,7 +1,3 @@
-"""
-运行图的导入对账节点，只展示本次已执行的对账状态。
-"""
-
 import json
 
 from shared.graphs.mermaid import label
@@ -9,7 +5,6 @@ from shared.modules.catalog import Binding
 from shared.records.models import RunRecord
 
 
-# 未执行对账时不画成功节点，运行入口仍明确显示未知。
 def import_node(run: RunRecord, previous: str) -> list[str]:
     if not run.import_report or run.import_report.get("status") == "未知":
         return []
@@ -22,7 +17,6 @@ def import_node(run: RunRecord, previous: str) -> list[str]:
     ]
 
 
-# 对账明细与图节点共同维护，正文不包含实际导入数据。
 def report_header(run: RunRecord, is_root: bool) -> list[str]:
     heading = "## 步骤" if is_root else f"## 下一层：{run.title}（{run.id}）"
     lines = [heading, ""]
@@ -32,7 +26,6 @@ def report_header(run: RunRecord, is_root: bool) -> list[str]:
     return lines
 
 
-# 对账节点来自任务声明，接在最后一个计算步骤与结果之间。
 def import_plan_lines(binding: Binding, previous: str) -> tuple[list[str], str]:
     plan = next((j for j in binding.module.jobs if j.contract is binding.contract), None)
     if plan is None or plan.import_plan is None:

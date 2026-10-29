@@ -1,7 +1,3 @@
-"""
-流式操作的 SSE 输出。队列限制内存占用；断开连接时取消操作并等待数据库回滚。
-"""
-
 import asyncio
 import json
 from collections.abc import AsyncGenerator
@@ -18,7 +14,6 @@ if TYPE_CHECKING:
     from shared.flow.runtime import Runtime
 
 
-# 执行声明为 stream 的操作并逐条输出 SSE 事件。
 async def stream_events[In: Data, Out: Data](
     runtime: "Runtime", item: Contract[In, Out], input: In, *, caller: Caller, request_id: str
 ) -> AsyncGenerator[bytes, None]:
@@ -26,11 +21,9 @@ async def stream_events[In: Data, Out: Data](
         raise StepRuleBroken(f"操作 {item.name} 没有声明 stream=True")
     queue: asyncio.Queue[tuple[str, str]] = asyncio.Queue(maxsize=16)
 
-    # 生产者在队列已满时等待客户端消费。
     async def emit(value: str) -> None:
         await queue.put(("chunk", value))
 
-    # 后台执行流程，向客户端报告最终结果或错误。
     async def work() -> None:
         try:
             result = await runtime.run(
@@ -54,7 +47,6 @@ async def stream_events[In: Data, Out: Data](
                 "run_id": getattr(error, "run_id", ""),
             }
             await queue.put(("error", json.dumps(problem, ensure_ascii=False)))
-        # 正常完成或已报告错误后结束；取消时客户端已离开，不能再等待满队列。
         await queue.put(("end", ""))
 
     task = asyncio.create_task(work())
@@ -71,7 +63,6 @@ async def stream_events[In: Data, Out: Data](
             await task
 
 
-# 按 SSE 格式写出一个事件；开始和分段文本需要先编码成 JSON 字符串。
 def event_bytes(kind: str, value: str) -> bytes:
     data = value if kind in ("done", "error") else json.dumps(value, ensure_ascii=False)
     return f"event: {kind}\ndata: {data}\n\n".encode()

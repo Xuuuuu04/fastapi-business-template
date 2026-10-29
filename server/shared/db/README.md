@@ -67,8 +67,9 @@ read = contract(
     access="goods.read",
     query_budget=QueryBudget(queries=20, rows=5000, bytes=64000, repeated=20),
 )
-# module.py仍在provides里登记read和Flow，不另建一份额度配置。
 ```
+
+module.py 仍在 provides 里登记 read 和 Flow，不另建一份额度配置。
 
 - 额度按一次操作运行累计（分段任务按每批累计），包括同步调用的子操作；后台任务另行计算。queries 是通过 Db 执行的 SQL 次数，rows 是返回或修改的行数；框架内部的队列、认证和记录保存不算进业务额度。
 - bytes 是返回列内容的大小：文本按 UTF-8 计算，二进制按长度计算，普通标量按文字长度计算，JSON 字典和列表逐项累计内容（不计容器的语法字符），嵌套超过 32 层的保持未知。它不代表数据库的网络流量，也不代表 Python 对象的内存；写入不计入返回内容。scalar 查询的行数、无法识别的列类型大小、失败的查询结果都保持未知。未知的次数和已测的总量分开列出，不能拿未知的东西说符合额度。

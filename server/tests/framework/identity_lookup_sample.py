@@ -1,7 +1,3 @@
-"""
-登录开销演练的独立框架模块：按令牌摘要读取会话，不缓存身份，不使用产品账号。
-"""
-
 import hashlib
 import json
 from dataclasses import replace
@@ -23,13 +19,10 @@ sessions = Table(
 )
 
 
-# 每个请求实际查询数据库，会话删除或停用立即反映到下一次解析。
 class IdentityStore:
-    # 只取得框架本次的只读入口。
     def __init__(self, db: Db) -> None:
         self.db = db
 
-    # 不透明凭据只用于摘要查找，不写入运行记录。
     async def lookup(self, token: str) -> Identity:
         digest = hashlib.sha256(token.encode()).hexdigest()
         found = await self.db.first(select(sessions).where(sessions.c.token_hash == digest))
@@ -43,7 +36,6 @@ class IdentityStore:
         )
 
 
-# 与正常业务身份解析相同，每次走真实数据库读取。
 @step("查询当前有效会话", reads=["token"], writes=["result"])
 async def lookup_identity(data: IdentityWork, store: IdentityStore) -> None:
     data.result = await store.lookup(data.token.get_secret_value())

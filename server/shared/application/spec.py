@@ -1,7 +1,3 @@
-"""
-产品的配置、组装扩展与后台入口只声明一次，离线结构查看不读取环境和凭据。
-"""
-
 import asyncio
 import re
 from collections.abc import Awaitable, Callable
@@ -21,7 +17,6 @@ from shared.timing.clock import Clock
 FRAMEWORK_VERSION = "3.2.0"
 
 
-# 后台扩展与框架队列共用服务和停止信号，不再单独创建连接池和记录器。
 @dataclass(frozen=True)
 class WorkerSpec:
     name: str
@@ -30,7 +25,6 @@ class WorkerSpec:
     resources: tuple[str, ...] = ()
 
 
-# 产品的实际API、worker、文档与测试共同采用这一份声明。
 @dataclass(frozen=True)
 class ApplicationSpec:
     name: str = "单体后端模板"
@@ -46,7 +40,6 @@ class ApplicationSpec:
     adapters: Callable[[Settings, RemoteService], dict[ProviderSpec, EffectAdapter]] | None = None
     clock: Clock | None = None
 
-    # 实际运行可以读取部署环境，离线和测试配置只接受显式输入及声明默认值。
     def settings(
         self, mode: Literal["runtime", "offline", "test"] = "runtime", **values: Any
     ) -> Settings:
@@ -65,7 +58,6 @@ class ApplicationSpec:
             settings = settings_type(_env_file=None, **{"env": "test", **values})
         return self.prepare(settings)
 
-    # 显式传入的测试配置同样应用产品策略，每份配置只组装一次。
     def prepare(self, settings: Settings) -> Settings:
         if not isinstance(settings, self.settings_type):
             return self.settings("offline", **settings.model_dump())
@@ -76,7 +68,6 @@ class ApplicationSpec:
         object.__setattr__(settings, "_application_spec", self)
         return settings
 
-    # 声明错误在创建服务前给出，不在后台任务启动后才发现重复入口。
     def validate(self) -> None:
         problems = []
         if not self.name.strip() or not self.version.strip():
@@ -95,7 +86,6 @@ class ApplicationSpec:
         if problems:
             raise ConfigError(problems)
 
-    # 只输出声明名称与位置，不执行模型、网络或后台扩展。
     def describe(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -125,7 +115,6 @@ class ApplicationSpec:
         }
 
 
-# BaseSettings的环境与文件源均不参加隔离配置，产品校验器仍正常运行。
 def initial_sources(
     cls: type[Settings],
     settings_cls: type[Settings],
@@ -137,7 +126,6 @@ def initial_sources(
     return (init_settings,)
 
 
-# 源码位置不包含对象repr，避免闭包或配置对象的秘密进入声明摘要。
 def location(value: Any) -> str:
     if value is None:
         return ""

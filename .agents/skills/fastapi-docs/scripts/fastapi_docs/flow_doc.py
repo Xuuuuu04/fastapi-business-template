@@ -1,10 +1,3 @@
-"""
-生成 doc/模块名/flows.md：公开操作与接口路径、每个操作的流程图和字段来源、数据模型、数据表。
-同一个数据模型只展开一次，操作章节只写模型名，改动时差异集中、便于审查。
-接口路径从实际路由中读取：看每个接口函数引用了哪些操作约定，不靠名字猜测。
-图上的节点只放序号和业务标题；规则、代码位置、读写字段放在图下方的表格里，两边分工。
-"""
-
 import ast
 import inspect
 import re
@@ -36,7 +29,6 @@ HEADER = (
 )
 
 
-# 读取每个操作约定对应的接口，例如 {"customer_contact.get_record": ["GET /api/v1/files/{org_id}"]}。
 def route_map(app: FastAPI) -> dict[str, list[str]]:
     found: dict[str, list[str]] = {}
     for route in iter_route_contexts(app.routes):
@@ -48,7 +40,6 @@ def route_map(app: FastAPI) -> dict[str, list[str]]:
     return found
 
 
-# 找出接口函数中以“模块.操作”形式引用的操作约定。
 def contracts_used(endpoint: Any) -> set[str]:
     tree = ast.parse(textwrap.dedent(inspect.getsource(endpoint)))
     names = set()
@@ -65,7 +56,6 @@ def contracts_used(endpoint: Any) -> set[str]:
     return names
 
 
-# 生成一个模块的 flows.md 全文。
 def module_doc(catalog: Catalog, name: str, routes: dict[str, list[str]]) -> str:
     module = catalog.modules[name]
     links = catalog.links().get(name, {})
@@ -91,7 +81,6 @@ def module_doc(catalog: Catalog, name: str, routes: dict[str, list[str]]) -> str
     return "\n".join(lines).rstrip() + "\n"
 
 
-# 开头一段“怎么读”：图讲流程，表讲细节，各是什么。
 def reading_guide() -> list[str]:
     return [
         "## 怎么读这份文档",
@@ -105,7 +94,6 @@ def reading_guide() -> list[str]:
     ]
 
 
-# 依赖说明写成一句自然的话：每个模块给出操作总数和两三个例子，不再全部罗列。
 def depend_text(links: dict[str, list[str]]) -> str:
     if not links:
         return "本模块不调用其他业务模块。"
@@ -117,7 +105,6 @@ def depend_text(links: dict[str, list[str]]) -> str:
     return "本模块调用了这些模块：" + "、".join(parts) + "。具体调用关系画在各操作的流程图里。"
 
 
-# 公开操作一览：名称、权限、接口路径、可能返回的错误代码（含义见错误一览表）。
 def operation_table(module: Module, routes: dict[str, list[str]]) -> list[str]:
     lines = [
         "## 公开操作",
@@ -141,7 +128,6 @@ def operation_table(module: Module, routes: dict[str, list[str]]) -> list[str]:
     return [*lines, ""]
 
 
-# 业务错误只解释一次：含义集中在这张表，其他位置只写错误代码。
 def error_table(module: Module) -> list[str]:
     errors: dict[str, str] = {}
     for item in module.provides:
@@ -159,7 +145,6 @@ def error_table(module: Module) -> list[str]:
     return [*lines, ""]
 
 
-# 一个操作的章节：输入输出、流程图、步骤明细、字段来源。
 def contract_section(binding: Binding) -> list[str]:
     item = binding.contract
     lines = [f"## {item.title}（{item.name}）", ""]
@@ -191,7 +176,6 @@ def contract_section(binding: Binding) -> list[str]:
     return [*lines, ""]
 
 
-# 模块操作用到的全部数据模型，包括嵌套的模型，每个只展开一次。
 def models_section(items: Iterable[Contract[Any, Any] | Endpoint[Any, Any]]) -> list[str]:
     models: list[type[BaseModel]] = []
     for item in items:
@@ -203,7 +187,6 @@ def models_section(items: Iterable[Contract[Any, Any] | Endpoint[Any, Any]]) -> 
     return lines
 
 
-# 按出现顺序收集一个模型及其字段中嵌套的模型。
 def collect(model: type[BaseModel], found: list[type[BaseModel]]) -> None:
     if model in found:
         return
@@ -213,14 +196,12 @@ def collect(model: type[BaseModel], found: list[type[BaseModel]]) -> None:
             collect(inner, found)
 
 
-# 从 list[X]、X | None 这类类型标注中找出数据模型。
 def nested_models(annotation: Any) -> list[type[BaseModel]]:
     if isinstance(annotation, type) and issubclass(annotation, BaseModel):
         return [annotation]
     return [model for arg in get_args(annotation) for model in nested_models(arg)]
 
 
-# 一个数据模型的字段表。
 def field_table(model: type[BaseModel]) -> list[str]:
     lines = [
         "| 字段 | 类型 | 必填 | 含义 | 单位 | 为空表示 | 规则 |",
@@ -235,7 +216,6 @@ def field_table(model: type[BaseModel]) -> list[str]:
     return lines
 
 
-# 模块登记的数据表和列。
 def tables_section(tables: tuple[Table, ...]) -> list[str]:
     if not tables:
         return []
@@ -255,28 +235,23 @@ def tables_section(tables: tuple[Table, ...]) -> list[str]:
     return lines
 
 
-# 数据模型的显示名，泛型写成 Page[ProductView]。
 def model_name(model: type[BaseModel]) -> str:
     return type_text(model)
 
 
-# 把类型标注整理成简短可读的文字。
 def type_text(annotation: Any) -> str:
     text = getattr(annotation, "__name__", None) if isinstance(annotation, type) else None
     text = text or str(annotation)
     return strip_modules(text).replace("typing.", "")
 
 
-# 去掉类型文字中的包路径，只留类名。
 def strip_modules(text: str) -> str:
     return re.sub(r"\b(?:[a-z_][\w]*\.)+([A-Za-z_]\w*)", r"\1", text)
 
 
-# 布尔值写成“是”或空。
 def yes(value: object) -> str:
     return "是" if value else ""
 
 
-# 整理表格单元格。
 def cell(value: object) -> str:
     return str(value or "").replace("|", "\\|").replace("\n", " ")

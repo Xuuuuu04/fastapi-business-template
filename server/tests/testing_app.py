@@ -1,8 +1,3 @@
-"""
-测试共用的应用配置：临时数据库、测试用服务密钥、数据库重置。
-设置环境变量 APP_TEST_DATABASE_URL 时，全部测试改用这个数据库（例如 PostgreSQL）运行。
-"""
-
 import asyncio
 import hashlib
 import os
@@ -43,22 +38,18 @@ KEYS = [
     ),
 ]
 
-# 快照只存空结构，进程退出后删除；不共享连接池或测试写入的数据。
 _SNAPSHOT_FOLDER = tempfile.TemporaryDirectory(prefix="test-database-schema-")
 _SNAPSHOTS: dict[str, Path] = {}
 
 
-# 返回测试使用的数据库地址：默认是临时目录中的 SQLite。
 def database_url(folder: Path) -> str:
     return os.environ.get("APP_TEST_DATABASE_URL") or f"sqlite+aiosqlite:///{folder}/test.db"
 
 
-# 判断当前测试是否在 PostgreSQL 上运行。
 def on_postgres() -> bool:
     return os.environ.get("APP_TEST_DATABASE_URL", "").startswith("postgresql")
 
 
-# 生成测试配置，可以覆盖个别配置项。
 def make_settings(folder: Path, **changes: Any) -> Settings:
     values: dict[str, Any] = {
         "env": "test",
@@ -73,7 +64,6 @@ def make_settings(folder: Path, **changes: Any) -> Settings:
     return application().settings("test", **values)
 
 
-# 清空并重建全部表，并记下当前迁移版本，使就绪检查通过。
 async def reset_database(url: str) -> None:
     engine = create_async_engine(url)
     try:
@@ -91,7 +81,6 @@ async def reset_database(url: str) -> None:
         await engine.dispose()
 
 
-# 表、列、约束、索引和迁移版本变化都产生新快照，不只按表名缓存。
 def _schema_key() -> str:
     sqlite = dialect()
     statements = [head_revision()]
@@ -103,7 +92,6 @@ def _schema_key() -> str:
     return hashlib.sha256("\n".join(statements).encode()).hexdigest()
 
 
-# 自定义建表动作可能产生触发器或初始数据，不能仅凭静态 DDL 沿用快照。
 def _has_create_hooks() -> bool:
     targets = [metadata, *metadata.sorted_tables]
     table_hooks = any(
@@ -117,8 +105,6 @@ def _has_create_hooks() -> bool:
     return table_hooks or index_hooks
 
 
-# 仅为默认 SQLite 的新文件复制空结构；已有文件可能仍被其他连接使用，不能替换。
-# PostgreSQL 与显式指定的数据库仍完整重建，共享地址不支持并行测试。
 async def prepare_test_database(url: str) -> None:
     from tests.postgres_setup import prepare, reusable
 
@@ -144,7 +130,6 @@ async def prepare_test_database(url: str) -> None:
     key = _schema_key()
     snapshot = _SNAPSHOTS.get(key)
     if snapshot is None:
-        # 每个创建者使用独立路径，异步交错也不会重建另一个创建者的文件。
         descriptor, name = tempfile.mkstemp(suffix=".db", dir=_SNAPSHOT_FOLDER.name)
         os.close(descriptor)
         candidate = Path(name)
@@ -158,11 +143,9 @@ async def prepare_test_database(url: str) -> None:
     shutil.copyfile(snapshot, path)
 
 
-# 同步 HTTP fixture 在应用及连接池启动前准备数据库。
 def prepare_test_database_now(url: str) -> None:
     asyncio.run(prepare_test_database(url))
 
 
-# 在同步测试中重置数据库。
 def reset_database_now(url: str) -> None:
     asyncio.run(reset_database(url))

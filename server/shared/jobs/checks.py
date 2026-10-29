@@ -1,8 +1,3 @@
-"""
-分段任务的启动检查：明确声明重试安全性，操作必须使用恢复游标。
-普通任务误用 checkpoint 时在启动阶段指出声明位置。
-"""
-
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from shared.data.models import Data
@@ -14,7 +9,6 @@ from shared.jobs.slot import check_slot
 from shared.modules.module import Module
 
 
-# 分段任务必须能安全重试本批，并直接声明它的恢复位置。
 def check_segmented_jobs(module: Module) -> list[str]:
     problems = []
     for plan in module.jobs:
@@ -44,7 +38,6 @@ def check_segmented_jobs(module: Module) -> list[str]:
     return problems
 
 
-# 组织和周期输入在启动时检查，不等待定时执行才发现声明错误。
 def check_schedules(module: Module) -> list[str]:
     problems = []
     for schedule in module.schedules:
@@ -57,7 +50,6 @@ def check_schedules(module: Module) -> list[str]:
     return problems
 
 
-# 检查后台任务和定时计划的声明。
 def check_jobs(module: Module) -> list[str]:
     problems = []
     problems += check_segmented_jobs(module)

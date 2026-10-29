@@ -1,10 +1,3 @@
-"""
-健康检查：/health/live 只判断进程能否响应；
-/health/ready 判断数据库能否连通、结构是否已迁移到当前版本，以及缓存能否读取（使用 Redis 时，
-每个请求的限流计数都依赖它）。
-不依赖 worker 和大模型服务，观察服务出问题也不会让接口被判为未就绪。
-"""
-
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -14,13 +7,11 @@ from shared.errors.framework import DatabaseUnavailable
 router = APIRouter(prefix="/health", tags=["运行状态"])
 
 
-# 进程能响应就返回 ok。
 @router.get("/live", summary="进程是否存活", operation_id="health_live")
 async def live() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# 数据库可用、结构版本正确、缓存可读时返回 ready，否则返回 503 和原因。
 @router.get("/ready", summary="是否可以接收请求", operation_id="health_ready")
 async def ready(request: Request) -> JSONResponse:
     database = request.app.state.services.database

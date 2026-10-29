@@ -1,7 +1,3 @@
-"""
-不可变原件引用与有界窗口读取，原件只冻结一次，后续批次按位置读取而非重新加载全文。
-"""
-
 import asyncio
 import hashlib
 import shutil
@@ -18,20 +14,17 @@ from shared.errors.framework import FileTooLarge, StepRuleBroken
 from shared.files.storage import FileStorage, digest_of
 
 
-# 引用只携带存储键、完整摘要和大小，不把原件正文复制进任务或检查记录。
 class ArtifactRef(Data):
     key: str = meaning("不可变原件的模块与组织存储键")
     size: Annotated[int, Field(ge=0)] = meaning("原件字节数")
     sha256: Annotated[str, StringConstraints(pattern=r"^[a-f0-9]{64}$")] = meaning("完整内容摘要")
 
 
-# 组织边界不读取业务输入的自报组织，来自已经确认的调用者上下文。
 def artifact_key(prefix: str, org_id: str, digest: str) -> str:
     scope = hashlib.sha256(org_id.encode()).hexdigest()
     return f"{prefix}artifacts/{scope}/{digest}.bin"
 
 
-# 冻结私有快照后按内容摘要存储，同内容并发提交仍指向同一原件。
 async def freeze(storage: FileStorage, source: Path, prefix: str, org_id: str) -> ArtifactRef:
     with tempfile.TemporaryDirectory(prefix="artifact-snapshot-") as folder:
         snapshot = Path(folder) / "source"
@@ -47,7 +40,6 @@ async def freeze(storage: FileStorage, source: Path, prefix: str, org_id: str) -
     return ref
 
 
-# 已存在的摘要键先核对完整内容，不用存在这个事实推定原件没有被改变。
 async def verify(storage: FileStorage, ref: ArtifactRef) -> None:
     digest, size = hashlib.sha256(), 0
     async for chunk in storage.open(ref.key):
@@ -59,7 +51,6 @@ async def verify(storage: FileStorage, ref: ArtifactRef) -> None:
         raise StepRuleBroken("不可变原件摘要与引用不一致")
 
 
-# 读取一批有界内容，不从零读取前面的所有字节。
 async def window(
     storage: FileStorage, ref: ArtifactRef, offset: int, length: int, max_bytes: int = 1_000_000
 ) -> bytes:
@@ -78,7 +69,6 @@ async def window(
     return b"".join(parts)
 
 
-# 流式读取在完成时核对完整摘要，发布最终业务结果前必须消费到结尾。
 async def stream(storage: FileStorage, ref: ArtifactRef) -> AsyncIterator[bytes]:
     digest, size = hashlib.sha256(), 0
     async for chunk in storage.open(ref.key):

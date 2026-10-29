@@ -1,7 +1,3 @@
-"""
-把module.py里的Pipeline登记为普通公开启动操作；阶段只引用已有公开任务。
-"""
-
 import math
 import re
 from collections.abc import Sequence
@@ -22,13 +18,11 @@ from shared.pipelines.schema import input_source
 NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
-# 生成入口在普通执行器内开启事务，复用相同的登记和运行图。
 @step("登记流程与第一阶段", reads=["request"], writes=["result"], saves=True)
 async def start_pipeline(data: StartWork, pipeline: PipelineGate) -> None:
     data.result = await pipeline.start(data.request)
 
 
-# 保留业务存储和操作，把启动能力加入本模块登记。
 def expand(modules: Sequence[Module]) -> list[Module]:
     result = []
     for module in modules:
@@ -45,7 +39,6 @@ def expand(modules: Sequence[Module]) -> list[Module]:
     return result
 
 
-# 流程类型、输入来源和等待操作在启动前核对，不运行任何业务代码。
 def check_pipelines(modules: Sequence[Module]) -> list[str]:
     operations = {op: module for module in modules for op in module.provides}
     plans = {plan.contract: plan for module in modules for plan in module.jobs}
@@ -71,7 +64,6 @@ def check_pipelines(modules: Sequence[Module]) -> list[str]:
     return problems
 
 
-# 输入按声明过的Data传递，分段阶段必须明确游标Data格式。
 def check_stages(
     pipeline: Pipeline, operations: dict, plans: dict, *, source_model: type | None = None
 ) -> list[str]:
@@ -108,7 +100,6 @@ def check_stages(
     return problems
 
 
-# 等待检查必须有明确条件、时间限制，且可以安全重复。
 def check_wait(stage: Wait, plan: JobPlan | None, place: str) -> list[str]:
     problems = []
     field = stage.operation.output.model_fields.get(stage.ready_field)

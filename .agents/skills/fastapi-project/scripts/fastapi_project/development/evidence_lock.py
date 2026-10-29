@@ -1,7 +1,3 @@
-"""
-检查证据发布和清理共用本机文件锁，尚未发布清单的共享轨迹不能被同时清理。
-"""
-
 import fcntl
 import os
 import time
@@ -12,7 +8,6 @@ from pathlib import Path
 from fastapi_project.development.check_assets import asset_path
 
 
-# 文件锁覆盖同机线程及进程，等待有上限；链接不能成为锁的替代原件。
 @contextmanager
 def evidence_lock(root: Path) -> Iterator[None]:
     root.mkdir(parents=True, exist_ok=True)

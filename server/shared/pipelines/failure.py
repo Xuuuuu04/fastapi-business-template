@@ -1,7 +1,3 @@
-"""
-后台失败、重试和租约恢复同步流程状态，避免任务失败而流程仍假装运行。
-"""
-
 from typing import TYPE_CHECKING
 
 from shared.timing.current import now as business_now
@@ -18,7 +14,6 @@ from shared.pipelines.storage import root_for, stage_for
 from shared.pipelines.tables import runs, stages
 
 
-# 在任务状态更新的同一事务记录阶段状态，已结束的成功阶段不被旧尝试覆盖。
 async def failed(
     connection: AsyncConnection,
     queue: "JobQueue",
@@ -67,7 +62,6 @@ async def failed(
         await queue.pipelines.next_cycle(connection, root)
 
 
-# Wait的检查次数不当作故障重试次数；超时仍由准备阶段明确终止。
 async def recoverable_wait(connection: AsyncConnection, catalog: "Catalog", job_id: str) -> bool:
     stage = await stage_for(connection, job_id)
     if stage is None:

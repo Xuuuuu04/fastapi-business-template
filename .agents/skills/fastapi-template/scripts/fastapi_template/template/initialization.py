@@ -1,8 +1,3 @@
-"""
-从模板生成干净的新项目。只复制可复用的代码与说明，不携带历史讨论、测试结果、环境和数据库。
-产品文档与计划重新建立，业务模块由产品按需要生成。
-"""
-
 import json
 import shutil
 from pathlib import Path
@@ -38,7 +33,6 @@ IGNORED = (
 )
 
 
-# 预先检查来源，不把链接复制或解引用到新项目里。
 def check_source(source: Path) -> None:
     for entry in ENTRIES:
         path = safe_path(source, entry)
@@ -46,7 +40,6 @@ def check_source(source: Path) -> None:
             check_folder(path)
 
 
-# 只遍历会被复制的目录，检查嵌套文件链接。
 def check_folder(folder: Path) -> None:
     skip = shutil.ignore_patterns(*IGNORED)(str(folder), [part.name for part in folder.iterdir()])
     for path in folder.iterdir():
@@ -58,7 +51,6 @@ def check_folder(folder: Path) -> None:
             check_folder(path)
 
 
-# 建立新目录；发生错误时只清理本次创建的副本。
 def initialize(source: Path, target: Path, name: str) -> None:
     if not name.strip():
         raise ValueError("产品名称不能为空")
@@ -80,7 +72,6 @@ def initialize(source: Path, target: Path, name: str) -> None:
         raise
 
 
-# 产品入口、任务、版本与计划属于新项目，模板自身历史仅留在模板仓库。
 def native_documents(source: Path, target: Path, name: str) -> None:
     product_entry(target, name)
     product_history(target, name)
@@ -88,11 +79,9 @@ def native_documents(source: Path, target: Path, name: str) -> None:
     product_configuration(target, name)
 
 
-# 产品入口明确指向本产品的业务计划和可执行工具。
 def product_entry(target: Path, name: str) -> None:
     write(
         target / "server/app/product.py",
-        '"""\n产品组装的唯一声明入口。\n"""\n\n'
         "from shared.application.spec import ApplicationSpec\n\n"
         f"APPLICATION = ApplicationSpec(name={json.dumps(name, ensure_ascii=False)})\n",
     )
@@ -133,7 +122,6 @@ def product_entry(target: Path, name: str) -> None:
     write(target / "AGENTS.md", agents)
 
 
-# 新产品从自己的变化记录开始，不沿用模板的开发或验收历史。
 def product_history(target: Path, name: str) -> None:
     for path in (target / "doc").glob("*/changes.md"):
         write(
@@ -148,7 +136,6 @@ def product_history(target: Path, name: str) -> None:
     )
 
 
-# 仅替换本项目的包名和版本，同时更新 uv.lock 的本地项目项，依赖版本保持。
 def product_metadata(source: Path, target: Path) -> None:
     version = provenance(source)["version"]
     metadata = target / "server/pyproject.toml"
@@ -173,7 +160,6 @@ def product_metadata(source: Path, target: Path) -> None:
     )
 
 
-# 配置示例使用产品名称，保留通用配置项；不复制或生成实际环境。
 def product_configuration(target: Path, name: str) -> None:
     configuration = target / "server/.env.example"
     write(
@@ -187,6 +173,5 @@ def product_configuration(target: Path, name: str) -> None:
     )
 
 
-# 文档始终使用 UTF-8，调用方负责目录已经存在。
 def write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")

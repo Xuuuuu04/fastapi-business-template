@@ -1,7 +1,3 @@
-"""
-登记再生成只合并明确业务绑定，不丢弃独立逻辑、系统路由或自定义接口属性。
-"""
-
 from pathlib import Path
 
 import pytest
@@ -10,7 +6,6 @@ from fastapi_module.registry import registry_text
 from fastapi_project.development.integration_registry import regenerate_catalog, regenerate_routers
 
 
-# 两个实际模块目录与声明参与再生成，不从项目计划虚构可运行的包。
 def package(project: Path, name: str) -> None:
     folder = project / "server/service" / name
     folder.mkdir(parents=True)
@@ -18,7 +13,6 @@ def package(project: Path, name: str) -> None:
     (folder / "module.json").write_text('{"module":"' + name + '"}')
 
 
-# 分支分别加入一个模块的登记可以排序重建，旧列表无需人为拼接。
 def test_catalog_rebuilds_from_real_package_declarations(tmp_path: Path) -> None:
     package(tmp_path, "sample_b")
     branch_b = registry_text(tmp_path / "server")
@@ -31,7 +25,6 @@ def test_catalog_rebuilds_from_real_package_declarations(tmp_path: Path) -> None
         regenerate_catalog(tmp_path, [branch_b + "\nsetup_extra_feature()\n"])
 
 
-# 两个新业务接口合并，系统接口和原实现的函数保持不变。
 def test_router_rebuild_preserves_system_logic(tmp_path: Path) -> None:
     from fastapi_check.quality.rules import PROJECT
 
@@ -56,7 +49,6 @@ def test_router_rebuild_preserves_system_logic(tmp_path: Path) -> None:
         )
 
 
-# 分支切换留下的纯缓存可忽略，实际未登记的Python或链接仍然报错。
 def test_cache_only_deleted_package_is_not_business_code(tmp_path: Path) -> None:
     from shared.modules.layout import check_layout
 

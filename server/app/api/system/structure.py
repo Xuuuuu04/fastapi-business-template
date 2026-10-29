@@ -1,8 +1,3 @@
-"""
-结构查询：模块关系图、操作的计算流程图、字段来源。内容来自模块声明，不涉及业务数据。
-需要权限 system.diagnostics。
-"""
-
 from dataclasses import asdict
 from typing import Any
 
@@ -19,14 +14,12 @@ router = APIRouter(prefix="/api/system", tags=["运行排查"])
 PERMISSION = "system.diagnostics"
 
 
-# 表示“没有登记这个操作或字段”的失败，由统一错误入口返回给调用方。
 class NotRegistered(BusinessError):
     code = "not_registered"
     kind = Kind.NOT_FOUND
     message = "没有登记这个操作或字段"
 
 
-# 列出全部模块、操作和模块关系图。
 @router.get("/modules", summary="模块目录和关系图", operation_id="system_modules")
 async def modules(request: Request, caller: CallerDep) -> dict[str, Any]:
     require(caller, PERMISSION)
@@ -65,7 +58,6 @@ async def modules(request: Request, caller: CallerDep) -> dict[str, Any]:
     }
 
 
-# 返回一个操作的计算流程图和全部字段的来源。
 @router.get("/flows/{name}", summary="操作的计算流程", operation_id="system_flow")
 async def flow(name: str, request: Request, caller: CallerDep) -> dict[str, Any]:
     require(caller, PERMISSION)
@@ -96,7 +88,6 @@ async def flow(name: str, request: Request, caller: CallerDep) -> dict[str, Any]
     }
 
 
-# 逐层说明一个字段的来源，并给出来源图。
 @router.get("/fields/{name}/{field}", summary="字段来源", operation_id="system_field")
 async def field(name: str, field: str, request: Request, caller: CallerDep) -> dict[str, Any]:
     require(caller, PERMISSION)
@@ -111,7 +102,6 @@ async def field(name: str, field: str, request: Request, caller: CallerDep) -> d
     }
 
 
-# 按操作名查找登记的实现。
 def find(request: Request, name: str) -> Binding:
     binding = request.app.state.services.catalog.find(name)
     if binding is None:

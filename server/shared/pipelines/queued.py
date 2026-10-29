@@ -1,7 +1,3 @@
-"""
-排队期间格式变化的周期尚无阶段任务，人工接受格式后才登记首阶段。
-"""
-
 import json
 from typing import TYPE_CHECKING
 
@@ -19,7 +15,6 @@ if TYPE_CHECKING:
     from shared.modules.catalog import Catalog
 
 
-# 从尚未建立阶段的版本暂停恢复，初始数据必须仍符合当前类型。
 async def resume_queued(
     connection: AsyncConnection,
     database: "Database",

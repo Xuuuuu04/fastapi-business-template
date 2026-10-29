@@ -1,7 +1,3 @@
-"""
-成员链测试驱动：受控队列时间、独立双库夹具和有限推进；不改变正式worker时钟。
-"""
-
 from pathlib import Path
 from time import time as wall_time
 
@@ -22,29 +18,23 @@ from tests.framework.test_pipelines import CALLER
 from tests.testing_app import make_settings, prepare_test_database
 
 
-# 时间只按明确到期的队列动作推进，主机停顿不会消耗合成上游的等待期限。
 class PipelineClock(RealClock):
     simulated = True
 
-    # 以登记时刻初始化，不在后续执行中读取宿主机时间。
     def __init__(self) -> None:
         self.value = wall_time()
 
-    # 返回当前测试明确推进到的时间。
     def now(self) -> float:
         return self.value
 
-    # 只向前推进，避免多个组织的到期任务使时间倒退。
     def advance_to(self, value: float) -> None:
         self.value = max(self.value, value)
 
 
-# 当前夹具明确绑定受控业务时间，执行消耗仍按实际单调时间计算。
 def now() -> float:
     return current_clock().now()
 
 
-# 所有成员样例共用独立夹具，不增加业务模块；双库运行同一套用例。
 @pytest.fixture
 async def fanout(tmp_path: Path, monkeypatch, request):
     clock = PipelineClock()
@@ -67,7 +57,6 @@ async def fanout(tmp_path: Path, monkeypatch, request):
         await built.close()
 
 
-# 通过公开流程入口登记，成员数量只作为有界初始Data。
 async def start(services: Services, count: int = 200) -> str:
     data = pipeline.start.input(
         request=StartRequest[Begin](data=Begin(count=count), cycle_key="members")
@@ -75,7 +64,6 @@ async def start(services: Services, count: int = 200) -> str:
     return await services.runtime.submit(pipeline.start, data, caller=CALLER)
 
 
-# 用实际worker逐个领取，定时检查成员池，记录真实峰值而非预设并发数。
 async def drain(services: Services, run_id: str, *, limit: int = 2000) -> dict:
     worker = Worker(services.runtime, services.queue, [], WorkerOptions())
     peak = 0

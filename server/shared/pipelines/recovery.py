@@ -1,7 +1,3 @@
-"""
-人工从当前失败阶段恢复；保留成功阶段与分段游标，未知外部结果必须另行明确确认。
-"""
-
 import json
 from typing import TYPE_CHECKING
 
@@ -26,7 +22,6 @@ if TYPE_CHECKING:
     from shared.modules.catalog import Catalog
 
 
-# 只接受当前失败阶段；版本变化需显式确认，未知外部结果默认不能重新执行。
 async def resume(
     database: Database,
     catalog: "Catalog",
@@ -72,7 +67,6 @@ async def resume(
     return "已从当前阶段重新排队"
 
 
-# 恢复前核对格式、外部确认与同组织活动周期。
 async def verify(
     connection: AsyncConnection,
     catalog: "Catalog",
@@ -104,7 +98,6 @@ async def verify(
     return current
 
 
-# 保留已有任务与游标，只重新占用当前失败阶段的队列名额。
 async def requeue_stage(
     connection: AsyncConnection,
     catalog: "Catalog",
@@ -152,7 +145,6 @@ async def requeue_stage(
         )
 
 
-# 当前阶段恢复时间与流程状态和任务重新排队同事务保存。
 async def reset_stage(
     connection: AsyncConnection,
     root: dict,
@@ -179,7 +171,6 @@ async def reset_stage(
     )
 
 
-# 明确指出恢复中不兼容的数据位置，不把类型错误当作服务器未知故障。
 def validate_saved(model: type[Data], value: str, stage: str) -> None:
     try:
         model.model_validate_json(value)
@@ -187,7 +178,6 @@ def validate_saved(model: type[Data], value: str, stage: str) -> None:
         raise InvalidInput(f"流程阶段{stage}的已保存数据与当前格式不符，需要迁移后恢复") from error
 
 
-# 已提交批次不能因接受声明变化而回到普通整次执行；新分段任务明确初始化游标。
 async def validate_checkpoint(
     connection: AsyncConnection, job_id: str, plan: JobPlan, stage: str
 ) -> None:
@@ -204,7 +194,6 @@ async def validate_checkpoint(
         await create_checkpoint(connection, job_id)
 
 
-# 在任务行锁之前定位当前最后阶段，当前阶段恢复不会选择历史成功阶段。
 async def latest_stage(connection: AsyncConnection, run_id: str) -> RowMapping | None:
     stage = (
         (
@@ -221,7 +210,6 @@ async def latest_stage(connection: AsyncConnection, run_id: str) -> RowMapping |
     return stage
 
 
-# 先锁任务再锁流程，所有恢复路径保持同一个锁顺序。
 async def locked_job(connection: AsyncConnection, job_id: str) -> RowMapping:
     job = (
         (await connection.execute(select(jobs).where(jobs.c.id == job_id).with_for_update()))

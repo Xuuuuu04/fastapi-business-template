@@ -1,8 +1,3 @@
-"""
-创建 FastAPI 应用：登记中间件、统一错误、全部路由，并管理启动和关闭。
-运行：uv run uvicorn app.setup.web:create_app --factory；测试和文档导出也调用 create_app。
-"""
-
 import asyncio
 import logging
 from collections.abc import AsyncIterator
@@ -21,13 +16,11 @@ from shared.application.spec import ApplicationSpec
 from shared.config.settings import Settings
 from shared.logs.setup import setup_logs
 
-# 上传请求中 multipart 分隔符和字段头占用的余量。
 MULTIPART_ALLOWANCE = 64 * 1024
 
 log = logging.getLogger("server.setup")
 
 
-# 组装应用，供运行、测试和离线文档导出共同使用。
 def create_app(
     settings: Settings | None = None,
     services: Services | None = None,
@@ -62,7 +55,6 @@ def create_app(
     return app
 
 
-# 请求限制、安全响应和错误格式由同一配置初始化。
 def configure_http(app: FastAPI, settings: Settings) -> None:
     app.state.limits = RequestLimits(
         settings.max_body_bytes,
@@ -92,7 +84,6 @@ def configure_http(app: FastAPI, settings: Settings) -> None:
         )
 
 
-# 启动时设置日志和运行记录的后台写入，关闭时写完剩余记录并释放资源。
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings

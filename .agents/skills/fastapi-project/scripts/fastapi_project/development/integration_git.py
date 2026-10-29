@@ -1,7 +1,3 @@
-"""
-整合只在临时工作树中修改源码，原分支在验证成功且基线未变化时才快进。
-"""
-
 import subprocess
 import uuid
 from collections.abc import Callable
@@ -11,7 +7,6 @@ from typing import Any
 from fastapi_project.development.check_assets import atomic_bytes
 
 
-# 只执行明确Git参数，不拼接shell；失败信息不包含工作区凭据或环境。
 def git(project: Path, *arguments: str, accepted: tuple[int, ...] = (0,)) -> str:
     result = subprocess.run(
         ["git", *arguments], cwd=project, capture_output=True, text=True, check=False, timeout=30
@@ -21,7 +16,6 @@ def git(project: Path, *arguments: str, accepted: tuple[int, ...] = (0,)) -> str
     return result.stdout.strip()
 
 
-# 所有原件必须干净且在命名分支，临时整合不替用户处理尚未提交的其他工作。
 def baseline(project: Path, branch: str) -> dict:
     if not branch or branch.startswith("-") or "\0" in branch:
         raise ValueError("分支参数不合法")
@@ -42,7 +36,6 @@ def baseline(project: Path, branch: str) -> dict:
     }
 
 
-# 工作树处于detached状态，任何冲突和修复不会在原分支留下半次合并。
 def prepare(project: Path, start: dict) -> tuple[str, Path]:
     identity = uuid.uuid4().hex
     tree = project / ".agents/records/integrations" / identity / "tree"
@@ -51,7 +44,6 @@ def prepare(project: Path, start: dict) -> tuple[str, Path]:
     return identity, tree
 
 
-# 原分支和提交、工作区再次一起核对，其他人开发期间的变化不能被本次整合覆盖。
 def unchanged(project: Path, start: dict) -> None:
     if (
         git(project, "rev-parse", "HEAD") != start["head"]
@@ -61,7 +53,6 @@ def unchanged(project: Path, start: dict) -> None:
         raise ValueError("原分支在检查期间变化，请重新整合")
 
 
-# 源码在临时树验证后提交，只有本次合并结果被应用，不能隐含执行远程发布。
 def integrate(
     project: Path,
     branch: str,
@@ -113,7 +104,6 @@ def integrate(
     return report
 
 
-# 失败和预览保留可复核工作树，报告留在忽略目录，不把“计划通过”当作完成。
 def save_report(project: Path, report: dict) -> Path:
     import json
 

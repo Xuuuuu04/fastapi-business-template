@@ -1,8 +1,3 @@
-"""
-外部接口调用服务：按外部系统建立连接池，限制并发，统一超时、重试和错误分类，并记录每次调用。
-读取（GET、HEAD）和带请求编号的写入遇到暂时故障会重试；其他写入不重试，超时报告“结果待确认”。
-"""
-
 import asyncio
 import json
 from dataclasses import replace
@@ -31,9 +26,7 @@ from shared.timing.current import clocked, monotonic, sleep
 RETRY_WAITS = (0.5, 2.0, 5.0)
 
 
-# 发送外部请求并记录结果，按请求安全性处理重试。
 class RemoteService:
-    # 保存各外部系统的配置；transports 只在测试中替换网络传输。
     def __init__(
         self,
         configs: dict[str, RemoteConfig],
@@ -51,7 +44,6 @@ class RemoteService:
         self.limits: dict[str, asyncio.Semaphore] = {}
         self.breakers: dict[str, Breaker] = {}
 
-    # 发送一次请求并记录；按方法和请求编号决定是否重试。
     @clocked
     async def send(
         self,
@@ -104,7 +96,6 @@ class RemoteService:
         record.bytes_in = len(reply.content)
         return reply
 
-    # 按重试规则反复发送，直到成功、遇到不可重试的错误或次数用完。
     @clocked
     async def attempts(
         self, target: Remote, request: RemoteRequest, record: RemoteCallRecord
@@ -125,7 +116,6 @@ class RemoteService:
                 await sleep(self.retry_waits[attempt])
         raise RemoteUnavailable(f"外部系统 {target.name} 重试次数已用完")
 
-    # 发送一次请求，把网络错误和状态码转成框架的错误种类。
     @clocked
     async def once(
         self, target: Remote, request: RemoteRequest, record: RemoteCallRecord
@@ -150,7 +140,6 @@ class RemoteService:
                     target, request, record, previously_unknown, error
                 ) from error
 
-    # 有界读取响应，并记录哪些写入得到成功结果，哪些明确被拒绝。
     @clocked
     async def read_reply(
         self,
@@ -198,7 +187,6 @@ class RemoteService:
             record.outcome = "failed" if captured else "ok"
             return reply
 
-    # 取得外部系统的连接；没有配置时报错。
     def client(self, target: Remote) -> httpx2.AsyncClient:
         found = self.clients.get(target.name)
         if found is not None:
@@ -220,24 +208,20 @@ class RemoteService:
         self.clients[target.name] = client
         return client
 
-    # 取得外部系统的并发上限。
     def limit(self, target: Remote) -> asyncio.Semaphore:
         return self.limits.setdefault(target.name, asyncio.Semaphore(target.concurrency))
 
-    # 关闭全部连接。
     @clocked
     async def close(self) -> None:
         for client in self.clients.values():
             await client.aclose()
 
 
-# 路径必须以 / 开头，不能带协议和主机，防止请求被引到配置以外的地址。
 def check_path(path: str) -> None:
     if not path.startswith("/") or path.startswith("//") or "://" in path:
         raise StepRuleBroken(f"外部接口路径 {path} 必须以 / 开头，不能包含协议和主机")
 
 
-# 未连接时没有发出请求；之后的超时或中断可能已有写入，不能抹掉更早的未知结果。
 def transport_problem(
     target: Remote,
     request: RemoteRequest,
@@ -253,7 +237,6 @@ def transport_problem(
     return RemoteUnavailable(f"无法取得外部系统 {target.title}的响应")
 
 
-# 按状态码抛出对应的错误。
 def raise_for_status(target: Remote, status: int, request: RemoteRequest) -> None:
     if status < 400:
         return
@@ -272,7 +255,6 @@ def raise_for_status(target: Remote, status: int, request: RemoteRequest) -> Non
     raise RemoteRejected(f"外部系统 {target.title}拒绝了请求（HTTP {status}）")
 
 
-# 整理响应：JSON 响应解析成数据，其他响应保留文本和原始内容。
 def reply_of(response: httpx2.Response, content: bytes) -> RemoteReply:
     data = None
     if "json" in response.headers.get("content-type", ""):
@@ -284,7 +266,6 @@ def reply_of(response: httpx2.Response, content: bytes) -> RemoteReply:
     return RemoteReply(response.status_code, data, text, content)
 
 
-# 只允许业务接收明确的客户端错误；超时和服务端错误继续保留写入未知保护。
 def check_accepted_statuses(statuses: tuple[int, ...]) -> None:
     if any(
         type(status) is not int or not 400 <= status < 500 or status in (408, 499)

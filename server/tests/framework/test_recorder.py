@@ -1,8 +1,3 @@
-"""
-运行记录写入器在故障时的行为：记录丢失要计数、保存失败不影响业务、
-长时间没有进展的运行标为“失去联系”，后台循环能把缓冲中的记录写出去。
-"""
-
 import asyncio
 import time
 
@@ -14,23 +9,19 @@ from shared.records.recorder import LOST_AFTER_SECONDS, Recorder
 from shared.records.stores import MemoryRunStore, RunFilter
 
 
-# 故意延迟保存运行记录，用来检查后台写入和退出等待。
 class SlowStore(MemoryRunStore):
     immediate = False
 
-    # 保存时可以按需要抛出异常，模拟数据库不可用。
     def __init__(self, fail: bool = False) -> None:
         super().__init__(100)
         self.fail = fail
 
-    # 模拟保存；fail 为真时报错。
     async def save(self, runs: list[RunRecord]) -> None:
         if self.fail:
             raise ConnectionError("数据库不可用")
         await super().save(runs)
 
 
-# 生成一条测试用运行记录。
 def record(run_id: str, *, status: str = "ok", root_id: str = "") -> RunRecord:
     return RunRecord(
         id=run_id,
@@ -50,7 +41,6 @@ def record(run_id: str, *, status: str = "ok", root_id: str = "") -> RunRecord:
     )
 
 
-# 缓冲区满时丢弃并计数；保存失败时计数，不向业务抛出异常。
 @pytest.mark.anyio
 async def test_buffer_full_and_save_failure_are_counted() -> None:
     full = Recorder(SlowStore(), buffer=1)
@@ -64,10 +54,8 @@ async def test_buffer_full_and_save_failure_are_counted() -> None:
     assert broken.state().failures == 1 and broken.state().waiting == 0
 
 
-# 生成摘要出错时照样保存记录，只把失败计数。
 @pytest.mark.anyio
 async def test_summary_failure_still_saves(monkeypatch: pytest.MonkeyPatch) -> None:
-    # 模拟摘要程序出错。
     def broken(run: RunRecord) -> str:
         raise ValueError("摘要出错")
 
@@ -79,7 +67,6 @@ async def test_summary_failure_still_saves(monkeypatch: pytest.MonkeyPatch) -> N
     assert await store.get("d") is not None
 
 
-# 超过期限没有进展的运行在查询结果中标为“失去联系”，原记录不被改动。
 @pytest.mark.anyio
 async def test_stale_run_is_reported_lost() -> None:
     recorder = Recorder(MemoryRunStore(10))
@@ -95,7 +82,6 @@ async def test_stale_run_is_reported_lost() -> None:
     assert {run.id for run in listed} == {"e", "f"}
 
 
-# 后台循环收到新记录后把缓冲写入保存位置；缓冲中的记录在写入前也能查到。
 @pytest.mark.anyio
 async def test_background_flush_writes_waiting_runs() -> None:
     store = SlowStore()
@@ -113,15 +99,12 @@ async def test_background_flush_writes_waiting_runs() -> None:
     assert await store.get("g") is not None and recorder.state().waiting == 0
 
 
-# 可控制保存时机的测试存储，用来验证进度与完成记录的顺序。
 class PausingStore(SlowStore):
-    # 保存前先等待一会，模拟停止时正好有一批记录在写入。
     async def save(self, runs: list[RunRecord]) -> None:
         await asyncio.sleep(0.05)
         await super().save(runs)
 
 
-# 停止后台写入时，正在写入的一批和还在缓冲中的记录都保存下来，不因取消而丢失。
 @pytest.mark.anyio
 async def test_stop_keeps_runs_being_written() -> None:
     store = PausingStore()
@@ -135,7 +118,6 @@ async def test_stop_keeps_runs_being_written() -> None:
     assert {run.id for run in await store.recent(RunFilter(), 10)} == {"first", "second"}
 
 
-# 两个进程共用数据库时，读取方能看到进行中的步骤，完成后仍只有一条记录。
 @pytest.mark.anyio
 async def test_progress_is_visible_to_another_recorder(
     settings, monkeypatch: pytest.MonkeyPatch
@@ -179,7 +161,6 @@ async def test_progress_is_visible_to_another_recorder(
         await database.close()
 
 
-# 进程退出后留在数据库中的旧进度不会一直显示执行中。
 @pytest.mark.anyio
 async def test_saved_stale_progress_is_reported_lost() -> None:
     store = SlowStore()
@@ -190,7 +171,6 @@ async def test_saved_stale_progress_is_reported_lost() -> None:
     assert (await reader.get("stale")).status == "lost"
 
 
-# 成功仅临时可见，不落进度记录；失败照常保存完整运行。
 @pytest.mark.anyio
 async def test_failure_only_policy_does_not_write_success_progress() -> None:
     from shared.records.models import RunRecord

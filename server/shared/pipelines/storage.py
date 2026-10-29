@@ -1,7 +1,3 @@
-"""
-流程持久化的共用查询与有条件状态更新，调用方明确持有当前事务。
-"""
-
 import json
 from typing import TYPE_CHECKING, Any
 
@@ -27,12 +23,10 @@ ACTIVE = (
 PREFIX = "pipeline:"
 
 
-# 阶段任务始终使用框架专用键，普通任务不需要查询流程表。
 def is_pipeline_job(ticket: "Ticket") -> bool:
     return bool(ticket.key and ticket.key.startswith(PREFIX))
 
 
-# 找到实际关联的阶段，不接受仅伪造请求键的普通任务。
 async def stage_for(connection: AsyncConnection, job_id: str) -> dict[str, Any] | None:
     row = (
         (await connection.execute(select(stages).where(stages.c.job_id == job_id)))
@@ -42,7 +36,6 @@ async def stage_for(connection: AsyncConnection, job_id: str) -> dict[str, Any] 
     return dict(row) if row else None
 
 
-# 锁定流程运行，阶段推进与恢复串行执行。
 async def root_for(connection: AsyncConnection, run_id: str) -> dict[str, Any]:
     row = (
         (
@@ -58,7 +51,6 @@ async def root_for(connection: AsyncConnection, run_id: str) -> dict[str, Any]:
     return dict(row)
 
 
-# 确保本次尝试未过期、未被重新领取，后续所有业务写入才可以提交。
 async def own(connection: AsyncConnection, ticket: "Ticket") -> None:
     changed = await connection.execute(
         update(jobs)
@@ -74,7 +66,6 @@ async def own(connection: AsyncConnection, ticket: "Ticket") -> None:
         raise StaleAttempt()
 
 
-# 只对后续阶段比较格式，内部实现和模块版本不参与兼容性判断。
 def compatible(root: dict, current: list[dict[str, str]]) -> bool:
     saved = json.loads(root["declarations_json"])
     name = root["current_stage"]

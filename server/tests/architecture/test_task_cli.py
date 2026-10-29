@@ -1,7 +1,3 @@
-"""
-实际生成项目的start/finish验收，模拟拒绝、当前双库成功和确认预期修改分别留真实证据。
-"""
-
 import json
 import os
 import subprocess
@@ -17,12 +13,10 @@ from tests.framework.skeleton_sample import implement, write_inputs
 from tests.template_project import initialize
 
 
-# finish有检查过程输出，最后一份JSON才是收工结论。
 def conclusion(text: str) -> dict:
     return json.loads(text[text.rfind("\n{") + 1 :])
 
 
-# 隔离PostgreSQL凭据只在子进程内读取，不放在命令参数、断言或检查资料里。
 PRIVATE_FINISH = """
 import json, os, sys
 from fastapi_dev.main import bootstrap, project_root
@@ -36,7 +30,6 @@ print(json.dumps(result, ensure_ascii=False, indent=2))
 """
 
 
-# 在真实开发命令里走模拟、确认、开工和双库收工，不伪造检查记录。
 @pytest.mark.postgres_only
 def test_real_task_commands_use_fresh_database_evidence(tmp_path: Path) -> None:
     if os.environ.get(COPY_FLAG):
@@ -83,7 +76,6 @@ def test_real_task_commands_use_fresh_database_evidence(tmp_path: Path) -> None:
     reject_modified_expectation(copy, entry, env)
 
 
-# 改独立预期后局部交付检查也必须失败，而不是只靠整项目检查发现。
 def reject_modified_expectation(copy: Path, entry: list[str], env: dict[str, str]) -> None:
     fixture = copy / "doc/sample_counts/cases/one.json"
     data = json.loads(fixture.read_text())
@@ -109,7 +101,6 @@ def reject_modified_expectation(copy: Path, entry: list[str], env: dict[str, str
     assert rejected.returncode != 0 and "确认输入、预期或关键断言已经改变" in rejected.stdout
 
 
-# 全部是虚构原话与虚构确认声明，仅检验工具路径，不代表人类业务确认。
 def rule_commands(copy: Path, entry: list[str], env: dict[str, str]) -> None:
     source = [
         "rules",

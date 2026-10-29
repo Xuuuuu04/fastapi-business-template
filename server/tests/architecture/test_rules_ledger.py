@@ -1,7 +1,3 @@
-"""
-规则来源、确认、修订和敏感原话隔离，确认记录不能替代身份验证或从旧实现自动推定。
-"""
-
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -10,7 +6,6 @@ from fastapi_project.development.ledger import add_source, confirm, propose, rea
 from fastapi_project.development.ledger_models import LedgerRule, RuleConfirmation, RuleSource
 
 
-# 合成来源不使用真实产品材料，不在空模板中登记业务规则。
 def source(project: Path, kind="user_quote") -> None:
     add_source(
         project,
@@ -20,7 +15,6 @@ def source(project: Path, kind="user_quote") -> None:
     )
 
 
-# 只有明确采纳并记录当前修订的原话确认，才显示为确认状态。
 def test_rule_lifecycle_keeps_history(tmp_path: Path) -> None:
     source(tmp_path)
     rule = LedgerRule(id="sample_rules.R-01", text="合成规则", sources=["source-one"])
@@ -49,7 +43,6 @@ def test_rule_lifecycle_keeps_history(tmp_path: Path) -> None:
     assert ledger.events[2].snapshot["text"] == "合成规则"
 
 
-# 历史代码与文档可以成为推定依据，不能直接成为人类确认。
 @pytest.mark.parametrize("kind", ["code", "document", "fixture"])
 def test_imported_sources_cannot_be_human_confirmation(tmp_path: Path, kind: str) -> None:
     source(tmp_path, kind)
@@ -72,7 +65,6 @@ def test_imported_sources_cannot_be_human_confirmation(tmp_path: Path, kind: str
     assert read_ledger(tmp_path).rules[0].state == "adopted"
 
 
-# 原话与凭据类内容不进入账本或可提交引用，默认材料文件只允许本机用户读取。
 def test_raw_material_stays_outside_ledger(tmp_path: Path) -> None:
     raw = "synthetic-private-original-do-not-publish"
     saved = add_source(
@@ -88,7 +80,6 @@ def test_raw_material_stays_outside_ledger(tmp_path: Path) -> None:
     assert material.read_text() == raw and material.stat().st_mode & 0o777 == 0o600
 
 
-# 废止与推定是不同状态，旧确认不能直接复活。
 def test_retired_rule_requires_new_revision(tmp_path: Path) -> None:
     source(tmp_path)
     rule = LedgerRule(id="sample_rules.R-01", text="合成规则", sources=["source-one"])
@@ -98,9 +89,7 @@ def test_retired_rule_requires_new_revision(tmp_path: Path) -> None:
         transition(tmp_path, rule.id, "adopted", reason="错误复活")
 
 
-# 并发登记不会最后一个覆盖前面所有来源，锁文件不成为规则证据。
 def test_concurrent_sources_preserve_all_records(tmp_path: Path) -> None:
-    # 每个线程提交不同的脱敏来源。
     def add(index: int) -> None:
         add_source(
             tmp_path,

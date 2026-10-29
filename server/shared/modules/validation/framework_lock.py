@@ -1,11 +1,3 @@
-"""
-框架文件摘要：记录框架代码、检查规则和工具的 SHA-256，保存在 server/framework.lock。
-开发业务模块时不应改动这些文件；确实需要改框架时，审查后运行 --update 更新摘要，
-并在提交说明中写明原因。这样每次框架改动都会在代码审查中清楚地出现。
-它挡不住有意绕过的人，只保证改动不会悄悄发生。
-pyproject.toml 只锁定 [tool] 下的检查与测试配置；依赖版本由 Dependabot 更新，更新时不需要改摘要。
-"""
-
 import argparse
 import hashlib
 import json
@@ -51,7 +43,6 @@ REGISTRATION = ("app/setup/catalog.py",)
 SUFFIXES = (".py", ".md", ".mako", ".toml", ".ini", ".txt", ".html", ".js", ".css", ".json")
 
 
-# pyproject.toml 中只取 [tool] 下的配置（ruff、mypy、pytest 等），依赖版本不参与摘要。
 def tool_sections(content: bytes) -> bytes:
     tools = tomllib.loads(content.decode("utf-8")).get("tool", {})
     return json.dumps(tools, sort_keys=True, ensure_ascii=False).encode("utf-8")
@@ -60,7 +51,6 @@ def tool_sections(content: bytes) -> bytes:
 PARTIAL = {"pyproject.toml": tool_sections}
 
 
-# 计算全部框架文件的摘要。
 def digests(root: Path = ROOT) -> dict[str, str]:
     found = {}
     for entry in LOCKED:
@@ -85,7 +75,6 @@ def digests(root: Path = ROOT) -> dict[str, str]:
     return found
 
 
-# 列出与已记录摘要不同的文件。
 def differences(root: Path = ROOT, *, include_skills: bool = True) -> list[str]:
     lock = root / LOCK_FILE.name
     if not lock.exists():
@@ -113,7 +102,6 @@ def differences(root: Path = ROOT, *, include_skills: bool = True) -> list[str]:
     return changes
 
 
-# 检查或更新框架文件摘要。
 def main() -> None:
     parser = argparse.ArgumentParser(description="检查或更新框架文件摘要")
     parser.add_argument("--update", action="store_true", help="审查过框架改动后，更新摘要")

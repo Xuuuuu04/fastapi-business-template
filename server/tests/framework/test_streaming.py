@@ -1,8 +1,3 @@
-"""
-流式操作测试：完成时提交写入，客户端断开时取消并回滚。
-检查满队列断开能结束清理，普通错误保持明确的 SSE 错误事件。
-"""
-
 import asyncio
 import json
 from pathlib import Path
@@ -21,12 +16,10 @@ from tests.framework.sample_modules import NoteStore, notes, sample_metadata
 from tests.testing_app import KEY, READER, make_settings, reset_database_now
 
 
-# 流式输出测试返回的已保存记录数。
 class StreamResult(Data):
     saved: int = meaning("保存后的记录数")
 
 
-# 流式输出测试各步骤共享的执行结果。
 class StreamWork(WorkData):
     result: StreamResult = meaning("操作结果")
 
@@ -41,9 +34,7 @@ stream_contract = contract(
 )
 
 
-# 创建一个先写数据库、再输出分段并等待继续的流式模块。
 def probe_module(gate: asyncio.Event, *, full: asyncio.Event | None = None) -> Module:
-    # 写入未提交的记录，发出分段后等待测试放行。
     @step("写入并输出", writes=["result"], saves=True)
     async def save_stream(data: StreamWork, store: NoteStore, emit: Emitter) -> None:
         saved = await store.add("stream")
@@ -60,7 +51,6 @@ def probe_module(gate: asyncio.Event, *, full: asyncio.Event | None = None) -> M
     return Module("stream_probe", "流式测试", "1", {stream_contract: flow}, store=NoteStore)
 
 
-# 在测试数据库中建立流式模块写入的表。
 async def prepare(services: Services, gate: asyncio.Event) -> None:
     async with services.database.write() as connection:
         await connection.run_sync(sample_metadata.drop_all)
@@ -68,13 +58,11 @@ async def prepare(services: Services, gate: asyncio.Event) -> None:
     services.runtime.catalog = Catalog([probe_module(gate)])
 
 
-# 返回目前已提交的测试记录数。
 async def committed_count(services: Services) -> int:
     async with services.database.read() as connection:
         return int(await connection.scalar(select(func.count()).select_from(notes)))
 
 
-# 正常读完流会得到开始、分段和完成事件，并提交数据库写入。
 @pytest.mark.anyio
 async def test_stream_completion(services: Services) -> None:
     gate = asyncio.Event()
@@ -92,7 +80,6 @@ async def test_stream_completion(services: Services) -> None:
     assert await committed_count(services) == 1
 
 
-# 客户端只读一段便断开时，运行被取消，未提交的写入撤销。
 @pytest.mark.anyio
 async def test_stream_disconnect_rolls_back(services: Services) -> None:
     gate = asyncio.Event()
@@ -108,7 +95,6 @@ async def test_stream_disconnect_rolls_back(services: Services) -> None:
     assert recorded.status == "failed" and recorded.error_code == "cancelled"
 
 
-# 缓冲已满时断开也能结束取消并回滚，不能等待已离开的客户端腾出队列位置。
 @pytest.mark.anyio
 async def test_full_stream_disconnect_rolls_back(services: Services) -> None:
     gate, full = asyncio.Event(), asyncio.Event()
@@ -127,12 +113,10 @@ async def test_full_stream_disconnect_rolls_back(services: Services) -> None:
     assert recorded.status == "failed" and recorded.error_code == "cancelled"
 
 
-# 普通运行错误仍作为错误事件交给客户端，随后正常结束流。
 @pytest.mark.anyio
 async def test_stream_error_is_reported(
     services: Services, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # 模拟运行的程序错误，不访问数据库。
     async def failed(*args: object, **kwargs: object) -> Nothing:
         raise ValueError("不能暴露给客户端的内部细节")
 
@@ -152,12 +136,10 @@ async def test_stream_error_is_reported(
     }
 
 
-# 流式大模型测试接收的主题。
 class Topic(Data):
     topic: str = meaning("主题", min_length=1)
 
 
-# 流式大模型测试各步骤共享的主题和执行结果。
 class TalkWork(WorkData):
     topic: str = meaning("主题")
     result: StreamResult = meaning("操作结果")
@@ -173,7 +155,6 @@ talk_contract = contract(
 )
 
 
-# 不访问数据库，只把主题分两段输出。
 @step("分段讲解", reads=["topic"], writes=["result"])
 async def talk(data: TalkWork, emit: Emitter) -> None:
     await emit(data.topic)
@@ -189,7 +170,6 @@ talk_module = Module(
 )
 
 
-# HTTP 入口在开始输出前检查操作、权限和输入，成功时按 SSE 返回全部事件。
 def test_stream_http_entry(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     reset_database_now(settings.database_url)

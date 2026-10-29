@@ -1,7 +1,3 @@
-"""
-工具包生成、纯计算、循环、导出一致与传递调用者版本使用实际文件验证。
-"""
-
 import json
 from pathlib import Path
 
@@ -17,14 +13,12 @@ from shared.modules.validation.library_rules import check_libraries
 from shared.public import Flow, Module, Nothing, WorkData, contract, meaning, step
 
 
-# 文件内容来自正式生成器，测试不在真实模板里登记演示工具。
 def generate(root: Path, name: str = "text_formats") -> None:
     for path, content in library_files(name, "文本格式", root).items():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
 
 
-# 工具可以生成、读取，文件或时钟访问会指向真实源码位置。
 def test_library_generation_and_purity(tmp_path: Path) -> None:
     root = tmp_path / "server"
     generate(root)
@@ -35,7 +29,6 @@ def test_library_generation_and_purity(tmp_path: Path) -> None:
     assert any(problem.rule == "calc_purity" for problem in check_libraries(root))
 
 
-# 工具改动让实际使用它的模块失效，无关模块仍可沿用原结果。
 def test_library_dependency_expires_only_consumers(tmp_path: Path) -> None:
     root = tmp_path / "server"
     generate(root)
@@ -53,7 +46,6 @@ def test_library_dependency_expires_only_consumers(tmp_path: Path) -> None:
     assert before["other_reads"] == after["other_reads"]
 
 
-# 两个工具互相导入不能靠声明文件的顺序掩盖循环。
 def test_library_cycle_is_visible(tmp_path: Path) -> None:
     root = tmp_path / "server"
     generate(root, "text_first")
@@ -64,7 +56,6 @@ def test_library_cycle_is_visible(tmp_path: Path) -> None:
     assert any("循环" in issue.message for issue in check_libraries(root))
 
 
-# 声明的导出与公开入口双向一致，任何一边多出的名称都会被指出。
 def test_exports_must_match_public_all(tmp_path: Path) -> None:
     root = tmp_path / "server"
     generate(root)
@@ -87,7 +78,6 @@ def test_exports_must_match_public_all(tmp_path: Path) -> None:
     assert any("公开未声明" in problem.message for problem in exposed)
 
 
-# __all__与声明一致仍不能导出不存在的名称，数据类的大写名称则有效。
 def test_exports_require_real_bindings(tmp_path: Path) -> None:
     root = tmp_path / "server"
     generate(root)
@@ -102,7 +92,6 @@ def test_exports_require_real_bindings(tmp_path: Path) -> None:
     assert check_libraries(root) == []
 
 
-# 错误字段与重复导出返回清晰声明错误，不泄漏解释器类型异常。
 @pytest.mark.parametrize("exports", [None, "tool", [1], ["class"], ["tool", "tool"]])
 def test_malformed_library_exports(tmp_path: Path, exports) -> None:
     root = tmp_path / "server"
@@ -115,18 +104,15 @@ def test_malformed_library_exports(tmp_path: Path, exports) -> None:
         library_specs(root)
 
 
-# 无数据库的结果模型与步骤，供影响分析的登记模块使用。
 class Work(WorkData):
     result: Nothing = meaning("空结果")
 
 
-# 完成一次不触碰外部的空结果。
 @step("返回空结果", writes=["result"])
 def produce(data: Work) -> None:
     data.result = Nothing()
 
 
-# 工具改动沿真实导入图投射到登记模块，间接工具同样计入，无人使用时保持未知。
 def test_tool_change_reaches_real_importers(tmp_path: Path) -> None:
     root = tmp_path / "server"
     generate(root, "text_first")

@@ -1,7 +1,3 @@
-"""
-导入检查按实际源码复用解析结果；内容、路径与错误变化不能被缓存掩盖。
-"""
-
 from pathlib import Path
 
 import pytest
@@ -9,7 +5,6 @@ import pytest
 from shared.modules.validation.imports import analyzed, check_dynamic, check_service_file, imported
 
 
-# 同一内容只解析一次；两处路径的诊断位置仍各自正确。
 def test_same_content_reuses_parse_but_keeps_paths(tmp_path: Path) -> None:
     analyzed.cache_clear()
     source = "import shared.flow.runtime\n__import__('os')\n"
@@ -23,7 +18,6 @@ def test_same_content_reuses_parse_but_keeps_paths(tmp_path: Path) -> None:
     assert analyzed.cache_info().misses == 1
 
 
-# 内容变化当次就被发现；错误源码仍抛出语法异常，不沿用旧成功结果。
 def test_changed_content_and_invalid_syntax_are_visible(tmp_path: Path) -> None:
     analyzed.cache_clear()
     path = tmp_path / "source.py"

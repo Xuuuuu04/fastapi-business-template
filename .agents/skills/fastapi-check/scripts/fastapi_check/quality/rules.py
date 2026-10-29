@@ -1,8 +1,3 @@
-"""
-质量检查的阈值、命名清单和例外登记。修改这里属于框架改动，需要单独审查。
-阈值是试用值：用来提醒整理，不是为了让人把代码挤成一行或机械拆散。
-"""
-
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,7 +7,6 @@ PROJECT = ROOT.parent
 MAX_FILE_LINES = 300
 MAX_FUNCTION_LINES = 50
 MAX_NESTING = 4
-MAX_COMMENT_RUN = 2
 MAX_MODULE_README_LINES = 120
 MAX_README_LINES = 150
 MAX_BUSINESS_DOC_LINES = 200
@@ -109,10 +103,7 @@ BLOCKING_CALLS = frozenset(
     }
 )
 
-TODO_WORDS = ("TODO", "FIXME", "XXX", "HACK")
 
-
-# 明确允许的一项检查例外，注明文件、规则和原因。
 @dataclass(frozen=True)
 class Allowed:
     path: str
@@ -120,5 +111,4 @@ class Allowed:
     reason: str
 
 
-# 已审查的例外：写明文件、规则和原因。不再需要的例外会被检查报出。
 ALLOWED: tuple[Allowed, ...] = ()

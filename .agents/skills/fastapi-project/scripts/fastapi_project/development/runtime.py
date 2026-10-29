@@ -1,8 +1,3 @@
-"""
-读取可选的数据库运行记录，只提供开发状态所需的名称、版本和结束状态。
-这些记录可能来自旧版本；不能用它们声称当前代码已通过测试。
-"""
-
 from typing import Any
 
 from fastapi_check.quality.rules import ROOT
@@ -15,7 +10,6 @@ from shared.records.stores import RunFilter, SqlRunStore
 from shared.records.version import source_version
 
 
-# 仅在用户明确请求运行记录时访问当前配置的数据库。
 async def recent_runs(settings: Settings, limit: int, module: str = "") -> dict[str, Any]:
     if settings.run_records != "database":
         return {

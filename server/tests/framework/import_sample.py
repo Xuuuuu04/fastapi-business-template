@@ -1,7 +1,3 @@
-"""
-导入对账独立样例，固定两行来源清单，不进入产品登记和迁移。
-"""
-
 from decimal import Decimal
 
 from sqlalchemy import Column, Integer, MetaData, String, Table, insert
@@ -35,30 +31,24 @@ rows = Table(
 )
 
 
-# 故意缺行、坏质量和坏引用仅用于反例，不改变来源清单的两行预期。
 class Input(Data):
     omit: bool = meaning("故意漏掉最后一行", default=False)
     bad_quality: bool = meaning("故意缺质量字段", default=False)
     bad_reference: bool = meaning("故意缺引用", default=False)
 
 
-# 导入步骤返回零仍必须由实际表数据证明成功。
 class Result(Data):
     code: int = meaning("模拟导入工具返回码", default=0)
 
 
-# 工作字段沿用输入，输出不承担对账职责。
 class Work(WorkData, Input):
     result: Result = meaning("导入工具返回")
 
 
-# SQL集中在存储里，分批使用正常业务事务。
 class Store:
-    # 使用业务写入事务。
     def __init__(self, db: Db):
         self.db = db
 
-    # 写入一行来源以及对应引用。
     async def save(self, number: int, omit: bool, bad_quality: bool, bad_reference: bool) -> None:
         if number == 0:
             await self.db.change(insert(parents).values(id=1))
@@ -78,7 +68,6 @@ operation = contract(
 )
 
 
-# 每批一行，最后一批返回0并finish，自动对账仍检查整个固定范围。
 @step("保存一批", reads=["omit", "bad_quality", "bad_reference"], writes=["result"], saves=True)
 async def save(data: Work, store: Store, checkpoint: Checkpoint) -> None:
     number = int(checkpoint.cursor.get("after", 0))

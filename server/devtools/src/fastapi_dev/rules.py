@@ -1,7 +1,3 @@
-"""
-规则账本命令：登记来源、推定、采纳、明确确认和废止；确认声明不证明操作人的真实身份。
-"""
-
 import argparse
 from datetime import UTC, datetime
 from pathlib import Path
@@ -13,7 +9,6 @@ from fastapi_project.development.ledger_store import recover_store
 from fastapi_project.development.rule_documents import adopt_markdown, confirm_sheet, supersede
 
 
-# 命令只改开发资料，不读取数据库和产品凭据；原文默认进入本机忽略目录。
 def run(args: argparse.Namespace, project: Path) -> None:
     result: RuleSource | LedgerRule
     if run_document(args, project):
@@ -59,7 +54,6 @@ def run(args: argparse.Namespace, project: Path) -> None:
     print(result.model_dump_json(indent=2))
 
 
-# 资料命令独立于生命周期写入，返回是否已处理当前命令。
 def run_document(args: argparse.Namespace, project: Path) -> bool:
     if args.action == "recover":
         print("规则写入已恢复" if recover_store(project) else "没有未完成的规则写入")
@@ -80,9 +74,8 @@ def run_document(args: argparse.Namespace, project: Path) -> bool:
     return False
 
 
-# 原始材料和确认原因都显式提供，不从实现或运行成功反推业务预期。
 def parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="action", required=True)
     commands.add_parser("show")
     commands.add_parser("recover")
@@ -122,7 +115,6 @@ def parser() -> argparse.ArgumentParser:
     return parser
 
 
-# 项目位置来自统一dev入口，生成的新项目不会写回模板本机材料。
 def main() -> None:
     run(parser().parse_args(), PROJECT)
 

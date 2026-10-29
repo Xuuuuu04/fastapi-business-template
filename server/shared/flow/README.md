@@ -24,16 +24,13 @@ daily = Pipeline(
         Stage("publish", publish),
     ),
 )
-# 在module.py登记pipelines=(daily,)，各阶段仍登记provides/jobs。
-# calculate内部若处理很多行，可同时声明分段JobPlan与Cursor。
 ```
 
-这些是已定义操作的登记片段，不代替 Data 和步骤的实现。普通操作保持原写法；Pipeline 不能把一段长函数包成 Stage 就算完成，应拆出独立的事务边界；阶段数据不超过 16KiB，大正文传原件或结果引用。完整独立样例：tests/framework/drill_sample.py（定时→采集→等待→分段解析→汇算→CSV），分段恢复见 jobs README，多阶段、扇出和截止见[流程说明](../pipelines/README.md)。
+这些是已定义操作的登记片段，不代替 Data 和步骤的实现。在 module.py 登记 `pipelines=(daily,)`，各阶段仍登记 provides/jobs；calculate 要处理很多行时，可以同时声明分段 JobPlan 与 Cursor。普通操作保持原写法；Pipeline 不能把一段长函数包成 Stage 就算完成，应拆出独立的事务边界；阶段数据不超过 16KiB，大正文传原件或结果引用。完整独立样例：tests/framework/drill_sample.py（定时→采集→等待→分段解析→汇算→CSV），分段恢复见 jobs README，多阶段、扇出和截止见[流程说明](../pipelines/README.md)。
 
 ## 开发者写法
 
 ```python
-# 计算应付金额
 @step("计算应付", reads=["subtotal", "discount"], writes=["total"], rule="R-04")
 def count_total(data: QuoteWork) -> None:
     data.total = data.subtotal - data.discount

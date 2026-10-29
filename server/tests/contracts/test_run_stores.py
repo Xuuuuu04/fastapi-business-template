@@ -1,8 +1,3 @@
-"""
-运行记录保存位置的约定测试：内存实现和数据库实现对同一组操作给出相同结果。
-以后新增保存位置（例如专门的排查数据库）时，把它加进 STORES 即可复用全部检查。
-"""
-
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -18,7 +13,6 @@ pytestmark = pytest.mark.anyio
 STORES = ["memory", "database"]
 
 
-# 按名称创建一个保存位置。
 @pytest.fixture(params=STORES)
 async def store(request: pytest.FixtureRequest, tmp_path: Path) -> AsyncIterator[RunStore]:
     if request.param == "memory":
@@ -31,7 +25,6 @@ async def store(request: pytest.FixtureRequest, tmp_path: Path) -> AsyncIterator
     await database.close()
 
 
-# 生成一条运行记录。
 def make_run(
     run_id: str, root: str, started: float, status: str = "ok", module: str = "m"
 ) -> RunRecord:
@@ -59,7 +52,6 @@ def make_run(
     return run
 
 
-# 保存后能按编号完整读回，包括步骤详情。
 async def test_save_and_get(store: RunStore) -> None:
     await store.save([make_run("a", "a", 1.0)])
     found = await store.get("a")
@@ -67,13 +59,11 @@ async def test_save_and_get(store: RunStore) -> None:
     assert await store.get("missing") is None
 
 
-# 按最外层编号读回整棵调用树。
 async def test_tree(store: RunStore) -> None:
     await store.save([make_run("a", "a", 1.0), make_run("b", "a", 2.0), make_run("c", "c", 3.0)])
     assert sorted(run.id for run in await store.tree("a")) == ["a", "b"]
 
 
-# 按条件查询最近的最外层运行，最新的在前。
 async def test_recent_filters(store: RunStore) -> None:
     runs = [
         make_run("a", "a", 1.0),
@@ -87,7 +77,6 @@ async def test_recent_filters(store: RunStore) -> None:
     assert [run.id for run in await store.recent(RunFilter(before=3.0), 1)] == ["b"]
 
 
-# 清理早于指定时间的记录。
 async def test_clean(store: RunStore) -> None:
     await store.save([make_run("a", "a", 1.0), make_run("b", "b", 5.0)])
     assert await store.clean(3.0) == 1

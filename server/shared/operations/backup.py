@@ -1,7 +1,3 @@
-"""
-数据库与文件同次归档，并在新库/新目录恢复校验；从不覆盖源库。
-"""
-
 import asyncio
 import hashlib
 import json
@@ -22,12 +18,10 @@ from sqlalchemy.ext.asyncio import create_async_engine
 Verify = Callable[[str, Path], Awaitable[None]]
 
 
-# 选用配置目录中的工具；为空时从 PATH 查找。
 def tool_path(tool: str, pg_bin: str = "") -> str:
     return str(Path(pg_bin) / tool) if pg_bin else tool
 
 
-# 读取工具主版本，如 “pg_restore (PostgreSQL) 17.2” 得到 17；无法运行时报告缺少工具。
 async def tool_major(tool: str) -> int:
     try:
         process = await asyncio.create_subprocess_exec(
@@ -45,8 +39,6 @@ async def tool_major(tool: str) -> int:
     return int(found.group(1))
 
 
-# 备份与恢复工具主版本必须与数据库相同：
-# 新版 pg_restore 会向旧库发出旧库不认识的设置（如 transaction_timeout），恢复必然失败。
 async def check_tools(connection: Any, pg_bin: str) -> None:
     server = int(await connection.scalar(text("SHOW server_version_num"))) // 10000
     for tool in ("pg_dump", "pg_restore"):
@@ -58,7 +50,6 @@ async def check_tools(connection: Any, pg_bin: str) -> None:
             )
 
 
-# pg工具密码通过环境传递，不写命令行和报告；错误只报告类型/返回码。
 async def command(tool: str, url: str, extra: list[str]) -> None:
     target = make_url(url)
     env = {**os.environ, "PGPASSWORD": target.password or ""}
@@ -88,7 +79,6 @@ async def command(tool: str, url: str, extra: list[str]) -> None:
         raise RuntimeError(f"{tool}失败（退出码{code}）")
 
 
-# 数量来自同一数据库快照，使用反射的实际表，不遗漏关闭模块历史表。
 async def counts(connection: Any) -> dict[str, int]:
     names = await connection.run_sync(lambda conn: inspect(conn).get_table_names())
     quote = connection.dialect.identifier_preparer.quote
@@ -98,14 +88,12 @@ async def counts(connection: Any) -> dict[str, int]:
     return result
 
 
-# SQLite backup读取一致快照，随后在备份本身计算行数。
 def sqlite_snapshot(source: str, target: Path) -> None:
     path = Path(make_url(source).database or "").resolve()
     with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as src, sqlite3.connect(target) as dst:
         src.backup(dst, pages=256, sleep=0.01)
 
 
-# PostgreSQL导出快照跨pg_dump与行数统计，完成前保持原事务。
 async def snapshot(url: str, folder: Path, pg_bin: str = "") -> dict[str, Any]:
     if make_url(url).get_backend_name() == "sqlite":
         await asyncio.to_thread(sqlite_snapshot, url, folder / "database.db")
@@ -139,7 +127,6 @@ async def snapshot(url: str, folder: Path, pg_bin: str = "") -> dict[str, Any]:
         await engine.dispose()
 
 
-# 复制本地文件拒绝符号链接；文件与数据库不是跨系统原子快照，报告明确时间范围。
 def local_snapshot(source: Path, target: Path) -> dict[str, str]:
     hashes: dict[str, str] = {}
     if not source.exists():
@@ -158,7 +145,6 @@ def local_snapshot(source: Path, target: Path) -> dict[str, str]:
     return hashes
 
 
-# S3对象分块下载到同次归档；不会修改真实对象，版本一致性需对象存储策略保证。
 async def files_snapshot(settings: Any, folder: Path) -> dict[str, str]:
     if settings.file_storage == "local":
         return await asyncio.to_thread(local_snapshot, Path(settings.file_root), folder)
@@ -176,7 +162,6 @@ async def files_snapshot(settings: Any, folder: Path) -> dict[str, str]:
     return await asyncio.to_thread(s3_snapshot, storage, settings.s3_bucket, folder)
 
 
-# 原对象键检查，流式下载和摘要计算，避免整桶正文进入内存。
 def s3_snapshot(storage: Any, bucket: str, folder: Path) -> dict[str, str]:
     from shared.files.storage import check_key
 
@@ -193,7 +178,6 @@ def s3_snapshot(storage: Any, bucket: str, folder: Path) -> dict[str, str]:
     return hashes
 
 
-# 创建随机恢复数据库只在已配置源服务器，源数据库名绝不作为删除对象。
 async def postgres_restore(
     url: str, folder: Path, verify: Verify, expected: dict[str, Any], pg_bin: str = ""
 ) -> None:
@@ -219,7 +203,6 @@ async def postgres_restore(
         await admin.dispose()
 
 
-# 校验实际行数、文件摘要及启动ready；迁移版本由ready校验，未验证不标成功。
 async def verify_restore(url: str, folder: Path, expected: dict[str, Any], verify: Verify) -> None:
     engine = create_async_engine(url)
     try:
@@ -237,7 +220,6 @@ async def verify_restore(url: str, folder: Path, expected: dict[str, Any], verif
         await engine.dispose()
 
 
-# 只清理本框架完成的归档，失败partial不当作可恢复备份。
 def expire(root: Path, days: int) -> None:
     older = time.time() - days * 86400
     for folder in root.glob("backup-*"):
@@ -247,7 +229,6 @@ def expire(root: Path, days: int) -> None:
             shutil.rmtree(folder)
 
 
-# 每次独立空间；恢复失败保留原备份和失败事实，不清理历史可用备份。
 async def backup(settings: Any, verify: Verify) -> dict[str, Any]:
     root = Path(settings.operations.backup_root).resolve()
     folder = root / ("backup-" + str(int(time.time())) + "-" + secrets.token_hex(4))

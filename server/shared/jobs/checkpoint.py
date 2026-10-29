@@ -1,8 +1,3 @@
-"""
-分段任务本批的恢复位置。advance/finish 只声明提交内容，执行器成功结束时与业务写入一起提交。
-每次调用操作处理一批；游标只保存 JSON 数据，不保存连接、对象或外部凭据。
-"""
-
 import json
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
@@ -16,9 +11,7 @@ from shared.errors.framework import StepRuleBroken
 MAX_CURSOR_BYTES = 16 * 1024
 
 
-# 一批操作的已提交游标与本批提交声明，由 worker 创建并注入步骤。
 class Checkpoint:
-    # 从上一批已提交位置开始；外部写入前先持久化待确认标记。
     def __init__(
         self,
         number: int,
@@ -39,20 +32,16 @@ class Checkpoint:
         self.rows = 0
         self.done = False
 
-    # 返回游标副本，修改副本不会改变恢复位置。
     @property
     def cursor(self) -> dict[str, Any]:
         return dict(json.loads(self._cursor))
 
-    # 本批结束时提交新游标，随后用新的事务处理下一批。
     def advance(self, cursor: dict[str, Any], *, rows: int) -> None:
         self.declare(cursor, rows, False)
 
-    # 本批结束时提交并完成整个任务；可以有最后一批数据。
     def finish(self, *, rows: int = 0, cursor: dict[str, Any] | None = None) -> None:
         self.declare(self.cursor if cursor is None else cursor, rows, True)
 
-    # 一次调用只能声明一个提交点，非法或过大的游标拒绝保存。
     def declare(self, cursor: dict[str, Any], rows: int, done: bool) -> None:
         if self.next_cursor:
             raise StepRuleBroken("一批只能声明一次 checkpoint.advance 或 finish")
@@ -70,12 +59,10 @@ class Checkpoint:
             raise StepRuleBroken("继续下一批时必须推进恢复游标")
         self.next_cursor, self.rows, self.done = body, rows, done
 
-    # 没有声明提交点就不允许保存本批业务结果。
     def validate(self) -> None:
         if not self.next_cursor:
             raise StepRuleBroken("分段任务每批必须声明 checkpoint.advance 或 finish")
 
-    # 运行图显示恢复游标和已确认累计行数，尚未提交的本批明确标记。
     def record(self, run: "RunRecord", *, committed: bool = False) -> None:
         run.segment_number = self.number + 1
         run.segment_shutdown_seconds = self.shutdown_seconds

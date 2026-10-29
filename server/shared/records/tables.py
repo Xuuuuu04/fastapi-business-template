@@ -1,8 +1,3 @@
-"""
-运行记录表：一行对应一次操作的运行，步骤详情以 JSON 保存在 body 列。
-只供排查查询使用；业务结果以业务表和任务表为准，这里的记录允许缺失和过期清理。
-"""
-
 from sqlalchemy import Column, Float, Index, String, Table, Text
 
 from shared.db.tables import metadata

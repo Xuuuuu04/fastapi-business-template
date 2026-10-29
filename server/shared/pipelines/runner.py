@@ -1,7 +1,3 @@
-"""
-后台阶段执行前核对兼容性与等待容量，完成时原子提交产出并推进下一阶段。
-"""
-
 import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -25,7 +21,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue, Ticket
 
 
-# 一次实际领取对应的流程与阶段，普通任务不会创建此上下文。
 @dataclass
 class StageContext:
     queue: "JobQueue"
@@ -36,12 +31,10 @@ class StageContext:
     stage: Stage | None
     allowed: bool = True
 
-    # 真实任务尝试为观察位置，不从产出字段反推。
     @property
     def observation_position(self) -> ObservationPosition:
         return ObservationPosition(attempt=self.ticket.attempt)
 
-    # 阶段产出、任务结束、下一阶段登记全部使用业务写入事务。
     async def finish(self, connection: AsyncConnection, result: Data, run_id: str) -> None:
         assert self.stage is not None and self.pipeline is not None
         body = data_json(self.stage.operation.output, result, self.stage.name)
@@ -90,7 +83,6 @@ class StageContext:
                 update(runs).where(runs.c.id == root["id"]).values(state="overdue_paused")
             )
 
-    # 完成阶段后只登记一个下一任务，最后阶段才释放周期执行名额。
     async def advance(self, connection: AsyncConnection, root: dict, now: float) -> None:
         assert self.pipeline is not None and self.stage is not None
         index = next(
@@ -111,7 +103,6 @@ class StageContext:
             )
             await self.queue.pipelines.next_cycle(connection, root)
 
-    # 一次查询结束立即释放事务与租约，不在任务里sleep等待上游。
     async def wait_again(
         self, connection: AsyncConnection, body: str, run_id: str, now: float
     ) -> None:
@@ -149,7 +140,6 @@ class StageContext:
         )
 
 
-# 阶段任务检查只读取真实关联记录，不能靠伪造任务key绕过版本限制。
 async def prepare(queue: "JobQueue", ticket: "Ticket") -> ExecutionContext | None:
     if not is_pipeline_job(ticket):
         return None
@@ -174,7 +164,6 @@ async def prepare(queue: "JobQueue", ticket: "Ticket") -> ExecutionContext | Non
     return context
 
 
-# 当前阶段和未来阶段格式一致才执行，模块版本变化本身不影响继续运行。
 async def decision(connection: AsyncConnection, context: StageContext) -> tuple[str, str, str]:
     queue, ticket, root, row = context.queue, context.ticket, context.root, context.row
     pipeline, stage = context.pipeline, context.stage
@@ -219,7 +208,6 @@ async def decision(connection: AsyncConnection, context: StageContext) -> tuple[
     return "", "", ""
 
 
-# 同一个等待阶段跨流程运行也受max_parallel限制，过期租约不占执行名额。
 async def wait_capacity(connection: AsyncConnection, context: StageContext) -> bool:
     assert isinstance(context.stage, Wait)
     await connection.execute(

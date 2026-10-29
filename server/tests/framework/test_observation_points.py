@@ -1,7 +1,3 @@
-"""
-实际执行器观察步骤与位置，按真实顺序报告首个差异，不记录的位置保留未知。
-"""
-
 from pathlib import Path
 
 import pytest
@@ -19,30 +15,25 @@ from shared.scenarios.observations import (
 from tests.testing_app import make_settings
 
 
-# 明确类型输入与输出，不从实现生成样例预期。
 class Input(Data):
     amount: int = meaning("合成数量")
 
 
-# 合成结果供真实流程完成。
 class Output(Data):
     total: int = meaning("合成结果")
 
 
-# 中间数量与结果分别在各步骤产生。
 class Work(WorkData):
     amount: int = meaning("合成数量")
     partial: int = meaning("中间数量")
     result: Output = meaning("最终结果")
 
 
-# 算中间值，观察点由步骤明确声明。
 @step("计算中间数量", reads=["amount"], writes=["partial"], observes=["partial"])
 def calculate(data: Work) -> None:
     data.partial = data.amount * 2
 
 
-# 最终结果与中间观察分开，不把正确结果推定为每一步都正确。
 @step("整理结果", reads=["partial"], writes=["result"], observes=["result"])
 def produce(data: Work) -> None:
     data.result = Output(total=data.partial + 1)
@@ -60,7 +51,6 @@ module = Module(
 )
 
 
-# 预期列表故意反向，首个差异仍由真实执行顺序决定。
 @pytest.mark.anyio
 async def test_observed_order_and_positions(tmp_path: Path) -> None:
     services = build(make_settings(tmp_path), modules=[module])
@@ -94,7 +84,6 @@ async def test_observed_order_and_positions(tmp_path: Path) -> None:
         await services.close()
 
 
-# 普通请求不主动捕获原文；已记录值是快照，不会随之后的对象变化而变化。
 def test_snapshot_and_safe_summary() -> None:
     journal = ObservationJournal()
     point = ObservationPoint("sample_counts.run", "calculate", "partial")
@@ -106,7 +95,6 @@ def test_snapshot_and_safe_summary() -> None:
     assert "synthetic-private-value" not in str(journal.summary())
 
 
-# 只有显式测试消息展开取值，长值有界，持久摘要及repr仍不含值。
 def test_difference_values_are_bounded_and_not_in_summary() -> None:
     journal = ObservationJournal()
     point = ObservationPoint("sample_counts.run", "calculate", "partial")
@@ -118,7 +106,6 @@ def test_difference_values_are_bounded_and_not_in_summary() -> None:
     assert "x" * 100 not in str(journal.summary())
 
 
-# 同一位置重复而没有成员或尝试区分时，不能悄悄取最后一次作为成功。
 def test_ambiguous_observation_is_not_a_pass() -> None:
     journal = ObservationJournal()
     point = ObservationPoint("sample_counts.run", "calculate", "partial")

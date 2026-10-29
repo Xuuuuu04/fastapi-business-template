@@ -1,9 +1,3 @@
-"""
-从运行记录生成实际执行图和中文排查报告。
-执行图标出每一步完成、失败、跳过的情况和耗时；报告先给中文摘要，再列步骤、字段、调用和源码位置，
-供人阅读，也供 Agent 按运行编号直接定位问题，不必从头读代码。
-"""
-
 import json
 
 from shared.db.budget import budget_text
@@ -24,7 +18,6 @@ from shared.records.segments import segment_text
 from shared.records.summary import duration
 
 
-# 生成一次运行（含下一层调用）的实际执行图。
 def run_graph(runs: list[RunRecord]) -> str:
     lines = ["flowchart TD"]
     entries = {run.id: f"entry_{run.id}" for run in runs}
@@ -64,7 +57,6 @@ def run_graph(runs: list[RunRecord]) -> str:
     return "\n".join(lines + STYLES)
 
 
-# 条件有独立的函数、时间和结果；抛错时结果仍是未知。
 def condition_node(node: str, previous: str, step: StepRecord) -> list[str]:
     if not step.condition:
         return []
@@ -79,7 +71,6 @@ def condition_node(node: str, previous: str, step: StepRecord) -> list[str]:
     return [f'        {node}_condition{{"{text}"}}', f"        {previous} --> {node}_condition"]
 
 
-# 外部接口与模型调用的时间也显示在步骤下面，业务正文不进入图。
 def external_nodes(node: str, step: StepRecord) -> list[str]:
     calls = [(call.prompt, call.status, call.elapsed_ms) for call in step.models]
     calls += [
@@ -102,7 +93,6 @@ def external_nodes(node: str, step: StepRecord) -> list[str]:
     return lines
 
 
-# 生成一次运行的中文排查报告（Markdown）。
 def run_report(runs: list[RunRecord], root_id: str) -> str:
     by_id = {run.id: run for run in runs}
     root = by_id.get(root_id)
@@ -123,7 +113,6 @@ def run_report(runs: list[RunRecord], root_id: str) -> str:
     return "\n".join(lines)
 
 
-# 错误码和说明；说明本身以错误码开头时不再重复。
 def error_text(run: RunRecord) -> str:
     if not run.error_code:
         return "无"
@@ -132,7 +121,6 @@ def error_text(run: RunRecord) -> str:
     return f"{run.error_code}：{run.error_message}"
 
 
-# 生成基本信息表。
 def info_table(run: RunRecord) -> list[str]:
     rows = [
         ("运行编号", run.id),
@@ -170,7 +158,6 @@ def info_table(run: RunRecord) -> list[str]:
     ]
 
 
-# 生成一次运行的步骤表和大模型调用表。
 def run_section(run: RunRecord, is_root: bool) -> list[str]:
     lines = report_header(run, is_root)
     if not is_root:
@@ -203,7 +190,6 @@ def run_section(run: RunRecord, is_root: bool) -> list[str]:
     return [*lines, ""]
 
 
-# 生成步骤表中的一行。
 def step_row(index: int, step: StepRecord) -> str:
     status = STEP_STATUS_TEXT.get(step.status, step.status)
     if step.condition:
@@ -229,7 +215,6 @@ def step_row(index: int, step: StepRecord) -> str:
     return "| " + " | ".join(cell(value) for value in values) + " |"
 
 
-# 数据库时间属于步骤时间的一部分，不与步骤时间相加。
 def database_table(run: RunRecord) -> list[str]:
     if not any(step.database_count for step in run.steps):
         return []
@@ -259,7 +244,6 @@ def database_table(run: RunRecord) -> list[str]:
     return lines + summaries
 
 
-# 整理表格单元格，避免破坏 Markdown 表格。
 def cell(value: object) -> str:
     text = "" if value is None else str(value)
     return text.replace("|", "\\|").replace("\n", " ")

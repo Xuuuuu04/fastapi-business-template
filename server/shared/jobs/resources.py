@@ -1,7 +1,3 @@
-"""
-短事务原子取得多个资源，租期与业务尝试一同延长，延后或重试时释放执行位置。
-"""
-
 import hashlib
 import secrets
 
@@ -15,14 +11,11 @@ from shared.jobs.limits import ResourceLimit
 from shared.jobs.resource_tables import leases, pools
 
 
-# 拒绝领取只携带下一次检查时间，不让调用方在事务里睡眠。
 class ResourceWait(Exception):
-    # 等待结束点来自资源的实际冷却或在途租期。
     def __init__(self, until: float) -> None:
         self.until = until
 
 
-# 多资源按固定顺序加锁，失败回滚本次所有领取，避免只拿到一部分资源。
 async def acquire(
     connection: AsyncConnection,
     resources: tuple[ResourceLimit, ...],
@@ -42,7 +35,6 @@ async def acquire(
     return None
 
 
-# 资源行锁串行维护额度；SQLite短写事务使用IMMEDIATE避免读后升级写锁失败。
 async def acquire_one(
     connection: AsyncConnection,
     resource: ResourceLimit,
@@ -81,7 +73,6 @@ async def acquire_one(
     )
 
 
-# 完成或等待重试都归还位置；没有效果的领取失败不会调用这条冷却路径。
 async def release(connection: AsyncConnection, owner: str, attempt: int, now: float) -> None:
     where = leases.c.owner == owner, leases.c.attempt == attempt
     rows = (await connection.execute(select(leases).where(*where))).mappings().all()
@@ -99,7 +90,6 @@ async def release(connection: AsyncConnection, owner: str, attempt: int, now: fl
     await connection.execute(delete(leases).where(*where))
 
 
-# 心跳只延长当前尝试的位置，不能替旧尝试重新取得额度。
 async def extend(connection: AsyncConnection, owner: str, attempt: int, until: float) -> None:
     await connection.execute(
         update(leases)
@@ -108,7 +98,6 @@ async def extend(connection: AsyncConnection, owner: str, attempt: int, until: f
     )
 
 
-# 主动冷却可由明确429等回执触发，不能缩短已经存在的冷却。
 async def cool(connection: AsyncConnection, name: str, until: float) -> None:
     id = hashlib.sha256(name.encode()).hexdigest()
     await connection.execute(
@@ -122,7 +111,6 @@ async def cool(connection: AsyncConnection, name: str, until: float) -> None:
     )
 
 
-# 行登记先取得写入锁，避免两个worker同时创建额度。
 async def register_pool(connection: AsyncConnection, resource: ResourceLimit) -> str:
     id = hashlib.sha256(resource.name.encode()).hexdigest()
     insert = sqlite_insert if connection.dialect.name == "sqlite" else pg_insert
@@ -140,7 +128,6 @@ async def register_pool(connection: AsyncConnection, resource: ResourceLimit) ->
     return id
 
 
-# 同一时刻提交也保留真实登记顺序，不用随机任务编号决定业务先后。
 async def serial_position(connection: AsyncConnection, key: str) -> int:
     id = await register_pool(connection, ResourceLimit("serial." + key))
     result = await connection.execute(
@@ -152,7 +139,6 @@ async def serial_position(connection: AsyncConnection, key: str) -> int:
     return int(result.scalar_one())
 
 
-# 明确调整额度前要求没有在途位置；旧worker再领取时会发现声明不一致并停止。
 async def reconfigure(connection: AsyncConnection, resource: ResourceLimit, now: float) -> None:
     if resource.concurrency < 1 or resource.name.startswith("serial."):
         raise StepRuleBroken("只允许调整明确资源的正整数额度，串行键不改为并行")

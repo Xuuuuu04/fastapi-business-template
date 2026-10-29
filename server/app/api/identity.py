@@ -1,9 +1,3 @@
-"""
-识别调用者身份：支持 X-API-Key 服务密钥、Bearer 用户令牌与本地开发者身份；其余为匿名。
-按调用者或匿名来源限流，多实例时使用共享缓存。
-身份只来自已验证的凭据，请求正文里自报的身份一律不采用。
-"""
-
 from typing import Annotated
 
 from fastapi import Depends, Request, Security
@@ -27,7 +21,6 @@ bearer_header = HTTPBearer(
 )
 
 
-# 按请求头识别调用者。
 async def get_caller(
     request: Request,
     key: Annotated[str | None, Security(key_header)],
@@ -69,7 +62,6 @@ async def get_caller(
     return caller
 
 
-# 无效凭据按来源计数；正常账号仍有独立额度，不受同源错误登录影响。
 async def count_request(
     request: Request, caller: Caller = ANONYMOUS, *, failed_credentials: bool = False
 ) -> None:
@@ -87,7 +79,6 @@ async def count_request(
 CallerDep = Annotated[Caller, Depends(get_caller)]
 
 
-# 检查调用者是否拥有系统接口需要的权限。
 def require(caller: Caller, permission: str) -> None:
     if caller.can(permission):
         return

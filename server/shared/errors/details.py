@@ -1,7 +1,3 @@
-"""
-意外异常只保留类型和调用位置，不读取异常消息或源码文本。
-"""
-
 import traceback
 
 from shared.errors.kinds import BusinessError
@@ -9,7 +5,6 @@ from shared.errors.kinds import BusinessError
 MAX_ERROR_TEXT = 4000
 
 
-# 日志保留异常类型、文件、函数和行号；已定义的业务错误继续显示其公开原因。
 def safe_exception_text(error: BaseException) -> str:
     title = type(error).__name__
     if isinstance(error, BusinessError):

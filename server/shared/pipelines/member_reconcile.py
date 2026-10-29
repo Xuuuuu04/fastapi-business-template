@@ -1,7 +1,3 @@
-"""
-成员池的短事务维护：即使其他任务占满队列，也会在空位出现后继续派发，不依赖内存回调。
-"""
-
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
@@ -15,7 +11,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
 
 
-# 一次最多检查100个池，每个池独立提交，普通空业务模板不会查新表。
 async def reconcile(queue: "JobQueue") -> None:
     if not queue.catalog.pipelines:
         return

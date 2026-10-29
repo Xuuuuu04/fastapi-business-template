@@ -1,7 +1,3 @@
-"""
-人工继续逾期暂停：保留已完成阶段和当前游标，不重复正在执行的动作。
-"""
-
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select, update
@@ -18,7 +14,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
 
 
-# 当前真实执行仍在进行时不重排，普通阶段和成员都在明确提交边界恢复。
 async def resume(connection: AsyncConnection, queue: "JobQueue", root: dict) -> str:
     await ensure_boundary(connection, root["id"])
     pipeline = queue.catalog.pipelines.get(root["pipeline"])
@@ -55,7 +50,6 @@ async def resume(connection: AsyncConnection, queue: "JobQueue", root: dict) -> 
     return "已继续逾期流程，已有产出和游标保留"
 
 
-# 暂停的任务只恢复原任务；未知结果仍拒绝重复，不能借逾期绕过核实。
 async def restore_job(connection: AsyncConnection, queue: "JobQueue", job_id: str) -> None:
     row = (await connection.execute(select(jobs).where(jobs.c.id == job_id))).mappings().one()
     if row["state"] == "unknown":
@@ -83,7 +77,6 @@ async def restore_job(connection: AsyncConnection, queue: "JobQueue", job_id: st
     )
 
 
-# 成员队列中只有确实暂停的任务恢复，不重跑成功成员。
 async def restore_members(connection: AsyncConnection, queue: "JobQueue", parent: dict) -> None:
     rows = (
         (
@@ -108,7 +101,6 @@ async def restore_members(connection: AsyncConnection, queue: "JobQueue", parent
     )
 
 
-# 人工继续只发生在当前批次已经结束的边界，避免与在途动作重叠。
 async def ensure_boundary(connection: AsyncConnection, run_id: str) -> None:
     active = await connection.scalar(
         select(jobs.c.id)

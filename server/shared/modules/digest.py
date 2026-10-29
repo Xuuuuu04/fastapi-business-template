@@ -1,8 +1,3 @@
-"""
-模块声明摘要包含操作、任务参数、定时参数与身份入口，避免接口和worker拿着不同计划运行。
-只序列化声明信息，身份令牌等秘密字段由数据模型脱敏。
-"""
-
 import hashlib
 import json
 from collections.abc import Sequence
@@ -16,14 +11,12 @@ from shared.modules.module import Module
 from shared.pipelines.plan import FanOut, Stage
 
 
-# 稳定序列化同一份声明，任务与计划参数变化会改变摘要。
 def digest_of(modules: Sequence[Module]) -> str:
     shape = [module_shape(module) for module in sorted(modules, key=lambda item: item.name)]
     text = json.dumps(shape, ensure_ascii=False, sort_keys=True, default=str)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
 
 
-# 每个模块记录流程、后台任务、时段与组织选择；不会调用业务代码。
 def module_shape(module: Module) -> dict[str, Any]:
     return {
         "name": module.name,
@@ -72,7 +65,6 @@ def module_shape(module: Module) -> dict[str, Any]:
     }
 
 
-# 后台任务的恢复、安全和导入预期共同决定声明版本。
 def job_shape(plan: JobPlan) -> dict[str, Any]:
     return dict(
         contract=plan.contract.name,
@@ -94,7 +86,6 @@ def job_shape(plan: JobPlan) -> dict[str, Any]:
     )
 
 
-# 表归属与现行表共用声明摘要，历史维护权限改变后旧检查过期。
 def table_shape(module: Module) -> dict[str, Any]:
     return {
         "tables": [table.key for table in module.tables],
@@ -103,7 +94,6 @@ def table_shape(module: Module) -> dict[str, Any]:
     }
 
 
-# 流程声明影响同一登记摘要，内部实现不在本摘要中。
 def pipeline_shapes(module: Module) -> list[dict[str, Any]]:
     return [
         dict(
@@ -126,7 +116,6 @@ def pipeline_shapes(module: Module) -> list[dict[str, Any]]:
     ]
 
 
-# 子阶段、固定来源和结果Data依赖均进入登记摘要，避免接口与worker拿不同配置。
 def stage_shape(stage: Stage) -> dict[str, Any]:
     shape = dict(
         name=stage.name,
@@ -149,7 +138,6 @@ def stage_shape(stage: Stage) -> dict[str, Any]:
     return shape
 
 
-# 只在使用新协议时扩展声明摘要，旧产品无协议的登记格式保持原样。
 def endpoint_shapes(module: Module) -> dict[str, Any]:
     if not module.endpoints and not any(
         part.endpoints for flow in module.provides.values() for part in flow.steps
@@ -164,7 +152,6 @@ def endpoint_shapes(module: Module) -> dict[str, Any]:
     }
 
 
-# 额度与显式声明状态同入摘要，操作额度改变后旧声明证据会过期。
 def query_budgets(module: Module) -> dict[str, Any]:
     return {
         item.name: dict(
@@ -174,7 +161,6 @@ def query_budgets(module: Module) -> dict[str, Any]:
     }
 
 
-# 仅新增calc的模块改变声明摘要，旧短操作摘要保持兼容。
 def calculation_shape(module: Module) -> dict[str, Any]:
     calcs = {
         item.name: {
@@ -188,7 +174,6 @@ def calculation_shape(module: Module) -> dict[str, Any]:
     return {"calcs": calcs} if calcs else {}
 
 
-# 观察声明改变时检查证据过期，未声明观察的旧模块摘要保持兼容。
 def observation_shape(module: Module) -> dict[str, Any]:
     values = {
         item.name: {part.name: part.observes for part in flow.steps if part.observes}
@@ -198,7 +183,6 @@ def observation_shape(module: Module) -> dict[str, Any]:
     return {"observations": values} if values else {}
 
 
-# 模拟身份影响声明版本；换成真实实现后旧骨架检查不能沿用。
 def simulation_shape(module: Module) -> dict[str, Any]:
     values = {
         item.name: [part.name for part in flow.steps if part.simulated]

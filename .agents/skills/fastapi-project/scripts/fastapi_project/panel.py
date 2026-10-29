@@ -1,7 +1,3 @@
-"""
-生成离线单文件开发面板，只读当前产品声明和本机证据，不启动业务服务。
-"""
-
 import argparse
 import hashlib
 import json
@@ -18,7 +14,6 @@ from shared.modules.catalog import Catalog
 ASSETS = Path(__file__).resolve().parents[2] / "assets/panel"
 
 
-# JSON中转义脚本终止符和特殊分隔符，业务标题不能注入HTML或脚本。
 def embedded_json(data: dict) -> str:
     return (
         json.dumps(data, ensure_ascii=False)
@@ -30,7 +25,6 @@ def embedded_json(data: dict) -> str:
     )
 
 
-# 图布局库与许可证随模板打包，运行生成命令时不联网下载。
 def render(data: dict) -> str:
     library = (ASSETS / "dagre-1.1.8.min.js").read_text()
     vendor = json.loads((ASSETS / "vendor.json").read_text())
@@ -49,7 +43,6 @@ def render(data: dict) -> str:
     )
 
 
-# 只写派生HTML，不改任务卡、规则、分支、检查记录或业务数据库。
 def generate(project: Path, catalog: Catalog) -> Path:
     path = project / "out/panel/index.html"
     try:
@@ -69,9 +62,8 @@ def generate(project: Path, catalog: Catalog) -> Path:
     return path
 
 
-# 命令输出文件位置，浏览器打开由使用者选择，不引入本地服务器。
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     parser.parse_args()
     path = generate(PROJECT, Catalog(application_modules()))
     print(json.dumps({"file": str(path), "offline": True}, ensure_ascii=False))

@@ -1,10 +1,3 @@
-"""
-检查依赖方向：
-业务模块只从 shared.public 使用框架，只导入其他模块的 public.py；步骤不导入数据库和 HTTP 库；
-shared 不导入 app、service、tools；接口层只导入模块的 public.py；
-业务和框架代码不用动态导入和相对导入。
-"""
-
 import ast
 import json
 import os
@@ -21,7 +14,6 @@ WEB_LIBRARIES = ("fastapi", "starlette", "httpx", "httpx2", "requests", "uvicorn
 DATABASE_LIBRARIES = ("sqlalchemy", "sqlite3", "psycopg", "aiosqlite", "alembic")
 
 
-# 检查全部依赖方向。
 def check_imports(root: Path = ROOT, *, strict: bool | None = None) -> list[Problem]:
     problems = []
     for path in files_under(root, ("service",), ".py"):
@@ -52,7 +44,6 @@ def check_imports(root: Path = ROOT, *, strict: bool | None = None) -> list[Prob
     return migration_policy(problems, strict, root) + check_libraries(root)
 
 
-# 新目录立即检查；旧包反向引用先警告，迁移后可升级为错误。
 def migration_policy(problems: list[Problem], strict: bool | None, root: Path) -> list[Problem]:
     if strict is None:
         strict = os.getenv("APP_MODULE_DEPENDENCIES_STRICT", "false").lower() in {"1", "true"}
@@ -73,7 +64,6 @@ def migration_policy(problems: list[Problem], strict: bool | None, root: Path) -
     return errors
 
 
-# 新生成包采用严格依赖；旧结构说明兼容，不替用户自动改代码。
 def package_strict(root: Path, path: str) -> bool:
     parts = Path(path).parts
     if len(parts) < 2 or parts[0] != "service":
@@ -85,12 +75,10 @@ def package_strict(root: Path, path: str) -> bool:
         return False
 
 
-# 列出一个文件导入的全部模块名和行号；相对导入的名称以点开头。
 def imported(path: Path) -> Iterator[tuple[str, int]]:
     yield from analyzed(path.read_text(encoding="utf-8"))[0]
 
 
-# 按实际内容缓存不可变结果，每次仍读取文件；不依赖时间戳，也不缓存检查结论。
 @lru_cache(maxsize=4096)
 def analyzed(source: str) -> tuple[tuple[tuple[str, int], ...], tuple[int, ...]]:
     imports = []
@@ -114,7 +102,6 @@ def analyzed(source: str) -> tuple[tuple[tuple[str, int], ...], tuple[int, ...]]
     return tuple(imports), tuple(dynamic)
 
 
-# 检查业务模块中的一个文件。
 def check_service_file(path: Path, root: Path) -> list[Problem]:
     name = relative(path, root)
     parts = path.relative_to(root / "service").parts
@@ -129,7 +116,6 @@ def check_service_file(path: Path, root: Path) -> list[Problem]:
     return problems
 
 
-# 判断业务代码的一条导入是否越界，返回规则、说明和建议。
 def service_problem(module: str, own: str, area: str) -> tuple[str, str, str] | None:
     direction = direction_problem(module, own, area)
     if direction:
@@ -163,13 +149,11 @@ def service_problem(module: str, own: str, area: str) -> tuple[str, str, str] | 
     return None
 
 
-# 判断导入的是本模块的文件，或其他模块的 public.py。
 def own_or_public(module: str, own: str) -> bool:
     parts = module.split(".")
     return parts[1] == own or (len(parts) == 3 and parts[2] == "public")
 
 
-# 检查接口层文件：只能导入模块的 public.py。
 def check_api_file(path: Path, root: Path) -> list[Problem]:
     name = relative(path, root)
     return [
@@ -185,7 +169,6 @@ def check_api_file(path: Path, root: Path) -> list[Problem]:
     ]
 
 
-# 禁止导入某些顶层包。
 def forbid(path: Path, root: Path, tops: tuple[str, ...], message: str) -> list[Problem]:
     return [
         Problem(relative(path, root), line, "import_layer", f"{message}：导入了 {module}")
@@ -194,7 +177,6 @@ def forbid(path: Path, root: Path, tops: tuple[str, ...], message: str) -> list[
     ]
 
 
-# 禁止动态导入和相对导入，依赖关系必须能从源码直接看出。
 def check_dynamic(path: Path, root: Path) -> list[Problem]:
     name = relative(path, root)
     problems = [
@@ -209,7 +191,6 @@ def check_dynamic(path: Path, root: Path) -> list[Problem]:
     return problems
 
 
-# 取得函数调用的名称，例如 importlib.import_module。
 def call_name(node: ast.Call) -> str:
     target = node.func
     if isinstance(target, ast.Name):

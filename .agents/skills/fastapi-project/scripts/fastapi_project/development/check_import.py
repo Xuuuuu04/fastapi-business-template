@@ -1,7 +1,3 @@
-"""
-历史JSON检查流式转换，转换文件只作派生缓存，原记录与完整轨迹保持可查。
-"""
-
 import gzip
 import hashlib
 import json
@@ -14,7 +10,6 @@ from fastapi_project.development.check_assets import atomic_bytes, compact_case
 from ijson.common import ObjectBuilder
 
 
-# 一次只在内存保留一项测试；不把整个历史JSON或完整数据库轮次载入内存。
 def import_legacy(path: Path, root: Path) -> dict[str, Any]:
     identity = hashlib.sha256(str(path.resolve()).encode()).hexdigest()
     meta = ObjectBuilder()
@@ -50,7 +45,6 @@ def import_legacy(path: Path, root: Path) -> dict[str, Any]:
     return imported_manifest(meta.value, root, identity, counts, digests)
 
 
-# 解析完成的一项立即写出，不在外层事件循环继续嵌套处理。
 def consume_result(
     builder: ObjectBuilder | None,
     prefix: str,
@@ -67,7 +61,6 @@ def consume_result(
     return builder
 
 
-# ObjectBuilder只处理当前case子树，结束后立即释放它。
 def consume_case(
     builder: ObjectBuilder | None, prefix: str, event: str, value: Any
 ) -> tuple[ObjectBuilder | None, dict[str, Any] | None]:
@@ -78,7 +71,6 @@ def consume_case(
     return builder, None
 
 
-# 实际测试状态与轻量轨迹写进有界结果流。
 def write_case(
     case: dict[str, Any], root: Path, output: Any, counts: dict[str, int], digest: Any
 ) -> None:
@@ -89,7 +81,6 @@ def write_case(
     output.write(line)
 
 
-# 历史格式保留原编号与事实，新派生清单可以删除后重新生成。
 def imported_manifest(
     record: dict[str, Any],
     root: Path,

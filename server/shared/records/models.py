@@ -1,8 +1,3 @@
-"""
-定义运行记录的结构：一次操作的运行、其中每个步骤、每次大模型调用。
-记录只保存状态、耗时、字段摘要和说明，不保存业务数据原文。
-"""
-
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -40,7 +35,6 @@ WRITES_TEXT = {
 }
 
 
-# 一次大模型调用的版本、耗时、用量和失败信息。
 @dataclass
 class ModelCallRecord:
     prompt: str
@@ -56,7 +50,6 @@ class ModelCallRecord:
     reply_text: str = ""
 
 
-# 一次外部接口请求的耗时、状态、大小和重试记录。
 @dataclass
 class RemoteCallRecord:
     remote: str
@@ -77,7 +70,6 @@ class RemoteCallRecord:
     simulated: bool | None = None
 
 
-# 一次业务数据库调用的位置、耗时和行数；不保存 SQL 文本、参数或查询结果。
 @dataclass
 class DatabaseCallRecord:
     method: str
@@ -97,7 +89,6 @@ class DatabaseCallRecord:
     storage_function: str = ""
 
 
-# 一次步骤执行的状态、字段摘要、外部调用与失败位置。
 @dataclass
 class StepRecord:
     id: str
@@ -146,7 +137,6 @@ class StepRecord:
     error_place: str = ""
 
 
-# 一个公开操作的完整执行记录，关联请求、任务和上下层调用。
 @dataclass
 class RunRecord:
     id: str
@@ -193,12 +183,10 @@ class RunRecord:
     aliases: list[str] | None = None
     module_aliases: list[str] | None = None
 
-    # 转成可以保存为 JSON 的字典。
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
-# 从保存的字典恢复运行记录。
 def run_from_dict(data: dict[str, Any]) -> RunRecord:
     steps = []
     for raw in data.get("steps", []):

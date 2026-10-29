@@ -1,8 +1,3 @@
-"""
-开发视图的完成条件：预先计划不能由当前代码猜出，测试标注不能冒充实际通过，
-旧版本与失败测试不能提高当前代码的成功执行数量。
-"""
-
 import json
 import os
 import shutil
@@ -23,7 +18,6 @@ from shared.modules.catalog import Catalog
 from tests.architecture.sample_catalog import MODULES
 
 
-# 在真实模块之外预先设计另一个开发包，它应显示未实现而不是消失。
 def test_planned_packages_and_unplanned_modules(tmp_path: Path) -> None:
     plan = {
         "schema_version": 1,
@@ -56,7 +50,6 @@ def test_planned_packages_and_unplanned_modules(tmp_path: Path) -> None:
     assert "customer_contact.save_contact" in text and "未列入计划" in text
 
 
-# 没有目标或目标为空时比例未知，不能用已存在的代码冒充整个产品已经完成。
 def test_missing_and_empty_plan_have_unknown_progress(tmp_path: Path) -> None:
     catalog = Catalog(MODULES)
     assert project_status(catalog, tmp_path)["totals"] is None
@@ -67,7 +60,6 @@ def test_missing_and_empty_plan_have_unknown_progress(tmp_path: Path) -> None:
     assert status["totals"] is None and status["ratios"] is None
 
 
-# 重复开发包、空操作和重复操作都会使比例失去意义，应拒绝读取。
 @pytest.mark.parametrize(
     "operations", [[], ["create_record", "create_record"], ["other.create_record"], [1]]
 )
@@ -89,9 +81,7 @@ def test_invalid_design_is_visible(operations: list[Any]) -> None:
         )
 
 
-# 依赖必须指向计划内的其他模块，直接或间接回到自己都不允许。
 def test_plan_dependencies_must_resolve_without_cycles() -> None:
-    # 按依赖表拼出一份最小计划，检查只关注依赖关系。
     def plan(dependencies: dict[str, list[str]]) -> dict[str, Any]:
         return {
             "schema_version": 2,
@@ -122,7 +112,6 @@ def test_plan_dependencies_must_resolve_without_cycles() -> None:
         check_plan(plan({"alpha_lists": ["beta_lists"], "beta_lists": ["alpha_lists"]}))
 
 
-# 当前代码仅计入通过测试中的成功运行，拒绝、跳过和失败测试中的运行单独保留。
 def test_test_evidence_and_changed_source(tmp_path: Path) -> None:
     catalog = Catalog(MODULES)
     cases = [
@@ -161,7 +150,6 @@ def test_test_evidence_and_changed_source(tmp_path: Path) -> None:
     assert all(not item["test_executions"] for item in module["operations"])
 
 
-# SQLite 与 PostgreSQL 分开取最近结果，不把一次数据库测试算成两轮完整检查。
 def test_history_keeps_database_and_scope_separate() -> None:
     checks = [
         {
@@ -187,7 +175,6 @@ def test_history_keeps_database_and_scope_separate() -> None:
     assert set(result["latest"]) == {"sqlite", "postgresql"}
 
 
-# 同一轮从分支与 CI 多次收集也只能计算一次，变过代码的轮次明确过期。
 def test_collected_rounds_are_deduplicated(tmp_path: Path) -> None:
     path = save_check(
         tmp_path,
@@ -206,7 +193,6 @@ def test_collected_rounds_are_deduplicated(tmp_path: Path) -> None:
     assert checks[0]["source_changed"] is True
 
 
-# 真实 pytest 的通过、失败和跳过被分别记录；返回值不会被通过数量掩盖。
 def test_pytest_records_real_outcomes(tmp_path: Path) -> None:
     tests = tmp_path / "test_outcomes.py"
     tests.write_text(
@@ -239,7 +225,6 @@ def test_pytest_records_real_outcomes(tmp_path: Path) -> None:
     assert [case["outcome"] for case in recorded["cases"]] == ["passed", "failed", "skipped"]
 
 
-# 近期样例比例包含计划中未实现的操作，无数据库证据时保持未知。
 def test_runtime_sample_ratio_includes_missing_packages() -> None:
     from fastapi_project.development.status import runtime_progress
 
@@ -263,7 +248,6 @@ def test_runtime_sample_ratio_includes_missing_packages() -> None:
     assert status["runtime"]["sample_ratio"] is None
 
 
-# 一条测试样例可以模拟运行状态，不携带业务取值。
 def sample_case(outcome: str, status: str) -> dict[str, Any]:
     return {
         "nodeid": f"tests/integration/sample_records/test_files.py::{outcome}_{status}",

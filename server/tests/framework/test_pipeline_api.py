@@ -1,7 +1,3 @@
-"""
-流程API权限与组织隔离，人工恢复入口只接受有管理权限的调用方。
-"""
-
 import asyncio
 from dataclasses import replace
 from pathlib import Path
@@ -17,7 +13,6 @@ from tests.framework.test_pipelines import start
 from tests.testing_app import make_settings, prepare_test_database_now
 
 
-# 共用实际应用和独立数据库，不重复搭建每个接口的环境。
 @pytest.fixture
 def pipeline_client(tmp_path: Path):
     settings = make_settings(
@@ -50,7 +45,6 @@ def pipeline_client(tmp_path: Path):
         yield client, run_id
 
 
-# 无管理权限不能修改；别的组织即使有管理权限也看不到运行。
 def test_pipeline_api_permissions(pipeline_client) -> None:
     client, run_id = pipeline_client
     url = f"/api/system/pipelines/{run_id}"
@@ -63,7 +57,6 @@ def test_pipeline_api_permissions(pipeline_client) -> None:
     assert client.get("/api/system/pipelines", headers=other).json()["items"] == []
 
 
-# 尚在正常运行的阶段不能重复恢复，也不能把输入和调用身份作为摘要泄露。
 def test_pipeline_api_state_and_summary(pipeline_client) -> None:
     client, run_id = pipeline_client
     headers = {"X-API-Key": "pipeline-manager"}

@@ -1,7 +1,3 @@
-"""
-新增公开操作的一次生成：Data、步骤、flow、登记、可选HTTP、规则和短测试，先预览实际改动。
-"""
-
 import argparse
 import ast
 import json
@@ -22,7 +18,6 @@ from fastapi_module.editing import (
 from fastapi_module.new_module import camel, tidy
 
 
-# 在已有模块里计算完整改动，不覆写已登记同名操作。
 def changes(
     module: str,
     name: str,
@@ -34,7 +29,6 @@ def changes(
 ) -> dict[Path, str]:
     base = base or {}
 
-    # 虚拟改动让一条流程的多个操作共用尚未写入的更新。
     def read(path: Path) -> str:
         return base[path] if path in base else path.read_text()
 
@@ -75,7 +69,6 @@ def changes(
     return generated
 
 
-# 步骤和Flow一起连接，避免只创建函数却忘登记执行链。
 def implementation_files(
     module: str,
     name: str,
@@ -107,7 +100,6 @@ def implementation_files(
     return generated
 
 
-# 测试、规则与模块公开列表作为同一批配套改动，夹具只生成一次。
 def supporting_files(
     module: str,
     name: str,
@@ -137,7 +129,6 @@ def supporting_files(
     return generated
 
 
-# 虚拟更新可能先生成夹具，缺少文件时明确返回False。
 def _has_fixture(read: Callable[[Path], str], path: Path) -> bool:
     try:
         return "operation_services" in read(path)
@@ -145,7 +136,6 @@ def _has_fixture(read: Callable[[Path], str], path: Path) -> bool:
         return False
 
 
-# 规则占位有可运行样例，不把样例规则当正式业务验收。
 def rule_doc(rule: str, module: str, title: str) -> str:
     return f"""### {rule} {title}生成样例
 
@@ -158,13 +148,11 @@ def rule_doc(rule: str, module: str, title: str) -> str:
 """
 
 
-# 路由只通过public及RunDep调用，登记复用已有模块router。
 def route(module: str, name: str, title: str, input: str, output: str) -> dict[Path, str]:
     path = ROOT / "app/api/v1" / f"{module}.py"
     if not path.is_file():
         raise ValueError("可选HTTP需要已登记的模块router，请先创建标准模块")
     code = f'''
-# 调用生成的公开操作，不在HTTP层计算业务。
 @router.post("/{name.replace("_", "-")}", summary={title!r}, operation_id="{module}_{name}",
              response_model={module}.{output})
 async def {name}(body: {module}.{input}, run: RunDep) -> {module}.{output}:
@@ -173,7 +161,6 @@ async def {name}(body: {module}.{input}, run: RunDep) -> {module}.{output}:
     return {path: append(path.read_text(), code)}
 
 
-# 执行后整理生成内容并同步文档入口；预览不写文件、不登记。
 def generate(
     module: str, name: str, title: str, *, http: bool = False, preview: bool = False
 ) -> list[str]:
@@ -205,7 +192,6 @@ def generate(
     return written
 
 
-# 使用项目文档命令生成入口和flows，记录实际后处理改动。
 def update_docs() -> None:
     import subprocess
     import sys
@@ -221,7 +207,6 @@ def update_docs() -> None:
         raise ValueError("生成源码已保存，文档登记失败：" + result.stdout + result.stderr)
 
 
-# 参数和改动文件清单可作为后续影响报告的对照。
 def main() -> None:
     parser = argparse.ArgumentParser(description="新增操作、可选HTTP和短规则样例")
     parser.add_argument("module")
@@ -237,7 +222,6 @@ def main() -> None:
     print(json.dumps(dict(files=files, preview=args.preview), ensure_ascii=False, indent=2))
 
 
-# 同名操作不覆写，生成前检查所有已有公开赋值。
 def check_new_name(public: str, module: str, name: str) -> None:
     if any(
         isinstance(node, ast.Assign)

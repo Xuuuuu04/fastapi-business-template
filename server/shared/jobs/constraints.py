@@ -1,7 +1,3 @@
-"""
-领取前检查期限、业务键顺序和跨worker资源；等待只改下次领取时间，不开启业务执行。
-"""
-
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, or_, select, update
@@ -17,7 +13,6 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
 
 
-# 一次最多观察32个候选，不让一个业务键的等待让其他业务键长期无法领取。
 async def take(queue: "JobQueue", connection: AsyncConnection, now: float) -> dict[str, Any] | None:
     from shared.jobs.queue import READY, ticket_columns
 
@@ -65,7 +60,6 @@ async def take(queue: "JobQueue", connection: AsyncConnection, now: float) -> di
     return None
 
 
-# 过期任务从未发送，不领取业务位置，保留冻结输入和错误原因。
 async def expired(connection: AsyncConnection, row: Any, now: float) -> bool:
     queue_expired = (
         row["attempt"] == 0 and row["queued_until"] is not None and row["queued_until"] <= now
@@ -88,7 +82,6 @@ async def expired(connection: AsyncConnection, row: Any, now: float) -> bool:
     return True
 
 
-# 未知结果保留当前键的恢复顺序，较早的等待重试也不能被较晚提交越过。
 async def serial_blocked(connection: AsyncConnection, row: Any) -> bool:
     if not row["serial_key"]:
         return False
@@ -108,7 +101,6 @@ async def serial_blocked(connection: AsyncConnection, row: Any) -> bool:
     return (await connection.scalar(other)) is not None
 
 
-# 即使资源冷却到很晚，已经过期的任务也及时结束，不等到run_after才释放排队名额。
 async def expire_ready(connection: AsyncConnection, now: float) -> None:
     pick = (
         select(jobs.c.id, jobs.c.contract, jobs.c.attempt, jobs.c.queued_until, jobs.c.valid_until)
@@ -124,7 +116,6 @@ async def expire_ready(connection: AsyncConnection, now: float) -> None:
         await expired(connection, row, now)
 
 
-# 候选只加载约束字段，实际领取后才读取完整输入，历史大正文不进入候选内存。
 async def candidates(queue: "JobQueue", connection: AsyncConnection, now: float) -> list[Any]:
     from shared.jobs.queue import READY
 
@@ -151,7 +142,6 @@ async def candidates(queue: "JobQueue", connection: AsyncConnection, now: float)
     return list((await connection.execute(pick)).mappings().all())
 
 
-# 每次只锁一条候选，不让一个worker预先占住其他业务键的所有候选。
 async def lock_candidate(connection: AsyncConnection, id: str, now: float) -> Any:
     names = (
         "id",
@@ -172,7 +162,6 @@ async def lock_candidate(connection: AsyncConnection, id: str, now: float) -> An
     return (await connection.execute(pick)).mappings().first()
 
 
-# 旧任务没有冻结新约束时保留等待处理，不能用当前规则推造旧业务事实。
 async def missing_limits(connection: AsyncConnection, plan: Any, row: Any, now: float) -> bool:
     missing = bool(plan.serial and not row["serial_key"])
     missing |= bool(plan.valid_until_field and row["valid_until"] is None)

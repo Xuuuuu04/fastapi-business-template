@@ -1,7 +1,3 @@
-"""
-最小账号包按需生成：模板本身不登记业务包，产品副本生成后带迁移，不手工补文件就能过包级检查。
-"""
-
 import os
 from pathlib import Path
 
@@ -14,7 +10,6 @@ from tests.environment import subprocess_environment
 from tests.template_project import initialize
 
 
-# 迁移接在当前迁移头后面，接口路径与前端登录约定一致，生成后直接过包级检查。
 @pytest.mark.sqlite_template
 def test_access_preset_passes_module_check(tmp_path: Path) -> None:
     if os.environ.get(COPY_FLAG):

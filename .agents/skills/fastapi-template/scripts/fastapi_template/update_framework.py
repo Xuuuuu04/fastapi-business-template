@@ -1,8 +1,3 @@
-"""
-为已经开发的项目接收模板增量更新，不要求它与模板具有共同 Git 历史。
-默认只预览，--apply 才保存；任何冲突阻止全部写入。业务模块与迁移历史不参与更新。
-"""
-
 import argparse
 import json
 
@@ -11,7 +6,6 @@ from fastapi_template.template.files import check_base, manifest
 from fastapi_template.template.merge import apply_plan, update_plan
 
 
-# 明确旧版本与新版本目录；项目自身不必有模板远程或共同祖先。
 def main() -> None:
     from pathlib import Path
 

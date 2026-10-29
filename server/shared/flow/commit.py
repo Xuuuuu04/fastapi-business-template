@@ -1,8 +1,3 @@
-"""
-操作的提交入口。普通操作与一批分段操作使用相同的原子提交及结果待确认保护。
-本函数不选择提交点，不关闭连接，也不改变旧操作的事务范围。
-"""
-
 from collections.abc import Awaitable, Callable
 
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -16,7 +11,6 @@ from shared.records.models import RunRecord
 Hook = Callable[[AsyncConnection, Data, str], Awaitable[None]]
 
 
-# 业务写入与提交前回调在同一事务提交，提交失败时保留结果待确认。
 async def commit_writes(
     database: Database, tx: Transaction, run: RunRecord, hook: Hook | None, result: Data
 ) -> None:

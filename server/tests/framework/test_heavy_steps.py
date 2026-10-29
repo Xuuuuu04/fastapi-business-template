@@ -1,7 +1,3 @@
-"""
-耗时计算的实际线程生命周期与准入额度，不让超时积累无界排队。
-"""
-
 import asyncio
 import threading
 from contextvars import ContextVar
@@ -14,13 +10,11 @@ from shared.flow.heavy import HeavySteps
 pytestmark = pytest.mark.anyio
 
 
-# 取消等待后仍保留真实线程额度，反复超时不能继续提交计算。
 async def test_cancelled_calculation_holds_admission_until_finished() -> None:
     heavy = HeavySteps(1)
     started, release = threading.Event(), threading.Event()
     attempted = []
 
-    # 合成可释放的耗时计算，测试结束前一定让线程退出。
     def blocking() -> None:
         started.set()
         release.wait(2)
@@ -43,7 +37,6 @@ async def test_cancelled_calculation_holds_admission_until_finished() -> None:
     assert not heavy.running
 
 
-# 正常结果、上下文变量和失败仍保持原语义，额度能被下一次计算使用。
 async def test_heavy_result_context_and_failure_release() -> None:
     heavy = HeavySteps(1)
     marker = ContextVar("synthetic-heavy-context", default="unset")
@@ -51,7 +44,6 @@ async def test_heavy_result_context_and_failure_release() -> None:
     try:
         assert await heavy.run(marker.get) == "request-context"
 
-        # 程序失败继续交给流程处理，而非吞掉异常或返回空结果。
         def failed() -> None:
             raise ValueError("synthetic-only")
 
@@ -64,7 +56,6 @@ async def test_heavy_result_context_and_failure_release() -> None:
         await heavy.close(1)
 
 
-# 停止后不再接收新的计算，已有工作的取消额度不被复用。
 async def test_closed_heavy_runner_rejects_new_work() -> None:
     heavy = HeavySteps(1)
     await heavy.close(0)
@@ -72,13 +63,11 @@ async def test_closed_heavy_runner_rejects_new_work() -> None:
         await heavy.run(lambda: 1)
 
 
-# 停止时立即唤醒已在准入等待的调用，不能等真实线程结束才拒绝。
 async def test_close_wakes_waiting_admission_without_releasing_active_work() -> None:
     heavy = HeavySteps(1)
     started, release = threading.Event(), threading.Event()
     attempted = []
 
-    # 合成仍然占用额度的同步计算，结束时释放测试线程。
     def blocking() -> None:
         started.set()
         release.wait(2)

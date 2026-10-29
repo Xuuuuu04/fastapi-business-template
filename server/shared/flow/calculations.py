@@ -1,7 +1,3 @@
-"""
-检查步骤声明的纯计算函数，直接调用必须登记；允许经存储约定使用，耗时由步骤整体记录。
-"""
-
 import ast
 import inspect
 import textwrap
@@ -11,7 +7,6 @@ from typing import Any
 from shared.flow.step import Step, source_of
 
 
-# 新calc调用要求明确登记；旧步骤没有calc时行为不变。
 def check_calculations(part: Step, module: str) -> list[str]:
     problems = []
     prefix = f"service.{module}.calc."
@@ -29,7 +24,6 @@ def check_calculations(part: Step, module: str) -> list[str]:
     return problems
 
 
-# 识别函数别名和模块属性调用，不执行计算，也不读取数据库。
 def direct_calculations(func: Callable[..., Any]) -> list[Callable[..., Any]]:
     try:
         source = textwrap.dedent(inspect.getsource(func))
@@ -52,7 +46,6 @@ def direct_calculations(func: Callable[..., Any]) -> list[Callable[..., Any]]:
     return found
 
 
-# 仅查已有模块属性，避免执行属性描述符。
 def resolve(node: ast.expr, scope: dict[str, Any]) -> Any:
     if isinstance(node, ast.Name):
         return scope.get(node.id)

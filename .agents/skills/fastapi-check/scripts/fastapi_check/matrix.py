@@ -1,7 +1,3 @@
-"""
-数据库矩阵与进程预算共同选择；控制连接只供创建隔离资源，不直接清空目标数据库。
-"""
-
 import os
 import uuid
 from collections.abc import Callable
@@ -10,17 +6,14 @@ from dataclasses import dataclass
 from typing import Any
 
 
-# 程序化调用默认串行，短命令显式设置预算；两个数据库共享总进程预算。
 @dataclass(frozen=True)
 class CheckOptions:
     database: str = "auto"
     workers: int = 0
     group: str = "all"
     delivery: bool = False
-    # 收工时必须重新执行，不能沿用旧的检查结果。
     fresh: bool = False
 
-    # 总预算有上限，非法组名在执行子进程前拒绝。
     def __post_init__(self) -> None:
         if not 0 <= self.workers <= 32 or self.group not in {
             "all",
@@ -32,7 +25,6 @@ class CheckOptions:
             raise ValueError("检查进程预算或分组无效")
 
 
-# 测试子进程不继承生产配置，仅保留明确的外部测试服务地址。
 def clean_environment() -> dict[str, str]:
     system = {
         "PATH",
@@ -68,7 +60,6 @@ def clean_environment() -> dict[str, str]:
     }
 
 
-# 每个数据库使用独立轮次与资源前缀，使用多少worker会进入检查记录。
 def suite_environment(
     env: dict[str, str], database: str, postgres: str, workers: int
 ) -> dict[str, str]:
@@ -81,7 +72,6 @@ def suite_environment(
     return result
 
 
-# 没有明确地址不能把PostgreSQL标为已检查，重复矩阵也不会产生两份同库结果。
 def databases(postgres: str, requested: str) -> tuple[str, ...]:
     if requested not in {"auto", "sqlite", "postgresql", "both"}:
         raise ValueError("数据库选择无效")
@@ -91,7 +81,6 @@ def databases(postgres: str, requested: str) -> tuple[str, ...]:
     return ("sqlite", "postgresql") if selection == "both" else (selection,)
 
 
-# 两个数据库可以同时运行，总worker数量仍不超过用户设置的预算。
 def execute_matrix(
     selected: tuple[str, ...],
     postgres: str,
@@ -103,13 +92,11 @@ def execute_matrix(
 ) -> list[tuple[str, bool, dict[str, Any], float]]:
     from time import perf_counter
 
-    # PostgreSQL 的事务与并发样例更多，双库预算至少为六时给它更多进程。
     budgets = {database: max(0, options.workers // len(selected)) for database in selected}
     if len(selected) == 2 and options.workers >= 6:
         budgets["sqlite"] = max(1, options.workers // 3)
         budgets["postgresql"] = options.workers - budgets["sqlite"]
 
-    # 各子进程只写自己的临时结果，控制进程按数据库顺序汇总。
     def execute(database: str) -> tuple[str, bool, dict[str, Any], float]:
         started = perf_counter()
         title = "PostgreSQL 测试" if database == "postgresql" else primary_title

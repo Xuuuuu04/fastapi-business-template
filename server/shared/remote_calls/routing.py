@@ -1,7 +1,3 @@
-"""
-协议声明把输入分配到路径、查询、正文和文件，各位置均可追踪，不允许未声明文件字段。
-"""
-
 import re
 from typing import TYPE_CHECKING, Any, get_args
 from urllib.parse import quote
@@ -14,7 +10,6 @@ if TYPE_CHECKING:
     from shared.remote_calls.endpoint import Endpoint
 
 
-# 参数名使用数据模型字段名，序列化后采用模型自己的上游别名。
 def routing_problems(endpoint: "Endpoint") -> list[str]:
     fields = set(endpoint.input.model_fields)
     path = re.findall(r"\{([a-z][a-z0-9_]*)\}", endpoint.path)
@@ -43,7 +38,6 @@ def routing_problems(endpoint: "Endpoint") -> list[str]:
     return problems
 
 
-# 字段值不能变成路径结构，空值和目录跳转段在发送前拒绝。
 def render_path(template: str, payload: dict[str, Any], fields: tuple[str, ...]) -> str:
     path = template
     for name in fields:
@@ -54,7 +48,6 @@ def render_path(template: str, payload: dict[str, Any], fields: tuple[str, ...])
     return path
 
 
-# 兼容协议仍明确展示实际校验范围，空模型和任意扩展不能显示为完整协议验证。
 def validation_shape(endpoint: "Endpoint") -> dict[str, Any]:
     model = endpoint.output
     return dict(
@@ -65,7 +58,6 @@ def validation_shape(endpoint: "Endpoint") -> dict[str, Any]:
     )
 
 
-# 嵌套Any和允许未知扩展的模型同样属于部分验证，不只检查最外层字段数量。
 def typed_output(model: type[BaseModel]) -> bool:
     pending: list[Any] = [model]
     seen = set()

@@ -1,9 +1,3 @@
-"""
-检查业务文档：每个模块在 doc/ 下有需求、规则、变化记录；长度不超过上限；
-代码中引用的规则编号必须在 rules.md 中有对应标题；自动生成的 flows.md 必须与当前声明一致。
-文风检查保证写给人看的文字符合约定：不用禁用词，不残留未翻译的英文。
-"""
-
 import os
 import re
 from pathlib import Path
@@ -15,12 +9,9 @@ from fastapi_docs.export_docs import outdated
 from shared.data.fields import notes_of
 from shared.modules.catalog import Catalog
 
-# 文风硬规则：这些词在写给人看的文档里不该出现。约定见 fastapi-docs 的 writing-style.md。
 BANNED_WORDS = ("阻断", "巡检", "巡查", "红线", "门禁", "判官", "————", "「", "」")
 BANNED_PHRASES = ("Successful Response", "Validation Error")
-# 约定文件自身要引用这些词；生成文件由“生成文档是否过期”间接保证合规。
 STYLE_SKIP = ("writing-style.md",)
-# 生成文件与模板块不检查：它们的内容由生成器版本决定；out/var 是测试和本机产物。
 STYLE_GENERATED = (
     "doc/api/",
     "doc/modules.md",
@@ -31,7 +22,6 @@ STYLE_GENERATED = (
 )
 
 
-# 检查全部模块的业务文档。
 def check_business_docs(catalog: Catalog, project: Path = PROJECT) -> list[Problem]:
 
     problems = check_development_rules(catalog, project)
@@ -60,7 +50,6 @@ def check_business_docs(catalog: Catalog, project: Path = PROJECT) -> list[Probl
     return problems
 
 
-# 规则、词义与模拟身份分别核对，交付条件不能由运行成功推定。
 def check_development_rules(
     catalog: Catalog, project: Path, *, delivery: bool | None = None
 ) -> list[Problem]:
@@ -104,7 +93,6 @@ def check_development_rules(
     return problems
 
 
-# 检查一个模块的三份业务文档是否存在、长度是否超限。
 def check_files(folder: Path, project: Path) -> list[Problem]:
     problems = []
     for file_name in BUSINESS_DOCS:
@@ -135,7 +123,6 @@ def check_files(folder: Path, project: Path) -> list[Problem]:
     return problems
 
 
-# 检查代码中引用的规则编号都在 rules.md 中有标题。
 def check_rule_ids(catalog: Catalog, name: str, rules: Path, project: Path) -> list[Problem]:
     text = rules.read_text(encoding="utf-8")
     written = set(re.findall(r"^#{2,4}\s+(R-\d+)\b", text, re.MULTILINE))
@@ -153,7 +140,6 @@ def check_rule_ids(catalog: Catalog, name: str, rules: Path, project: Path) -> l
     ]
 
 
-# 收集一个模块代码中引用的全部规则编号。
 def rule_ids(catalog: Catalog, name: str) -> set[str]:
     found = set()
     for item, flow in catalog.modules[name].provides.items():
@@ -163,9 +149,6 @@ def rule_ids(catalog: Catalog, name: str) -> set[str]:
     return found
 
 
-# 检查写给人看的 Markdown 是否符合文风约定：禁用词和未翻译的英文残留。
-# 检查范围是随源码提交的文档（业务文档、README、AGENTS.md、项目 Skill），
-# 不检查生成文件和本机记录。
 def check_writing_style(project: Path = PROJECT) -> list[Problem]:
     problems: list[Problem] = []
     folders = [project / "doc", project / ".agents" / "skills", project / "server"]

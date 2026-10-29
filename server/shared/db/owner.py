@@ -1,9 +1,3 @@
-"""
-按负责人隔离的数据（行级权限）：表用 owner_column(see_all=权限名) 声明负责人列。
-没有 see_all 权限的调用者，每一层查询都必须写明“负责人等于调用者本人”，写入的负责人必须是自己，
-不能改负责人；有这个权限的调用者（例如主管）不受限制。检查方式与组织隔离相同。
-"""
-
 from typing import Any, cast
 
 from sqlalchemy import Column, String, Table
@@ -19,7 +13,6 @@ from shared.errors.framework import StepRuleBroken
 WHAT = "负责人等于调用者本人"
 
 
-# 标记负责人列；拥有 see_all 权限的调用者可以看到和修改全部记录。
 def owner_column(see_all: str) -> Column[str]:
     return Column(
         "owner_id",
@@ -30,12 +23,10 @@ def owner_column(see_all: str) -> Column[str]:
     )
 
 
-# 对按负责人隔离、且调用者没有 see_all 权限的表，检查每一层查询的条件和写入的值。
 def check_owner(statement: Executable, caller: Caller) -> None:
     nodes = list(visitors.iterate(cast(ClauseElement, statement)))
     owners = [node.table for node in nodes if isinstance(node, ColumnClause)]
 
-    # 只检查调用者不能看全部的表。
     def limited(node: Any) -> bool:
         table = node.element if is_alias(node) else node
         if not isinstance(table, Table) or "owner_id" not in table.c:
