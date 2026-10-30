@@ -133,33 +133,16 @@ def generate(
     module: str, name: str, title: str, *, http: bool = False, preview: bool = False
 ) -> list[str]:
     values = changes(module, name, title, http=http)
-    docs = [PROJECT / "doc/api/openapi.json"]
-    before = snapshot([*values, *docs])
+    before = snapshot(list(values))
     written = write(values, preview=preview)
     if not preview:
         tidy(list(values))
-        update_docs()
         written = [
             str(path.relative_to(PROJECT))
             for path, old in before.items()
             if path.exists() and path.read_text() != old
         ]
     return written
-
-
-def update_docs() -> None:
-    import subprocess
-    import sys
-
-    result = subprocess.run(
-        [sys.executable, "-m", "fastapi_dev.main", "docs"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode:
-        raise ValueError("生成源码已保存，openapi.json 更新失败：" + result.stdout + result.stderr)
 
 
 def main() -> None:
@@ -174,7 +157,17 @@ def main() -> None:
         files = generate(args.module, args.name, args.title, http=args.http, preview=args.preview)
     except ValueError as error:
         raise SystemExit(str(error)) from error
-    print(json.dumps(dict(files=files, preview=args.preview), ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            dict(
+                files=files,
+                preview=args.preview,
+                next="改了接口时运行 uv run dev docs 更新 openapi.json",
+            ),
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 def check_new_name(public: str, module: str, name: str) -> None:

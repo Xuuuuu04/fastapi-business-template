@@ -39,13 +39,13 @@ def module_names(values: list[str]) -> tuple[str, ...]:
     )
 
 
-def validate_modules(names: tuple[str, ...], catalog: Catalog, root: Path = ROOT) -> None:
+def validate_modules(names: tuple[str, ...], root: Path = ROOT) -> None:
     for name in names:
-        if name not in catalog.modules:
-            raise ValueError(f"模块没有登记：{name}")
-        for group in ("modules", "integration"):
-            if not list((root / "tests" / group / name).glob("test_*.py")):
-                raise ValueError(f"模块缺少 tests/{group}/{name}/test_*.py")
+        if not (root / "service" / name / "module.json").is_file():
+            raise ValueError(f"没有这个业务包：service/{name}")
+        groups = ("modules", "integration")
+        if not any(list((root / "tests" / group / name).glob("test_*.py")) for group in groups):
+            raise ValueError(f"业务包 {name} 在 tests/modules 和 tests/integration 下都没有测试")
 
 
 def module_files(names: tuple[str, ...], root: Path = ROOT) -> list[str]:

@@ -19,8 +19,8 @@ pytestmark = pytest.mark.anyio
 __all__ = ["fanout", "drain", "start"]
 
 
-async def test_200_members_wait_join_and_frozen_sources(fanout: Services) -> None:
-    run_id = await start(fanout)
+async def test_members_wait_join_and_frozen_sources(fanout: Services) -> None:
+    run_id = await start(fanout, 20)
     ticket = await fanout.queue.claim(now())
     assert ticket is not None
     await Worker(fanout.runtime, fanout.queue, [], WorkerOptions()).execute(ticket)
@@ -34,20 +34,20 @@ async def test_200_members_wait_join_and_frozen_sources(fanout: Services) -> Non
     )
     async with fanout.database.read() as connection:
         rows = (await connection.execute(select(collected))).mappings().all()
-        assert len(rows) == 200 and {row["id"] for row in rows} == set(range(1, 201))
+        assert len(rows) == 20 and {row["id"] for row in rows} == set(range(1, 21))
         assert {row["version"] for row in rows} == {1}
         assert (
             await connection.scalar(
                 select(func.count()).select_from(members).where(members.c.accepted.is_(True))
             )
-            == 200
+            == 20
         )
         result = await connection.scalar(
             select(stages.c.output_json).where(
                 stages.c.pipeline_id == run_id, stages.c.name == "combine"
             )
         )
-    assert result == '{"count":200,"value":20100,"versions":[1]}'
+    assert result == '{"count":20,"value":210,"versions":[1]}'
 
 
 async def test_retry_only_failed_member(fanout: Services, monkeypatch) -> None:

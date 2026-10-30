@@ -6,7 +6,6 @@ from fastapi_check.quality.rules import PROJECT
 from fastapi_module.editing import add_import, append, extend_module, snapshot, validate, write
 from fastapi_module.new_module import camel, tidy
 from fastapi_module.new_operation import changes as operation_changes
-from fastapi_module.new_operation import update_docs
 
 
 def changes(module: str, name: str, title: str, stages: list[str], wait: str) -> dict[Path, str]:
@@ -77,12 +76,10 @@ def generate(
     module: str, name: str, title: str, stages: list[str], wait: str, preview: bool = False
 ) -> list[str]:
     values = changes(module, name, title, stages, wait)
-    docs = [PROJECT / "doc/api/openapi.json"]
-    before = snapshot([*values, *docs])
+    before = snapshot(list(values))
     files = write(values, preview=preview)
     if not preview:
         tidy(list(values))
-        update_docs()
         files = [
             str(path.relative_to(PROJECT))
             for path, old in before.items()
@@ -92,7 +89,7 @@ def generate(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="生成多阶段流程和定时/演练骨架")
+    parser = argparse.ArgumentParser(description="生成多阶段流程和首阶段定时的骨架")
     parser.add_argument("module")
     parser.add_argument("name")
     parser.add_argument("--title", required=True)
@@ -106,7 +103,17 @@ def main() -> None:
         )
     except ValueError as error:
         raise SystemExit(str(error)) from error
-    print(json.dumps(dict(files=files, preview=args.preview), ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            dict(
+                files=files,
+                preview=args.preview,
+                next="改了接口时运行 uv run dev docs 更新 openapi.json",
+            ),
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

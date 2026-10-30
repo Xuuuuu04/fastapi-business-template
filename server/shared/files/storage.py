@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import anyio
-import boto3
-from botocore.exceptions import ClientError
 
 from shared.errors.framework import StepRuleBroken
 
@@ -127,6 +125,8 @@ class S3Options:
 
 class S3Files:
     def __init__(self, options: S3Options) -> None:
+        import boto3
+
         self.bucket = options.bucket
         self.client: Any = boto3.client(
             "s3",
@@ -185,6 +185,8 @@ class S3Files:
         await asyncio.to_thread(self.client.delete_object, Bucket=self.bucket, Key=check_key(key))
 
     async def exists(self, key: str) -> bool:
+        from botocore.exceptions import ClientError
+
         try:
             await asyncio.to_thread(self.client.head_object, Bucket=self.bucket, Key=check_key(key))
         except ClientError as error:

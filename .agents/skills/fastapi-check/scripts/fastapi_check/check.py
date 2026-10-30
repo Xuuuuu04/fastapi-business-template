@@ -152,30 +152,35 @@ def execute(
     selection: Selection, postgres: str, workers: int, group: str, delivery: bool
 ) -> list[tuple[str, bool]]:
     env = environment(selection, postgres, workers, group, delivery)
-    results = [("迁移表归属", migration_check()), ("实现状态", not check_development(delivery))]
+    results = (
+        []
+        if selection.quick
+        else [("迁移表归属", migration_check()), ("实现状态", not check_development(delivery))]
+    )
     selected = steps(selection)
     for title, command in selected[:-1]:
         results.append((title, run(title, command, env)))
     title, tests = selected[-1]
-    if workers:
+    if workers and not selection.modules:
         tests = [*tests, "--dist=load", "--maxschedchunk=2", "-n", str(workers)]
     results.append((title, run(title, tests, env)))
     return results
 
 
-def main() -> None:
+def selected(args: argparse.Namespace) -> Selection:
+    if not args.affected:
+        return Selection(module_names(args.module), args.quick)
     from app.setup.catalog import MODULES
     from shared.modules.catalog import Catalog
 
+    return select_affected(Catalog(MODULES), args.base)
+
+
+def main() -> None:
     args = arguments()
-    catalog = Catalog(MODULES)
     try:
-        selection = (
-            select_affected(catalog, args.base)
-            if args.affected
-            else Selection(module_names(args.module), args.quick)
-        )
-        validate_modules(selection.modules, catalog)
+        selection = selected(args)
+        validate_modules(selection.modules)
     except ValueError as error:
         raise SystemExit(str(error)) from error
     for reason in selection.reasons:

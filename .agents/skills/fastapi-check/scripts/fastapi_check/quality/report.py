@@ -1,10 +1,28 @@
-from collections.abc import Sequence
+import json
+import os
+from collections.abc import Iterable, Iterator, Sequence
+from pathlib import Path
 
-from fastapi_check.quality.rules import ALLOWED
+from fastapi_check.quality.rules import ALLOWED, ROOT
 
 from shared.modules.validation.report import Problem as Problem
-from shared.modules.validation.report import files_under as files_under
+from shared.modules.validation.report import files_under as all_files_under
 from shared.modules.validation.report import relative as relative
+
+
+def selected_modules() -> list[str]:
+    return list(json.loads(os.environ.get("APP_DEVELOPMENT_MODULES", "[]")))
+
+
+def files_under(root: Path, folders: Iterable[str], suffix: str) -> Iterator[Path]:
+    names = selected_modules()
+    paths = all_files_under(root, folders, suffix)
+    if not names or root != ROOT:
+        return paths
+    from fastapi_check.affected.selection import module_files
+
+    allowed = {ROOT / name for name in module_files(tuple(names))}
+    return (path for path in paths if path in allowed)
 
 
 def without_allowed(problems: list[Problem]) -> list[Problem]:

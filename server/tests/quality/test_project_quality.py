@@ -1,11 +1,14 @@
-import json
-import os
-
 from fastapi_check.quality.blocking import check_blocking
 from fastapi_check.quality.docs import check_writing_style
 from fastapi_check.quality.files import check_files
 from fastapi_check.quality.naming import check_naming
-from fastapi_check.quality.report import Problem, in_modules, unused_allowed, without_allowed
+from fastapi_check.quality.report import (
+    Problem,
+    in_modules,
+    selected_modules,
+    unused_allowed,
+    without_allowed,
+)
 
 
 def listed(problems: list[Problem]) -> str:
@@ -13,7 +16,7 @@ def listed(problems: list[Problem]) -> str:
 
 
 def selected() -> list[str]:
-    return json.loads(os.environ.get("APP_DEVELOPMENT_MODULES", "[]"))
+    return selected_modules()
 
 
 def scoped(problems: list[Problem]) -> list[Problem]:

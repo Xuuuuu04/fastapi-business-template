@@ -36,6 +36,7 @@ description: 在本项目新建或修改业务代码（业务包、操作、步�
 | `uv run dev new-pipeline customer_contact daily --title 每日流程 --stages select,collect,wait,publish --wait wait` | 搭一条多阶段流程，含阶段操作、Wait、后台计划和首阶段定时 |
 | `uv run dev new-library text_tools --title 文本工具` | 新建纯工具包 |
 
+- 生成器不更新 `doc/api/openapi.json`。加了接口以后，运行 `uv run dev docs` 更新它。
 - 生成的步骤带 `placeholder=True`，换成真实实现后删掉这个标记；`dev check --delivery` 不放过占位步骤。
 - 每个新操作带一个正常样例和一个规则异常样例，预期值要换成和用户确认过的业务样例。
 - 工具包的 `module.json` 列出 `exports`，和 `public.py` 的 `__all__` 一致；加函数时两处一起改。

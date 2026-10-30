@@ -137,11 +137,15 @@ def test_unchanged_and_unreadable_graph(repository: Path) -> None:
 
 
 def test_validation_and_local_files(tmp_path: Path) -> None:
-    catalog = Catalog(MODULES)
-    with pytest.raises(ValueError, match="没有登记"):
-        validate_modules(("not_registered",), catalog)
-    with pytest.raises(ValueError, match="缺少"):
-        validate_modules(("sample_records",), catalog, tmp_path)
+    with pytest.raises(ValueError, match="没有这个业务包"):
+        validate_modules(("not_registered",), tmp_path)
+    (tmp_path / "service/order_sync").mkdir(parents=True)
+    (tmp_path / "service/order_sync/module.json").write_text("{}")
+    with pytest.raises(ValueError, match="都没有测试"):
+        validate_modules(("order_sync",), tmp_path)
+    (tmp_path / "tests/integration/order_sync").mkdir(parents=True)
+    (tmp_path / "tests/integration/order_sync/test_flow.py").write_text("")
+    validate_modules(("order_sync",), tmp_path)
     routers = tmp_path / "server/app/api/routers.py"
     routers.parent.mkdir(parents=True)
     routers.write_text(
@@ -167,3 +171,15 @@ def test_business_document_change_runs_nothing(repository: Path) -> None:
     file.write_text("# 业务说明\n", encoding="utf-8")
     selected = select_affected(Catalog(MODULES), "HEAD", repository)
     assert selected.unchanged and not selected.modules
+
+
+def test_module_check_scans_only_module_files(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi_check.quality.report import files_under
+    from fastapi_check.quality.rules import ROOT
+
+    own = "tests/quality/test_project_quality.py"
+    monkeypatch.setenv("APP_DEVELOPMENT_MODULES", '["sample_records"]')
+    monkeypatch.setattr("fastapi_check.affected.selection.module_files", lambda names: [own])
+    assert list(files_under(ROOT, ("tests",), ".py")) == [ROOT / own]
+    monkeypatch.delenv("APP_DEVELOPMENT_MODULES")
+    assert len(list(files_under(ROOT, ("tests",), ".py"))) > 1
