@@ -34,6 +34,7 @@ def changes(
     folder = validate(module, name)
     public = read(folder / "public.py")
     check_new_name(public, module, name)
+    check_new_files(folder, module, name, base)
     models, input, output, invalid = templates.data(name, module, state)
     kind = camel(name)
     data_path = folder / "data.py"
@@ -63,6 +64,19 @@ def changes(
     if http:
         generated |= route(module, name, title, input, output)
     return generated
+
+
+def check_new_files(folder: Path, module: str, name: str, base: dict[Path, str]) -> None:
+    tests = ROOT / "tests/modules" / module
+    paths = [
+        folder / "calc" / f"{name}.py",
+        folder / "steps" / f"build_{name}.py",
+        tests / f"test_calc_{name}.py",
+        tests / f"test_{name}.py",
+    ]
+    conflicts = [str(path.relative_to(ROOT)) for path in paths if path.exists() or path in base]
+    if conflicts:
+        raise ValueError(f"新文件已存在，未写入任何内容：{'、'.join(conflicts)}")
 
 
 def implementation_files(
@@ -120,11 +134,12 @@ def route(module: str, name: str, title: str, input: str, output: str) -> dict[P
         raise ValueError("可选HTTP需要已登记的模块router，请先创建标准模块")
     code = f'''
 @router.post("/{name.replace("_", "-")}", summary={title!r}, operation_id="{module}_{name}",
-             response_model={module}.{output})
+             response_model={module}.{output}, responses=responses_for({module}.{name}))
 async def {name}(body: {module}.{input}, run: RunDep) -> {module}.{output}:
     return await run({module}.{name}, body)
 '''
     text = add_import(path.read_text(), "from app.api.runner import RunDep")
+    text = add_import(text, "from app.api.replies import responses_for")
     text = add_import(text, f"from service.{module} import public as {module}")
     return {path: append(text, code)}
 

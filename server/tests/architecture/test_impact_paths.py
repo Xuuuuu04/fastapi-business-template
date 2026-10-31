@@ -15,6 +15,7 @@ from tests.architecture.sample_catalog import MODULES
         "server/tests/security/test_security.py",
         "server/tests/contracts/test_cache_and_files.py",
         "server/app/api/v1/future.py",
+        "server/library/text_tools/public.py",
     ],
 )
 def test_shared_paths_do_not_invent_modules(path: str) -> None:

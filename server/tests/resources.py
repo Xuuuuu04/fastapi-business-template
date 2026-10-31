@@ -72,7 +72,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     for item in items:
         marker = item.get_closest_marker("test_group")
         group = marker.args[0] if marker else test_group(Path(str(item.path)))
-        include = selected == "all" or group == selected
+        include = selected == "all" or group == selected or "quality" in Path(str(item.path)).parts
         (kept if include else deselected).append(item)
     config.hook.pytest_deselected(items=deselected)
     items[:] = kept

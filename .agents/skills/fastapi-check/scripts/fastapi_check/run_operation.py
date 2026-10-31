@@ -1,53 +1,71 @@
-import argparse
 import asyncio
 import sys
 from dataclasses import replace
-from pathlib import Path
+from typing import Any
+
+from fastapi_check.run_cases import RunCase, arguments
+from pydantic import ValidationError
 
 from app.setup.application import application
-from app.setup.build import build
+from app.setup.build import Services, build
 from shared.access.caller import DEVELOPER
 from shared.graphs.observed import run_report
+from shared.modules.contract import Contract
 
 
-async def run(name: str, text: str, org: str) -> int:
-    services = build(application().settings())
+async def run(case: RunCase, allow_write: bool) -> int:
+    settings = application().settings()
+    if settings.env == "production":
+        print("dev run 只用于本地或测试环境；生产排查请使用 dev diagnose")
+        return 1
+    services = build(settings)
     try:
-        binding = services.catalog.find(name)
+        binding = services.catalog.find(case.operation)
         if binding is None:
-            print(f"没有登记操作 {name}，可用的操作：{'、'.join(sorted(services.catalog.by_name))}")
+            print(f"没有登记操作 {case.operation}，请用 dev locate 查找")
             return 1
-        caller = replace(DEVELOPER, org_id=org)
-        started: list[str] = []
-        operation = binding.contract
-        try:
-            result = await services.runtime.run(
-                operation,
-                operation.input.model_validate_json(text),
-                caller=caller,
-                on_start=started.append,
-            )
-        except Exception as error:
-            outcome, code = f"失败：{type(error).__name__} {error}", 1
-        else:
-            outcome, code = "成功\n" + result.model_dump_json(indent=2), 0
-        await services.recorder.flush()
-        print(f"运行编号 {started[0]}，{outcome}\n")
-        print(run_report(await services.recorder.tree(started[0]), started[0]))
-        return code
+        if binding.contract.effect == "command" and not allow_write:
+            print("该操作可能写入；确认本地配置和样例后加 --allow-write")
+            return 1
+        return await execute_case(services, binding.contract, case)
     finally:
         await services.close()
 
 
+async def execute_case(services: Services, operation: Contract[Any, Any], case: RunCase) -> int:
+    caller = replace(DEVELOPER, org_id=case.org, permissions=frozenset(case.permissions))
+    started: list[str] = []
+    try:
+        input = operation.input.model_validate(case.input)
+    except ValidationError as error:
+        fields = [".".join(map(str, issue["loc"])) for issue in error.errors()]
+        print(f"输入不符合操作要求，字段：{'、'.join(fields)}；操作尚未执行")
+        return 1
+    try:
+        result = await services.runtime.run(
+            operation, input, caller=caller, on_start=started.append
+        )
+    except Exception as error:
+        outcome, code = f"失败：{type(error).__name__}", 1
+    else:
+        outcome, code = "成功\n" + result.model_dump_json(indent=2), 0
+        if case.expected is not None and result.model_dump(mode="json") != case.expected:
+            outcome, code = (
+                "业务样例结果不符合 expected，实际结果：\n" + result.model_dump_json(indent=2),
+                1,
+            )
+    await services.recorder.flush()
+    if not started:
+        print(outcome + "（操作未启动）")
+        return code
+    print(f"运行编号 {started[0]}，{outcome}\n")
+    print(run_report(await services.recorder.tree(started[0]), started[0]))
+    return code
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="用本地配置真跑一次操作，打印结果和运行报告")
-    parser.add_argument("operation", help="操作名，例如 customer_contact.create_contact")
-    parser.add_argument("--input", default="{}", help="输入 JSON")
-    parser.add_argument("--input-file", type=Path, help="从文件读取输入 JSON")
-    parser.add_argument("--org", default="*", help="以哪个组织的身份运行，默认全部组织")
-    args = parser.parse_args()
-    text = args.input_file.read_text(encoding="utf-8") if args.input_file else args.input
-    sys.exit(asyncio.run(run(args.operation, text, args.org)))
+    case, allow_write = arguments()
+    sys.exit(asyncio.run(run(case, allow_write)))
 
 
 if __name__ == "__main__":

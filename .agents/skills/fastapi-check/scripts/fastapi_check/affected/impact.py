@@ -67,6 +67,8 @@ def shared_reason(path: str, framework: set[str], modules: Iterable[str] = ()) -
         return f"框架改动：{path}；需检查全部登记模块"
     if path.startswith("server/migrations/"):
         return f"数据库迁移改动：{path}；可能影响共用数据库"
+    if path.startswith("server/library/"):
+        return f"工具包改动：{path}；检查工具包本身和全部调用方"
     if path.startswith("doc/api/"):
         return f"公共接口描述改动：{path}；无法仅凭路径确定调用方"
     if path.startswith("server/tests/") and module_area(path, modules) is None:

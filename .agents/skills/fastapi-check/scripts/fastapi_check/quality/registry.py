@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from fastapi_business.routes import local_routes
 from fastapi_check.quality.report import Problem
 from fastapi_check.quality.rules import ROOT
 
@@ -8,7 +9,7 @@ from shared.modules.catalog import Catalog
 
 def check_registry(catalog: Catalog, root: Path = ROOT) -> list[Problem]:
     problems = check_listed(catalog, root)
-    routes = text_of(root / "app" / "api")
+    routes = local_routes(root)
     used = {
         used
         for binding in catalog.bindings.values()
@@ -19,7 +20,7 @@ def check_registry(catalog: Catalog, root: Path = ROOT) -> list[Problem]:
         where = f"service/{item.module}/public.py"
         if (
             item.entry
-            and f".{item.action}" not in routes
+            and item.name not in routes
             and catalog.plan(item.name) is None
             and catalog.identity is not item
         ):
@@ -52,7 +53,3 @@ def check_listed(catalog: Catalog, root: Path) -> list[Problem]:
         for name in sorted(set(catalog.modules) - found)
     ]
     return problems
-
-
-def text_of(folder: Path) -> str:
-    return "\n".join(path.read_text(encoding="utf-8") for path in folder.rglob("*.py"))

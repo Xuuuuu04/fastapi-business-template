@@ -146,9 +146,11 @@ def test_run_operation_prints_result_and_report(
             fastapi_check.run_operation.main()
         return stopped.value.code, capsys.readouterr().out
 
-    code, output = run_command("sample_calc.calc", "--input", '{"amount": "8"}')
+    code, output = run_command("sample_calc.calc", "--allow-write", "--input", '{"amount": "8"}')
     assert code == 0 and "运行编号" in output and "成功" in output and "示例计算" in output
-    code, output = run_command("sample_calc.calc", "--input", '{"amount": "8", "fail_at": "total"}')
+    code, output = run_command(
+        "sample_calc.calc", "--allow-write", "--input", '{"amount": "8", "fail_at": "total"}'
+    )
     assert code == 1 and "失败" in output and "运行编号" in output
     code, output = run_command("none.x")
     assert code == 1 and "没有登记操作" in output

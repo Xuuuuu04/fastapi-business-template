@@ -2,6 +2,7 @@ import ast
 import importlib
 import inspect
 import textwrap
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 
@@ -11,8 +12,8 @@ from shared.flow.step import source_of
 from shared.modules.contract import Contract
 
 
-def local_routes() -> dict[str, list[dict[str, Any]]]:
-    path = ROOT / "app/api/routers.py"
+def local_routes(root: Path = ROOT) -> dict[str, list[dict[str, Any]]]:
+    path = root / "app/api/routers.py"
     tree = ast.parse(path.read_text())
     imports = {
         alias.asname or alias.name: (node.module, alias.name)
