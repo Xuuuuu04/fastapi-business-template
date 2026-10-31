@@ -11,7 +11,7 @@ class FieldTypes:
     def __init__(self, work: type[WorkData]) -> None:
         self.notes: dict[str, FieldNote] = notes_of(work)
         self.adapters: dict[str, TypeAdapter[Any]] = {
-            name: TypeAdapter(info.annotation) for name, info in work.model_fields.items()
+            name: TypeAdapter(info.rebuild_annotation()) for name, info in work.model_fields.items()
         }
         self.annotations = {name: info.annotation for name, info in work.model_fields.items()}
 
