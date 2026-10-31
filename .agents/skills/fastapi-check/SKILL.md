@@ -25,11 +25,26 @@ description: 改完代码要验证、准备提交、或检查和测试报错时�
 检查过了还要亲眼看一次真实运行。用本地 `.env` 的数据库跑一次登记的操作，打印结果和运行报告（每一步读写了什么、调了谁、停在哪）：
 
 ```bash
-uv run dev run customer_contact.create_contact --input '{"name": "张三"}'
-uv run dev run customer_contact.create_contact --input-file 样例.json --org north
+uv run dev run customer_contact.create_contact --input '{"name": "张三"}' --allow-write
+uv run dev run customer_contact.create_contact --input-file 样例.json --org north --allow-write
 ```
 
-以本地开发者身份运行，拥有全部权限；`--org` 指定组织。成功退出码 0，失败 1，失败时报告写明停在哪一步、为什么。本地库要先 `uv run alembic upgrade head`。多阶段流程按阶段分别跑。
+只允许 local/test 环境，command 操作必须显式加 `--allow-write`，确认 `.env` 指向专门的开发数据。默认以本地开发者身份运行；`--org` 指定组织。成功退出码 0，失败 1，失败时报告写明停在哪一步、为什么。本地库要先 `uv run alembic upgrade head`。多阶段流程按阶段分别跑。
+
+## 复用样例和扩展工具
+
+优先用 `dev locate` 找代码、`dev diagnose` 查记录、生成器建包、`dev check` 验证。需要反复真跑的业务样例放在 `tests/modules/包/cases/名称.json`，用 `uv run dev run --case 文件路径`；写操作加 `--allow-write`。例如先用 `dev new-operation customer_contact normalize_text --title 整理文本` 生成样例操作，配置只含合成数据，不含凭据：
+
+```json
+{"operation":"customer_contact.normalize_text","input":{"text":" 张三 "},"org":"north","permissions":["customer_contact.run"],"expected":{"text":"张三"}}
+```
+
+`operation`、`input` 按真实操作填写；`expected` 是用户确认的完整 JSON 结果，金额按接口格式写。错误字段、结果不符、权限不足都返回非零退出码；`expected` 检查发生在操作提交之后，不会回滚，写样例只用于可重置的开发数据。省略 `expected` 只运行、不声称业务验证通过。
+
+- 调整产品优先用 `app/product.py`、现有命令参数和配置；配置只放数据，不执行 Python 或 shell。
+- 已有命令能做的事不另写脚本，不用临时 SQL 绕过正式操作、权限和迁移。
+- 确需复用的新工具放所属项目 Skill 的 `scripts/`，从 `dev` 明确登记，带参数校验、只读/写入说明、失败退出码和针对性测试，再在该 Skill 记录入口。先核对现有职责，不建万能脚本目录。
+- 一次性试验放系统临时目录，只用隔离测试数据；有价值的反例转成回归测试，结束后清理。
 
 ## 代码规则
 
@@ -67,3 +82,7 @@ uv run dev run customer_contact.create_contact --input-file 样例.json --org no
 - 和时间有关的样例，在执行时传入时间或用可控时钟，不放宽业务时限。
 - 权限测试用真实的应用权限。
 - 目录分组、测试准备函数、单步测试、数据库和手动测试见[测试说明](references/tests.md)。
+
+## 有界状态检查
+
+修改任务领取、接管或提交原子性时，单独执行 `uv run dev verify-model`。它检查小规模状态空间、检测刻意损坏的模型，再跑真实提交回滚测试；不进入日常 `dev check`。范围与代码对应关系见[任务状态模型](references/job-model.md)。
