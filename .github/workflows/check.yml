@@ -32,3 +32,33 @@ jobs:
           cache-dependency-glob: server/uv.lock
       - run: uv sync --locked
       - run: uv run --no-sync dev check
+
+  postgres:
+    name: PostgreSQL 业务与框架测试
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: template_test
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U template_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      APP_TEST_CONTROL_URL: postgresql+psycopg://template_test:local-ci-only@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
+        with:
+          version: "0.9.28"
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+      - run: uv sync --locked
+      - run: uv run --no-sync python -m pytest -q -ra -n 4 --durations=5
