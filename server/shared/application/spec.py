@@ -13,7 +13,7 @@ from shared.model_calls.providers import ModelProvider
 from shared.modules.module import Module
 from shared.timing.clock import Clock
 
-FRAMEWORK_VERSION = "4.1.0"
+FRAMEWORK_VERSION = "5.0.0"
 
 
 @dataclass(frozen=True)
