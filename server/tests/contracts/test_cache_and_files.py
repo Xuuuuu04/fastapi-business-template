@@ -149,6 +149,9 @@ async def test_module_files(tmp_path: Path) -> None:
     saved = await files.adopt(upload.temp_id, "north/1")
     assert saved.key == "notes/north/1"
     assert await files.read("north/1", 100) == b"hello"
+    rewritten = await files.save_bytes(saved.key, b"changed")
+    assert rewritten.key == saved.key
+    assert await files.read(saved.key, 100) == b"changed"
     with pytest.raises(FileTooLarge):
         await files.read("north/1", 3)
     with pytest.raises(FileTooLarge):

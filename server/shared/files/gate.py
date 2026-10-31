@@ -39,7 +39,7 @@ class ModuleFiles:
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "content"
             await asyncio.to_thread(path.write_bytes, content)
-            return await self._storage.save_path(self._prefix + key, path)
+            return await self._storage.save_path(self._full(key), path)
 
     async def exists(self, key: str) -> bool:
         return await self._storage.exists(self._full(key))
@@ -47,7 +47,7 @@ class ModuleFiles:
     async def adopt(self, temp_id: str, key: str) -> SavedFile:
         self.mutable_key(key)
         path, _ = await self._uploads.find(temp_id)
-        saved = await self._storage.save_path(self._prefix + key, path)
+        saved = await self._storage.save_path(self._full(key), path)
         await self._uploads.discard(temp_id)
         return saved
 
