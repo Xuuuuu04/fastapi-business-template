@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Any
 
 from shared.data.models import Data
@@ -14,11 +15,13 @@ class ModelGate:
         allowed: tuple[Prompt, ...],
         records: list[ModelCallRecord],
         place: str,
+        transaction_started: Callable[[], bool] | None = None,
     ) -> None:
         self._service = service
         self._allowed = allowed
         self._records = records
         self._place = place
+        self._transaction_started = transaction_started
 
     async def ask(self, item: Prompt, **values: Any) -> str:
         reply = await self._service_for(item).complete(item, values, self._records)
@@ -31,6 +34,8 @@ class ModelGate:
         return parse_output(reply.text, output)
 
     def _service_for(self, item: Prompt) -> ModelService:
+        if self._transaction_started is not None and self._transaction_started():
+            raise StepRuleBroken(f"步骤“{self._place}”在写入事务开始后不能调用大模型")
         if item not in self._allowed:
             raise StepRuleBroken(f"步骤“{self._place}”使用了未声明的提示词“{item.title}”")
         if self._service is None:

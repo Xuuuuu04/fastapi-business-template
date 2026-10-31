@@ -117,7 +117,13 @@ def simple_tools(
 ) -> dict[str, Any]:
     makers: dict[str, Callable[[], Any]] = {
         "call": lambda: Call(scope, run, record, part),
-        "model": lambda: ModelGate(scope.runtime.models, part.prompts, record.models, part.title),
+        "model": lambda: ModelGate(
+            scope.runtime.models,
+            part.prompts,
+            record.models,
+            part.title,
+            lambda: scope.tx.connection is not None,
+        ),
         "remote": lambda: remote_gate(part, scope, record, part.remotes),
         "cache": lambda: module_cache(scope, module.name, record),
         "later": lambda: Later(scope, record, part),

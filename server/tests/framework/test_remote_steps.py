@@ -205,4 +205,4 @@ def test_remote_declarations_are_checked() -> None:
         Catalog([module])
     problems = caught.value.problems
     assert any("没有在模块声明的 remotes 中登记" in item for item in problems)
-    assert any("写入事务开始" in item and "之后调用外部服务" in item for item in problems)
+    assert any("在写入事务开始后调用外部服务" in item for item in problems)

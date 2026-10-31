@@ -13,6 +13,7 @@ from shared.flow.step import Step
 from shared.jobs.checks import check_jobs
 from shared.model_calls.prompt import load_prompt
 from shared.modules.aliases import check_aliases
+from shared.modules.call_order import check_call_order
 from shared.modules.contract import Contract
 from shared.modules.identity import check_identity
 from shared.modules.module import STORE_PARAMS, Module
@@ -37,7 +38,7 @@ def check_catalog(modules: Sequence[Module]) -> list[str]:
         problems += check_module(module)
     problems += check_uses(modules, provided)
     problems += check_cycles(modules, provided)
-    problems += check_model_in_save(provided)
+    problems += check_call_order({item: module.provides[item] for item, module in provided.items()})
     problems += check_error_codes(provided)
     problems += check_policy(modules)
     return problems
@@ -201,45 +202,6 @@ def find_loops[Node](graph: dict[Node, set[Node]]) -> list[list[Node]]:
     for node in list(graph):
         visit(node, [])
     return loops
-
-
-def check_model_in_save(provided: Provided) -> list[str]:
-    flows = {item: module.provides[item] for item, module in provided.items()}
-    memo: dict[Contract[Any, Any], bool] = {}
-    problems = []
-    for item, flow in flows.items():
-        saving = None
-        for part in flow.steps if isinstance(flow, Flow) else ():
-            if part.saves and saving is None:
-                saving = part
-            elif saving is not None and any(
-                uses_model(used, flows, memo, set()) for used in part.uses
-            ):
-                problems.append(
-                    f"操作 {item.name} 的步骤“{part.title}”在写入事务开始后，"
-                    "调用了会使用大模型的操作；"
-                    "请把它移到第一个保存步骤之前"
-                )
-    return problems
-
-
-def uses_model(
-    item: Contract[Any, Any],
-    flows: dict[Contract[Any, Any], Flow],
-    memo: dict[Contract[Any, Any], bool],
-    visiting: set[Contract[Any, Any]],
-) -> bool:
-    if item in memo:
-        return memo[item]
-    flow = flows.get(item)
-    if flow is None or item in visiting or not isinstance(flow, Flow):
-        return False
-    visiting.add(item)
-    found = any("model" in part.params for part in flow.steps) or any(
-        uses_model(used, flows, memo, visiting) for part in flow.steps for used in part.uses
-    )
-    memo[item] = found
-    return found
 
 
 def check_error_codes(provided: Provided) -> list[str]:

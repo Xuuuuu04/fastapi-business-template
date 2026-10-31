@@ -37,7 +37,6 @@ def check_flow(
             )
     problems += check_writers(flow, contract, notes)
     problems += check_sources(flow, contract, notes)
-    problems += check_model_order(flow)
     return problems
 
 
@@ -204,20 +203,4 @@ def check_sources(
         target.update(item.writes)
     if flow.result in notes and flow.result not in sure:
         problems.append(f"流程“{flow.title}”结束时结果字段 {flow.result} 可能没有值")
-    return problems
-
-
-def check_model_order(flow: Flow) -> list[str]:
-    saving = None
-    problems = []
-    for item in flow.steps:
-        if item.saves and saving is None:
-            saving = item
-        elif saving is not None and (
-            {"model", "remote"} & set(item.params) or ("effects" in item.params and not item.saves)
-        ):
-            problems.append(
-                f"步骤“{item.title}”在写入事务开始（“{saving.title}”）之后调用外部服务，"
-                "事务会在等待时一直占用数据库连接；请把调用移到第一个保存步骤之前"
-            )
     return problems
