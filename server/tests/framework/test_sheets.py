@@ -30,3 +30,15 @@ def test_bad_files(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sheets, "MAX_ROWS", 2)
     with pytest.raises(InvalidInput):
         read_sheet("编码\nA\nB\nC\n".encode(), "f.csv", COLUMNS, REQUIRED)
+
+
+@pytest.mark.parametrize("kind", ["csv", "xlsx"])
+def test_sheet_reader_stops_at_row_limit(
+    monkeypatch: pytest.MonkeyPatch, kind: sheets.Kind
+) -> None:
+    monkeypatch.setattr(sheets, "MAX_ROWS", 2)
+    content = write_sheet([{"code": str(index)} for index in range(20)], {"code": "编码"}, kind)
+    reader = sheets.read_csv if kind == "csv" else sheets.read_xlsx
+    assert len(reader(content)) == 4
+    with pytest.raises(InvalidInput, match="最多导入 2 行"):
+        read_sheet(content, f"data.{kind}", COLUMNS, REQUIRED)

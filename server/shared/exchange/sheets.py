@@ -1,6 +1,7 @@
 import csv
 import io
 from collections.abc import Mapping, Sequence
+from itertools import islice
 from typing import Any, Literal
 
 from openpyxl import Workbook, load_workbook
@@ -27,7 +28,7 @@ def read_sheet(
         raise InvalidInput(f"表头缺少必需的列：{'、'.join(missing)}")
     body = raw[1:]
     if len(body) > MAX_ROWS:
-        raise InvalidInput(f"一次最多导入 {MAX_ROWS} 行，文件有 {len(body)} 行")
+        raise InvalidInput(f"一次最多导入 {MAX_ROWS} 行，文件超过上限")
     rows = []
     for number, cells in enumerate(body, start=2):
         values = {field: text_of(cell) for field, cell in zip(header, cells, strict=False) if field}
@@ -41,7 +42,7 @@ def read_csv(content: bytes) -> list[list[str]]:
         text = content.decode("utf-8-sig")
     except UnicodeDecodeError:
         raise InvalidInput("CSV 文件不是 UTF-8 编码，请在 Excel 中另存为“CSV UTF-8”") from None
-    return [row for row in csv.reader(io.StringIO(text))]
+    return list(islice(csv.reader(io.StringIO(text)), MAX_ROWS + 2))
 
 
 def read_xlsx(content: bytes) -> list[list[Any]]:
@@ -49,10 +50,11 @@ def read_xlsx(content: bytes) -> list[list[Any]]:
         book = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     except Exception as error:
         raise InvalidInput(f"无法读取 Excel 文件（{type(error).__name__}）") from None
-    sheet = book.worksheets[0]
-    rows = [list(row) for row in sheet.iter_rows(values_only=True)]
-    book.close()
-    return rows
+    try:
+        sheet = book.worksheets[0]
+        return [list(row) for row in islice(sheet.iter_rows(values_only=True), MAX_ROWS + 2)]
+    finally:
+        book.close()
 
 
 def text_of(cell: Any) -> str:
