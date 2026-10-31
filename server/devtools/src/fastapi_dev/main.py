@@ -8,6 +8,7 @@ from pathlib import Path
 COMMANDS = {
     "new-library": "fastapi_module.new_library",
     "check": "fastapi_check.check",
+    "verify-model": "fastapi_check.verify_model",
     "run": "fastapi_check.run_operation",
     "locate": "fastapi_business.locate",
     "docs": "fastapi_check.openapi",

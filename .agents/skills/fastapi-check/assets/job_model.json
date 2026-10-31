@@ -1,0 +1,32 @@
+[
+  {
+    "file": "shared/jobs/queue.py",
+    "symbol": "JobQueue.finish",
+    "sha256": "ae3b60ec8298d9ca29f3cdb15e1feaac3f5ba388d160f9e8dca678a42ef87e5b"
+  },
+  {
+    "file": "shared/jobs/constraints.py",
+    "symbol": "take",
+    "sha256": "398035a3c4b1706c7f0c6e700c27228b6f2eb969b165fd31e4ec31a46e2f9061"
+  },
+  {
+    "file": "shared/jobs/expiry.py",
+    "symbol": "expire",
+    "sha256": "743627512c0003cf78a9d29a0fecc2067a70d4897a2b54519c38ea5d69778a37"
+  },
+  {
+    "file": "shared/jobs/worker.py",
+    "symbol": "Worker.run_job",
+    "sha256": "0a655bdec97d322ec0924414bf2fda7d0d74d60b74bb03a73eac67cee4848046"
+  },
+  {
+    "file": "shared/flow/commit.py",
+    "symbol": "commit_writes",
+    "sha256": "0ea1edda33e05179cf06715b480d3c161dfce5663ef64c55ec41910b5f263584"
+  },
+  {
+    "file": "shared/jobs/queue.py",
+    "symbol": "JobQueue.reclaim",
+    "sha256": "5444eaf88a2e9395ae179cc314b22a094ce9d8bf68dce1355c899445f88650a2"
+  }
+]
