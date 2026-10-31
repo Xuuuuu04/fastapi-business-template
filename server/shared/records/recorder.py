@@ -137,7 +137,9 @@ class Recorder:
         found: dict[str, RunRecord] = {}
         for run in [*live, *pending, *await self.store.recent(rules, limit)]:
             found.setdefault(run.id, mark_lost(run))
-        return list(found.values())[:limit]
+        return sorted(found.values(), key=lambda run: (run.started_at, run.id), reverse=True)[
+            :limit
+        ]
 
     def state(self) -> RecorderState:
         return RecorderState(

@@ -70,7 +70,7 @@ async def test_recent_filters(store: RunStore) -> None:
         make_run("b", "b", 2.0, "failed"),
         make_run("c", "c", 3.0, module="n"),
     ]
-    await store.save([*runs, make_run("d", "a", 4.0)])
+    await store.save([runs[2], runs[0], runs[1], make_run("d", "a", 4.0)])
     assert [run.id for run in await store.recent(RunFilter(), 10)] == ["c", "b", "a"]
     assert [run.id for run in await store.recent(RunFilter(status="failed"), 10)] == ["b"]
     assert [run.id for run in await store.recent(RunFilter(module="n"), 10)] == ["c"]

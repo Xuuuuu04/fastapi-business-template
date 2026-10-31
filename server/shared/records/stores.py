@@ -61,7 +61,7 @@ class MemoryRunStore:
 
     async def recent(self, rules: RunFilter, limit: int) -> list[RunRecord]:
         found = [run for run in reversed(self.rows.values()) if matches(run, rules)]
-        return found[:limit]
+        return sorted(found, key=lambda run: (run.started_at, run.id), reverse=True)[:limit]
 
     async def clean(self, older_than: float) -> int:
         old = [key for key, run in self.rows.items() if run.started_at < older_than]

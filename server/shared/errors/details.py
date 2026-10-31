@@ -1,6 +1,6 @@
 import traceback
 
-from shared.errors.kinds import BusinessError
+from shared.errors.kinds import BusinessError, Kind
 
 MAX_ERROR_TEXT = 4000
 
@@ -16,3 +16,9 @@ def safe_exception_text(error: BaseException) -> str:
     places = "\n".join(f"{frame.filename}:{frame.lineno} ({frame.name})" for frame in frames)
     available = MAX_ERROR_TEXT - len(title) - 1
     return title + ("\n" + places[-available:] if places and available > 0 else "")
+
+
+def public_message(error: BaseException) -> str:
+    if isinstance(error, BusinessError) and error.kind != Kind.BROKEN:
+        return error.detail
+    return "服务器内部错误，请用运行编号查询排查信息"

@@ -134,7 +134,7 @@ async def test_stream_error_is_reported(
     problem = json.loads(events[0].split(b"data: ")[1])
     assert problem == {
         "code": "internal_error",
-        "message": "运行失败，请按运行编号排查",
+        "message": "服务器内部错误，请用运行编号查询排查信息",
         "run_id": "",
     }
 

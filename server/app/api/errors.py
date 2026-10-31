@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException
 
 from app.api.middleware import security_headers
 from app.api.replies import STATUS, ErrorReply, FieldProblem
-from shared.errors.details import safe_exception_text
+from shared.errors.details import public_message, safe_exception_text
 from shared.errors.kinds import BusinessError, Kind
 
 log = logging.getLogger("server.errors")
@@ -51,8 +51,8 @@ def error_response(
 
 async def business_error(request: Request, error: BusinessError) -> JSONResponse:
     message = error.detail
-    if error.kind == Kind.BROKEN and request.app.state.settings.env == "production":
-        message = "服务器内部错误，请用运行编号查询排查信息"
+    if request.app.state.settings.env == "production":
+        message = public_message(error)
     fields = field_problems(error.fields.items())
     status = STATUS[error.kind]
     return error_response(

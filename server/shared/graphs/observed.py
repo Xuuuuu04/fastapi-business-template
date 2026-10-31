@@ -78,9 +78,12 @@ def external_nodes(node: str, step: StepRecord) -> list[str]:
         (
             (call.endpoint or call.remote) + f" · {call.outcome}",
             "failed"
-            if call.error or call.status >= 400
+            if call.error
+            or call.status >= 400
+            or call.outcome == "failed"
+            or (step.status != "running" and call.outcome != "ok")
             else "running"
-            if call.status == 0
+            if call.status == 0 and call.outcome != "ok"
             else "ok",
             call.elapsed_ms,
         )

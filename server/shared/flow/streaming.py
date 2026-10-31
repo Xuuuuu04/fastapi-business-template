@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from shared.access.caller import Caller
 from shared.data.models import Data
+from shared.errors.details import public_message
 from shared.errors.framework import StepRuleBroken
 from shared.errors.kinds import BusinessError
 from shared.modules.contract import Contract
@@ -38,9 +39,7 @@ async def stream_events[In: Data, Out: Data](
         except asyncio.CancelledError:
             raise
         except Exception as error:
-            message = (
-                error.detail if isinstance(error, BusinessError) else "运行失败，请按运行编号排查"
-            )
+            message = public_message(error)
             problem = {
                 "code": error.code if isinstance(error, BusinessError) else "internal_error",
                 "message": message,
