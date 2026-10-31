@@ -45,7 +45,7 @@ def main() -> None:
     host, folder = target()
     step("推送代码", ["git", "push"])
     step("服务器拉取并重启", ["ssh", host, update(folder)])
-    step("等服务就绪", ["ssh", host, READY])
+    step("等待服务可以接收请求", ["ssh", host, READY])
     print("部署完成")
 
 

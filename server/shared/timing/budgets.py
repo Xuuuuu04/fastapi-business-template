@@ -30,11 +30,13 @@ def budget_report(catalog: Catalog, settings: Settings) -> dict[str, Any]:
                         kind=call["kind"],
                         upper_seconds=upper,
                         lower_seconds=call["seconds"],
-                        message="上层预算早于下层配置，超过上层期限将停止等待",
+                        message="外层操作的超时时间短于内部调用，外层超时后会停止等待",
                     )
                 )
         rows.append(dict(operation=operation, budgets=limits, calls=calls))
-    return dict(operations=rows, issues=issues, observation="声明与配置，不是实际耗时")
+    return dict(
+        operations=rows, issues=issues, observation="此处显示配置的超时时间；实际耗时请查看运行记录"
+    )
 
 
 def lower_budgets(catalog: Catalog, operation: str, settings: Settings) -> list[dict[str, Any]]:

@@ -34,7 +34,7 @@ async def add(
     catalog: "Catalog",
 ) -> int:
     if len(values) > 1000:
-        raise InvalidInput(f"扇出阶段{group.name}每批最多登记1000个成员，请分批")
+        raise InvalidInput(f"并行阶段 {group.name} 每批最多登记 1000 个子任务，请分批登记")
     model = group.stages[0].operation.input
     declared = json.dumps([stage_declaration(child, catalog) for child in group.stages])
     for value in values:
@@ -78,4 +78,6 @@ async def insert_member(connection: AsyncConnection, row: dict) -> None:
             )
         )
         if saved != row["input_json"]:
-            raise DuplicateRequest(f"扇出成员{row['key']}已经登记不同输入") from None
+            raise DuplicateRequest(
+                f"并行子任务 {row['key']} 已用不同输入登记，不能复用同一标识"
+            ) from None

@@ -1,6 +1,6 @@
 ---
 name: fastapi-template
-description: 用模板新建产品、把新版模板的框架更新合进已有产品、或把旧系统的一项业务迁进来时读。日常写业务、检查、发布时不用读。
+description: 用模板新建产品、把新版模板的框架代码更新到已有产品、或把旧系统的一项业务迁到本模板时读。日常写业务、检查、发布时不用读。
 ---
 
 # 新建产品、升级框架、迁移旧业务
@@ -19,7 +19,7 @@ description: 用模板新建产品、把新版模板的框架更新合进已有�
 
 ## 升级框架
 
-按[升级说明](references/upgrading.md)做：准备旧模板和新模板两份目录，先预览，没有冲突再加 `--apply`，之后跑 `uv run dev docs` 和 `uv run dev check`。
+按[升级说明](references/upgrading.md)做：准备旧模板和新模板两份目录，先预览改动，没有冲突再加 `--apply`，之后跑 `uv run dev docs` 和 `uv run dev check`。
 
 ## 迁移旧业务
 

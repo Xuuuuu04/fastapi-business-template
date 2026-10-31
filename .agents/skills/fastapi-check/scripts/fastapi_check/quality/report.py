@@ -34,7 +34,11 @@ def unused_allowed(problems: list[Problem]) -> list[Problem]:
     found = {(problem.path, problem.rule) for problem in problems}
     return [
         Problem(
-            item.path, 0, "unused_exception", f"例外“{item.rule}”已经不再需要", "从 rules.py 删除"
+            item.path,
+            0,
+            "unused_exception",
+            f"检查规则“{item.rule}”已无需例外放行",
+            "从 rules.py 删除",
         )
         for item in ALLOWED
         if (item.path, item.rule) not in found

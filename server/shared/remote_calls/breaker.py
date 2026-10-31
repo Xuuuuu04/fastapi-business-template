@@ -40,4 +40,4 @@ class Breaker:
     def state(self) -> str:
         if self.opened_at is None:
             return "正常"
-        return "试探中" if self.trying else f"暂停（已连续失败 {self.failures} 次）"
+        return "正在尝试恢复调用" if self.trying else f"暂停（已连续失败 {self.failures} 次）"

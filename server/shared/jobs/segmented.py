@@ -111,10 +111,15 @@ async def continue_batch(queue: JobQueue, ticket: Ticket, stop: asyncio.Event) -
 
     if not await may_continue(queue, ticket.id):
         await queue.fail(
-            ticket, "waiting_retry", "pipeline_overdue_paused", "流程逾期，已在批次边界暂停"
+            ticket,
+            "waiting_retry",
+            "pipeline_overdue_paused",
+            "流程已超过截止时间，已处理完当前批次并暂停",
         )
         return False
     if stop.is_set():
-        await queue.fail(ticket, "waiting_retry", "worker_stopping", "已在提交边界停止，等待继续")
+        await queue.fail(
+            ticket, "waiting_retry", "worker_stopping", "已处理完当前批次并停止，等待后续继续执行"
+        )
         return False
     return True

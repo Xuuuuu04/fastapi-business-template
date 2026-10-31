@@ -50,7 +50,7 @@ async def acquire_one(
         .one()
     )
     if row["capacity"] != resource.concurrency:
-        raise StepRuleBroken("资源并发声明与已登记额度不同，请停止旧worker并明确调整额度")
+        raise StepRuleBroken("声明的资源并发上限与数据库记录不同，请先停止旧 worker，再调整上限")
     if row["cooldown_until"] > now:
         raise ResourceWait(row["cooldown_until"])
     await connection.execute(
@@ -141,7 +141,7 @@ async def serial_position(connection: AsyncConnection, key: str) -> int:
 
 async def reconfigure(connection: AsyncConnection, resource: ResourceLimit, now: float) -> None:
     if resource.concurrency < 1 or resource.name.startswith("serial."):
-        raise StepRuleBroken("只允许调整明确资源的正整数额度，串行键不改为并行")
+        raise StepRuleBroken("资源并发上限必须是正整数；串行业务分组不允许改为并行执行")
     id = await register_pool(connection, resource)
     await connection.execute(select(pools.c.id).where(pools.c.id == id).with_for_update())
     count = await connection.scalar(
@@ -150,7 +150,7 @@ async def reconfigure(connection: AsyncConnection, resource: ResourceLimit, now:
         .where(leases.c.pool_id == id, leases.c.lease_until > now)
     )
     if count:
-        raise StepRuleBroken("资源仍有在途尝试，请先停止领取并等待尝试结束")
+        raise StepRuleBroken("仍有任务占用此资源，请先停止领取新任务，等待当前任务结束")
     await connection.execute(
         update(pools).where(pools.c.id == id).values(capacity=resource.concurrency)
     )

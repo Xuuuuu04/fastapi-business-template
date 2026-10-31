@@ -97,7 +97,7 @@ plan = ImportPlan(
 )
 module = Module(
     "import_sample",
-    "导入对账样例",
+    "导入结果核对样例",
     "1",
     provides={
         operation: Flow("分批导入", work=Work, result="result", steps=[save]),

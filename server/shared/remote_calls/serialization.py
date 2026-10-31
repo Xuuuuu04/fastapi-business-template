@@ -69,7 +69,7 @@ def check_files(endpoint: Endpoint, files: tuple[FilePart, ...]) -> None:
         or any(char in part.filename for char in "\r\n/\\")
         for part in files
     ):
-        raise StepRuleBroken("上传文件名必须是有界文件名")
+        raise StepRuleBroken("上传文件名不能为空、不能超过 200 个字符，且不能包含路径或换行")
     if any(
         len(part.content_type) > 100 or "\r" in part.content_type or "\n" in part.content_type
         for part in files

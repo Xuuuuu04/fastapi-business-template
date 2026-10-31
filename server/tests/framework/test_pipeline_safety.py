@@ -52,7 +52,7 @@ async def test_unknown_never_automatically_advances(piped: Services, monkeypatch
     run_id = await start(piped, "unknown")
     await drain(piped)
     assert (await snapshot(piped, run_id))[0]["state"] == "unknown"
-    with pytest.raises(InvalidInput, match="外部结果待确认"):
+    with pytest.raises(InvalidInput, match="外部请求结果待确认"):
         await resume(piped.database, piped.catalog, run_id)
     await drain(piped)
     assert (await snapshot(piped, run_id))[2] == {"choose": 1}

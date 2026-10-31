@@ -76,15 +76,15 @@ async def verify(
 ) -> list[dict[str, str]]:
     run_id = root["id"]
     if root["state"] not in ("failed", "version_blocked", "unknown"):
-        raise InvalidInput("只有失败、版本暂停、结果待确认的流程可以恢复")
+        raise InvalidInput("只有执行失败、因版本变化暂停或结果待确认的流程可以恢复")
     if root["state"] == "unknown" and not confirm_unknown:
-        raise InvalidInput("外部结果待确认；确认未产生效果后才可显式重新执行")
+        raise InvalidInput("外部请求结果待确认；只有确认原请求未执行，才可以重新执行")
     pipeline = catalog.pipelines.get(root["pipeline"])
     if pipeline is None:
-        raise InvalidInput("流程当前没有登记")
+        raise InvalidInput("当前代码未登记此流程")
     current = declarations(pipeline, catalog)
     if not compatible(root, current) and not accept_schema:
-        raise InvalidInput("后续阶段声明已变化，请审查后明确接受当前格式")
+        raise InvalidInput("后续阶段的数据格式或执行配置已改变，请审查后明确接受当前格式")
     other = await connection.scalar(
         select(runs.c.id).where(
             runs.c.pipeline == root["pipeline"],
@@ -94,7 +94,7 @@ async def verify(
         )
     )
     if other:
-        raise InvalidInput(f"组织的另一周期{other}尚未结束")
+        raise InvalidInput(f"同一组织的另一周期 {other} 尚未结束")
     return current
 
 
@@ -111,13 +111,13 @@ async def requeue_stage(
 
     binding, plan = catalog.find(job["contract"]), catalog.plan(job["contract"])
     if binding is None or plan is None:
-        raise InvalidInput("失败阶段操作当前没有登记")
+        raise InvalidInput("当前代码未登记失败阶段对应的操作")
     current_stage = next(
         (s for s in catalog.pipelines[root["pipeline"]].stages if s.name == root["current_stage"]),
         None,
     )
     if current_stage is None or current_stage.operation.name != job["contract"]:
-        raise InvalidInput("阶段操作名称变化，需要迁移当前任务后恢复")
+        raise InvalidInput("阶段对应的操作名称已改变，需要迁移当前任务后恢复")
     validate_saved(binding.contract.input, job["input_json"], stage["name"])
     await validate_checkpoint(connection, job["id"], plan, stage["name"])
     await reserve(connection, binding.contract, plan.max_queued)
@@ -175,7 +175,9 @@ def validate_saved(model: type[Data], value: str, stage: str) -> None:
     try:
         model.model_validate_json(value)
     except ValidationError as error:
-        raise InvalidInput(f"流程阶段{stage}的已保存数据与当前格式不符，需要迁移后恢复") from error
+        raise InvalidInput(
+            f"流程阶段 {stage} 已保存的数据与当前格式不符，需要迁移后恢复"
+        ) from error
 
 
 async def validate_checkpoint(
@@ -187,9 +189,9 @@ async def validate_checkpoint(
         .first()
     )
     if row and row["number"] > 0 and not plan.segmented:
-        raise InvalidInput(f"阶段{stage}已提交批次，不能改成普通任务重做，请先迁移恢复位置")
+        raise InvalidInput(f"阶段 {stage} 已提交过批次，不能改成普通任务重新执行，请先迁移恢复位置")
     if row and plan.cursor:
-        validate_saved(plan.cursor, row["cursor_json"], stage + "游标")
+        validate_saved(plan.cursor, row["cursor_json"], stage + "恢复位置")
     if row is None and plan.segmented:
         await create_checkpoint(connection, job_id)
 

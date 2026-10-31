@@ -70,7 +70,7 @@ async def test_typed_locations_and_missing_receipt() -> None:
         assert seen[0].url.path == "/records/private-id" and seen[0].url.params["dry_run"] == "true"
         assert json.loads(seen[0].content) == {"title": "body"}
         assert records[0].path == "/records/{record_id}"
-        with pytest.raises(RemoteResultUnknown, match="关键回执"):
+        with pytest.raises(RemoteResultUnknown, match="关键字段"):
             await gate.call(target, endpoint, request)
         assert records[-1].outcome == "unknown"
     finally:

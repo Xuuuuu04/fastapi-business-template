@@ -11,7 +11,7 @@ from fastapi_module.new_operation import changes as operation_changes
 def changes(module: str, name: str, title: str, stages: list[str], wait: str) -> dict[Path, str]:
     folder = validate(module, name)
     if not stages or len(set(stages)) != len(stages) or wait not in stages:
-        raise ValueError("需要不重复的阶段名称及属于该链的等待阶段")
+        raise ValueError("阶段名称不能重复，等待阶段必须包含在阶段列表中")
     for stage in stages:
         validate(module, name + "_" + stage)
     state = camel(name) + "State"
@@ -20,8 +20,8 @@ def changes(module: str, name: str, title: str, stages: list[str], wait: str) ->
         data: append(
             add_import(data.read_text(), "from shared.public import Data, meaning"),
             f"class {state}(Data):\n"
-            '    text: str = meaning("生成样例文本；业务实现后替换", default="样例")\n'
-            '    ready: bool = meaning("等待结果是否就绪", default=False)',
+            '    text: str = meaning("流程传递的样例文本，开发业务时替换", default="样例")\n'
+            '    ready: bool = meaning("等待条件是否已经满足", default=False)',
         )
     }
     for stage in stages:
@@ -89,7 +89,7 @@ def generate(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="生成多阶段流程和首阶段定时的骨架")
+    parser = argparse.ArgumentParser(description="生成多阶段流程及启动流程的定时配置")
     parser.add_argument("module")
     parser.add_argument("name")
     parser.add_argument("--title", required=True)

@@ -175,7 +175,7 @@ def test_startup_checks_endpoints() -> None:
         Catalog([replace(module, endpoints=(*module.endpoints, duplicate))])
     changed_step = replace(module.provides[read].steps[0], endpoints=())
     flow = Flow("漏声明", work=module.provides[read].work, result="result", steps=[changed_step])
-    with pytest.raises(DeclarationError, match="未声明的上游接口"):
+    with pytest.raises(DeclarationError, match="未声明的外部接口"):
         Catalog([replace(module, provides={read: flow})])
     shared = replace(module, name="shared_probe", provides={})
     Catalog([module, shared])

@@ -30,7 +30,7 @@ async def save_business_failure(
         plan = queue.catalog.plan(ticket.contract)
         names = {resource.name for resource in plan.resources} if plan else set()
         if error.resource and error.resource not in names:
-            raise StepRuleBroken("延后的资源没有在JobPlan.resources声明")
+            raise StepRuleBroken("需要延后使用的资源未在 JobPlan.resources 中声明")
         if error.resource:
             async with queue.database.write() as connection:
                 await cool(connection, error.resource, until)

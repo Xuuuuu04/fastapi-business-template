@@ -10,17 +10,17 @@ from shared.modules.module import Module
 
 
 class DispatchInput(Data):
-    intent_id: str = meaning("已经登记的持久意图编号")
+    intent_id: str = meaning("已保存的外部请求记录编号，用于发送或查询原请求")
 
 
 class DispatchWork(WorkData):
-    intent_id: str = meaning("持久意图编号")
-    result: Nothing = meaning("本次意图已取得明确结果")
+    intent_id: str = meaning("已保存的外部请求记录编号")
+    result: Nothing = meaning("外部请求已处理，无返回字段")
 
 
 dispatch = contract(
     "system_effects.dispatch",
-    "发送已提交外部意图",
+    "发送已保存的外部请求",
     input=DispatchInput,
     output=Nothing,
     access="signed_in",
@@ -29,16 +29,16 @@ dispatch = contract(
 
 
 def make_effect_module(providers: tuple[ProviderSpec, ...]) -> Module:
-    @step("发送原外部意图", reads=["intent_id"], writes=["result"], providers=providers)
+    @step("发送原外部请求", reads=["intent_id"], writes=["result"], providers=providers)
     async def send(data: DispatchWork, effects: EffectGate) -> None:
         await effects.perform(data.intent_id)
         data.result = Nothing()
 
     return Module(
         "system_effects",
-        "持久外部效果",
+        "外部请求发送与结果记录",
         "3.0.0",
-        {dispatch: Flow("分发意图", work=DispatchWork, result="result", steps=[send])},
+        {dispatch: Flow("发送外部请求", work=DispatchWork, result="result", steps=[send])},
         jobs=(JobPlan(dispatch),),
         providers=providers,
         kind="workflow",

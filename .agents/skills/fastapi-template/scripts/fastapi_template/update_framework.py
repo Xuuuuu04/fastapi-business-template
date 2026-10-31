@@ -9,11 +9,14 @@ from fastapi_template.template.merge import apply_plan, update_plan
 def main() -> None:
     from pathlib import Path
 
-    parser = argparse.ArgumentParser(description="预览或接收框架增量更新")
+    parser = argparse.ArgumentParser(description="预览框架更新，确认后写入产品项目")
     parser.add_argument("--base", required=True, type=Path, help="项目上次采用的模板版本目录")
     parser.add_argument("--source", required=True, type=Path, help="准备升级到的模板版本目录")
     parser.add_argument(
-        "--target", type=Path, default=PROJECT, help="产品目录；旧产品可从新版工具明确指定"
+        "--target",
+        type=Path,
+        default=PROJECT,
+        help="要更新的产品目录，可用新版工具指定旧产品的路径",
     )
     parser.add_argument("--apply", action="store_true", help="没有冲突时保存全部框架变化")
     args = parser.parse_args()

@@ -45,7 +45,7 @@ def check_folder(folder: Path) -> None:
         if path.name in skip:
             continue
         if path.is_symlink():
-            raise ValueError(f"来源包含链接：{path}")
+            raise ValueError(f"模板来源包含符号链接：{path}")
         if path.is_dir():
             check_folder(path)
 

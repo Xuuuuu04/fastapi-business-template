@@ -91,7 +91,7 @@ def test_import_declarations() -> None:
     job = module.jobs[0]
     with pytest.raises(DeclarationError, match="segmented"):
         Catalog([replace(module, jobs=(replace(job, segmented=False),))])
-    with pytest.raises(DeclarationError, match="预期行数"):
+    with pytest.raises(DeclarationError, match="预期导入行数"):
         bad = replace(job.import_plan, reconcile=replace(job.import_plan.reconcile, rows=0))
         Catalog([replace(module, jobs=(replace(job, import_plan=bad),))])
     with pytest.raises(DeclarationError, match="目标表"):
@@ -142,8 +142,8 @@ async def test_import_reconciliation(tmp_path: Path, fault: str | None, failed: 
         if failed:
             assert last.import_report["checks"][failed]["passed"] is False
             assert last.writes == "rolled_back"
-        assert "导入对账" in run_graph(runs)
-        assert "最后一批提交前对账" in flow_graph(services.catalog.binding(operation))
+        assert "导入结果核对" in run_graph(runs)
+        assert "最后一批提交前核对" in flow_graph(services.catalog.binding(operation))
         async with services.database.read() as connection:
             count = (await connection.execute(select(func.count()).select_from(rows))).scalar_one()
         assert count == (1 if failed else 2)

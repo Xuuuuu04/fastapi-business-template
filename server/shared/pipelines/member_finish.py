@@ -31,7 +31,7 @@ async def finish(
     now = business_now()
     joining = parent["state"] == "joining"
     if isinstance(stage, Wait) and now >= member["wait_until"]:
-        raise InvalidInput(f"成员{member['key']}阶段{stage.name}等待超时")
+        raise InvalidInput(f"子任务 {member['key']} 的阶段 {stage.name} 等待超时")
     value = stage.operation.output.model_validate_json(body)
     if isinstance(stage, Wait) and not getattr(value, stage.ready_field) and not joining:
         await wait_again(connection, ticket, member, stage, body, run_id, now)

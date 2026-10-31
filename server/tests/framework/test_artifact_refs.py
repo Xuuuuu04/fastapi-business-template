@@ -39,7 +39,7 @@ async def test_freeze_and_bounded_windows(tmp_path: Path, monkeypatch) -> None:
     assert await gate.read_window(refs[0], len(content) - 20, 20) == content[-20:]
     with pytest.raises(FileTooLarge):
         await gate.read_window(refs[0], 0, 1001, max_bytes=1000)
-    with pytest.raises(StepRuleBroken, match="不允许覆盖"):
+    with pytest.raises(StepRuleBroken, match="不能覆盖"):
         await gate.save_bytes(refs[0].key, b"changed")
     foreign = ModuleFiles(storage, area, "batch_reads", Caller("user", "user", "用户", org_id="b"))
     with pytest.raises(StepRuleBroken, match="不属于"):
@@ -74,5 +74,5 @@ async def test_s3_range_requires_matching_headers() -> None:
     ref = ArtifactRef(key="batch_reads/artifacts/x", size=100, sha256="a" * 64)
     assert b"".join([chunk async for chunk in storage.open_range(ref.key, 10, 5)]) == b"range"
     assert requests[0]["Range"] == "bytes=10-14"
-    with pytest.raises(StepRuleBroken, match="有界范围"):
+    with pytest.raises(StepRuleBroken, match="指定的读取范围"):
         _ = [chunk async for chunk in storage.open_range(ref.key, 10, 5)]

@@ -35,7 +35,7 @@ async def allowed(
     if row is None or row["attempt"] != ticket.attempt or row["state"] != "running":
         return False
     if row["valid_until"] is not None and row["valid_until"] <= runtime.clock.now():
-        await queue.fail(ticket, "expired", "task_expired", "执行前业务有效期已过")
+        await queue.fail(ticket, "expired", "task_expired", "开始执行前，任务的业务截止时间已过")
         return False
     plan = queue.catalog.plan(ticket.contract)
     if plan is not None and plan.revalidate is not None:
@@ -49,6 +49,8 @@ async def allowed(
         )
         if not isinstance(result, Validity) or not result.valid:
             reason = result.reason if isinstance(result, Validity) else "核对结果格式不符"
-            await queue.fail(ticket, "expired", "task_invalid", reason or "关键业务状态已改变")
+            await queue.fail(
+                ticket, "expired", "task_invalid", reason or "业务状态已改变，任务不能继续执行"
+            )
             return False
     return True

@@ -46,7 +46,7 @@ class PipelineEngine:
         self, connection: AsyncConnection, item: Contract[Any, Any], input: Data, caller: Caller
     ) -> str:
         if not isinstance(input, StartInput):
-            raise StepRuleBroken("流程启动输入必须是StartInput")
+            raise StepRuleBroken("流程启动操作的输入类型必须是 StartInput")
         result = await self.start(
             connection, self.catalog.pipeline_starts[item.name], input.request, caller
         )
@@ -58,9 +58,12 @@ class PipelineEngine:
     ) -> PipelineView:
         key = request.cycle_key or (request.period.isoformat() if request.period else "")
         if not key or len(key) > 120:
-            raise InvalidInput(f"流程{pipeline.name}需要不超过120字符的周期键或period")
+            raise InvalidInput(
+                f"流程 {pipeline.name} 必须提供 cycle_key（不超过 120 个字符的周期标识）"
+                "或 period（周期时间）"
+            )
         if not caller.org_id:
-            raise NotAllowed("启动流程需要明确组织身份")
+            raise NotAllowed("启动流程时必须指定组织")
         body = data_json(pipeline.input, request.data, "input")
         row = self.new_root(pipeline, caller, key, body)
         row["complete_by"] = deadline(pipeline, request, row["created_at"])
@@ -77,7 +80,7 @@ class PipelineEngine:
                 .where(runs.c.id == row["id"])
                 .values(
                     state=state,
-                    reason=f"上一周期{active}尚未结束",
+                    reason=f"上一周期 {active} 尚未结束",
                     finished_at=business_now() if state == "skipped" else None,
                 )
             )
@@ -92,7 +95,7 @@ class PipelineEngine:
                 .where(runs.c.id == row["id"])
                 .values(
                     state=state,
-                    reason="另一周期同时取得执行名额",
+                    reason="另一周期已取得执行名额，本周期暂不执行",
                     finished_at=business_now() if state == "skipped" else None,
                 )
             )
@@ -136,7 +139,9 @@ class PipelineEngine:
                 .one()
             )
             if saved["input_json"] != row["input_json"]:
-                raise DuplicateRequest("同一流程周期已经使用了不同输入") from None
+                raise DuplicateRequest(
+                    "同一流程周期已用不同输入启动，不能重复使用该周期标识"
+                ) from None
             return PipelineView(id=saved["id"], state=saved["state"], reused=True)
         return None
 
@@ -235,7 +240,7 @@ class PipelineEngine:
             )
         )
         if body is None:
-            raise InvalidInput(f"流程阶段{stage.name}缺少已成功来源{source}")
+            raise InvalidInput(f"流程阶段 {stage.name} 的来源阶段 {source} 尚未成功完成")
         input = stage.operation.input.model_validate_json(body)
         body = data_json(stage.operation.input, input, stage.name)
         return input, body
@@ -272,7 +277,7 @@ class PipelineEngine:
                     .values(
                         state="version_blocked",
                         current_stage=pending["current_stage"],
-                        reason="排队期间阶段格式或声明变化，等待人工确认",
+                        reason="排队期间，阶段的数据格式或执行配置已改变，等待人工确认",
                         updated_at=business_now(),
                     )
                 )

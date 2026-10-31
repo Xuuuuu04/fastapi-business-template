@@ -12,7 +12,7 @@ def validate(module: str, name: str) -> Path:
         raise ValueError("模块和操作名只能使用小写字母、数字、下划线")
     folder = ROOT / "service" / module
     if folder.is_symlink() or not (folder / "module.json").is_file():
-        raise ValueError("需要已有标准模块，请先用 uv run dev new-module 生成")
+        raise ValueError("需要一个按模板创建的业务包，请先用 uv run dev new-module 生成")
     return folder
 
 
@@ -26,7 +26,7 @@ def extend_module(text: str, keyword: str, entry: str, *, mapping: bool = False)
         and node.func.id == "Module"
     ]
     if len(calls) != 1:
-        raise ValueError("module.py需要一个明确的Module声明")
+        raise ValueError("module.py 必须包含且只包含一个 Module 声明")
     call = calls[0]
     found = next((item.value for item in call.keywords if item.arg == keyword), None)
     lines = text.splitlines(keepends=True)
@@ -36,7 +36,7 @@ def extend_module(text: str, keyword: str, entry: str, *, mapping: bool = False)
     if found is not None:
         assert found.end_lineno is not None and found.end_col_offset is not None
         if not isinstance(found, ast.Dict if mapping else ast.Tuple):
-            raise ValueError(f"{keyword}需要字典或元组声明，请先改成可直接登记的写法")
+            raise ValueError(f"{keyword} 必须直接写成字典或元组，不能由函数或变量计算得到")
         start = offsets[found.lineno - 1] + column(lines[found.lineno - 1], found.col_offset)
         end = offsets[found.end_lineno - 1] + column(
             lines[found.end_lineno - 1], found.end_col_offset

@@ -84,7 +84,9 @@ def test_capability_write_dependency_requires_workflow() -> None:
     flow = Flow("生成", work=Work, result="result", steps=[consume])
     capability = Module("report_build", "报告", "1", {source: flow}, kind="capability")
     workflow = Module("report_build", "报告", "1", {source: flow}, kind="workflow")
-    assert any("跨域写入" in issue for issue in check_policy([provider, capability]))
+    assert any(
+        "调用了其他业务包的写操作" in issue for issue in check_policy([provider, capability])
+    )
     assert check_policy([provider, workflow]) == []
 
 

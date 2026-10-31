@@ -20,7 +20,7 @@ class EffectService:
         self.store, self.bindings = store, bindings
         self.by_name = {spec.name: spec for spec in bindings}
         if len(self.by_name) != len(bindings):
-            raise StepRuleBroken("供应商效果名称重复")
+            raise StepRuleBroken("外部调用的名称重复")
         for spec, adapter in bindings.items():
             spec.validate()
             binding_of(adapter)
@@ -78,12 +78,12 @@ class EffectService:
         row = await self.store.read(id, caller)
         spec = self.by_name.get(row["provider"])
         if spec is None or spec.digest() != row["protocol"]:
-            raise StepRuleBroken("旧外部意图的供应商或协议未在当前组装登记")
+            raise StepRuleBroken("原外部请求的接口定义已变更或未在当前产品中登记")
         adapter = self.adapter(spec)
         if adapter.simulated != row["simulated"]:
-            raise StepRuleBroken("模拟意图不能通过真实适配器恢复")
+            raise StepRuleBroken("原请求与当前适配器的模拟方式不一致，不能继续执行")
         if binding_of(adapter) != row["binding"]:
-            raise StepRuleBroken("外部意图的供应商账号或连接目标已改变，请使用原适配器查证")
+            raise StepRuleBroken("原请求使用的外部服务账号或地址已改变，请用原配置查询结果")
         async with self.limits[spec]:
             attempt = await self.store.claim(id, spec, business_now(), lookup=lookup)
             if attempt is None:
@@ -117,9 +117,13 @@ class EffectService:
             reply = await self.clock.run(operation, deadline=self.clock.monotonic() + spec.timeout)
             reply = checked_reply(spec, reply, lookup)
             if row["state"] == "accepted" and reply.state in {"not_sent", "refused", "unknown"}:
-                raise StepRuleBroken("已受理的效果不能因查询未找到而改成未执行")
+                raise StepRuleBroken(
+                    "外部服务已受理请求，后续查询不能将状态改为未发送、已拒绝或待确认"
+                )
             if not await self.store.save(id, attempt, reply, business_now()):
-                raise RemoteResultUnknown("迟到回执已保留，本次尝试不能改写新状态")
+                raise RemoteResultUnknown(
+                    "本次返回结果已记录，但任务已被接管，不能覆盖较新尝试的状态"
+                )
             record.outcome = {
                 "accepted": "ok",
                 "completed": "ok",
@@ -130,7 +134,7 @@ class EffectService:
             record.provider_state = reply.state
         except Exception as error:
             record.error = type(error).__name__
-            raise RemoteResultUnknown("外部结果或本地回执尚不能确认，请查询原意图") from error
+            raise RemoteResultUnknown("外部请求是否成功尚未确认，请查询原请求记录") from error
         except asyncio.CancelledError:
             record.error = "cancelled"
             raise
@@ -139,7 +143,7 @@ class EffectService:
 
     def adapter(self, spec: ProviderSpec) -> EffectAdapter:
         if spec not in self.bindings:
-            raise StepRuleBroken(f"外部效果 {spec.name} 未在产品组装登记")
+            raise StepRuleBroken(f"外部调用 {spec.name} 未在产品配置中登记")
         return self.bindings[spec]
 
     def result(self, spec: ProviderSpec, row: dict[str, Any]) -> EffectResult:
@@ -159,28 +163,30 @@ class EffectService:
 
 def checked_reply(spec: ProviderSpec, reply: AdapterReply, lookup: bool) -> AdapterReply:
     if reply.state not in {"not_sent", "refused", "accepted", "completed", "unknown"}:
-        raise StepRuleBroken("供应商回执状态无效")
+        raise StepRuleBroken("外部服务返回的请求状态无效")
     if reply.state == "not_sent" and not lookup:
-        raise StepRuleBroken("发送已开始，只能通过权威查询确认未执行")
+        raise StepRuleBroken("请求已经开始发送，只有查询外部服务后才能确认是否未执行")
     if reply.state in {"accepted", "completed"} and reply.data is None:
-        raise StepRuleBroken("受理或完成必须具有明确回执")
+        raise StepRuleBroken("标记为已受理或已完成时，必须提供外部服务返回的结果")
     if lookup and reply.state == "not_sent" and reply.data is None:
-        raise StepRuleBroken("确认未执行必须保留权威查询回执")
+        raise StepRuleBroken("确认请求未执行时，必须保存外部服务返回的查询结果")
     if len(reply.external_id.encode()) > 200:
-        raise StepRuleBroken("供应商编号超过200字节")
+        raise StepRuleBroken("外部服务返回的请求编号超过200字节")
     data = spec.output.model_validate(reply.data) if reply.data is not None else None
     return AdapterReply(reply.state, data, reply.external_id)
 
 
 def final_result(result: EffectResult, lookup: bool) -> EffectResult:
     if not lookup and result.state == "unknown":
-        raise RemoteResultUnknown("原外部意图仍未确认或正在执行，不能盲目重发")
+        raise RemoteResultUnknown("原外部请求仍在执行或结果待确认，请先查询，不要直接重发")
     if not lookup and result.state == "refused":
-        raise RemoteRejected("供应商明确拒绝原外部意图，未自动重新发送")
+        raise RemoteRejected("外部服务已拒绝原请求，系统没有自动重发")
     return result
 
 
 def binding_of(adapter: EffectAdapter) -> str:
     if not adapter.identity or len(adapter.identity) > 1024:
-        raise StepRuleBroken("供应商适配器必须声明有界账号与目标标识")
+        raise StepRuleBroken(
+            "外部服务适配器的 identity 必须标明账号和连接目标，不能为空且不能超过 1024 个字符"
+        )
     return hashlib.sha256(adapter.identity.encode()).hexdigest()

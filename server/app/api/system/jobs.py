@@ -48,7 +48,7 @@ async def jobs(
     return {"items": [asdict(item) for item in found]}
 
 
-@router.get("/api/jobs/{job_id}/segments", summary="已提交段", operation_id="job_segments")
+@router.get("/api/jobs/{job_id}/segments", summary="已保存的批次", operation_id="job_segments")
 async def job_segments(
     job_id: str,
     request: Request,

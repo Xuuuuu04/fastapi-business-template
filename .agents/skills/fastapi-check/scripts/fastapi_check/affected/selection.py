@@ -127,7 +127,7 @@ def select_affected(catalog: Catalog, base: str, project: Path = PROJECT) -> Sel
         return Selection(reasons=tuple(scope.full_check_reasons))
     if scope.unmapped:
         return Selection(
-            reasons=(f"存在无法归属的改动，执行完整检查：{'、'.join(scope.unmapped)}",)
+            reasons=(f"部分改动无法确定属于哪个业务包，执行完整检查：{'、'.join(scope.unmapped)}",)
         )
     if not scope.direct:
         return Selection(unchanged=True, reasons=("改动不涉及代码；本次未执行检查。",))
@@ -140,7 +140,7 @@ def select_affected(catalog: Catalog, base: str, project: Path = PROJECT) -> Sel
         tarfile.TarError,
         json.JSONDecodeError,
     ) as error:
-        return Selection(reasons=(f"无法安全缩小范围，执行完整检查：{error}",))
+        return Selection(reasons=(f"无法确定完整的影响范围，执行完整检查：{error}",))
     current = {name: sorted(providers) for name, providers in catalog.links().items()}
     names = affected_modules(scope.direct, [old, current])
     if names - catalog.modules.keys():

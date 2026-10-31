@@ -27,7 +27,7 @@ async def resume_queued(
     root = await root_for(connection, run_id)
     pipeline = catalog.pipelines.get(root["pipeline"])
     if root["state"] != "version_blocked" or pipeline is None or not accept_schema:
-        raise InvalidInput("尚未登记阶段的版本暂停需明确接受当前格式")
+        raise InvalidInput("流程尚未登记第一阶段；恢复时必须已登记此流程，并明确接受当前格式")
     queue = JobQueue(catalog, database)
     other = await queue.pipelines.active(connection, root["pipeline"], root["org_id"])
     if other != run_id:

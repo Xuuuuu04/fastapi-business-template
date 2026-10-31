@@ -32,12 +32,12 @@ def safe_path(root: Path, name: str) -> Path:
         raise ValueError(f"文件路径不安全：{name}")
     path = root / relative
     if not path.resolve().is_relative_to(root.resolve()):
-        raise ValueError(f"文件路径越出项目：{name}")
+        raise ValueError(f"文件路径指向项目目录之外：{name}")
     for part in [path, *path.parents]:
         if part == root:
             break
         if part.is_symlink():
-            raise ValueError(f"不处理链接：{name}")
+            raise ValueError(f"不处理符号链接：{name}")
     return path
 
 
@@ -123,7 +123,7 @@ def save_provenance(target: Path, source: Path) -> None:
 def check_base(target: Path, base: Path, listing: Manifest | None = None) -> list[str]:
     path = safe_path(target, SOURCE_FILE)
     if not path.is_file():
-        raise ValueError(f"项目缺少 {SOURCE_FILE}，不知道来自哪个模板版本，不能自动升级")
+        raise ValueError(f"项目缺少 {SOURCE_FILE}，无法确定原模板版本，不能自动升级")
     recorded = json.loads(path.read_text(encoding="utf-8"))
     missing = [key for key in PROVENANCE_KEYS if key not in recorded]
     if missing:

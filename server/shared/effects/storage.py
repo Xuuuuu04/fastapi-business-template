@@ -37,7 +37,7 @@ class EffectStore:
         binding: str,
     ) -> str:
         if not key or len(key.encode()) > 512 or len(body.encode()) > 1_000_000:
-            raise StepRuleBroken("外部意图需要有界稳定业务键，请求不能超过1MiB")
+            raise StepRuleBroken("去重标识须为 1 到 512 字节，请求正文最多 1,000,000 字节")
         owner = owner_of(caller)
         id = hashlib.sha256(json.dumps([spec.name, owner, key]).encode()).hexdigest()
         digest = hashlib.sha256(body.encode()).hexdigest()
@@ -70,7 +70,7 @@ class EffectStore:
             simulated,
             binding,
         ):
-            raise DuplicateRequest("同一外部业务键的输入、协议、账号或模拟类型已经改变")
+            raise DuplicateRequest("该去重标识已用于不同的输入、接口定义、账号或模拟方式")
         return id
 
     async def read(self, id: str, caller: Caller) -> dict[str, Any]:
@@ -81,7 +81,7 @@ class EffectStore:
                 .first()
             )
         if row is None or row["owner"] != owner_of(caller):
-            raise NotAllowed("外部意图不存在或不属于当前调用者")
+            raise NotAllowed("外部请求记录不存在，或当前调用者无权访问")
         return dict(row)
 
     async def claim(self, id: str, spec: ProviderSpec, now: float, *, lookup: bool) -> int | None:

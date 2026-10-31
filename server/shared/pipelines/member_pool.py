@@ -38,7 +38,7 @@ async def planned(
             ).scalars()
         )
         if keys != set(group.join.required):
-            raise InvalidInput(f"扇出阶段{group.name}缺少Ratio声明的必需成员")
+            raise InvalidInput(f"并行阶段 {group.name} 未登记 Ratio.required 中指定的必需子任务")
     await connection.execute(
         update(stages)
         .where(stages.c.id == row["id"])
@@ -62,7 +62,7 @@ async def advance(
         return
     pipeline = queue.catalog.pipelines[root["pipeline"]]
     if not group_compatible(root, group, pipeline, queue.catalog):
-        await block(connection, root, row, "扇出汇合声明或后续阶段格式变化")
+        await block(connection, root, row, "并行子任务的完成条件或后续阶段数据格式已改变")
         return
     counts = await states_of(connection, row["id"])
     if row["state"] != "joining" and await enough(connection, row["id"], group, counts):
@@ -159,7 +159,7 @@ async def fill(
                 connection,
                 root,
                 row,
-                f"成员{member['key']}阶段{member['phase_name']}或后续格式变化",
+                f"子任务 {member['key']} 的阶段 {member['phase_name']} 或后续阶段格式已改变",
             )
             return
         try:
@@ -169,7 +169,7 @@ async def fill(
             await connection.execute(
                 update(runs)
                 .where(runs.c.id == root["id"])
-                .values(reason="成员任务队列已满，等待空位", updated_at=business_now())
+                .values(reason="子任务队列已满，正在等待空位", updated_at=business_now())
             )
             break
 
@@ -249,7 +249,7 @@ async def completed(
 async def failed_group(
     connection: AsyncConnection, queue: "JobQueue", root: dict, row: dict, counts: dict
 ) -> None:
-    message = f"扇出成员未达到汇合要求：{counts}"
+    message = f"并行子任务未满足完成条件，各状态数量：{counts}"
     now = business_now()
     await connection.execute(
         update(stages)

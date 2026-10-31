@@ -59,7 +59,7 @@ async def test_loop_fails_batch_passes(settings: Settings) -> None:
         assert good.query_budget["actual"] == dict(queries=1, rows=25, bytes=190)
         assert run_from_dict(good.to_dict()).query_budget == good.query_budget
         assert run_evidence(good)["query_budget"] == good.query_budget
-        assert "查询额度" in flow_graph(built.catalog.binding(item))
+        assert "数据库查询限制" in flow_graph(built.catalog.binding(item))
     finally:
         await close_sample(built)
 

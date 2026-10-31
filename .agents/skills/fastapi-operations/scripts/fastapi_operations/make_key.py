@@ -10,7 +10,9 @@ def main() -> None:
     parser.add_argument(
         "--permissions", nargs="+", required=True, help="权限，例如 customer_contact.read"
     )
-    parser.add_argument("--org-id", default="", help="可访问的组织代码；* 只供全组织管理员使用")
+    parser.add_argument(
+        "--org-id", default="", help="允许访问的组织代码；* 表示可访问所有组织，只供管理员使用"
+    )
     args = parser.parse_args()
     key = new_key()
     config = {
@@ -19,7 +21,7 @@ def main() -> None:
         "permissions": args.permissions,
         "org_id": args.org_id,
     }
-    print("密钥原文（只显示这一次，请交给调用方保管）：")
+    print("密钥明文（只显示这一次，请交给调用方保管）：")
     print(key)
     print("\n放进 APP_API_KEYS 列表中的配置：")
     print(json.dumps(config, ensure_ascii=False))

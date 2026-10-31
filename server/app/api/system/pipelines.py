@@ -67,7 +67,7 @@ async def restart(run_id: str, data: ResumeRequest, request: Request, caller: Ca
 
 
 @router.get(
-    "/api/system/pipelines/{run_id}/members", summary="扇出成员", operation_id="pipeline_members"
+    "/api/system/pipelines/{run_id}/members", summary="并行子任务", operation_id="pipeline_members"
 )
 async def member_list(
     run_id: str,

@@ -65,7 +65,11 @@ def export_problems(folder: Path, spec: LibrarySpec) -> list[Problem]:
         ):
             literal = node.value
             if not isinstance(literal, (ast.Tuple, ast.List)):
-                return [Problem(str(public), 0, "library_exports", "公开入口的__all__必须是字面量")]
+                return [
+                    Problem(
+                        str(public), 0, "library_exports", "公开入口的 __all__ 必须直接列出导出名称"
+                    )
+                ]
             actual = {
                 item.value
                 for item in literal.elts
@@ -79,7 +83,9 @@ def export_problems(folder: Path, spec: LibrarySpec) -> list[Problem]:
     bound = public_bindings(tree)
     undefined = sorted(actual - bound)
     details = [
-        f"声明未公开：{names}" if first else f"公开未声明：{names}"
+        f"已声明但未从 public.py 导出：{names}"
+        if first
+        else f"已从 public.py 导出但未声明：{names}"
         for first, names in ((True, missing), (False, extra))
         if names
     ]

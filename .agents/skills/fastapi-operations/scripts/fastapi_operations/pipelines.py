@@ -24,7 +24,7 @@ async def run(args: argparse.Namespace) -> None:
                 database, args.run_id, args.stage, after=args.after, limit=args.limit
             )
         elif not args.yes:
-            result = "恢复需加--yes；请先查看失败阶段及外部实际结果"
+            result = "恢复流程需要加 --yes；请先查看失败阶段，并确认外部操作是否已经执行"
         else:
             result = await resume(
                 database,

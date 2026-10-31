@@ -10,7 +10,7 @@ async def find_account(data: LoginWork, store: ${Camel}Store) -> None:
 
 
 @step(
-    "核对口令",
+    "核对密码",
     reads=["account", "password"],
     writes=["verified"],
     heavy=True,

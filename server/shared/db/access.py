@@ -116,7 +116,7 @@ class Db:
         if not rows:
             return 0
         if not rows[0]:
-            raise StepRuleBroken("批插必须明确写入字段")
+            raise StepRuleBroken("批量插入必须明确写入字段")
         dialect = self._connection.dialect
         limit = min(
             100,
@@ -124,9 +124,9 @@ class Db:
             ((dialect.insertmanyvalues_max_parameters or 32700) - 1) // len(table.c),
         )
         if len(rows) > limit or any(row.keys() != rows[0].keys() for row in rows):
-            raise StepRuleBroken("批插必须使用相同字段，且不超过单条 SQL 参数及100行上限")
+            raise StepRuleBroken("批量插入必须使用相同字段，且不超过单条 SQL 参数及100行上限")
         if not dialect.use_insertmanyvalues or not dialect.insert_executemany_returning:
-            raise StepRuleBroken("当前数据库不支持一次 SQL 批插")
+            raise StepRuleBroken("当前数据库不支持一次 SQL 批量插入")
         statement = insert(table).returning(literal(1))
         with query_record(self._record, statement, "change", self._target) as call:
             self._check(insert(table).values(rows))

@@ -18,10 +18,10 @@ async def resume(connection: AsyncConnection, queue: "JobQueue", root: dict) -> 
     await ensure_boundary(connection, root["id"])
     pipeline = queue.catalog.pipelines.get(root["pipeline"])
     if pipeline is None:
-        raise InvalidInput("流程当前没有登记")
+        raise InvalidInput("当前代码未登记此流程")
     stage = next((stage for stage in pipeline.stages if stage.name == root["current_stage"]), None)
     if stage is None:
-        raise InvalidInput("当前阶段声明变化，请先迁移并确认格式")
+        raise InvalidInput("当前阶段的执行配置已改变，请先迁移已保存的数据并确认格式")
     parent = dict(
         (
             await connection.execute(
@@ -45,22 +45,24 @@ async def resume(connection: AsyncConnection, queue: "JobQueue", root: dict) -> 
     await connection.execute(
         update(runs)
         .where(runs.c.id == root["id"])
-        .values(state=state, reason="人工继续逾期流程，保留逾期事实", updated_at=business_now())
+        .values(
+            state=state, reason="人工继续执行已超时流程，仍保留超时记录", updated_at=business_now()
+        )
     )
-    return "已继续逾期流程，已有产出和游标保留"
+    return "已继续执行超时流程，保留已有结果和恢复位置"
 
 
 async def restore_job(connection: AsyncConnection, queue: "JobQueue", job_id: str) -> None:
     row = (await connection.execute(select(jobs).where(jobs.c.id == job_id))).mappings().one()
     if row["state"] == "unknown":
-        raise InvalidInput("任务外部结果待确认，先处理未知结果")
+        raise InvalidInput("任务对外发送的请求结果待确认，请先查询原请求的执行结果")
     if row["state"] in ("queued", "waiting_retry"):
         return
     if row["state"] != "blocked":
-        raise InvalidInput("当前任务并非明确的逾期暂停任务")
+        raise InvalidInput("当前任务不是因流程超时而暂停的任务")
     binding, plan = queue.catalog.find(row["contract"]), queue.catalog.plan(row["contract"])
     if binding is None or plan is None:
-        raise InvalidInput("当前操作未登记")
+        raise InvalidInput("当前代码未登记此操作")
     await reserve(connection, binding.contract, plan.max_queued)
     await connection.execute(
         update(jobs)
@@ -123,4 +125,4 @@ async def ensure_boundary(connection: AsyncConnection, run_id: str) -> None:
         .limit(1)
     )
     if active or child:
-        raise InvalidInput("仍有阶段或成员在执行，请等当前批次收尾后继续")
+        raise InvalidInput("仍有阶段或并行子任务正在执行，请等当前批次结束后继续")

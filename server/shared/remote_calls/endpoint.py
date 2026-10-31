@@ -77,11 +77,13 @@ def validate_output[In: Data, Out: Data](
             if name not in result.model_fields_set or getattr(result, name) is None
         }
         if missing:
-            record.fields = {name: "关键回执字段缺失" for name in missing}
+            record.fields = {name: "响应缺少用于确认结果的关键字段" for name in missing}
             if endpoint.effect == "write" and record.outcome == "ok":
                 record.outcome = "unknown"
-                raise RemoteResultUnknown("关键回执未取得，写入结果需要确认") from None
-            raise RemoteOutputInvalid("关键回执未取得") from None
+                raise RemoteResultUnknown(
+                    "响应中缺少用于确认结果的关键字段，写入结果需要确认"
+                ) from None
+            raise RemoteOutputInvalid("响应中缺少用于确认结果的关键字段") from None
         return result
     except ValidationError as error:
         fields = {}
@@ -96,7 +98,7 @@ def validate_output[In: Data, Out: Data](
             if len(path.encode("utf-8")) <= 200:
                 fields[path or "$"] = f"不符合接口字段约定（{issue['type']}）"
         record.fields = fields
-        record.error = f"上游接口 {endpoint.name} 响应字段校验失败"
+        record.error = f"外部接口 {endpoint.name} 响应字段校验失败"
         if endpoint.effect == "write" and record.outcome == "ok":
             record.outcome = "unknown"
             raise RemoteResultUnknown(record.error + "，写入结果需要确认", fields=fields) from None
@@ -104,7 +106,7 @@ def validate_output[In: Data, Out: Data](
 
 
 def endpoint_problems(endpoint: Endpoint[Any, Any]) -> list[str]:
-    place = f"上游接口 {endpoint.name}"
+    place = f"外部接口 {endpoint.name}"
     problems = []
     if not re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+", endpoint.name):
         problems.append(f"{place} 名称必须是系统名.接口名，全部小写")

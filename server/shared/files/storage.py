@@ -78,7 +78,7 @@ class LocalFiles:
 
     async def open_range(self, key: str, offset: int, length: int) -> AsyncIterator[bytes]:
         if offset < 0 or length < 0:
-            raise StepRuleBroken("文件窗口不能为负数")
+            raise StepRuleBroken("文件读取的起始位置和字节数不能为负数")
         async with await anyio.open_file(self.root / check_key(key), "rb") as source:
             await source.seek(offset)
             remaining = length
@@ -154,7 +154,7 @@ class S3Files:
 
     async def open_range(self, key: str, offset: int, length: int) -> AsyncIterator[bytes]:
         if offset < 0 or length < 0:
-            raise StepRuleBroken("文件窗口不能为负数")
+            raise StepRuleBroken("文件读取的起始位置和字节数不能为负数")
         if not length:
             return
         reply = await asyncio.to_thread(
@@ -170,7 +170,7 @@ class S3Files:
                 not str(reply.get("ContentRange", "")).startswith(expected)
                 or reply.get("ContentLength") != length
             ):
-                raise StepRuleBroken("S3没有返回已声明的有界范围")
+                raise StepRuleBroken("S3 返回的内容范围与本次指定的读取范围不一致")
             remaining = length
             while remaining:
                 chunk = await asyncio.to_thread(body.read, min(CHUNK, remaining))

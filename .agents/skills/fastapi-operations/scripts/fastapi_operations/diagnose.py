@@ -22,7 +22,7 @@ async def show_runs(store: SqlRunStore, status: str, module: str, limit: int) ->
 async def show_run(store: SqlRunStore, run_id: str) -> None:
     found = await store.get(run_id)
     if found is None:
-        print(f"没有找到运行 {run_id} 的记录：可能已过期清理，或者运行记录保存在服务进程内存中")
+        print(f"没有找到运行编号 {run_id} 的记录：记录可能已过期删除，或只保存在服务进程的内存中")
         return
     print(run_report(await store.tree(found.root_id), run_id))
 
@@ -62,7 +62,7 @@ async def run(args: argparse.Namespace) -> None:
     if args.command == "budgets":
         mode: Literal["runtime", "offline"] = "runtime" if args.runtime_config else "offline"
         report = budget_report(catalog, application().settings(mode))
-        report["configuration"] = "实际运行配置" if args.runtime_config else "离线默认配置"
+        report["configuration"] = "实际运行配置" if args.runtime_config else "不连接服务的默认配置"
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return
     if args.command == "flow":
@@ -90,17 +90,19 @@ async def run(args: argparse.Namespace) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="查看运行记录、流程和字段来源")
     commands = parser.add_subparsers(dest="command", required=True)
-    budgets = commands.add_parser("budgets", help="时间预算及具体配置位置，不访问数据库")
-    budgets.add_argument("--runtime-config", action="store_true", help="明确读取运行配置中的预算")
-    runs = commands.add_parser("runs", help="最近的运行")
+    budgets = commands.add_parser("budgets", help="查看超时时间及其配置位置，不访问数据库")
+    budgets.add_argument(
+        "--runtime-config", action="store_true", help="读取当前运行配置中的超时时间"
+    )
+    runs = commands.add_parser("runs", help="查看最近的运行记录")
     runs.add_argument("--status", default="")
     runs.add_argument("--module", default="")
     runs.add_argument("--limit", type=int, default=20)
     stats = commands.add_parser("stats", help="按操作统计已结束的运行")
     stats.add_argument("--hours", type=int, default=24)
     stats.add_argument("--module", default="")
-    commands.add_parser("run", help="一次运行的报告").add_argument("run_id")
-    commands.add_parser("flow", help="操作的流程").add_argument("name")
+    commands.add_parser("run", help="查看一次运行的报告").add_argument("run_id")
+    commands.add_parser("flow", help="查看操作的执行步骤").add_argument("name")
     field = commands.add_parser("field", help="字段来源")
     field.add_argument("name")
     field.add_argument("field")

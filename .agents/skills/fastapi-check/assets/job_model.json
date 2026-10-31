@@ -12,7 +12,7 @@
   {
     "file": "shared/jobs/expiry.py",
     "symbol": "expire",
-    "sha256": "743627512c0003cf78a9d29a0fecc2067a70d4897a2b54519c38ea5d69778a37"
+    "sha256": "2df0c0f67ec5749335668c96f81dd3e4a6d2616d4b2628065a97269943b96fd4"
   },
   {
     "file": "shared/jobs/worker.py",
@@ -27,6 +27,6 @@
   {
     "file": "shared/jobs/queue.py",
     "symbol": "JobQueue.reclaim",
-    "sha256": "5444eaf88a2e9395ae179cc314b22a094ce9d8bf68dce1355c899445f88650a2"
+    "sha256": "9795132e6968953dddf9a1d46f04eb6e3578980f28d0b2ac4f262cd8e5ee85d8"
   }
 ]

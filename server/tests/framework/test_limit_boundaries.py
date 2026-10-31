@@ -26,7 +26,7 @@ async def test_resource_reconfiguration_requires_idle(tmp_path: Path) -> None:
         )
         ticket = await services.queue.claim(clock.now())
         assert ticket is not None
-        with pytest.raises(StepRuleBroken, match="在途"):
+        with pytest.raises(StepRuleBroken, match="仍有任务占用"):
             async with services.database.write() as connection:
                 await reconfigure(connection, ResourceLimit("supplier", 3), clock.now())
         await services.queue.fail(ticket, "failed", "synthetic", "合成结束")

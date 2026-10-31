@@ -64,17 +64,17 @@ def framework_files(files: Iterable[str]) -> list[str]:
 
 def shared_reason(path: str, framework: set[str], modules: Iterable[str] = ()) -> str:
     if path in framework:
-        return f"框架改动：{path}；需检查全部登记模块"
+        return f"框架改动：{path}；需要检查所有已登记模块"
     if path.startswith("server/migrations/"):
-        return f"数据库迁移改动：{path}；可能影响共用数据库"
+        return f"数据库迁移改动：{path}；可能影响共用同一数据库的模块"
     if path.startswith("server/library/"):
         return f"工具包改动：{path}；检查工具包本身和全部调用方"
     if path.startswith("doc/api/"):
         return f"公共接口描述改动：{path}；无法仅凭路径确定调用方"
     if path.startswith("server/tests/") and module_area(path, modules) is None:
-        return f"公共测试改动：{path}；需检查全部登记模块"
+        return f"公共测试改动：{path}；需要检查所有已登记模块"
     if path.startswith(("server/app/", "server/service/")) and module_area(path, modules) is None:
-        return f"未归属模块的公共代码：{path}；保守检查全部登记模块"
+        return f"不属于某个业务包的公共代码：{path}；检查所有已登记模块"
     if path == "server/uv.lock":
         return f"项目共用依赖改动：{path}"
     return ""
@@ -106,7 +106,7 @@ def impact_scope(files: Iterable[str], catalog: Catalog, root: Path = ROOT) -> I
     framework = set(framework_files(paths))
     reasons = [reason for path in paths if (reason := shared_reason(path, framework, registered))]
     reasons += [
-        f"模块 {name} 未登记；无法确定完整调用方，需先登记或确认删除"
+        f"模块 {name} 未登记，无法找全调用方；请先登记模块，或确认它已经删除"
         for name in sorted(direct - set(registered))
     ]
     return ImpactScope(sorted(direct), bool(reasons), sorted(reasons), unmapped)

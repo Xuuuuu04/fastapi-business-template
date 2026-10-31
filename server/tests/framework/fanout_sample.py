@@ -63,13 +63,13 @@ class Request(Data):
 class Result(Data):
     id: int = meaning("成员请求编号")
     version: int = meaning("固定来源版本")
-    value: int = meaning("合成汇算值")
+    value: int = meaning("合成汇总计算值")
     ready: bool = meaning("上游就绪", default=False)
 
 
 class Total(Data):
     count: int = meaning("实际纳入成员数")
-    value: int = meaning("汇算合计")
+    value: int = meaning("汇总计算合计")
     versions: list[int] = meaning("实际消费的来源版本")
 
 
@@ -93,7 +93,7 @@ class CollectWork(WorkData):
 class PollWork(WorkData):
     id: int = meaning("成员编号")
     version: int = meaning("固定来源版本")
-    value: int = meaning("合成汇算值")
+    value: int = meaning("合成汇总计算值")
     ready: bool = meaning("上游就绪")
     result: Result = meaning("轮询结果")
 
@@ -156,7 +156,7 @@ async def poll_member(data: PollWork, store: Store) -> None:
     data.result = await store.poll(data)
 
 
-@step("成员汇算", reads=["count"], writes=["result"])
+@step("成员汇总计算", reads=["count"], writes=["result"])
 async def sum_members(data: SumWork, pipeline: PipelineGate) -> None:
     count = value = 0
     source_versions = set()
@@ -206,7 +206,7 @@ poll = contract(
 )
 combine = contract(
     "fanout_sample.combine",
-    "单独汇算",
+    "单独汇总计算",
     input=Batch,
     output=Total,
     access="fanout_sample.run",
@@ -214,7 +214,7 @@ combine = contract(
 )
 pipeline = Pipeline(
     "fanout_sample.daily",
-    "200成员采集汇算",
+    "200成员采集汇总计算",
     Begin,
     (
         Stage("choose", choose, freeze_sources=True),
@@ -243,7 +243,7 @@ module = Module(
             "采集成员", work=CollectWork, result="result", steps=[read_source, collect_member]
         ),
         poll: Flow("查询成员", work=PollWork, result="result", steps=[poll_member]),
-        combine: Flow("单独汇算", work=SumWork, result="result", steps=[sum_members]),
+        combine: Flow("单独汇总计算", work=SumWork, result="result", steps=[sum_members]),
     },
     jobs=tuple(
         JobPlan(op, repeat_safe=True, max_queued=3) for op in (choose, plan, collect, poll, combine)

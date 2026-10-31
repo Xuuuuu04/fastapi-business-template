@@ -94,7 +94,7 @@ class RemoteResultUnknown(BusinessError):
 class RemoteOutputInvalid(BusinessError):
     code = "remote_output_invalid"
     kind = Kind.BROKEN
-    message = "上游响应不符合接口约定"
+    message = "外部服务返回的数据不符合接口要求"
 
 
 class RemoteRejected(BusinessError):
@@ -148,7 +148,7 @@ class StepRuleBroken(BusinessError):
 class StaleAttempt(BusinessError):
     code = "stale_attempt"
     kind = Kind.CONFLICT
-    message = "这次任务尝试已经过期，结果不会保存"
+    message = "本次任务已失去执行权，结果不会保存"
 
 
 class DeclarationError(Exception):

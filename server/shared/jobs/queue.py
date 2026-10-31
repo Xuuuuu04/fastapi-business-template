@@ -209,7 +209,9 @@ class JobQueue:
                 )
                 if row.key and row.key.startswith("pipeline:"):
                     state = await connection.scalar(select(jobs.c.state).where(jobs.c.id == row.id))
-                    await pipeline_failed(connection, self, row.id, str(state), "任务租约已过期")
+                    await pipeline_failed(
+                        connection, self, row.id, str(state), "任务占用有效期已过"
+                    )
         return len(rows)
 
 

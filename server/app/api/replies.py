@@ -27,13 +27,13 @@ class FieldProblem(Data):
 
 
 class ErrorReply(Data):
-    code: str = meaning("稳定的错误码，程序按它判断，不要按说明文字判断")
+    code: str = meaning("错误码；调用方应按此字段处理错误，中文说明可能调整")
     kind: str = meaning("错误种类，例如 invalid、not_found、conflict、temporary")
-    message: str = meaning("给人看的中文说明")
+    message: str = meaning("错误的中文说明，供使用者排查原因")
     request_id: str = meaning("请求编号，用于查日志")
     run_id: str = meaning("运行编号，用于查看执行过程；没有进入业务流程时为空文本", default="")
     fields: list[FieldProblem] = meaning(
-        "逐个字段的问题，最多 50 项；先修正已显示的问题后再次校验", default_factory=list
+        "输入字段的具体问题，最多返回 50 项；修正后重新提交可查看其余问题", default_factory=list
     )
 
 

@@ -41,14 +41,14 @@ class ProviderSpec[In: Data, Out: Data]:
     def validate(self) -> None:
         problems = []
         if not re.fullmatch(r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+", self.name):
-            problems.append("ProviderSpec名称应为供应商.动作")
+            problems.append("ProviderSpec 的名称应写成“服务名.动作名”")
         if not self.title.strip() or self.transport not in {"smtp", "sdk"}:
-            problems.append(f"外部效果 {self.name} 的用途或传输类型无效")
+            problems.append(f"外部调用 {self.name} 的用途不能为空，传输类型只能是 smtp 或 sdk")
         if not math.isfinite(self.timeout) or self.timeout <= 0 or self.concurrency < 1:
-            problems.append(f"外部效果 {self.name} 的预算必须为正数")
+            problems.append(f"外部调用 {self.name} 的超时秒数必须为有限正数，并发数至少为 1")
         for model in (self.input, self.output):
             if not isinstance(model, type) or not issubclass(model, Data):
-                problems.append(f"外部效果 {self.name} 的输入输出必须为Data")
+                problems.append(f"外部调用 {self.name} 的输入和输出必须是 Data 的子类")
             else:
                 problems += check_notes(model, self.name)
         if problems:
@@ -74,8 +74,13 @@ class EffectAdapter(Protocol):
 
 
 class EffectResult[Out: Data](Data):
-    id: str = meaning("持久外部意图编号")
-    state: EffectState = meaning("未发送、拒绝、受理、完成或未知")
-    data: Out | None = meaning("供应商校验后的回执", default=None, empty="尚未取得回执")
-    external_id: str = meaning("供应商编号", default="", empty="供应商未提供")
-    simulated: bool = meaning("是否由模拟适配器产生")
+    id: str = meaning("已保存的外部请求记录编号，用于查询原请求")
+    state: EffectState = meaning(
+        "外部请求状态：not_sent 未发送、refused 已拒绝、accepted 已受理、"
+        "completed 已完成、unknown 待确认"
+    )
+    data: Out | None = meaning(
+        "外部服务返回且已通过格式校验的结果", default=None, empty="尚未取得外部服务的返回结果"
+    )
+    external_id: str = meaning("外部服务返回的请求编号", default="", empty="外部服务未提供请求编号")
+    simulated: bool = meaning("是否使用模拟结果，未调用真实外部服务")

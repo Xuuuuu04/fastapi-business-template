@@ -645,7 +645,7 @@
         "tags": [
           "后台任务"
         ],
-        "summary": "已提交段",
+        "summary": "已保存的批次",
         "operationId": "job_segments",
         "security": [
           {
@@ -889,7 +889,7 @@
         "tags": [
           "多阶段流程"
         ],
-        "summary": "扇出成员",
+        "summary": "并行子任务",
         "operationId": "pipeline_members",
         "security": [
           {

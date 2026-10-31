@@ -35,7 +35,7 @@ class BatchInput(Data):
     total: int = meaning("固定输入总行数", default=100000)
     batch_size: int = meaning("每批处理行数", default=5000)
     pause_after: int = meaning("在此前已提交行数后暂停，负数表示不暂停", default=-1)
-    signal_file: str = meaning("强杀验收的暂停信号文件", default="")
+    signal_file: str = meaning("强制结束进程测试使用的暂停信号文件", default="")
 
 
 class BatchResult(Data):

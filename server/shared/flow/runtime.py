@@ -113,7 +113,7 @@ class Runtime:
     ) -> Out:
         binding = self.catalog.binding(item)
         if not item.entry:
-            raise StepRuleBroken(f"操作 {item.name} 是内部操作，只能由其他模块调用")
+            raise StepRuleBroken(f"操作 {item.name} 是内部操作，只能由流程中的 call 调用")
         own_deadline = self.clock.monotonic() + item.timeout
         deadline = min(own_deadline, deadline) if deadline is not None else own_deadline
         scope = Scope(self, caller, request_id, job_id, deadline, tx=Transaction(), emitter=emitter)

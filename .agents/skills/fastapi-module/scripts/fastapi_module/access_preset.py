@@ -34,7 +34,7 @@ def migration_head() -> str | None:
     try:
         return ScriptDirectory(str(ROOT / "migrations")).get_current_head()
     except CommandError as error:
-        raise SystemExit(f"迁移有多个头，请先合并迁移再生成账号包：{error}") from error
+        raise SystemExit(f"数据库迁移有多个最新版本，请先合并迁移再生成账号包：{error}") from error
 
 
 def write_preset(name: str, title: str) -> list[Path]:
@@ -59,10 +59,11 @@ def write_preset(name: str, title: str) -> list[Path]:
 
 def next_steps(name: str) -> list[str]:
     return [
-        "1. 确认登录规则；角色、停用、改口令等按产品需要再加",
+        "1. 确认登录规则；角色、停用、修改密码等按产品需要再加",
         "2. uv run alembic upgrade head（账号表的迁移已经生成）",
         f"3. uv run dev make-key --name 账号管理 --org-id 组织代码 --permissions {name}.manage，"
-        "把摘要配置进 APP_API_KEYS，再用它调用 POST /api/v1/access/accounts 建第一个账号",
+        "把生成的配置加入 APP_API_KEYS，再将密钥明文放入 X-API-Key 请求头，"
+        "调用 POST /api/v1/access/accounts 建第一个账号",
         "4. uv run dev docs（更新 openapi.json）",
         f"5. uv run dev check --module {name}（先检查本模块）",
         "6. uv run dev check（交付前检查全部模块）",

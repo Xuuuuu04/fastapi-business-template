@@ -42,7 +42,7 @@ class RemoteGate:
         files: tuple[FilePart, ...] = (),
     ) -> EndpointReply[Out]:
         if endpoint not in self._endpoints:
-            raise StepRuleBroken(f"“{self._place}”调用了未声明的上游接口 {endpoint.name}")
+            raise StepRuleBroken(f"“{self._place}”调用了未声明的外部接口 {endpoint.name}")
         if self._transaction_started is not None and self._transaction_started():
             raise StepRuleBroken("写入事务开始后不能调用外部接口")
         if target not in self._allowed:

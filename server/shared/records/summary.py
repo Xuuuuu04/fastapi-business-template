@@ -44,12 +44,12 @@ def failed_text(run: RunRecord) -> str:
         return f"“{run.title}”失败：{run.error_message}。"
     text = f"“{run.title}”在“{failed.title}”步骤停止：{run.error_message}。"
     if failed.children:
-        text += "失败发生在这一步调用的下一层操作中，可展开查看。"
+        text += "失败发生在这一步调用的其他操作中，可展开查看。"
     if failed.error_place:
         text += f"出错位置：{failed.error_place}。"
     finished = sum(step.status == "ok" for step in run.steps)
     remaining = not_started(run)
-    text += f"此前完成 {finished} 个步骤"
+    text += f"此前已完成 {finished} 个步骤"
     text += f"，之后的 {remaining} 个步骤没有执行。" if remaining else "。"
     if run.error_kind == "broken":
         text += "这是代码与声明不一致的问题，需要修改代码。"

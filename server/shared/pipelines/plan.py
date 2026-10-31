@@ -10,23 +10,27 @@ from shared.modules.contract import Contract, contract
 
 class StartRequest[Input: Data](Data):
     data: Input = meaning("流程初始数据")
-    cycle_key: str = meaning("明确周期键；留空时使用period", default="")
-    period: datetime | None = meaning("定时计划的实际时段", default=None, empty="人工指定周期键")
+    cycle_key: str = meaning("本次业务周期的唯一标识；留空时根据 period 生成", default="")
+    period: datetime | None = meaning(
+        "本次流程所属周期的时间，定时启动时由计划提供",
+        default=None,
+        empty="已用 cycle_key 指定本次周期",
+    )
 
 
 class StartInput[Input: Data](Data):
-    request: StartRequest[Input] = meaning("流程周期与初始数据")
+    request: StartRequest[Input] = meaning("本次流程的周期标识和初始输入")
 
 
 class PipelineView(Data):
     id: str = meaning("流程运行编号")
     state: str = meaning("流程状态")
-    reused: bool = meaning("是否复用同一周期", default=False)
+    reused: bool = meaning("是否返回同一周期已有的流程", default=False)
 
 
 class StartWork[Input: Data](WorkData):
-    request: StartRequest[Input] = meaning("流程周期与初始数据")
-    result: PipelineView = meaning("流程运行")
+    request: StartRequest[Input] = meaning("本次流程的周期标识和初始输入")
+    result: PipelineView = meaning("流程编号和当前状态")
 
 
 @dataclass(frozen=True)
@@ -97,18 +101,18 @@ class FanOut(Stage):
 
 
 class Member[Input: Data](Data):
-    key: str = meaning("流程阶段内唯一成员键", min_length=1, max_length=120)
-    input: Input = meaning("成员初始数据")
+    key: str = meaning("子任务的唯一标识，同一并行阶段内不能重复", min_length=1, max_length=120)
+    input: Input = meaning("子任务的初始输入")
 
 
 class MemberResult[Output: Data](Data):
-    key: str = meaning("稳定成员键")
-    result: Output = meaning("已确认产出")
+    key: str = meaning("子任务的唯一标识，重试时保持不变")
+    result: Output = meaning("子任务已完成并保存的结果")
 
 
 class MemberPage[Output: Data](Data):
-    items: list[MemberResult[Output]] = meaning("本页已纳入汇合的结果")
-    next_after: str = meaning("下一页游标；空表示结束", default="")
+    items: list[MemberResult[Output]] = meaning("本页用于汇总的子任务结果")
+    next_after: str = meaning("下一页的起始位置；空字符串表示没有下一页", default="")
 
 
 def stages_of(pipeline: Pipeline) -> tuple[Stage, ...]:

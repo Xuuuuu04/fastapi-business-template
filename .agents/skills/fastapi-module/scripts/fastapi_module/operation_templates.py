@@ -9,7 +9,7 @@ def data(name: str, module: str, state: str = "") -> tuple[str, str, str, str]:
         kind + "Work",
         kind + "Invalid",
     )
-    ready = '    ready: bool = meaning("等待状态", default=False)\n' if state else ""
+    ready = '    ready: bool = meaning("等待条件是否已经满足", default=False)\n' if state else ""
     models = f'''
 class {input}(Data):
     text: str = meaning("样例文本")
@@ -22,7 +22,7 @@ class {output}(Data):
 class {invalid}(BusinessError):
     code = "{module}_{name}_invalid"
     kind = Kind.INVALID
-    message = "样例文本去空白后不能为空"
+    message = "去掉首尾空白后，样例文本不能为空"
 
 
 class {work}(WorkData):
@@ -40,7 +40,7 @@ from shared.public import step
 
 
 @step(
-    "整理样例输入",
+    "去掉样例文本首尾的空白",
     reads=["text"],
     writes=["result"],
     calcs=[normalize_text],

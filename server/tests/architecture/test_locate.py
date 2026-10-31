@@ -104,7 +104,7 @@ def test_fields_tables_and_detail_limit(tmp_path: Path) -> None:
     assert locate(catalog, tmp_path, "金额")["total"] == 1
     hit = locate(catalog, tmp_path, "sample_price_t19")["results"][0]
     assert len(hit["tables"]["items"]) == 12 and hit["tables"]["omitted"] == 8
-    assert "未知" in hit["table_relation"]
+    assert "需要查看运行记录" in hit["table_relation"]
 
 
 @pytest.mark.anyio

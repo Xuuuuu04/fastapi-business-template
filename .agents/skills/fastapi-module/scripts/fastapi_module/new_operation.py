@@ -131,7 +131,7 @@ def _has_fixture(read: Callable[[Path], str], path: Path) -> bool:
 def route(module: str, name: str, title: str, input: str, output: str) -> dict[Path, str]:
     path = ROOT / "app/api/v1" / f"{module}.py"
     if not path.is_file():
-        raise ValueError("可选HTTP需要已登记的模块router，请先创建标准模块")
+        raise ValueError("添加 HTTP 接口需要已登记的模块 router，请先用 dev new-module 创建模块")
     code = f'''
 @router.post("/{name.replace("_", "-")}", summary={title!r}, operation_id="{module}_{name}",
              response_model={module}.{output}, responses=responses_for({module}.{name}))
@@ -161,7 +161,7 @@ def generate(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="新增操作和可选HTTP")
+    parser = argparse.ArgumentParser(description="新增业务操作，可同时添加 HTTP 接口")
     parser.add_argument("module")
     parser.add_argument("name")
     parser.add_argument("--title", required=True)
@@ -191,7 +191,7 @@ def check_new_name(public: str, module: str, name: str) -> None:
         and any(isinstance(target, ast.Name) and target.id == name for target in node.targets)
         for node in ast.parse(public).body
     ):
-        raise ValueError(f"操作{module}.{name}已经存在")
+        raise ValueError(f"操作 {module}.{name} 已经存在")
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ class PipelineGate:
         pipeline = runtime.catalog.pipeline_starts.get(self.run.contract)
         engine = getattr(runtime.jobs, "pipelines", None)
         if pipeline is None or engine is None:
-            raise StepRuleBroken("pipeline工具只能由已登记的流程启动操作使用")
+            raise StepRuleBroken("pipeline 工具只能在已登记的流程启动操作中使用")
         connection = await self.scope.tx.writer(runtime.database, "启动流程")
         return await engine.start(connection, pipeline, request, self.scope.caller)
 

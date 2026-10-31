@@ -30,7 +30,7 @@ def project_root() -> Path:
     for root in (Path.cwd(), *Path.cwd().parents, *Path(__file__).resolve().parents):
         if (root / "server/pyproject.toml").is_file() and (root / ".agents/skills").is_dir():
             return root
-    raise SystemExit("找不到产品，请在产品或server目录执行dev")
+    raise SystemExit("找不到产品目录，请在产品根目录或 server 目录执行 dev")
 
 
 def bootstrap(root: Path) -> None:
@@ -56,7 +56,7 @@ def main() -> None:
     bootstrap(project_root())
     if arguments.command == "inspect":
         if remaining:
-            parser.error("inspect没有额外参数")
+            parser.error("inspect 不接受额外参数")
         inspect_application()
         return
     sys.argv = ["dev " + arguments.command, *remaining]

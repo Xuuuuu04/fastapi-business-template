@@ -107,7 +107,7 @@ def result_of(binding: Binding, project: Path, routes: list[dict]) -> dict[str, 
             ]
         ),
         "tables": bounded([t.name for t in module.tables]),
-        "table_relation": "模块归属；具体步骤实际访问未知",
+        "table_relation": "表属于这个模块；具体步骤是否访问该表，需要查看运行记录",
         "next": COMMAND + f"check --module {module.name}",
     }
 

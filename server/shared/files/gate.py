@@ -93,11 +93,11 @@ class ModuleFiles:
 
     def mutable_key(self, key: str) -> None:
         if self._full(key).startswith(self._prefix + "artifacts/"):
-            raise StepRuleBroken("artifacts目录只能通过freeze写入，不允许覆盖原件")
+            raise StepRuleBroken("artifacts 目录只能通过 freeze 保存原始文件，不能覆盖已有文件")
 
     def artifact_scope(self, ref: ArtifactRef) -> None:
         if ref.key != artifacts.artifact_key(self._prefix, self._org, ref.sha256):
-            raise StepRuleBroken("原件引用不属于当前模块与组织")
+            raise StepRuleBroken("原始文件不属于当前模块或组织")
 
 
 def read_bounded(path: Path, maximum: int) -> bytes:

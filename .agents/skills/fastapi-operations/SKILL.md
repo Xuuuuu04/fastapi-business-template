@@ -7,13 +7,13 @@ description: 发布上线、查一次运行为什么失败、处理卡住的后�
 
 | 命令（在 `server/` 执行） | 做什么 |
 | --- | --- |
-| `uv run dev deploy` | 推送代码，服务器拉取后重建重启，等到服务就绪 |
+| `uv run dev deploy` | 推送代码，服务器拉取后重新构建并重启服务，等待服务就绪 |
 | `uv run dev diagnose run 运行编号` | 看一次运行停在哪一步、为什么 |
 | `uv run dev jobs list`、`jobs show 任务编号` | 看后台任务 |
 | `uv run dev pipelines list --org 组织`、`pipelines show 编号` | 看多阶段流程 |
 | `uv run dev make-key --name 服务名 --org-id 组织 --permissions 权限` | 生成服务密钥 |
 
-`jobs`、`pipelines`、`diagnose run` 连的是 `APP_DATABASE_URL` 指向的数据库，在本机运行就是本机的库。
+`jobs`、`pipelines`、`diagnose run` 连接 `APP_DATABASE_URL` 指定的数据库；执行前先确认该地址属于要查询的环境。
 
 ## 发布上线
 
@@ -23,13 +23,13 @@ description: 发布上线、查一次运行为什么失败、处理卡住的后�
 2. ssh 到 `DEPLOY_HOST`，在 `DEPLOY_DIR` 里 `git pull`，打印服务器上的提交号，再 `docker compose up -d --build`。compose 先跑迁移，再起接口和 worker。
 3. 等 `/health/ready` 返回 ready。
 
-不备份、不回滚。要撤回就 `git revert` 后再部署一次；撤回的提交里有数据库迁移的，先另写一个反向迁移。推送后 GitHub Actions 会跑一遍 `dev check`。
+此命令不创建备份，也不自动回滚。要撤回发布，先 `git revert` 后再部署一次；撤回的提交里有数据库迁移的，先另写一个反向迁移。推送后 GitHub Actions 会跑一遍 `dev check`。
 
 第一次部署前手动准备：服务器装好 Docker 和 uv，把仓库 clone 到 `DEPLOY_DIR`，按[运行参考](references/runtime.md)“生产配置”写服务器的 `server/.env`；本机的 `server/.env` 写 `DEPLOY_HOST`（ssh 能连上的主机）和 `DEPLOY_DIR`。
 
 ## 在生产上运行 dev 命令
 
-生产镜像里没有开发工具。要在生产库上查任务或重排，ssh 到服务器后：
+生产镜像里没有开发工具。要查询生产库的任务或重新排队，ssh 到服务器后：
 
 ```bash
 cd $DEPLOY_DIR/server
@@ -41,15 +41,15 @@ APP_DATABASE_URL=postgresql+psycopg://app:数据库密码@127.0.0.1:5432/app uv 
 
 ## 查一次运行
 
-起点是错误响应里的 `run_id`，或响应头的 `X-Run-ID`。`dev diagnose run 运行编号` 给出调用树和停在哪一步；`diagnose` 还有 `runs`（列表）、`flow`（声明的步骤图）、`field`（字段来源）、`stats`（统计）、`budgets`（查询额度）。生产上用系统接口一层层查，见[运行参考](references/runtime.md)“用系统接口查一次运行”。
+起点是错误响应里的 `run_id`，或响应头的 `X-Run-ID`。`dev diagnose run 运行编号` 显示各层操作的调用关系，以及运行停在哪一步；`diagnose` 还有 `runs`（列表）、`flow`（声明的步骤图）、`field`（字段来源）、`stats`（统计）、`budgets`（查询额度）。生产上用系统接口一层层查，见[运行参考](references/runtime.md)“用系统接口查一次运行”。
 
 ## 处理后台任务和多阶段流程
 
 - `jobs list`、`jobs show`、`pipelines list`、`pipelines show` 只读。
-- `jobs requeue 编号 --yes` 重新排队，`jobs cancel 编号 --yes` 取消还没开始的任务。重排前先查任务里的外部动作是否已经执行过，结果不明的不要直接重排，否则可能重复执行（比如重复扣款）。
+- `jobs requeue 编号 --yes` 重新排队，`jobs cancel 编号 --yes` 取消还没开始的任务。重新排队前先查外部动作是否已经执行，结果不明时不要直接重新排队，否则可能重复执行（比如重复扣款）。
 - 模块升了 `version` 后，已排队的旧版本任务会停下，确认能按新版本跑后用 `jobs requeue 编号 --accept-version --yes`。
 - `pipelines resume 编号 --yes` 从失败的阶段继续；数据格式变了加 `--accept-schema`，外部结果未知时先核实没有产生实际效果，再加 `--confirm-unknown`。流程里的单个阶段不能用 `jobs` 命令单独重排或取消。
 
 ## 生成服务密钥
 
-`uv run dev make-key` 输出一次明文和一段配置。明文只交给要用它的人，配置放进 `APP_API_KEYS`（只存摘要和权限范围）。明文不写进 Git、运行记录或文档。
+`uv run dev make-key` 只显示一次完整密钥，并输出一段配置。完整密钥只交给使用者，配置放进 `APP_API_KEYS`（只存摘要和权限范围）。完整密钥不写进 Git、运行记录或文档。

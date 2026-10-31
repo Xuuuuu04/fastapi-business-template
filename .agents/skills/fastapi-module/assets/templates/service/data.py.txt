@@ -20,12 +20,12 @@ class ${Camel}Missing(BusinessError):
 class ${Camel}Invalid(BusinessError):
     code = "${name}_invalid"
     kind = Kind.INVALID
-    message = "标题去掉首尾空白后须为 1 到 80 个字"
+    message = "去掉首尾空白后，标题必须为 1 到 80 个字"
 
 
 class CreateWork(WorkData):
     title: str = meaning("调用方填写的标题")
-    clean_title: str = meaning("整理后的标题")
+    clean_title: str = meaning("去掉首尾空白后的标题")
     record: ${Camel}View = meaning("保存后的记录")
 
 

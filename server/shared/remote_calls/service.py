@@ -172,11 +172,13 @@ class RemoteService:
             if response.status_code in request.unknown_on and is_write(request):
                 record.outcome = "unknown"
                 raise RemoteResultUnknown(
-                    f"上游接口 {request.endpoint} 收到待确认状态 HTTP {response.status_code}"
+                    f"外部接口 {request.endpoint} 收到待确认状态 HTTP {response.status_code}"
                 )
             captured = response.status_code in request.accepted_statuses
             if captured and previously_unknown and is_write(request):
-                raise RemoteResultUnknown("此前写入仍未确认，捕获HTTP响应不能抹掉未知结果")
+                raise RemoteResultUnknown(
+                    "此前写入的结果尚未确认，收到本次 HTTP 响应仍不足以确定此前结果"
+                )
             if not captured:
                 raise_for_status(target, response.status_code, request)
             maximum = self.configs[target.name].max_response_bytes

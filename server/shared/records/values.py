@@ -58,7 +58,7 @@ def contains_secret(value: Any, seen: set[int] | None = None) -> bool:
 
 def shape_text(value: Any) -> str:
     if isinstance(value, bool):
-        return "已写入是否标记"
+        return "已写入布尔值（是或否）"
     if isinstance(value, list | tuple | set | frozenset | dict):
         return f"{len(value)} 项"
     if isinstance(value, str):

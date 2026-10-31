@@ -1,7 +1,7 @@
 // 页面调用系统查询和流程恢复接口；所有业务文字按纯文本显示，不执行记录中的内容。
 const notice = document.querySelector('#notice');
 const results = document.querySelector('#results');
-const states = {overdue_paused:'逾期暂停',waiting_members:'等待成员',joining:'正在汇合',planned:'成员待派发',not_started:'未开始',succeeded:'已完成',queued:'排队中',waiting_external:'等待上游',waiting_retry:'等待重试',unknown:'结果待确认',version_blocked:'版本暂停',cancelled:'已取消',ok:'已完成',failed:'失败',refused:'被拒绝',lost:'失去联系',running:'执行中',skipped:'跳过'};
+const states = {overdue_paused:'逾期暂停',waiting_members:'等待子任务',joining:'正在汇总',planned:'子任务等待安排',not_started:'未开始',succeeded:'已完成',queued:'排队中',waiting_external:'等待外部服务',waiting_retry:'等待重试',unknown:'结果待确认',version_blocked:'版本暂停',cancelled:'已取消',ok:'已完成',failed:'失败',refused:'被拒绝',lost:'失去联系',running:'执行中',skipped:'跳过'};
 const kinds = {compute:'计算',read:'数据访问',save:'保存',call:'模块调用',model:'大模型',remote:'外部接口'};
 let current = 'modules';
 let pending;
@@ -154,7 +154,7 @@ function runDetail(data) {
       const details = element('details'); details.append(element('summary','字段、调用和源码位置'));
       details.append(element('p',`读取：${part.reads.join('、') || '无'}；写入：${part.writes.join('、') || '无'}`));
       part.values.forEach(value => details.append(element('p',value)));
-      if (part.outputs_recorded) details.append(element('p',`实际产出：${Object.keys(part.outputs).length}/${part.writes.length} 个字段`));
+      if (part.outputs_recorded) details.append(element('p',`已写入字段：${Object.keys(part.outputs).length}/${part.writes.length} 个字段`));
       details.append(element('code',`${part.error_place || part.source} · ${part.name}`));
       if (part.condition_source) details.append(element('p',`条件 ${part.condition_name}：${part.condition_result === null ? '未知' : part.condition_result ? '执行' : '跳过'}；${duration(part.condition_elapsed_ms)}；${part.condition_source}`));
       if (part.database_count) {
@@ -212,17 +212,17 @@ function pipelineDetail(data) {
   table(results,['阶段','状态','耗时','实际版本','尝试 / 轮询','运行记录'],data.stages.map(item => [
     item.name,state(item.state),duration(item.elapsed_ms),item.module_version || '未知',
     `${item.attempt} / ${item.poll_count}`,item.run_id ? button('查看运行',() => show(`runs/${item.run_id}`)) : '未知']));
-  results.append(element('p',data.source_fixed ? '本次来源已固定' : '本次来源尚未固定'));
+  results.append(element('p',data.source_fixed ? '本次流程使用的数据来源已固定' : '本次流程使用的数据来源尚未固定'));
   data.stages.filter(item => item.members).forEach(item => {
-    results.append(element('p',`${item.name}：${JSON.stringify(item.members.states)}；纳入本次 ${item.members.accepted}`),
-      button('查看成员',() => show(`pipelines/${data.id}/members?stage=${encodeURIComponent(item.name)}`)));
+    results.append(element('p',`${item.name}：${JSON.stringify(item.members.states)}；计入本次汇总 ${item.members.accepted}`),
+      button('查看子任务',() => show(`pipelines/${data.id}/members?stage=${encodeURIComponent(item.name)}`)));
   });
   source(results,'查看整条流程运行图',data.graph);
   if (['failed','version_blocked','unknown','overdue_paused'].includes(data.state)) {
     const schema = element('input'); schema.type = 'checkbox';
     const unknown = element('input'); unknown.type = 'checkbox';
     const schemaLabel = element('label'); schemaLabel.append(schema,element('span','已审查并接受当前格式'));
-    const unknownLabel = element('label'); unknownLabel.append(unknown,element('span','已确认外部未产生效果，可重新执行'));
+    const unknownLabel = element('label'); unknownLabel.append(unknown,element('span','已向外部服务确认原请求没有执行，可以重新执行'));
     results.append(schemaLabel,unknownLabel,button('从当前阶段恢复',async () => {
       if (!confirm('确认只从当前失败阶段重新执行？')) return;
       const secret = document.querySelector('#secret').value.trim();
@@ -238,8 +238,8 @@ function pipelineDetail(data) {
 }
 
 function memberDetail(data) {
-  results.append(element('h2','扇出成员'));
-  table(results,['成员','当前子阶段','状态','纳入本次','耗时','版本','运行'],data.items.map(item => [
+  results.append(element('h2','并行子任务'));
+  table(results,['子任务','当前子阶段','状态','计入本次汇总','耗时','版本','运行'],data.items.map(item => [
     item.key,item.phase_name,state(item.state),item.accepted ? '是' : '否',duration(item.elapsed_ms),
     item.module_version || '未知',item.run_id ? button('查看运行',() => show(`runs/${item.run_id}`)) : '未知']));
   if (data.next_after) {

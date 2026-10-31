@@ -17,8 +17,8 @@ from fastapi_check.quality.rules import (
 NESTED = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith, ast.Try, ast.Match)
 Function = ast.FunctionDef | ast.AsyncFunctionDef
 DOCUMENTED = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
-NO_TEXT = "用名字、类型和测试说清意图；修改原因写进提交说明"
-NO_CATCH = "按错误种类直接 raise；唯一冲突用 Db 的 conflict=，失败次数限制用 run(..., limits=)"
+NO_TEXT = "用名字、类型和测试说明代码用途；修改原因写进提交说明"
+NO_CATCH = "直接抛出对应的业务错误；唯一键冲突用 Db 的 conflict=，失败次数限制用 run(..., limits=)"
 
 
 def check_files(root: Path = ROOT) -> list[Problem]:
@@ -71,7 +71,7 @@ def check_docstrings(name: str, tree: ast.Module) -> list[Problem]:
 
 def check_catching(name: str, tree: ast.Module) -> list[Problem]:
     return [
-        Problem(name, node.lineno, "catch", "业务代码不接住错误", NO_CATCH)
+        Problem(name, node.lineno, "catch", "业务代码不捕获异常", NO_CATCH)
         for node in ast.walk(tree)
         if isinstance(node, ast.Try | ast.TryStar)
         or (isinstance(node, ast.Name) and node.id == "suppress")

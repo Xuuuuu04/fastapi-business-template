@@ -1,7 +1,7 @@
 # 项目依赖与统一检查配置。框架检查规则的阈值写在 ../.agents/skills/fastapi-check/scripts/fastapi_check/quality/rules.py。
 [project]
 name = "fastapi-server-template"
-version = "5.0.0"
+version = "5.0.1"
 description = "便于人审查、便于 AI 按固定结构开发的 FastAPI 单体后端模板"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -60,7 +60,7 @@ pythonpath = [".",
 ]
 markers = [
   "database_rebuild: DDL、迁移、权限或策略变化的测试独立重建数据库结构",
-  "test_group(name): 纯计算pure、模块module、整链flow、框架framework",
+  "test_group(name): 纯计算 pure、模块 module、完整流程 flow、框架 framework",
   "postgres_only: 只在 PostgreSQL 上有意义的检查，SQLite 下自动跳过",
 ]
 filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]

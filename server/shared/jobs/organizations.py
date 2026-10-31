@@ -9,12 +9,12 @@ from shared.access.caller import SYSTEM, Caller
 
 def validate_orgs(orgs: Sequence[str]) -> tuple[str, ...]:
     if len(set(orgs)) != len(orgs):
-        raise ValueError("定时组织不能重复")
+        raise ValueError("定时执行的组织列表不能包含重复编号")
     if any(
         not org or org == "*" or org != org.strip() or len(org) > 64 or "\x00" in org
         for org in orgs
     ):
-        raise ValueError("定时组织必须是明确的非空编号，最多64字符，不能使用通配符")
+        raise ValueError("定时执行必须指定组织编号，每个编号为 1 到 64 个字符，不能使用通配符")
     return tuple(orgs)
 
 

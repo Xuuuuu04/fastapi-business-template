@@ -61,7 +61,7 @@ async def test_store_protocol(tmp_path: Path) -> None:
         assert reply.count == 3
     finally:
         await services.close()
-    with pytest.raises(DeclarationError, match="未声明的上游接口"):
+    with pytest.raises(DeclarationError, match="未声明的外部接口"):
         Catalog([store_module(False)])
 
 

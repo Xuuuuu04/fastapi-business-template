@@ -20,7 +20,7 @@ def check_endpoints(modules: Sequence["Module"]) -> list[str]:
         for endpoint in module.endpoints:
             previous = defined.setdefault(endpoint.name, endpoint)
             if endpoint.name in local or previous is not endpoint:
-                problems.append(f"上游接口 {endpoint.name} 重复定义，请从public复用同一声明")
+                problems.append(f"外部接口 {endpoint.name} 重复定义，请从public复用同一声明")
             local.add(endpoint.name)
             problems += endpoint_problems(endpoint)
         for flow in module.provides.values():
@@ -36,7 +36,7 @@ def check_step_endpoints(module: "Module", part: "Step") -> list[str]:
     problems = []
     for endpoint in part.endpoints:
         if endpoint not in module.endpoints:
-            problems.append(f"{place} 上游接口 {endpoint.name} 未在Module.endpoints登记")
+            problems.append(f"{place} 外部接口 {endpoint.name} 未在Module.endpoints登记")
     if part.endpoints and not ({"store", "remote"} & set(part.params)):
         problems.append(f"{place} 声明endpoints但没有store或remote参数")
     problems += inspect_calls(part.func, part.endpoints, place)
@@ -74,7 +74,7 @@ def inspect_calls(func: Any, allowed: tuple[Endpoint[Any, Any], ...], place: str
             value = resolve(reference, getattr(func, "__globals__", {}))
             if not allowed or (isinstance(value, Endpoint) and value not in allowed):
                 name = value.name if isinstance(value, Endpoint) else "未知（动态选择）"
-                problems.append(f"{place} 调用了未声明的上游接口 {name}，请补endpoints")
+                problems.append(f"{place} 调用了未声明的外部接口 {name}，请补endpoints")
     return problems
 
 

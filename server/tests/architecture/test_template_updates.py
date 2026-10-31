@@ -165,7 +165,7 @@ def test_symlink_is_rejected(tmp_path: Path) -> None:
     (target / "server/devtools").symlink_to(outside, target_is_directory=True)
     write(source, "server/devtools/a.py", "NEW = True\n")
     save_provenance(target, base)
-    with pytest.raises(ValueError, match="越出项目"):
+    with pytest.raises(ValueError, match="项目目录之外"):
         update_plan(target, base, source)
     assert not list(outside.iterdir())
 

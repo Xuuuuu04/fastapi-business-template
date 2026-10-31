@@ -41,7 +41,7 @@ async def locate(
         )
         row = dict(found)
     if row is None:
-        raise StepRuleBroken("pipeline工具只能在已登记流程的阶段任务内使用")
+        raise StepRuleBroken("pipeline 工具只能在已登记流程的阶段任务中使用")
     found = (
         (await connection.execute(select(runs).where(runs.c.id == row["pipeline_id"])))
         .mappings()
@@ -50,7 +50,7 @@ async def locate(
     root = dict(found)
     pipeline = catalog.pipelines.get(root["pipeline"])
     if pipeline is None or root["org_id"] != gate.scope.caller.org_id:
-        raise StepRuleBroken("流程或当前组织不匹配")
+        raise StepRuleBroken("当前阶段不属于指定流程或当前组织")
     stage = next(stage for stage in pipeline.stages if stage.name == row["name"])
     if member and isinstance(stage, FanOut):
         stage = next(child for child in stage.stages if child.name == member["phase_name"])
@@ -61,21 +61,21 @@ async def source[Source: Data](gate: "PipelineGate", model: type[Source]) -> Sou
     async with reader(gate) as connection:
         root, _, _, stage = await locate(gate, connection)
     if stage.source is not model or root["source_json"] is None:
-        raise StepRuleBroken("阶段未声明该source Data，或首阶段尚未固定来源")
+        raise StepRuleBroken("当前阶段未声明此 source 数据类型，或首阶段尚未保存固定的来源数据")
     if json.loads(root["source_schema_json"]) != format_of(model):
-        raise StepRuleBroken("已固定来源格式与阶段声明不符，需要人工处理")
+        raise StepRuleBroken("已保存的固定来源数据与阶段声明的类型不符，需要人工处理")
     return model.model_validate_json(root["source_json"])
 
 
 async def add_members(gate: "PipelineGate", values: list[Member]) -> int:
     if not gate.saves:
-        raise StepRuleBroken("登记成员需要saves=True")
-    connection = await gate.scope.tx.writer(gate.scope.runtime.database, "登记扇出成员")
+        raise StepRuleBroken("登记并行子任务的步骤必须声明 saves=True")
+    connection = await gate.scope.tx.writer(gate.scope.runtime.database, "登记并行子任务")
     root, row, _, stage = await locate(gate, connection)
     if not isinstance(stage, FanOut) or stage.operation.name != gate.run.contract:
-        raise StepRuleBroken("只有FanOut规划操作能登记成员")
+        raise StepRuleBroken("只有 FanOut 的任务规划操作可以登记并行子任务")
     if row["job_id"] != gate.scope.job_id or row["state"] != "running":
-        raise StepRuleBroken("成员只能在规划阶段完成前登记")
+        raise StepRuleBroken("并行子任务只能在规划阶段完成前登记")
     return await add(connection, root, row, stage, values, gate.scope.runtime.catalog)
 
 
@@ -83,14 +83,16 @@ async def results[Output: Data](
     gate: "PipelineGate", name: str, model: type[Output], after: str = "", limit: int = 50
 ) -> MemberPage[Output]:
     if not 1 <= limit <= 200:
-        raise StepRuleBroken("成员结果每页需要1到200条")
+        raise StepRuleBroken("查询子任务结果时，每页数量必须在 1 到 200 之间")
     async with reader(gate) as connection:
         root, _, pipeline, current = await locate(gate, connection)
         if current.members.get(name) is not model:
-            raise StepRuleBroken("成员结果需在当前阶段的members声明中明确Data类型")
+            raise StepRuleBroken("当前阶段的 members 必须声明要读取的子任务结果 Data 类型")
         group = next((stage for stage in pipeline.stages if stage.name == name), None)
         if not isinstance(group, FanOut) or group.stages[-1].operation.output is not model:
-            raise StepRuleBroken("成员结果必须引用已声明的FanOut及最终产出Data")
+            raise StepRuleBroken(
+                "子任务结果必须引用已声明的 FanOut 和该并行阶段的最终输出 Data 类型"
+            )
         query = (
             select(members)
             .join(stages, members.c.stage_id == stages.c.id)

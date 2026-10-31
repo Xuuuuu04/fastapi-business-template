@@ -31,11 +31,13 @@ async def expire(
     )
     if safe_wait or await may_resume(connection, plan, job_id, attempt):
         values |= {"state": "waiting_retry", "run_after": now, "error_code": "lease_expired"}
-        values["error_message"] = "执行期限已过（worker 可能已退出），按可安全重复的约定重新排队"
+        values["error_message"] = (
+            "任务占用有效期已过（worker 可能已退出）；任务可以安全继续执行，已重新排队"
+        )
     else:
         values |= {"state": "unknown", "finished_at": now, "error_code": "lease_expired"}
         values["error_message"] = (
-            "执行期限已过，无法确认是否已经产生效果，请人工检查后再决定是否重试"
+            "任务占用有效期已过，无法确认任务是否已产生实际结果，请人工检查后再决定是否重试"
         )
     await connection.execute(update(jobs).where(jobs.c.id == job_id).values(**values))
     await resources.release(connection, job_id, attempt, now)

@@ -20,7 +20,7 @@ def check_segmented_jobs(module: Module) -> list[str]:
         if plan.cursor is not None and (
             not isinstance(plan.cursor, type) or not issubclass(plan.cursor, Data)
         ):
-            problems.append(f"任务 {plan.contract.name} 的cursor必须是Data类型")
+            problems.append(f"任务 {plan.contract.name} 的恢复位置 cursor 必须声明为 Data 类型")
         flow = module.provides.get(plan.contract)
         has_checkpoint = isinstance(flow, Flow) and any(
             "checkpoint" in part.params for part in flow.steps

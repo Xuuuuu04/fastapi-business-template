@@ -111,7 +111,7 @@ def test_calc_declaration_and_graph() -> None:
         calcs=["calc/text.py:1"],
         elapsed_ms=1.5,
     )
-    assert "耗时算在本步骤内" in step_node("one", 1, record)[0]
+    assert "耗时计入本步骤" in step_node("one", 1, record)[0]
 
 
 def runtime_module(through_store: bool) -> Module:
@@ -180,6 +180,6 @@ async def test_runtime_includes_calc_in_step(through_store: bool) -> None:
         records = await services.recorder.store.recent(RunFilter(), 1)
         assert records[0].steps[0].calcs and "normalize" in records[0].steps[0].calcs[0]
         assert records[0].steps[0].elapsed_ms >= 0
-        assert "耗时算在本步骤内" in step_node("one", 1, records[0].steps[0])[0]
+        assert "耗时计入本步骤" in step_node("one", 1, records[0].steps[0])[0]
     finally:
         await services.close()

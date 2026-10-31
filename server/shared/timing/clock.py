@@ -80,7 +80,7 @@ class FakeClock:
                 return operation.result()
             operation.cancel()
             await asyncio.gather(operation, return_exceptions=True)
-            raise TimeoutError("受控执行预算耗尽")
+            raise TimeoutError("模拟时钟已到达本次执行的截止时间")
         finally:
             operation.cancel()
             timer.cancel()

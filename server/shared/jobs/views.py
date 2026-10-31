@@ -14,14 +14,14 @@ from shared.pipelines.storage import stage_for
 from shared.timing.current import now as business_now
 
 STATE_TEXT = {
-    "expired": "已过期，未执行",
+    "expired": "已过期，停止执行",
     "queued": "等待执行",
     "running": "执行中",
     "waiting_retry": "等待重试",
     "done": "已完成",
     "failed": "失败",
     "unknown": "结果待确认",
-    "blocked": "等待兼容版本",
+    "blocked": "等待确认执行配置",
     "cancelled": "已取消",
 }
 
@@ -94,13 +94,17 @@ async def requeue(
     async with database.write() as connection:
         stage = await stage_for(connection, job_id) or await member_for(connection, job_id)
         if stage is not None:
-            return f"流程阶段请用pipelines resume {stage['pipeline_id']}恢复"
+            return (
+                f"这是流程阶段任务，请用 dev pipelines resume {stage['pipeline_id']} 恢复整个流程"
+            )
         row = (await connection.execute(select(jobs).where(jobs.c.id == job_id))).mappings().first()
         if row is None:
             return "任务不存在"
         if row["state"] not in ("failed", "unknown", "blocked"):
             state = STATE_TEXT.get(row["state"])
-            return f"任务状态是“{state}”；只有失败、待检查、等待兼容版本的任务可以重新排队"
+            return (
+                f"任务状态是“{state}”；只有执行失败、结果待确认或等待确认执行配置的任务可以重新排队"
+            )
         binding, plan = catalog.find(row["contract"]), catalog.plan(row["contract"])
         if binding is None or plan is None:
             return "任务对应的操作当前没有登记"
@@ -112,7 +116,7 @@ async def requeue(
         values |= {"finished_at": None, "error_code": "", "error_message": ""}
         if row["state"] == "blocked":
             if not accept_version:
-                return "任务等待兼容版本；确认可以按当前版本执行时，加上 --accept-version"
+                return "任务的执行配置需要确认；确认可按当前版本执行后，加上 --accept-version"
             values["module_version"] = binding.module.version
         try:
             await reserve(connection, binding.contract, plan.max_queued)
@@ -134,7 +138,7 @@ async def cancel(database: Database, job_id: str) -> str:
             await stage_for(connection, job_id) is not None
             or await member_for(connection, job_id) is not None
         ):
-            return "不能单独取消流程阶段任务"
+            return "这是流程阶段任务，不能单独取消"
         change = (
             update(jobs)
             .where(jobs.c.id == job_id, jobs.c.state.in_(READY))

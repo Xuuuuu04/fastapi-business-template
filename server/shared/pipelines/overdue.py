@@ -22,7 +22,9 @@ def deadline(pipeline: Pipeline, request: StartRequest, now: float) -> float | N
     point = pipeline.complete_by
     period = request.period or datetime.fromtimestamp(now, UTC)
     if period.tzinfo is None:
-        raise InvalidInput(f"流程{pipeline.name}的周期时间需要时区以计算complete_by")
+        raise InvalidInput(
+            f"流程 {pipeline.name} 的周期时间必须带时区，才能计算 complete_by 截止时间"
+        )
     zone = ZoneInfo(point.zone)
     day = period.astimezone(zone).date() + timedelta(days=point.days_after)
     return datetime.combine(day, point.at, zone).timestamp()
@@ -65,7 +67,7 @@ async def mark(connection: AsyncConnection, root: dict, now: float) -> None:
         "queued",
     ):
         values["state"] = "overdue_paused"
-        values["reason"] = "已逾期，按声明在批次/阶段边界暂停，等待人工继续"
+        values["reason"] = "流程已超过截止时间，按配置在当前批次或阶段结束后暂停，等待人工继续"
     await connection.execute(update(runs).where(runs.c.id == root["id"]).values(**values))
     payload = dict(
         pipeline_id=root["id"],

@@ -56,7 +56,7 @@ write = contract(
 
 class Work(WorkData):
     sku: str = meaning("商品编号")
-    result: Receipt = meaning("回执")
+    result: Receipt = meaning("外部服务返回的结果")
 
 
 @step("查询上游", reads=["sku"], writes=["result"], remotes=[upstream], endpoints=[read_endpoint])

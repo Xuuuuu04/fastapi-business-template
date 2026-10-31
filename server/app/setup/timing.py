@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 def bind_clock(services: "Services", clock: Clock) -> None:
     if services.settings.env == "production" and clock_kind(clock) == "simulated":
-        raise ConfigError(["生产组装不能使用模拟时钟"])
+        raise ConfigError(["生产环境不能使用模拟时钟"])
     services.runtime.clock = clock
     services.queue.clock = clock
     services.remotes.clock = clock

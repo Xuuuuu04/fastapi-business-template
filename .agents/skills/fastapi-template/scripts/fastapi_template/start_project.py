@@ -8,7 +8,7 @@ from fastapi_template.template.initialization import initialize
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="从模板开始干净的新产品项目")
+    parser = argparse.ArgumentParser(description="从模板创建新产品项目")
     parser.add_argument("destination", type=Path, help="尚不存在的目标目录")
     parser.add_argument("--name", required=True, help="新产品名称")
     args = parser.parse_args()

@@ -131,7 +131,7 @@ def test_unchanged_and_unreadable_graph(repository: Path) -> None:
         "VALUE = 2\n", encoding="utf-8"
     )
     selected = select_affected(catalog, "HEAD", repository)
-    assert not selected.modules and "无法安全缩小" in selected.reasons[0]
+    assert not selected.modules and "无法确定完整的影响范围" in selected.reasons[0]
     with pytest.raises(ValueError, match="旧版本依赖"):
         previous_graph(repository, "HEAD")
 

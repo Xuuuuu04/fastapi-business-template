@@ -1,9 +1,9 @@
 # FastAPI 通用后端模板
 
-一个没有预置业务的单体后端模板：业务包的结构、声明的写法和事务的安排都只有一种，每次运行的过程和错误都会记录下来。
+这个单体后端模板没有预置业务。业务包按统一结构组织，框架负责事务、权限和后台任务，并记录每次运行的步骤与错误。
 
 - 开发入口：[AGENTS.md](AGENTS.md)
-- 接口契约：[doc/api/openapi.json](doc/api/openapi.json)
+- 接口说明：[doc/api/openapi.json](doc/api/openapi.json)
 - 版本变化：[CHANGELOG.md](CHANGELOG.md)
 
-项目 Skill 在 `.agents/skills/`，每个 Skill 的脚本、参考说明和代码模板放在它自己的目录里。用这个模板创建产品时会复制这些 Skill。
+项目 Skill 在 `.agents/skills/`，分别说明怎样查业务、写代码、验证和发布。各 Skill 的脚本、参考说明和代码模板放在自己的目录里，创建产品时会一起复制。

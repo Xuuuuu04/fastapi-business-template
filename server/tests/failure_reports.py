@@ -47,7 +47,7 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[Any]) -> 
     folder = Path(__file__).resolve().parents[1] / "var/development/failures"
     path = save_finished_runs(folder, item.nodeid, FINISHED)
     item.stash[FAILURE_FILE] = path
-    report.sections.append(("完整运行证据", f"{path}（成员夹具结束前补入流程和任务状态）"))
+    report.sections.append(("完整运行记录", f"{path}（测试环境清理前补入流程和任务状态）"))
 
 
 def failure_reports(runs: list[RunRecord]) -> list[tuple[str, str]]:

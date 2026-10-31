@@ -71,7 +71,9 @@ async def expired(connection: AsyncConnection, row: Any, now: float) -> bool:
             finished_at=now,
             updated_at=now,
             error_code="task_expired",
-            error_message="排队预算耗尽" if queue_expired else "业务有效期已过",
+            error_message="任务排队时间已超过 queue_timeout"
+            if queue_expired
+            else "任务的业务截止时间已过",
         )
     )
     await release(connection, row["contract"])

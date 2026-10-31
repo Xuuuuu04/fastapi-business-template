@@ -103,7 +103,7 @@ async def test_segment_graph_and_durable_summary(segmented: Services) -> None:
     assert "第2批" in run_graph([final]) and "累计10000行" in run_graph([final])
     assert "&quot;after&quot;: 10000}" in run_graph([final])
     assert "after" in run_report([final], final.id)
-    assert "分段任务" in flow_graph(segmented.catalog.binding(batch))
+    assert "分批任务" in flow_graph(segmented.catalog.binding(batch))
 
 
 @pytest.mark.parametrize(

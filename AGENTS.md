@@ -1,4 +1,4 @@
-# FastAPI 单体后端模板 5.0.0
+# FastAPI 单体后端模板 5.0.1
 
 ## 业务要点
 
@@ -51,3 +51,5 @@ uv run uvicorn app.setup.web:create_app --factory --reload --no-access-log
 - 框架文件（清单在 `server/shared/modules/validation/framework_files.py`）做业务时不改；确要改，在提交说明里写用途和影响。业务文档不算框架文件。
 - 凭据或权限不够时停下说明，不去找别的凭据。
 - 探索、生成、验证和诊断走项目 Skill 的标准命令；复用业务样例用 `dev run --case`，工具扩展约定见 fastapi-check。
+
+- 中文说明写清对象、动作和结果；`meaning()` 说明字段用途及单位，状态和错误说明原因，不使用“持久意图”等内部叫法。程序按错误码和状态值判断，不匹配中文文案。

@@ -13,7 +13,7 @@ from shared.model_calls.providers import ModelProvider
 from shared.modules.module import Module
 from shared.timing.clock import Clock
 
-FRAMEWORK_VERSION = "5.0.0"
+FRAMEWORK_VERSION = "5.0.1"
 
 
 @dataclass(frozen=True)
@@ -79,7 +79,7 @@ class ApplicationSpec:
         if not isinstance(self.settings_type, type) or not issubclass(self.settings_type, Settings):
             problems.append("产品配置必须继承框架Settings")
         if len({spec.name for spec in self.providers}) != len(self.providers):
-            problems.append("产品外部效果名称不能重复")
+            problems.append("产品外部调用名称不能重复")
         for spec in self.providers:
             spec.validate()
         if problems:

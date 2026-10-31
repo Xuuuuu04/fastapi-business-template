@@ -23,7 +23,7 @@ async def check_import_source(queue: "JobQueue", ticket: "Ticket", plan: "JobPla
     if plan.import_plan is None or ticket.key == plan.import_plan.queue_key():
         return True
     await queue.fail(
-        ticket, "blocked", "import_source_changed", "导入来源或对账计划已变化，需要人工确认"
+        ticket, "blocked", "import_source_changed", "导入的数据来源或核对规则已改变，需要人工确认"
     )
     return False
 
@@ -76,22 +76,22 @@ def check_import(plan: ImportPlan, tables: tuple[Table, ...]) -> list[str]:
     rule = plan.reconcile
     problems = []
     if not plan.source_revision.strip() or not plan.key.strip():
-        problems.append("导入必须登记非空 source_revision 和 key")
+        problems.append("导入必须设置非空的来源版本 source_revision 和业务标识 key")
     if rule.table not in tables:
-        problems.append(f"导入目标表 {rule.table.key} 必须登记在模块 tables")
+        problems.append(f"导入目标表 {rule.table.key} 必须在模块 tables 中登记")
     if type(rule.rows) is not int or rule.rows < 0 or (rule.rows == 0 and not rule.allow_empty):
-        problems.append("导入预期行数必须为正整数；确认空来源才显式声明 allow_empty=True")
+        problems.append("预期导入行数必须是正整数；确认来源可以为空时，才声明 allow_empty=True")
     for name in (*rule.sums, *rule.non_null, *(item.column for item in rule.references)):
         if name not in rule.table.c:
-            problems.append(f"导入对账字段 {rule.table.key}.{name} 不存在")
+            problems.append(f"导入核对字段 {rule.table.key}.{name} 不存在")
     problems += check_sum_columns(rule)
     if any(not Decimal(str(value)).is_finite() for value in rule.sums.values()):
-        problems.append("导入合计预期必须是有限的精确数值")
+        problems.append("导入字段的预期合计必须是有限的整数或精确小数")
     if any(not 0 <= value <= 1 for value in rule.non_null.values()):
-        problems.append("导入质量非空率必须在0到1之间")
+        problems.append("导入字段的最低非空比例必须在 0 到 1 之间")
     for item in rule.references:
         if item.target.table is None or item.target.table not in tables:
-            problems.append("导入引用目标必须登记在同模块 tables")
+            problems.append("导入数据引用的目标表必须登记在同一模块的 tables 中")
     return problems
 
 
@@ -101,7 +101,9 @@ def check_sum_columns(rule: Reconcile) -> list[str]:
         if name in rule.table.c:
             kind = rule.table.c[name].type
             if isinstance(kind, Float) or not isinstance(kind, (Integer, Numeric, ExactNumber)):
-                problems.append(f"导入合计字段 {name} 必须是整数或精确小数，不能用浮点数")
+                problems.append(
+                    f"导入时需要核对合计的字段 {name} 必须是整数或精确小数，不能使用浮点数"
+                )
     return problems
 
 
@@ -154,7 +156,7 @@ async def reconcile_import(
     failed = [name for name, value in checks.items() if not value["passed"]]
     report["status"] = "失败" if failed else "通过"
     if failed:
-        raise StepRuleBroken("数据导入对账失败：" + "、".join(failed))
+        raise StepRuleBroken("数据导入核对失败：" + "、".join(failed))
 
 
 async def exact_totals(connection: AsyncConnection, rule: Reconcile) -> dict[str, Decimal]:

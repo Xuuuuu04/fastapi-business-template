@@ -44,24 +44,24 @@ class Checkpoint:
 
     def declare(self, cursor: dict[str, Any], rows: int, done: bool) -> None:
         if self.next_cursor:
-            raise StepRuleBroken("一批只能声明一次 checkpoint.advance 或 finish")
+            raise StepRuleBroken("每批只能调用一次 checkpoint.advance 或 checkpoint.finish")
         if not isinstance(cursor, dict) or type(rows) is not int or rows < 0:
-            raise StepRuleBroken("恢复游标必须是 JSON 字典，行数必须是非负整数")
+            raise StepRuleBroken("恢复位置必须是 JSON 字典，处理行数必须是非负整数")
         if self.cursor_model is not None:
             cursor = self.cursor_model.model_validate(cursor).model_dump(mode="json")
         try:
             body = json.dumps(cursor, ensure_ascii=False, allow_nan=False, sort_keys=True)
         except (TypeError, ValueError) as error:
-            raise StepRuleBroken("恢复游标只能包含 JSON 数据") from error
+            raise StepRuleBroken("恢复位置只能包含 JSON 支持的数据类型") from error
         if len(body.encode("utf-8")) > MAX_CURSOR_BYTES:
-            raise StepRuleBroken("恢复游标超过16 KiB，请只保存恢复位置")
+            raise StepRuleBroken("恢复位置超过 16 KiB，请只保存下一批的读取起点")
         if not done and json.loads(body) == json.loads(self._cursor):
-            raise StepRuleBroken("继续下一批时必须推进恢复游标")
+            raise StepRuleBroken("继续下一批前必须更新恢复位置，不能重复使用同一位置")
         self.next_cursor, self.rows, self.done = body, rows, done
 
     def validate(self) -> None:
         if not self.next_cursor:
-            raise StepRuleBroken("分段任务每批必须声明 checkpoint.advance 或 finish")
+            raise StepRuleBroken("分段任务每批必须调用 checkpoint.advance 或 checkpoint.finish")
 
     def record(self, run: "RunRecord", *, committed: bool = False) -> None:
         run.segment_number = self.number + 1

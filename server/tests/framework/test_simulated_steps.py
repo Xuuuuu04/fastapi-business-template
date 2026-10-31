@@ -62,7 +62,7 @@ async def test_simulation_requires_explicit_context_and_marks_evidence(tmp_path:
 def test_production_build_rejects_skeleton(tmp_path: Path) -> None:
     settings = make_settings(tmp_path)
     settings.env = "production"
-    with pytest.raises(ConfigError, match="模拟骨架"):
+    with pytest.raises(ConfigError, match="占位步骤"):
         build(settings, modules=[skeleton_module()])
 
 

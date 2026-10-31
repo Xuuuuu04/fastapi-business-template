@@ -20,7 +20,7 @@ def with_effects(spec: ApplicationSpec, modules: Sequence[Module]) -> list[Modul
         if provider not in spec.providers
     ]
     if unknown:
-        raise ConfigError([f"模块外部效果未在ApplicationSpec登记：{unknown}"])
+        raise ConfigError([f"模块使用的外部调用未在 ApplicationSpec 中登记：{unknown}"])
     return [*modules, *([make_effect_module(spec.providers)] if spec.providers else [])]
 
 
@@ -36,11 +36,11 @@ def effect_service(
         if settings.env == "test":
             return None
         if spec.adapters is None:
-            raise ConfigError(["产品声明了ProviderSpec但没有配置适配器工厂"])
+            raise ConfigError(["产品声明了 ProviderSpec，但没有配置创建外部服务适配器的函数"])
         bindings = spec.adapters(settings)
     if set(bindings) != set(spec.providers):
         raise ConfigError(["供应商适配器与产品ProviderSpec声明不一致"])
     if settings.env == "production" and any(adapter.simulated for adapter in bindings.values()):
-        raise ConfigError(["生产组装不能使用模拟外部适配器"])
+        raise ConfigError(["生产环境不能使用模拟外部服务适配器"])
     vault = Vault([key.get_secret_value() for key in settings.data_keys])
     return EffectService(EffectStore(database, vault), bindings)

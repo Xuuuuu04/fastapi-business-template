@@ -33,7 +33,9 @@ def library_specs(root: Path) -> list[LibrarySpec]:
             continue
         marker = folder / "module.json"
         if folder.is_symlink() or marker.is_symlink() or not marker.is_file():
-            raise DeclarationError([f"工具包 {folder.name} 缺少安全的module.json"])
+            raise DeclarationError(
+                [f"工具包 {folder.name} 缺少 module.json，或目录、配置文件使用了符号链接"]
+            )
         raw = json.loads(marker.read_text())
         if not isinstance(raw, dict):
             raise DeclarationError([f"工具包 {folder.name} 的声明必须为对象"])

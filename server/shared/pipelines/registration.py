@@ -50,16 +50,20 @@ def check_pipelines(modules: Sequence[Module]) -> list[str]:
                 or pipeline.name in seen
                 or pipeline.name.split(".")[0] != module.name
             ):
-                problems.append(f"流程{pipeline.name}名称重复或不属于{module.name}")
+                problems.append(
+                    f"流程 {pipeline.name} 的名称重复，或名称前缀不属于模块 {module.name}"
+                )
             seen.add(pipeline.name)
             problems += check_deadline(pipeline)
             if pipeline.overlap not in ("skip", "queue") or not pipeline.stages:
-                problems.append(f"流程{pipeline.name}需要阶段和有效overlap")
+                problems.append(f"流程 {pipeline.name} 必须包含阶段，overlap 只能是 skip 或 queue")
             if (
                 any(stage.source is not None for stage in pipeline.stages)
                 and not pipeline.stages[0].freeze_sources
             ):
-                problems.append(f"流程{pipeline.name}使用固定来源，首阶段必须freeze_sources=True")
+                problems.append(
+                    f"流程 {pipeline.name} 需要固定来源数据，首阶段必须声明 freeze_sources=True"
+                )
             problems += check_stages(pipeline, operations, plans)
     return problems
 
@@ -69,25 +73,25 @@ def check_stages(
 ) -> list[str]:
     problems, outputs = [], {"input": pipeline.input}
     if not isinstance(pipeline.input, type) or not issubclass(pipeline.input, Data):
-        return [f"流程{pipeline.name}初始输入必须是Data"]
+        return [f"流程 {pipeline.name} 的初始输入类型必须是 Data"]
     groups: dict[str, FanOut] = {}
     for index, stage in enumerate(pipeline.stages):
-        place = f"流程{pipeline.name}阶段{stage.name}"
+        place = f"流程 {pipeline.name} 的阶段 {stage.name}："
         if not NAME.fullmatch(stage.name) or stage.name in outputs:
-            problems.append(f"{place}名称无效或重复")
+            problems.append(f"{place}名称无效或与其他阶段重复")
         source = input_source(pipeline, index)
         if (
             stage.operation not in operations
             or stage.operation not in plans
             or not stage.operation.entry
         ):
-            problems.append(f"{place}必须引用已登记的公开后台操作")
+            problems.append(f"{place}必须引用已在模块 jobs 中登记的公开操作")
         if outputs.get(source) is not stage.operation.input:
-            problems.append(f"{place}输入Data与来源{source}不一致")
+            problems.append(f"{place}输入 Data 类型与来源 {source} 的输出类型不一致")
         outputs[stage.name] = stage.operation.output
         plan = plans.get(stage.operation)
         if plan and plan.segmented and plan.cursor is None:
-            problems.append(f"{place}分段任务必须声明cursor Data")
+            problems.append(f"{place}分段任务必须用 cursor 声明恢复位置的 Data 类型")
         problems += check_source(
             stage, index, source_model or pipeline.stages[0].operation.output, place
         )
@@ -104,7 +108,7 @@ def check_wait(stage: Wait, plan: JobPlan | None, place: str) -> list[str]:
     problems = []
     field = stage.operation.output.model_fields.get(stage.ready_field)
     if not field or field.annotation is not bool:
-        problems.append(f"{place}等待条件必须是产出中的bool字段")
+        problems.append(f"{place}等待条件必须是操作输出中的 bool 字段")
     if (
         not math.isfinite(stage.every)
         or not math.isfinite(stage.timeout)
@@ -112,7 +116,7 @@ def check_wait(stage: Wait, plan: JobPlan | None, place: str) -> list[str]:
         or type(stage.max_parallel) is not int
         or stage.max_parallel < 1
     ):
-        problems.append(f"{place}等待间隔、上限和max_parallel必须为正数")
+        problems.append(f"{place}等待间隔 every、最长等待时间 timeout 和 max_parallel 必须为正数")
     if plan and (not plan.repeat_safe or plan.segmented):
-        problems.append(f"{place}等待检查必须可安全重复，不能是分段任务")
+        problems.append(f"{place}等待检查必须声明 repeat_safe=True，且不能是分段任务")
     return problems

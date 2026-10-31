@@ -31,9 +31,9 @@ class EffectGate:
 
         service = self.require(spec)
         if not self.saves or self.scope.runtime.jobs is None:
-            raise StepRuleBroken("登记外部任务需要saves=True和持久任务服务")
+            raise StepRuleBroken("登记外部发送任务需要声明 saves=True，并启用后台任务服务")
         check_access(dispatch, self.scope.caller)
-        connection = await self.scope.tx.writer(self.scope.runtime.database, "登记外部效果")
+        connection = await self.scope.tx.writer(self.scope.runtime.database, "登记外部调用")
         body = spec.input.model_validate(input).model_dump_json()
         id = await service.store.prepare(
             connection,
@@ -58,11 +58,11 @@ class EffectGate:
     async def perform(self, id: str, *, lookup: bool = False) -> EffectResult:
         service = self.scope.runtime.effects
         if service is None:
-            raise StepRuleBroken("没有组装外部效果服务")
+            raise StepRuleBroken("产品没有配置外部调用服务")
         row = await service.store.read(id, self.scope.caller)
         spec = service.by_name.get(row["provider"])
         if spec is None:
-            raise StepRuleBroken("外部意图协议未登记")
+            raise StepRuleBroken("外部请求的接口定义未登记")
         self.require(spec)
         self.outside_transaction()
         return await service.perform(
@@ -71,10 +71,12 @@ class EffectGate:
 
     def require(self, spec: ProviderSpec) -> EffectService:
         if spec not in self.allowed or self.scope.runtime.effects is None:
-            raise StepRuleBroken(f"步骤未声明或未组装外部效果 {spec.name}")
+            raise StepRuleBroken(f"步骤未声明或产品未配置外部调用 {spec.name}")
         self.scope.runtime.effects.adapter(spec)
         return self.scope.runtime.effects
 
     def outside_transaction(self) -> None:
         if self.scope.tx.connection is not None:
-            raise StepRuleBroken("业务写事务开始后不能发送或查询外部效果，请登记持久任务")
+            raise StepRuleBroken(
+                "数据库写入事务开始后不能发送或查询外部请求，请用 effects.enqueue 登记后台发送任务"
+            )

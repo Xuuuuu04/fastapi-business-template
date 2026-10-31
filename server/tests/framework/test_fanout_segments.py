@@ -35,7 +35,7 @@ async def plan_segment(data: PlanWork, pipeline: PipelineGate) -> None:
     data.result = Batch(count=1)
 
 
-@step("汇算已完成分段成员", reads=["count"], writes=["result"])
+@step("汇总计算已完成分段成员", reads=["count"], writes=["result"])
 async def combine_segment(data: SumWork, pipeline: PipelineGate) -> None:
     page = await pipeline.results("requests", BatchResult)
     data.result = Total(
@@ -48,7 +48,7 @@ async def configure(services: Services):
 
     final = contract(
         "fanout_sample.finish_batch",
-        "汇算分段成员",
+        "汇总计算分段成员",
         input=Batch,
         output=Total,
         access="fanout_sample.run",
@@ -67,7 +67,9 @@ async def configure(services: Services):
     provides[group.operation] = Flow(
         "登记分段成员", work=PlanWork, result="result", steps=[plan_segment]
     )
-    provides[final] = Flow("汇算分段成员", work=SumWork, result="result", steps=[combine_segment])
+    provides[final] = Flow(
+        "汇总计算分段成员", work=SumWork, result="result", steps=[combine_segment]
+    )
     jobs = (*module.jobs, replace(module.jobs[-1], contract=final))
     owner = replace(module, provides=provides, pipelines=(changed,), jobs=jobs)
     segmented = replace(segment_module, jobs=(replace(segment_module.jobs[0], cursor=Cursor),))

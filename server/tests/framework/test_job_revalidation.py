@@ -80,7 +80,7 @@ def deadline_module(checking: asyncio.Event, working: asyncio.Event) -> Module:
     )
     return Module(
         "limit_probe",
-        "预算核对",
+        "核对任务执行时限",
         "1",
         {
             query: Flow("核对", work=CheckWork, result="result", steps=[check]),

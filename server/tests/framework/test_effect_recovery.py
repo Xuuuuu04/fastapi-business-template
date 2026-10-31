@@ -56,7 +56,7 @@ async def test_adapter_account_change_rejects_old_intent(tmp_path: Path) -> None
     try:
         result = await service.call(spec, Input(message="body"), SYSTEM, "one", [], [])
         adapter.identity = "another-account"
-        with pytest.raises(StepRuleBroken, match="账号或连接目标"):
+        with pytest.raises(StepRuleBroken, match="账号或地址"):
             await service.perform(result.id, SYSTEM, [], [], lookup=True)
         assert adapter.sent == 1
     finally:

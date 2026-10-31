@@ -7,7 +7,7 @@ def remote_table(run: RunRecord) -> list[str]:
         return []
     lines = [
         "",
-        "| 步骤 | 上游接口 | HTTP | 结果 | 耗时 | 字段问题 |",
+        "| 步骤 | 外部接口 | HTTP | 结果 | 耗时 | 字段问题 |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
     for step in run.steps:

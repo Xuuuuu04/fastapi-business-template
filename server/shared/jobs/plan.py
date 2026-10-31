@@ -67,9 +67,9 @@ def build_slot_input(schedule: Schedule, slot: datetime) -> Data:
     for part in parts[:-1]:
         nested = target.get(part)
         if not isinstance(nested, dict):
-            raise ValueError("定时输入字段的父对象不存在")
+            raise ValueError("定时执行的输入中不存在此字段的父对象")
         target = nested
     if parts[-1] not in target:
-        raise ValueError("定时输入字段不存在")
+        raise ValueError("定时执行的输入中不存在此字段")
     target[parts[-1]] = slot
     return schedule.contract.input.model_validate(values)

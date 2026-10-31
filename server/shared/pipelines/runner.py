@@ -57,7 +57,7 @@ class StageContext:
             )
         now = business_now()
         if isinstance(self.stage, Wait) and now >= self.row["wait_until"]:
-            raise InvalidInput(f"流程阶段{self.stage.name}等待已超时")
+            raise InvalidInput(f"流程阶段 {self.stage.name} 等待超时")
         if isinstance(self.stage, Wait) and not getattr(result, self.stage.ready_field):
             await self.wait_again(connection, body, run_id, now)
             return
@@ -177,16 +177,20 @@ async def decision(connection: AsyncConnection, context: StageContext) -> tuple[
         return (
             "blocked",
             "pipeline_schema_changed",
-            f"流程阶段{row['name']}或后续阶段格式/声明已变化",
+            f"流程阶段 {row['name']} 或后续阶段的数据格式或执行配置已改变",
         )
     now = business_now()
     wait_until = row["wait_until"]
     if isinstance(stage, Wait):
         wait_until = wait_until or now + stage.timeout
         if now >= wait_until:
-            return "failed", "pipeline_wait_timeout", f"流程阶段{stage.name}等待已超时"
+            return "failed", "pipeline_wait_timeout", f"流程阶段 {stage.name} 等待超时"
         if not await wait_capacity(connection, context):
-            return "waiting_retry", "pipeline_capacity", f"流程阶段{stage.name}等待检查容量"
+            return (
+                "waiting_retry",
+                "pipeline_capacity",
+                f"流程阶段 {stage.name} 正在等待可用的检查任务名额",
+            )
     await own(connection, ticket)
     version = queue.catalog.binding(stage.operation).module.version
     row.update(started_at=now, wait_until=wait_until, module_version=version)

@@ -41,18 +41,22 @@ def check_mapping() -> list[str]:
 def main() -> None:
     changed = check_mapping()
     if changed:
-        raise SystemExit("状态模型与实现需要重新核对：" + "、".join(changed))
+        raise SystemExit("以下代码发生变化，需要核对状态模型是否仍符合实现：" + "、".join(changed))
     count, failure = explore(fenced=True)
     if failure:
-        raise SystemExit("状态不变量失败：" + " → ".join(failure))
+        raise SystemExit("发现违反任务提交规则的执行顺序：" + " → ".join(failure))
     _, mutation = explore(fenced=False)
     if not mutation:
-        raise SystemExit("检查器没有识别移除尝试编号校验的错误模型")
+        raise SystemExit("检查器未能发现错误模型中的问题：该模型移除了执行次数编号校验")
     print(
-        f"有界状态检查通过：{count} 个状态；2 个 worker、1 个可重试任务、最多 2 次尝试", flush=True
+        f"限定范围内的状态检查通过：{count} 个状态；2 个 worker、1 个可重试任务、最多执行 2 次",
+        flush=True,
     )
-    print("错误模型反例：" + " → ".join(mutation), flush=True)
-    print("继续核对真实实现的过期尝试回滚；不包含外部副作用和资源租约。", flush=True)
+    print("错误模型中会出错的执行顺序：" + " → ".join(mutation), flush=True)
+    print(
+        "继续检查任务占用有效期结束后，旧执行的数据库写入是否回滚；本项不检查外部操作和资源占用有效期。",
+        flush=True,
+    )
     command = [
         sys.executable,
         "-m",

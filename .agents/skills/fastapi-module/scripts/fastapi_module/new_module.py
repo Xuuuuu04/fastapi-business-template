@@ -127,7 +127,7 @@ def tidy(paths: list[Path]) -> None:
 def next_steps(name: str) -> list[str]:
     return [
         f"1. 按真实业务修改 service/{name}",
-        "2. uv run alembic upgrade head（本地数据库需要先到最新版本才能比较出新表）",
+        "2. uv run alembic upgrade head（先应用已有迁移，才能比较新增的表）",
         f'   uv run alembic revision --autogenerate -m "add {name} tables"，检查生成的迁移',
         "3. uv run dev docs（更新 openapi.json）",
         f"4. uv run dev check --module {name}（先检查本模块）",
@@ -144,14 +144,14 @@ def workflow_steps(name: str) -> list[str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="生成新业务模块的骨架")
+    parser = argparse.ArgumentParser(description="生成业务包及其基本文件")
     parser.add_argument("name", help="模块名，至少两个词，例如 customer_contact")
     parser.add_argument("--title", required=True, help="模块中文名，例如 客户联系人")
     parser.add_argument("--kind", choices=["capability", "workflow"], default="capability")
     parser.add_argument(
         "--preset",
         choices=["access"],
-        help="access：最小账号包（登录、新建账号、账号表迁移），接口路径固定为 /api/v1/access",
+        help="access：生成登录、新建账号和账号表迁移，接口路径固定为 /api/v1/access",
     )
     args = parser.parse_args()
     problem = check_name(args.name)

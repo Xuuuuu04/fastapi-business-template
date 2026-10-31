@@ -10,6 +10,6 @@ class RetryLater(BusinessError):
 
     def __init__(self, seconds: float, *, resource: str = "", detail: str = "") -> None:
         if not math.isfinite(seconds) or not 0 < seconds <= 86400:
-            raise ValueError("延后时间必须为一天以内的有限正秒数")
+            raise ValueError("延后时间必须是大于 0 且不超过 86400 的有限秒数")
         self.seconds, self.resource = seconds, resource
         super().__init__(detail or self.message)

@@ -25,7 +25,7 @@ def budget_sentence(budget: Any) -> str:
     data = budget or DEFAULT_BUDGET
     content = round(data.bytes / 1_000_000)
     return (
-        f"查询额度：最多 {data.queries} 次查询、{data.rows} 行结果、"
+        f"数据库查询限制：最多 {data.queries} 次查询、{data.rows} 行结果、"
         f"{content} MB 返回内容、同一存储函数最多调用 {data.repeated} 次"
     )
 
@@ -38,7 +38,7 @@ def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str
     result_note = binding.types.notes[flow.result]
     lines, previous = operation_start(binding)
     if any(plan.contract is item and plan.segmented for plan in binding.module.jobs):
-        lines += ['    batch["分段任务：每批独立保存，按游标从断点继续"]']
+        lines += ['    batch["分批任务：每批独立保存，按已保存的位置继续"]']
         lines.append(f"    {previous} --> batch")
         previous = "batch"
     for index, part in enumerate(flow.steps, start=1):
@@ -53,7 +53,7 @@ def flow_graph(binding: Binding, execution: dict[str, Any] | None = None) -> str
         lines += call_lines(current, part.uses, part.prompts)
         for endpoint in part.endpoints:
             target = node_id("e", endpoint.name)
-            text = label(f"上游接口：{endpoint.name}（{endpoint.method}，{endpoint.effect}）")
+            text = label(f"外部接口：{endpoint.name}（{endpoint.method}，{endpoint.effect}）")
             lines += [f'    {target}[["{text}"]]', f"    {current} -.-> {target}"]
         for task in part.later:
             target = node_id("j", task.name)
@@ -99,7 +99,7 @@ def seconds_text(value: Any) -> str:
 
 
 def pipeline_graph(pipeline: Pipeline) -> str:
-    lines = ["flowchart LR", '  start["定时启动 / 周期内不重复"]']
+    lines = ["flowchart LR", '  start["定时启动，同一周期只启动一次"]']
     previous = "start"
     for index, stage in enumerate(pipeline.stages):
         text = f"{stage.name}：{stage.operation.name}"
@@ -109,7 +109,7 @@ def pipeline_graph(pipeline: Pipeline) -> str:
         lines.append(f"  {previous} --> s{index}")
         if isinstance(stage, FanOut):
             join = type(stage.join).__name__
-            text = f"{join}汇合；成员同时最多 {stage.max_parallel} 个"
+            text = f"按 {join} 规则收集结果；同时执行的子任务最多 {stage.max_parallel} 个"
             lines.append(f'  s{index} --> g{index}["{text}"]')
             for child_index, child in enumerate(stage.stages):
                 text = label(f"{child.name}：{child.operation.name}")

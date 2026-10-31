@@ -23,7 +23,7 @@ INTEGRITY = (
 )
 QUALITY = "tests/quality/test_project_quality.py"
 NEXT_STEPS = {
-    "迁移表归属": "请按上方列出的表补充归属登记",
+    "迁移表登记": "请把上方列出的表登记到所属业务包",
     "实现状态": "交付前把占位和模拟步骤换成真实实现，去掉 placeholder 和 simulated 标记",
     "代码风格": "请对上方列出的文件运行 uv run ruff check --fix，再处理剩余问题",
     "代码格式": "请对上方列出的文件运行 uv run ruff format",
@@ -61,16 +61,18 @@ def default_workers() -> int:
 
 
 def arguments() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="静态检查加测试")
+    parser = argparse.ArgumentParser(description="运行静态检查和测试")
     parser.add_argument(
         "--module", action="append", default=[], help="指定模块，可重复或用逗号分隔"
     )
     parser.add_argument(
-        "--quick", action="store_true", help="只查所选模块的风格、格式、质量规则和测试"
+        "--quick", action="store_true", help="只检查所选模块的代码风格、格式、质量规则并运行测试"
     )
     parser.add_argument("--affected", action="store_true", help="按和 --base 的差异选出受影响模块")
     parser.add_argument("--base", default="origin/main", help="--affected 的比较分支")
-    parser.add_argument("--postgres", default="", help="测试改用这个隔离 PostgreSQL 控制地址")
+    parser.add_argument(
+        "--postgres", default="", help="使用这个 PostgreSQL 地址创建隔离的测试数据库"
+    )
     parser.add_argument("--workers", type=int, default=default_workers(), help="测试进程数")
     parser.add_argument(
         "--group", choices=["all", "pure", "module", "flow", "framework"], default="all"
@@ -78,7 +80,7 @@ def arguments() -> argparse.Namespace:
     parser.add_argument("--delivery", action="store_true", help="交付检查，不允许模拟步骤")
     args = parser.parse_args()
     if not 0 <= args.workers <= 32:
-        parser.error("workers应为0至32")
+        parser.error("workers 必须是 0 到 32 之间的整数")
     if args.affected and (args.module or args.quick):
         parser.error("--affected 不能与 --module 或 --quick 同时使用")
     if args.quick and not module_names(args.module):
@@ -159,7 +161,7 @@ def execute(
     results = (
         []
         if selection.quick
-        else [("迁移表归属", migration_check()), ("实现状态", not check_development(delivery))]
+        else [("迁移表登记", migration_check()), ("实现状态", not check_development(delivery))]
     )
     selected = steps(selection)
     for title, command in selected[:-1]:

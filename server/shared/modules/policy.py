@@ -58,7 +58,7 @@ def provider_problems(module: Module) -> list[str]:
     for spec in module.providers:
         spec.validate()
     return [
-        f"步骤 {part.source} 的外部效果未在Module.providers登记"
+        f"步骤 {part.source} 的外部调用未在Module.providers登记"
         for flow in module.provides.values()
         if isinstance(flow, Flow)
         for part in flow.steps
@@ -78,7 +78,7 @@ def dependency_problems(
     if module.kind != "capability":
         return []
     if target.effect != "query":
-        return [f"能力包 {module.name} 跨域写入 {target.name}，请移到流程包"]
+        return [f"能力包 {module.name} 调用了其他业务包的写操作 {target.name}，请移到流程包"]
     if target.module not in module.read_dependencies:
         return [f"能力包 {module.name} 需要在read_dependencies声明只读依赖 {target.module}"]
     return []

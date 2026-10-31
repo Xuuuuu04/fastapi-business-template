@@ -106,7 +106,9 @@ async def test_unknown_key_stops_later_jobs(tmp_path: Path) -> None:
         await services.runtime.submit(operation, input, caller=SYSTEM)
         ticket = await services.queue.claim(clock.now())
         assert ticket is not None and ticket.id == first
-        assert await services.queue.fail(ticket, "unknown", "lost_reply", "合成未知回执")
+        assert await services.queue.fail(
+            ticket, "unknown", "lost_reply", "模拟外部服务返回未知结果"
+        )
         assert await other.claim(clock.now()) is None
         async with services.database.read() as connection:
             assert await connection.scalar(select(func.count()).select_from(leases)) == 0
@@ -133,7 +135,10 @@ async def test_cooldown_and_queue_expiry_release_slots(tmp_path: Path) -> None:
                 .mappings()
                 .one()
             )
-            assert row["state"] == "expired" and row["error_message"] == "排队预算耗尽"
+            assert (
+                row["state"] == "expired"
+                and row["error_message"] == "任务排队时间已超过 queue_timeout"
+            )
             assert await connection.scalar(select(func.count()).select_from(leases)) == 0
         clock.advance(5)
         resumed = await other.claim(clock.now())

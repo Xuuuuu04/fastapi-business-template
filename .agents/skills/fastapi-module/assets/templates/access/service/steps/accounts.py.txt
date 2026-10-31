@@ -14,7 +14,7 @@ def check_grant(data: CreateWork, caller: Caller) -> None:
 
 
 @step(
-    "计算口令摘要",
+    "计算密码哈希值",
     reads=["password"],
     writes=["password_hash"],
     heavy=True,

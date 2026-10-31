@@ -19,7 +19,7 @@ async def run(args: argparse.Namespace) -> None:
             for job in await list_jobs(database, state=args.state, limit=args.limit):
                 print(
                     f"{job.id}  {job.state_text:<8} {job.contract}  "
-                    f"第 {job.attempt} 次  {job.error_message}"
+                    f"第 {job.attempt} 次执行  {job.error_message}"
                 )
         elif args.command == "show":
             found = await get_job(database, args.job_id)
@@ -36,7 +36,7 @@ async def run(args: argparse.Namespace) -> None:
         elif args.command == "resource":
             async with database.write() as connection:
                 await reconfigure(connection, ResourceLimit(args.name, args.capacity), now())
-            print("资源额度已调整；请使用匹配声明启动worker")
+            print("资源可用数量已调整；请使用相同的资源配置启动 worker")
         else:
             print(await cancel(database, args.job_id))
     finally:
@@ -50,7 +50,7 @@ def main() -> None:
     listing.add_argument("--state", default="")
     listing.add_argument("--limit", type=int, default=50)
     commands.add_parser("show", help="查看任务").add_argument("job_id")
-    segments = commands.add_parser("segments", help="查看已提交段的行数、耗时和运行编号")
+    segments = commands.add_parser("segments", help="查看每批已提交数据的行数、耗时和运行编号")
     segments.add_argument("job_id")
     segments.add_argument("--after", type=int, default=0)
     segments.add_argument("--limit", type=int, choices=range(1, 201), default=50)
@@ -61,7 +61,7 @@ def main() -> None:
     stop = commands.add_parser("cancel", help="取消尚未开始的任务")
     stop.add_argument("job_id")
     stop.add_argument("--yes", action="store_true")
-    resource = commands.add_parser("resource", help="无在途尝试时明确调整资源额度")
+    resource = commands.add_parser("resource", help="没有任务占用资源时，调整资源可用数量")
     resource.add_argument("name")
     resource.add_argument("--capacity", type=int, required=True)
     resource.add_argument("--yes", action="store_true")

@@ -15,10 +15,10 @@ def step_node(node: str, index: int, step: StepRecord) -> list[str]:
     status = STEP_STATUS_TEXT.get(step.status, step.status)
     parts = [f"{index}. {step.title}", f"{status} · {duration(step.elapsed_ms)}"]
     outputs = "、".join(step.outputs) or "无"
-    parts.append(f"产出 {len(step.outputs)}/{len(step.writes)}：{outputs}")
+    parts.append(f"已写入 {len(step.outputs)}/{len(step.writes)} 个声明字段：{outputs}")
     calcs = "、".join(step.calcs)
     if calcs:
-        parts.append(f"纯计算（耗时算在本步骤内）：{calcs}")
+        parts.append(f"计算函数（耗时计入本步骤）：{calcs}")
     if step.error_code:
         parts.append(f"错误：{step.error_code}")
     parts.append(step.error_place or step.source)

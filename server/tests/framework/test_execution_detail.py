@@ -34,7 +34,7 @@ def test_http_run_identifies_sql_and_outputs(sample_client: TestClient) -> None:
     assert recorded["source"] in graph and recorded["name"] in graph
     assert "sample_modules.py:" in graph and "save_total" in graph
     report = client.get(f"/api/system/runs/{run_id}/report", headers=KEY).text
-    assert "最长步骤" in report and "数据库调用" in report and "sample_calc_notes" in report
+    assert "耗时最长的步骤" in report and "数据库调用" in report and "sample_calc_notes" in report
 
 
 @pytest.mark.anyio
@@ -52,7 +52,7 @@ async def test_condition_and_partial_failure(sample: Services) -> None:
     failed = next(step for step in run.steps if step.status == "failed")
     assert failed.outputs == {"saved": "已写入数字"}
     assert failed.database_count == 2 and failed.elapsed_ms > 0
-    assert "产出 1/1" in run_graph([run]) and "数据库调用" in run_report([run], run.id)
+    assert "已写入 1/1 个声明字段" in run_graph([run]) and "数据库调用" in run_report([run], run.id)
 
 
 @pytest.mark.anyio

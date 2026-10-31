@@ -10,7 +10,7 @@ def library_files(name: str, title: str, root: Path = ROOT) -> dict[Path, str]:
     if not re.fullmatch(r"[a-z][a-z0-9]*(_[a-z0-9]+)+", name):
         raise ValueError("工具包名称应为至少两个英文词")
     if not title.strip() or "\n" in title:
-        raise ValueError("工具包标题必须为单行用途")
+        raise ValueError("工具包标题必须用一行文字说明用途")
     if (root / "library" / name).exists() or (root / "service" / name).exists():
         raise ValueError("工具包或同名业务包已经存在")
     folder = root / "library" / name

@@ -117,24 +117,28 @@ async def decision(connection: AsyncConnection, context: MemberContext) -> tuple
         context.stage,
     )
     if root["state"] not in ("waiting_members", "running"):
-        return "blocked", "pipeline_inactive", "流程当前暂停成员执行"
+        return "blocked", "pipeline_inactive", "流程当前已暂停并行子任务"
     if parent["state"] == "joining":
-        return "cancelled", "ratio_excluded", "成员未纳入已冻结的比例汇合，取消尚未开始的动作"
+        return "cancelled", "ratio_excluded", "此子任务未被选入已确定的汇总结果，取消尚未开始的操作"
     if context.pipeline is None or group is None or stage is None:
-        return "blocked", "member_declaration_missing", "成员阶段当前没有登记"
+        return "blocked", "member_declaration_missing", "当前代码未登记此子任务阶段"
     if not group_compatible(
         root, group, context.pipeline, context.queue.catalog
     ) or not member_compatible(member, group, context.queue.catalog):
         return (
             "blocked",
             "member_schema_changed",
-            f"成员{member['key']}阶段{member['phase_name']}或后续格式变化",
+            f"子任务 {member['key']} 的阶段 {member['phase_name']} 或后续阶段格式已改变",
         )
     if isinstance(stage, Wait):
         if business_now() >= member["wait_until"]:
-            return "failed", "member_wait_timeout", f"成员{member['key']}阶段{stage.name}等待超时"
+            return (
+                "failed",
+                "member_wait_timeout",
+                f"子任务 {member['key']} 的阶段 {stage.name} 等待超时",
+            )
         if not await wait_capacity(connection, context):
-            return "waiting_retry", "member_wait_capacity", "等待成员检查容量"
+            return "waiting_retry", "member_wait_capacity", "正在等待可用的子任务检查名额"
     now = business_now()
     version = context.queue.catalog.binding(stage.operation).module.version
     member.update(started_at=now, module_version=version, attempt=context.ticket.attempt)

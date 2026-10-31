@@ -72,10 +72,12 @@ def group_signature(group: FanOut) -> str:
 
 def data_json(model: type[Data], value: Data, stage: str) -> str:
     if not isinstance(value, model):
-        raise InvalidInput(f"流程阶段{stage}的数据必须是声明过的{model.__name__}")
+        raise InvalidInput(f"流程阶段 {stage} 的数据必须符合已声明的 {model.__name__} 类型")
     body = value.model_dump_json()
     if len(body.encode("utf-8")) > MAX_DATA_BYTES:
-        raise InvalidInput(f"流程阶段{stage}的数据超过16 KiB，请只传版本号或引用")
+        raise InvalidInput(
+            f"流程阶段 {stage} 的数据超过 16 KiB，请保存大数据后只传版本号或数据引用"
+        )
     return body
 
 

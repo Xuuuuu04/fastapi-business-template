@@ -12,18 +12,18 @@ from shared.flow.heavy import HeavySteps
 
 
 class MailInput(Data):
-    sender: str = meaning("发信地址")
-    recipient: str = meaning("单个收件地址")
-    subject: str = meaning("主题")
-    text: str = meaning("纯文本正文")
+    sender: str = meaning("发件人的邮箱地址")
+    recipient: str = meaning("一个收件人的邮箱地址")
+    subject: str = meaning("邮件主题")
+    text: str = meaning("邮件的纯文本正文")
 
 
 class MailReceipt(Data):
-    message_id: str = meaning("发送消息编号")
+    message_id: str = meaning("邮件的 Message-ID 标识")
 
 
 class SmtpConfig(BaseModel):
-    account: str = Field(min_length=1, description="稳定供应商账号标识，不填写密码")
+    account: str = Field(min_length=1, description="用于识别邮件账号的固定名称，不填写密码")
     host: str = Field(min_length=1)
     port: int = Field(default=465, ge=1, le=65535)
     tls: Literal["ssl", "starttls"] = "ssl"
@@ -42,7 +42,7 @@ class SmtpAdapter:
 
     def configure_limit(self, concurrency: int) -> None:
         if self.work.running:
-            raise ValueError("正在发送时不能改变SMTP线程限额")
+            raise ValueError("邮件正在发送，不能修改 SMTP 并发线程数")
         self.work.concurrency = concurrency
 
     async def send(self, input: Data, key: str) -> AdapterReply:

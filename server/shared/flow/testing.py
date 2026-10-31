@@ -94,7 +94,7 @@ def fake_call(part: Step, calls: dict[Contract[Any, Any], Fake]) -> Callable[...
         if item not in part.uses:
             raise StepRuleBroken(f"步骤“{part.title}”调用了未声明的操作 {item.name}")
         if item not in calls:
-            raise StepRuleBroken(f"测试没有为 {item.name} 提供替身")
+            raise StepRuleBroken(f"测试没有为操作 {item.name} 提供模拟实现")
         return await calls[item](input)
 
     return call

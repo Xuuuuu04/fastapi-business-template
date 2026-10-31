@@ -101,7 +101,7 @@ def run_report(runs: list[RunRecord], root_id: str) -> str:
     by_id = {run.id: run for run in runs}
     root = by_id.get(root_id)
     if root is None:
-        return f"没有找到运行编号 {root_id} 的记录。记录可能已过期清理，或者保存时丢失。"
+        return f"没有找到运行编号 {root_id} 的记录。记录可能已过期删除，或者未能完整保存。"
     lines = [f"# 运行报告：{root.title}", "", root.summary, ""]
     lines += info_table(root)
     for run in runs:
@@ -141,15 +141,15 @@ def info_table(run: RunRecord) -> list[str]:
     ]
     if run.segment_number:
         rows.append(("分段", segment_text(run).strip(" ·")))
-        rows.append(("恢复游标", json.dumps(run.segment_cursor, ensure_ascii=False)))
+        rows.append(("恢复位置", json.dumps(run.segment_cursor, ensure_ascii=False)))
 
     if run.gaps:
-        rows.append(("记录完整性", "；".join(run.gaps)))
+        rows.append(("未记录的信息", "；".join(run.gaps)))
     if run.steps:
         slowest = max(run.steps, key=lambda step: step.elapsed_ms)
         rows.append(
             (
-                "最长步骤",
+                "耗时最长的步骤",
                 f"{slowest.title} · {duration(slowest.elapsed_ms)} · "
                 f"{slowest.source} · {slowest.name}",
             )
@@ -210,7 +210,7 @@ def step_row(index: int, step: StepRecord) -> str:
     values = [index, step.title, STEP_KIND_TEXT.get(step.kind, step.kind), status]
     values += [
         duration(step.elapsed_ms),
-        f"产出 {len(step.outputs)}/{len(step.writes)}；" + "；".join(step.values),
+        f"已写入 {len(step.outputs)}/{len(step.writes)} 个声明字段；" + "；".join(step.values),
         "；".join(notes),
         f"{place} · {step.name}",
     ]
@@ -241,7 +241,8 @@ def database_table(run: RunRecord) -> list[str]:
         if step.database_count:
             summaries.append(
                 f"\n{cell(step.title)}：SQL 共 {step.database_count} 次，"
-                f"合计 {duration(step.database_elapsed_ms)}，保留 {len(step.database)} 次细节。"
+                f"合计 {duration(step.database_elapsed_ms)}，"
+                f"保留了 {len(step.database)} 次调用的详情。"
             )
     return lines + summaries
 

@@ -17,8 +17,8 @@ def database_nodes(node: str, step: StepRecord) -> list[str]:
         parts += [
             call.storage_function,
             call.storage_source,
-            f"大小：{call.bytes if call.bytes is not None else '未知'}",
-            f"EXPLAIN：{call.explain_status or '未采集'} {call.explain}",
+            f"返回内容大小：{call.bytes if call.bytes is not None else '未知'}",
+            f"SQL 执行计划（EXPLAIN）：{call.explain_status or '未记录'} {call.explain}",
         ]
         text = "<br/>".join(label(part, limit=None) for part in parts)
         lines += [f'        {current}["{text}"]:::{call.status}', f"        {node} -.-> {current}"]
@@ -30,6 +30,6 @@ def database_nodes(node: str, step: StepRecord) -> list[str]:
         ]
     missing = step.database_count - len(step.database)
     if missing:
-        text = f"另 {missing} 次 SQL 仅统计次数和耗时"
+        text = f"另外 {missing} 次 SQL 只记录了调用次数和耗时"
         lines += [f'        {node}_db_unknown["{text}"]', f"        {node} -.-> {node}_db_unknown"]
     return lines

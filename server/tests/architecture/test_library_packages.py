@@ -45,7 +45,7 @@ def test_exports_must_match_public_all(tmp_path: Path) -> None:
     content["exports"] = ["normalize_text", "missing_tool"]
     marker.write_text(json.dumps(content, ensure_ascii=False, indent=2) + "\n")
     declared = [problem for problem in check_libraries(root) if problem.rule == "library_exports"]
-    assert any("声明未公开" in problem.message for problem in declared)
+    assert any("已声明但未从 public.py 导出" in problem.message for problem in declared)
 
     marker.write_text(original)
     public = root / "library/text_formats/public.py"
@@ -55,7 +55,7 @@ def test_exports_must_match_public_all(tmp_path: Path) -> None:
         )
     )
     exposed = [problem for problem in check_libraries(root) if problem.rule == "library_exports"]
-    assert any("公开未声明" in problem.message for problem in exposed)
+    assert any("已从 public.py 导出但未声明" in problem.message for problem in exposed)
 
 
 def test_exports_require_real_bindings(tmp_path: Path) -> None:

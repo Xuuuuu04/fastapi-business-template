@@ -46,7 +46,7 @@ async def resume(
             declarations_json=json.dumps(declarations(pipeline, queue.catalog)),
             finished_at=None,
             updated_at=business_now(),
-            reason="人工恢复失败成员，成功结果复用",
+            reason="人工恢复失败的子任务，复用已成功的结果",
         )
     )
     await connection.execute(
@@ -59,7 +59,7 @@ async def resume(
     )
     parent["state"] = "waiting_members"
     await advance(connection, queue, root, parent, group)
-    return "已恢复失败成员，已成功成员与子阶段不重跑"
+    return "已恢复失败的子任务；成功的子任务和已完成阶段不会重新执行"
 
 
 async def validate_resume(
@@ -73,11 +73,11 @@ async def validate_resume(
     confirm_unknown: bool,
 ) -> None:
     if root["state"] not in ("failed", "unknown", "version_blocked"):
-        raise InvalidInput("扇出尚未失败或暂停，不能重新执行")
+        raise InvalidInput("此并行阶段尚未失败或暂停，不能重新执行")
     if root["state"] == "unknown" and not confirm_unknown:
-        raise InvalidInput("成员有外部结果待确认，需要核实未产生效果后再确认")
+        raise InvalidInput("子任务对外发送的请求结果待确认，请先核实原请求是否已执行")
     if not accept_schema and not group_compatible(root, group, pipeline, queue.catalog):
-        raise InvalidInput("汇合或后续阶段格式变化，需要明确接受当前格式")
+        raise InvalidInput("子任务结果的汇总配置或后续阶段格式已改变，需要明确接受当前格式")
     executing = await connection.scalar(
         select(jobs.c.id)
         .join(members, members.c.job_id == jobs.c.id)
@@ -89,7 +89,7 @@ async def validate_resume(
         .limit(1)
     )
     if executing:
-        raise InvalidInput("仍有成员正在执行，请等当前操作收尾后恢复")
+        raise InvalidInput("仍有子任务正在执行，请等当前操作结束后恢复")
     other = await connection.scalar(
         select(runs.c.id).where(
             runs.c.pipeline == root["pipeline"],
@@ -99,7 +99,7 @@ async def validate_resume(
         )
     )
     if other:
-        raise InvalidInput(f"同组织另一周期{other}还在执行")
+        raise InvalidInput(f"同一组织的另一周期 {other} 仍在执行")
 
 
 async def restore_member(
@@ -114,16 +114,16 @@ async def restore_member(
 
     if member["state"] == "succeeded":
         validate_saved(
-            group.stages[-1].operation.output, member["output_json"], member["key"] + "产出"
+            group.stages[-1].operation.output, member["output_json"], member["key"] + "输出"
         )
         return
     if member["state"] == "skipped":
         return
     if not member_compatible(member, group, queue.catalog) and not accept_schema:
-        raise InvalidInput(f"成员{member['key']}后续阶段格式变化，需要明确接受当前格式")
+        raise InvalidInput(f"子任务 {member['key']} 的后续阶段格式已改变，需要明确接受当前格式")
     child = next((child for child in group.stages if child.name == member["phase_name"]), None)
     if child is None:
-        raise InvalidInput(f"成员{member['key']}当前阶段已移除，需要迁移后恢复")
+        raise InvalidInput(f"子任务 {member['key']} 当前所在阶段已移除，需要迁移后恢复")
     validate_saved(child.operation.input, member["current_input_json"], member["key"] + "输入")
     plan = queue.catalog.plan(child.operation.name)
     assert plan is not None
@@ -134,7 +134,7 @@ async def restore_member(
             .one()
         )
         if job["contract"] != child.operation.name:
-            raise InvalidInput(f"成员{member['key']}操作名称变化，需要迁移当前任务")
+            raise InvalidInput(f"子任务 {member['key']} 的操作名称已改变，需要迁移当前任务")
         await validate_checkpoint(connection, member["job_id"], plan, member["key"])
     declared = json.dumps([stage_declaration(child, queue.catalog) for child in group.stages])
     values = dict(declarations_json=declared, updated_at=business_now())

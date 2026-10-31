@@ -89,7 +89,7 @@ def check_step(
         or item.prompts
         or item.params != ("data",)
     ):
-        problems.append(f"{place} 的模拟骨架不能声明真实保存或外部动作")
+        problems.append(f"{place} 的占位步骤不能声明真实保存或外部动作")
     if item.when is not None:
         problems += check_condition(item.when, notes)
     problems += check_params(item, place, has_store)

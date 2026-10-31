@@ -4,7 +4,7 @@ from shared.modules.catalog import Catalog
 
 def unfinished_steps(catalog: Catalog) -> list[str]:
     return [
-        f"{part.source}：交付不能包含占位或模拟步骤“{part.title}”（{binding.contract.name}）"
+        f"{part.source}：交付时必须把占位或模拟步骤替换为真实实现：“{part.title}”（{binding.contract.name}）"
         for binding in catalog.bindings.values()
         for part in binding.flow.steps
         if part.simulated or part.placeholder

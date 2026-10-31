@@ -101,7 +101,7 @@ class Catalog:
             if plan.revalidate is not None and plan.revalidate.module != module.name
         ]
         edges += [
-            (module.name, endpoint.source.split(".")[1], f"上游协议：{endpoint.name}")
+            (module.name, endpoint.source.split(".")[1], f"外部接口定义：{endpoint.name}")
             for module in self.modules.values()
             for endpoint in module.endpoints
             if endpoint.source.startswith("service.")

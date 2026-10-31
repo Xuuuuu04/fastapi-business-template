@@ -24,9 +24,9 @@ async def load(database: Database, job_id: str) -> tuple[int, dict[str, Any], in
             .first()
         )
     if row is None:
-        raise StepRuleBroken("分段任务缺少恢复位置，请按新模块版本重新登记")
+        raise StepRuleBroken("未找到分段任务的恢复记录，请更新模块版本后重新提交任务")
     if row["external_pending"]:
-        raise RemoteResultUnknown("上一批有外部写入待确认，请查询原结果后再人工恢复")
+        raise RemoteResultUnknown("上一批对外发送的请求结果待确认，请先查询原请求，再人工恢复任务")
     return int(row["number"]), json.loads(row["cursor_json"]), int(row["total_rows"])
 
 
@@ -123,7 +123,7 @@ async def protect_failure(
             state="unknown",
             finished_at=business_now(),
             error_code="remote_result_unknown",
-            error_message="本批有外部写入待确认，请查询原结果后再人工恢复",
+            error_message="本批对外发送的请求结果待确认，请先查询原请求，再人工恢复任务",
         )
         return "unknown"
     return state
