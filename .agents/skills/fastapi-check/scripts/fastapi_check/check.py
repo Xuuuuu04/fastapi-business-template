@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import sys
+from time import perf_counter
 
 from fastapi_check.affected.selection import (
     Selection,
@@ -135,7 +136,10 @@ def run(title: str, command: list[str], env: dict[str, str]) -> bool:
     direct = command[0] == "-m"
     runner = [sys.executable, *command] if direct else [sys.executable, "-m", *command]
     print(f"\n==> {title}：{' '.join(command)}", flush=True)
-    return subprocess.run(runner, cwd=ROOT, env=env, check=False).returncode == 0
+    started = perf_counter()
+    passed = subprocess.run(runner, cwd=ROOT, env=env, check=False).returncode == 0
+    print(f"{title}用时 {perf_counter() - started:.2f} 秒", flush=True)
+    return passed
 
 
 def migration_check() -> bool:
