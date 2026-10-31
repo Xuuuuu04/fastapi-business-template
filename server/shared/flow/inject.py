@@ -12,6 +12,7 @@ from shared.db.access import Db
 from shared.effects.gate import EffectGate
 from shared.errors.framework import StepRuleBroken
 from shared.files.gate import ModuleFiles
+from shared.flow.entry_errors import check_access
 from shared.flow.scope import Scope
 from shared.flow.step import Step
 from shared.jobs.checkpoint import Checkpoint
@@ -70,6 +71,7 @@ class Later:
             )
         if runtime.jobs is None:
             raise StepRuleBroken("没有启用后台任务功能")
+        check_access(item, self._scope.caller)
         connection = await self._scope.tx.writer(runtime.database, self._part.title)
         job_id = await runtime.jobs.submit(
             connection, item, input, self._scope.caller, key=key, request_id=self._scope.request_id

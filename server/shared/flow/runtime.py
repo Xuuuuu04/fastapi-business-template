@@ -213,6 +213,7 @@ class Runtime:
         token = otel_context.attach(trace.set_span_in_context(span)) if span else None
         parent_step.children.append(run.id)
         try:
+            check_access(item, scope.caller)
             result = await self.clock.run(
                 execute(binding, input, scope, run), deadline=scope.deadline
             )

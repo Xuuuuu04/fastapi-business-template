@@ -268,7 +268,7 @@ async def ask_text(data: TextWork, model: Model) -> None:
 
 ## 权限与身份
 
-- 操作级权限写在 contract 的 `access`，框架调用前检查：匿名 401，缺权限 403。`access` 写 `public`、`signed_in` 或 `包名.动作`；调用者持有的权限还可以是 `*`（全部）和 `包名.*`（本包全部）。
+- 操作级权限写在 contract 的 `access`，入口、内部同步调用、Runtime.submit/Later 等业务提交入口和后台执行都检查目标操作权限：匿名 401，缺权限 403。`uses` 只声明依赖，不授予权限，组合流程的调用者须拥有各目标操作的权限；队列内部推进只保存原身份，权限在目标操作执行时检查。`access` 写 `public`、`signed_in` 或 `包名.动作`；调用者持有的权限还可以是 `*`（全部）和 `包名.*`（本包全部）。
 - 资源级权限在步骤里查：参数写 `caller: Caller`，`caller.can("quote.approve")` 不满足就 `raise NotAllowed()`。数据隔离用存储一节的 `org_column`、`owner_column`。身份只来自已验证的凭据，不用请求正文里自报的身份。
 - 字段加密：存储构造参数写 `vault: Vault`，写库前 `vault.encrypt(文字)`，读出后 `vault.decrypt(...)`，密钥在 `APP_DATA_KEYS`。例子：`test_vault.py`。
 - 旧系统用自定义请求头传会话时，写 `Module(identity=解析操作, identity_header="X-Legacy-Token", identity_token="opaque")`。例子：`identity_sample.py`、`test_identity_declaration.py`。账号登录见 `frontend-interface.md`。
