@@ -6,6 +6,7 @@ import socket
 import subprocess
 import sys
 import time
+from http.client import HTTPConnection
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -203,4 +204,36 @@ def test_busy_port_does_not_create_temporary_data(tmp_path) -> None:
         process = start_server("--port", str(first.getsockname()[1]), environment=environment)
         _, error = process.communicate(timeout=10)
         assert process.returncode != 0 and "验收服务启动失败" in error
+    assert list(tmp_path.glob("fastapi-acceptance-*")) == []
+
+
+def test_http_listener_can_restart_immediately_on_same_port(tmp_path) -> None:
+    environment = {**os.environ, "TMPDIR": str(tmp_path)}
+    first = start_server(environment=environment)
+    second = None
+    connection = None
+    try:
+        port = starting_record(first)["port"]
+        wait_ready(port)
+        connection = HTTPConnection("127.0.0.1", port, timeout=2)
+        connection.request("GET", "/health/ready")
+        response = connection.getresponse()
+        assert response.status == 200
+        response.read()
+        with pytest.raises(OSError):
+            listen(port)
+        first.send_signal(signal.SIGTERM)
+        first.communicate(timeout=10)
+        assert connection.sock is not None and connection.sock.recv(1) == b""
+        connection.close()
+        second = start_server("--port", str(port), environment=environment)
+        assert starting_record(second)["port"] == port
+        assert wait_ready(port)[0]["status"] == "ready"
+    finally:
+        if connection is not None:
+            connection.close()
+        for process in (first, second):
+            if process is not None and process.poll() is None:
+                process.send_signal(signal.SIGTERM)
+                process.communicate(timeout=10)
     assert list(tmp_path.glob("fastapi-acceptance-*")) == []
