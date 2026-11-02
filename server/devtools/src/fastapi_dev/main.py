@@ -9,6 +9,7 @@ COMMANDS = {
     "new-library": "fastapi_module.new_library",
     "check": "fastapi_check.check",
     "verify-model": "fastapi_check.verify_model",
+    "acceptance-server": "fastapi_check.acceptance_server",
     "run": "fastapi_check.run_operation",
     "locate": "fastapi_business.locate",
     "docs": "fastapi_check.openapi",

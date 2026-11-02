@@ -86,3 +86,9 @@ uv run dev run customer_contact.create_contact --input-file 样例.json --org no
 ## 限定范围的状态检查
 
 修改任务领取、超时接管或事务提交方式时，单独执行 `uv run dev verify-model`。它枚举限定范围内的任务状态，确认能发现故意引入的错误，再测试真实写入是否回滚；日常 `dev check` 不执行这项检查。范围与代码对应关系见[任务状态模型](references/job-model.md)。
+
+## 前后端隔离验收
+
+浏览器需要连接真实 HTTP 后端时，用 `uv run dev acceptance-server --port 0 --run-id 本轮编号` 启动本轮服务。它不读 `.env` 或 `APP_TEST_DATABASE_URL`，只使用本轮临时 SQLite 与文件目录，不复用运行库。启动记录提供端口与目录，浏览器须等 `/health/ready` 返回成功，并核对响应头 `X-Acceptance-Run` 与本轮编号一致。
+
+由前端管理整轮服务时，加 `--lifecycle-file 本轮报告目录/backend.json`，退出后核对本轮编号与 `cleanup_complete` 状态。产品数据准备、停止与清理、外部调用限制见[前后端验收](references/acceptance.md)。空模板只能核对服务、隔离与清理；完成一个产品浏览器场景并核对后台结果后，才报告该业务的前后端验收通过。
