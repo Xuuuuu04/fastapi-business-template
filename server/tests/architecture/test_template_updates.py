@@ -210,3 +210,13 @@ def test_update_requires_provenance_and_listing(tmp_path: Path) -> None:
     (source / FRAMEWORK_LIST).unlink()
     with pytest.raises(ValueError, match="框架清单"):
         manifest(source)
+
+
+def test_state_models_are_included_in_framework_distribution(tmp_path: Path) -> None:
+    folder = ".agents/skills/fastapi-check/assets"
+    for name in ("JobCommit.tla", "JobCommit.cfg", "JobCommitBroken.cfg"):
+        write(tmp_path, f"{folder}/{name}", "model")
+    files = managed_files(tmp_path, Manifest(("../.agents/skills",), REGISTRATION, SUFFIXES))
+    assert set(files) == {
+        f"{folder}/{name}" for name in ("JobCommit.tla", "JobCommit.cfg", "JobCommitBroken.cfg")
+    }

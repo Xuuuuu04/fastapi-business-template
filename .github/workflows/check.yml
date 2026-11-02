@@ -2,6 +2,7 @@ name: 检查
 
 on:
   push:
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -31,7 +32,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: server/uv.lock
       - run: uv sync --locked
-      - run: uv run --no-sync dev check
+      - run: uv run --no-sync dev check --delivery
 
   postgres:
     name: PostgreSQL 业务与框架测试

@@ -31,4 +31,17 @@ REGISTRATION = (
     "../.agents/skills/fastapi-business/business.md",
     "../.agents/skills/fastapi-business/business",
 )
-SUFFIXES = (".py", ".md", ".mako", ".toml", ".ini", ".txt", ".html", ".js", ".css", ".json")
+SUFFIXES = (
+    ".py",
+    ".md",
+    ".mako",
+    ".toml",
+    ".ini",
+    ".txt",
+    ".html",
+    ".js",
+    ".css",
+    ".json",
+    ".tla",
+    ".cfg",
+)

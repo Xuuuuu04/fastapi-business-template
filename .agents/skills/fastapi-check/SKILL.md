@@ -92,3 +92,11 @@ uv run dev run customer_contact.create_contact --input-file 样例.json --org no
 浏览器需要连接真实 HTTP 后端时，用 `uv run dev acceptance-server --port 0 --run-id 本轮编号` 启动本轮服务。它不读 `.env` 或 `APP_TEST_DATABASE_URL`，只使用本轮临时 SQLite 与文件目录，不复用运行库。启动记录提供端口与目录，浏览器须等 `/health/ready` 返回成功，并核对响应头 `X-Acceptance-Run` 与本轮编号一致。
 
 由前端管理整轮服务时，加 `--lifecycle-file 本轮报告目录/backend.json`，退出后核对本轮编号与 `cleanup_complete` 状态。产品数据准备、停止与清理、外部调用限制见[前后端验收](references/acceptance.md)。空模板只能核对服务、隔离与清理；完成一个产品浏览器场景并核对后台结果后，才报告该业务的前后端验收通过。
+
+## 提交 PR
+
+提交前用 `dev check --affected --base origin/main` 判断和验证影响范围，公共代码用完整检查；可交付业务另跑 `dev check --delivery`，PR 的 CI 使用此交付检查拒绝占位/模拟步骤；本地普通检查仍可用于迭代。独立审查差异后提交任务分支，按 PR 模板连接 business.md 中的规则编号、确认样例、操作名和测试路径，记录实际命令、提交、运行编号及未验证事项。
+
+改任务领取、接管和提交所有权时，可用 `dev verify-model --jar 本地TLC路径` 追加 TLA+ 检查；无参仍运行轻量状态枚举。对应路径的 PR 会触发状态模型工作流，普通业务改动不运行 Java。模型只证明限定抽象，数据库并发仍由 PostgreSQL 测试核对。具体工具及范围见任务状态模型参考。
+
+发现可重复的问题，先补能复现错误的最小测试，再修实现；同类结构问题放到现有检查里，不复制一套提示词。业务规则变化同步修改确认样例，不能用当前错误输出充当预期。
