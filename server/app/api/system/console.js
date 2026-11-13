@@ -376,15 +376,35 @@ function pipelineDetail(data) {
     unknownLabel.append(unknown, element('span', '已向外部服务确认原请求没有执行，可以重新执行'));
     box.append(schemaLabel, unknownLabel, button('从当前阶段恢复', async () => {
       if (!confirm('确认只从当前失败阶段重新执行？')) return;
-      const { headers } = authHeaders();
-      const response = await fetch(`/api/system/pipelines/${data.id}/resume`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({ accept_schema: schema.checked, confirm_unknown: unknown.checked }),
-      });
-      const result = await response.json();
-      if (response.ok) await show(`pipelines/${data.id}`, { recordHistory: false });
-      else notice.textContent = result.message || result.detail || '恢复失败';
+      const { secret, headers } = authHeaders();
+      if (!secret) {
+        notice.textContent = '请先输入凭据。';
+        return;
+      }
+      notice.textContent = '正在提交恢复请求…';
+      try {
+        const response = await fetch(`/api/system/pipelines/${data.id}/resume`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify({ accept_schema: schema.checked, confirm_unknown: unknown.checked }),
+        });
+        const text = await response.text();
+        let result = null;
+        if (text) {
+          try {
+            result = JSON.parse(text);
+          } catch {
+            result = null;
+          }
+        }
+        if (response.ok) {
+          await show(`pipelines/${data.id}`, { recordHistory: false });
+          return;
+        }
+        notice.textContent = result?.message || result?.detail || `恢复失败（${response.status}）`;
+      } catch (error) {
+        notice.textContent = `无法提交恢复：${error.message}`;
+      }
     }));
     results.append(box);
   }

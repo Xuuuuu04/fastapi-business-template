@@ -34,12 +34,18 @@ def verify_token(token: str, secrets: Sequence[str], issuer: str, audience: str)
                 algorithms=["HS256"],
                 issuer=issuer,
                 audience=audience,
-                options={"require": ["sub", "org", "permissions", "iss", "aud", "iat", "exp"]},
+                options={
+                    "verify_exp": False,
+                    "require": ["sub", "org", "permissions", "iss", "aud", "iat", "exp"],
+                },
             )
         except jwt.InvalidSignatureError:
             continue
         except jwt.PyJWTError:
             raise NotSignedIn("登录令牌无效或已过期") from None
+        exp = claims.get("exp")
+        if isinstance(exp, bool) or not isinstance(exp, int | float) or business_now() >= exp:
+            raise NotSignedIn("登录令牌无效或已过期")
         return caller_of(claims)
     raise NotSignedIn("登录令牌无效或已过期")
 

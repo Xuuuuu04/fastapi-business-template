@@ -19,7 +19,9 @@ description: 部署服务、用运行编号定位失败步骤、处理卡住的�
 | `uv run dev pipelines list --org 组织`、`pipelines show 编号` | 只读查询多阶段流程状态 |
 | `uv run dev make-key --name 服务名 --org-id 组织 --permissions 权限` | 生成并输出只显示一次的服务密钥配置 |
 
-2. **收到部署授权后发布版本**。在本地 `main` 分支运行 `uv run dev deploy`，该命令会依次执行 `git push`、ssh 拉取并 `docker compose up -d --build`、等待 `/health/ready` 就绪。推送后 GitHub Actions 会自动运行 `dev check --delivery` 和 PostgreSQL 测试；需要回滚时先用 `git revert` 并补写反向迁移再重新部署。
+2. **收到部署授权后发布版本**：
+   - 在本地 `main` 分支运行 `uv run dev deploy`，依次执行 `git push`、ssh 拉取、构建启动并等待 `/health/ready` 就绪。
+   - 推送后 GitHub Actions 会自动运行 `dev check --delivery` 和 PostgreSQL 测试；回滚时先执行 `git revert` 并补写反向迁移。
 3. **顺着 `run_id` 排查故障位置**。从报错正文或响应头 `X-Run-ID` 拿到运行编号，运行 `uv run dev diagnose run 编号` 对照步骤调用链定位停靠点；在线上无开发工具时，改用[运行参考](references/runtime.md)中的只读 `/api/system/` 接口或访问 `/system/console` 运行排查台。
 4. **先核实外部结果再处置卡住的任务或流程**。只读查询命令不改动任何状态；需要干预时按以下规则操作：
    - **重新排队或取消普通任务**：先查明外部接口是否已经执行，确认不会造成重复扣款或重复发送后，执行 `uv run dev jobs requeue 编号 --yes` 或 `cancel`；若模块升级了 `version`，核对兼容性后加 `--accept-version`。

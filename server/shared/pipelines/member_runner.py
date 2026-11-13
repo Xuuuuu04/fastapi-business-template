@@ -131,7 +131,11 @@ async def decision(connection: AsyncConnection, context: MemberContext) -> tuple
             f"子任务 {member['key']} 的阶段 {member['phase_name']} 或后续阶段格式已改变",
         )
     if isinstance(stage, Wait):
-        wait_until = member["wait_until"] or (business_now() + stage.timeout)
+        wait_until = (
+            member["wait_until"]
+            if member["wait_until"] is not None
+            else business_now() + stage.timeout
+        )
         if business_now() >= wait_until:
             return (
                 "failed",
@@ -140,8 +144,15 @@ async def decision(connection: AsyncConnection, context: MemberContext) -> tuple
             )
         if not await wait_capacity(connection, context):
             return "waiting_retry", "member_wait_capacity", "正在等待可用的子任务检查名额"
+    await mark_member_running(connection, context)
+    return "", "", ""
+
+
+async def mark_member_running(connection: AsyncConnection, context: MemberContext) -> None:
+    assert context.stage is not None
+    member = context.member
     now = business_now()
-    version = context.queue.catalog.binding(stage.operation).module.version
+    version = context.queue.catalog.binding(context.stage.operation).module.version
     member.update(started_at=now, module_version=version, attempt=context.ticket.attempt)
     await connection.execute(
         update(members)
@@ -155,7 +166,6 @@ async def decision(connection: AsyncConnection, context: MemberContext) -> tuple
             updated_at=now,
         )
     )
-    return "", "", ""
 
 
 async def wait_capacity(connection: AsyncConnection, context: MemberContext) -> bool:

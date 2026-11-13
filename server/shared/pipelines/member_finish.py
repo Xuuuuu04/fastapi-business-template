@@ -31,7 +31,9 @@ async def finish(
     now = business_now()
     joining = parent["state"] == "joining"
     if isinstance(stage, Wait) and not joining:
-        wait_until = member["wait_until"] or (now + stage.timeout)
+        wait_until = (
+            member["wait_until"] if member["wait_until"] is not None else now + stage.timeout
+        )
         if now >= wait_until:
             raise InvalidInput(f"子任务 {member['key']} 的阶段 {stage.name} 等待超时")
     value = stage.operation.output.model_validate_json(body)
@@ -121,7 +123,10 @@ async def wait_again(
         .values(
             state="waiting_retry",
             lease_until=None,
-            run_after=min(now + stage.every, member["wait_until"] or (now + stage.timeout)),
+            run_after=min(
+                now + stage.every,
+                member["wait_until"] if member["wait_until"] is not None else now + stage.timeout,
+            ),
             last_run_id=run_id,
             result_json=body,
             updated_at=now,

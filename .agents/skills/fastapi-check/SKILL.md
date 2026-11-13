@@ -46,7 +46,10 @@ description: 改完代码要验证、准备提交、或检查与测试报错时�
 | `writing_style` | 根文档、PR 模板和 Skill 文档中不使用禁用黑话和生硬句式 |
 
 4. **改完接口要同步更新文档**。执行 `uv run dev docs` 更新 `doc/api/openapi.json`；需要复用的新开发工具放进对应 Skill 的 `scripts/` 并登记在 `server/devtools/src/fastapi_dev/main.py` 的 `COMMANDS` 中。
-5. **按改动涉及的风险加跑专项检查**。改了任务领取或超时接管逻辑时跑 `uv run dev verify-model`（详见[任务状态模型](references/job-model.md)）；需要启动隔离 HTTP 服务供前端浏览器联调时跑 `uv run dev acceptance-server --port 0 --run-id 本轮编号`（详见[前后端验收](references/acceptance.md)）；测试写法见[测试说明](references/tests.md)。
+5. **按改动涉及的风险加跑专项检查**：
+   - 改了任务领取或超时接管逻辑时跑 `uv run dev verify-model`（详见[任务状态模型](references/job-model.md)）。
+   - 需要启动隔离 HTTP 服务供前端浏览器联调时跑 `uv run dev acceptance-server --port 0 --run-id 本轮编号`（详见[前后端验收](references/acceptance.md)）。
+   - 单元测试与契约测试写法见[测试说明](references/tests.md)。
 
 ## 验收与产出
 
