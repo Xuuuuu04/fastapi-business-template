@@ -1,16 +1,16 @@
-import time
 from collections.abc import Sequence
 
 import jwt
 
 from shared.access.caller import Caller
 from shared.errors.framework import NotSignedIn
+from shared.timing.current import now as business_now
 
 
 def issue_token(
     caller: Caller, secret: str, issuer: str, audience: str, minutes: int
 ) -> tuple[str, int]:
-    now = int(time.time())
+    now = int(business_now())
     expires = now + minutes * 60
     claims = {
         "sub": caller.id,

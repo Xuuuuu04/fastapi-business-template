@@ -39,7 +39,7 @@ def effect_service(
             raise ConfigError(["产品声明了 ProviderSpec，但没有配置创建外部服务适配器的函数"])
         bindings = spec.adapters(settings)
     if set(bindings) != set(spec.providers):
-        raise ConfigError(["供应商适配器与产品ProviderSpec声明不一致"])
+        raise ConfigError(["供应商适配器与产品 ProviderSpec 声明不一致"])
     if settings.env == "production" and any(adapter.simulated for adapter in bindings.values()):
         raise ConfigError(["生产环境不能使用模拟外部服务适配器"])
     vault = Vault([key.get_secret_value() for key in settings.data_keys])

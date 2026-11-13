@@ -65,7 +65,9 @@ class JobQueue:
         request_id: str,
     ) -> str:
         if item.name in self.catalog.pipeline_starts:
-            return await self.pipelines.submit(connection, item, input, caller)
+            return await self.pipelines.submit(
+                connection, item, input, caller, request_id=request_id
+            )
         plan = self.catalog.plan(item.name)
         if plan is None:
             raise StepRuleBroken(f"操作 {item.name} 没有在模块的 jobs 中声明，不能作为任务登记")

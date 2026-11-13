@@ -75,9 +75,9 @@ class ApplicationSpec:
         if len(names) != len(set(names)) or any(
             not re.fullmatch(r"[a-z][a-z0-9_]*", name) or name == "jobs" for name in names
         ):
-            problems.append("后台扩展名称必须唯一且不能使用保留名称jobs")
+            problems.append("后台扩展名称必须唯一且不能使用保留名称 jobs")
         if not isinstance(self.settings_type, type) or not issubclass(self.settings_type, Settings):
-            problems.append("产品配置必须继承框架Settings")
+            problems.append("产品配置必须继承框架 Settings")
         if len({spec.name for spec in self.providers}) != len(self.providers):
             problems.append("产品外部调用名称不能重复")
         for spec in self.providers:

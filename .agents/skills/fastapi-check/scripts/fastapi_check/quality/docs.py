@@ -35,6 +35,8 @@ def check_writing_style(project: Path = PROJECT) -> list[Problem]:
         project / "AGENTS.md",
         project / "README.md",
         project / ".github" / "pull_request_template.md",
+        project / "server" / "app" / "api" / "system" / "console.html",
+        project / "server" / "app" / "api" / "system" / "console.js",
     ]
     for path in singles + [item for folder in folders for item in folder.rglob("*.md")]:
         if not path.exists():
@@ -43,6 +45,16 @@ def check_writing_style(project: Path = PROJECT) -> list[Problem]:
         if any(relative.startswith(prefix) for prefix in STYLE_GENERATED):
             continue
         for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if path.suffix == ".js" and line.lstrip().startswith("//"):
+                problems.append(
+                    Problem(
+                        relative,
+                        number,
+                        "no_comments",
+                        "前端脚本中不要保留注释",
+                        "删除 // 注释，用名字和结构表达意图",
+                    )
+                )
             for word in BANNED_WORDS + BANNED_PHRASES:
                 if word in line:
                     problems.append(

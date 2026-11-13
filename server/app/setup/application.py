@@ -10,7 +10,7 @@ def application() -> ApplicationSpec:
     from app.product import APPLICATION
 
     if not isinstance(APPLICATION, ApplicationSpec):
-        raise ConfigError(["app.product.APPLICATION必须是ApplicationSpec"])
+        raise ConfigError(["app.product.APPLICATION 必须是 ApplicationSpec"])
     APPLICATION.validate()
     return APPLICATION
 

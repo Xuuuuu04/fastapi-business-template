@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from shared.db.database import Database
 from shared.graphs.mermaid import label
-from shared.jobs.checkpoint_store import progress
+from shared.jobs.checkpoint_store import progress_map
 from shared.pipelines.member_views import group_summaries
 from shared.pipelines.tables import notifications, runs, stages
 
@@ -38,28 +38,8 @@ async def detail(database: Database, run_id: str, *, org_id: str = "*") -> dict[
             .mappings()
             .all()
         )
-    items = []
-    for stage in rows:
-        item = {
-            key: stage[key]
-            for key in (
-                "name",
-                "contract",
-                "state",
-                "job_id",
-                "run_id",
-                "module_version",
-                "attempt",
-                "poll_count",
-                "elapsed_ms",
-                "error",
-            )
-        }
-        if stage["started_at"] is None:
-            item["elapsed_ms"] = None
-        item["checkpoint"] = await progress(database, stage["job_id"])
-        item["run_url"] = f"/api/system/runs/{stage['run_id']}" if stage["run_id"] else None
-        items.append(item)
+    checkpoints = await progress_map(database, [stage["job_id"] for stage in rows])
+    items = [stage_item(stage, checkpoints) for stage in rows]
     groups = await group_summaries(database, run_id)
     for item in items:
         if item["name"] in groups:
@@ -71,6 +51,29 @@ async def detail(database: Database, run_id: str, *, org_id: str = "*") -> dict[
     result["notification_state"] = await notification_state(database, run_id)
     result["source_fixed"] = row["source_json"] is not None
     return result
+
+
+def stage_item(stage: Any, checkpoints: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    item = {
+        key: stage[key]
+        for key in (
+            "name",
+            "contract",
+            "state",
+            "job_id",
+            "run_id",
+            "module_version",
+            "attempt",
+            "poll_count",
+            "elapsed_ms",
+            "error",
+        )
+    }
+    if stage["started_at"] is None:
+        item["elapsed_ms"] = None
+    item["checkpoint"] = checkpoints.get(stage["job_id"])
+    item["run_url"] = f"/api/system/runs/{stage['run_id']}" if stage["run_id"] else None
+    return item
 
 
 def summary(row: dict) -> dict[str, Any]:

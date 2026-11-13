@@ -131,7 +131,8 @@ async def decision(connection: AsyncConnection, context: MemberContext) -> tuple
             f"子任务 {member['key']} 的阶段 {member['phase_name']} 或后续阶段格式已改变",
         )
     if isinstance(stage, Wait):
-        if business_now() >= member["wait_until"]:
+        wait_until = member["wait_until"] or (business_now() + stage.timeout)
+        if business_now() >= wait_until:
             return (
                 "failed",
                 "member_wait_timeout",

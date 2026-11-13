@@ -1,6 +1,5 @@
 import logging
 import os
-import time
 from dataclasses import asdict
 from typing import Annotated, Any
 
@@ -14,6 +13,7 @@ from shared.graphs.observed import run_graph, run_report
 from shared.jobs.views import count_jobs
 from shared.records.recorder import Recorder
 from shared.records.stores import RunFilter
+from shared.timing.current import now as business_now
 
 log = logging.getLogger("server.diagnostics")
 
@@ -93,7 +93,7 @@ async def runtime(request: Request, caller: CallerDep) -> dict[str, Any]:
     except Exception as error:
         jobs = f"无法读取任务表：{type(error).__name__}"
     return {
-        "time": time.time(),
+        "time": business_now(),
         "env": services.settings.env,
         "code_version": services.settings.code_version,
         "memory_mb": round(process.memory_info().rss / 1024 / 1024, 1),
@@ -118,7 +118,7 @@ async def stats(
 ) -> dict[str, Any]:
     require(caller, PERMISSION)
     recorder: Recorder = request.app.state.services.recorder
-    since = time.time() - hours * 3600
+    since = business_now() - hours * 3600
     rows = await recorder.stats(since, module)
     log.info("diagnostics_stats caller=%s module=%s hours=%s", caller.id, module, hours)
     return {"since": since, "hours": hours, "items": rows, "records": completeness(recorder)}

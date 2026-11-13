@@ -3,49 +3,219 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
   <title>模块与运行</title>
   <style>
-    :root { color-scheme: light; font: 15px/1.65 system-ui,sans-serif; background:#f5f7fa; color:#203047; }
-    body { max-width:1180px; margin:2rem auto; padding:0 1rem; }
-    h1,h2,h3,p { margin:.5rem 0; } h1 { font-size:1.9rem; } h2 { font-size:1.3rem; } h3 { font-size:1.05rem; }
-    header,article,.panel { background:white; border:1px solid #dfe5ec; border-radius:12px; padding:1rem 1.25rem; margin:1rem 0; }
-    .muted,small { color:#596b80; } form,nav,.controls,.cards { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
-    form,nav,.controls { margin:1rem 0; } input,select,button { font:inherit; padding:.45rem .7rem; border:1px solid #bac8d8; border-radius:6px; }
-    input { min-width:0; max-width:100%; box-sizing:border-box; } #secret,#run { flex:1; }
-    button { cursor:pointer; background:white; color:#214e8b; } button:hover,button.active { background:#e8f0fb; border-color:#6e95c8; }
-    .cards { align-items:stretch; } .cards article > button { margin:.2rem .3rem .2rem 0; }
-    .cards > article { flex:1 1 270px; margin:0; } .table-wrap { overflow:auto; }
-    table { width:100%; border-collapse:collapse; } th,td { padding:.65rem; border-bottom:1px solid #e1e7ef; text-align:left; vertical-align:top; }
-    th { color:#596b80; white-space:nowrap; } td { overflow-wrap:anywhere; } .status { white-space:nowrap; font-weight:600; }
-    .ok { color:#167049; } .failed,.refused,.lost { color:#a52a35; } .running { color:#215aa5; }
-    .steps { list-style:none; padding:0; } .steps > li { border-left:3px solid #b4c9e2; margin:0 0 .6rem; padding:.6rem 1rem; background:#f8faff; }
-    .steps > li.failed,.steps > li.failed.slowest { border-color:#c43b46; background:#fff3f4; } .steps > li.slowest { border-color:#bb7b1e; }
-    .steps > li + li::before { content:'↓'; color:#647994; display:block; margin-top:-.4rem; }
-    .steps p { color:#203047; } .empty { padding:2rem; text-align:center; color:#596b80; }
-    pre { overflow:auto; padding:1rem; background:#f0f3f7; white-space:pre-wrap; overflow-wrap:anywhere; }
-    code { overflow-wrap:anywhere; } summary { cursor:pointer; color:#315e92; } #notice { min-height:1.6rem; }
-    a { color:#215aa5; } .warning { color:#9b5710; } .connection { padding:.5rem 0; }
-    @media(max-width:640px) { body { margin:1rem auto; } header,article,.panel { padding:.8rem; } th,td { padding:.4rem; } }
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --subtle: #f1f5f9;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #dbe3ee;
+      --line-strong: #cbd5e1;
+      --accent: #1d4ed8;
+      --accent-soft: #eff6ff;
+      --ok-fg: #166534;
+      --ok-bg: #dcfce7;
+      --run-fg: #1e40af;
+      --run-bg: #dbeafe;
+      --warn-fg: #92400e;
+      --warn-bg: #fef3c7;
+      --bad-fg: #991b1b;
+      --bad-bg: #fee2e2;
+      --off-fg: #475569;
+      --off-bg: #e2e8f0;
+      font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    * { box-sizing: border-box; }
+    body { max-width: 1200px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -.01em; }
+    h2 { font-size: 1.08rem; font-weight: 600; margin-bottom: .35rem; }
+    h3 { font-size: .96rem; font-weight: 600; }
+    .muted, small { color: var(--muted); font-size: .86rem; }
+    .topbar {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: .9rem 1.1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .85rem 1.25rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand { display: flex; flex-direction: column; gap: .2rem; min-width: 220px; }
+    .access-box { display: flex; flex-direction: column; gap: .25rem; flex: 1 1 420px; max-width: 560px; }
+    form, nav, .toolbar, .filters-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+    .toolbar { margin: .85rem 0 .6rem; justify-content: space-between; }
+    .toolbar-right { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+    .filters-row { margin: 0 0 .65rem; padding: .6rem .8rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+    .filters-row[hidden] { display: none; }
+    input, select, button {
+      font: inherit;
+      height: 2.1rem;
+      padding: 0 .65rem;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+    }
+    #secret, #run { min-width: 180px; flex: 1 1 180px; }
+    #module { width: 170px; }
+    button {
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--ink);
+      background: var(--surface);
+      white-space: nowrap;
+    }
+    button:hover { background: var(--subtle); border-color: #94a3b8; }
+    nav button.active, button.primary {
+      background: var(--accent-soft);
+      border-color: #93c5fd;
+      color: var(--accent);
+    }
+    .status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      align-items: center;
+      justify-content: space-between;
+      margin: .5rem 0 .85rem;
+      padding: .45rem .75rem;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    #notice { min-height: 1.4rem; color: var(--muted); font-size: .9rem; }
+    .controls { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+    .check-label { display: inline-flex; align-items: center; gap: .35rem; font-size: .88rem; cursor: pointer; }
+    .check-label input { height: auto; padding: 0; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; margin-bottom: .7rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: .8rem; }
+    .cards > article, .run-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: .95rem 1.05rem;
+    }
+    .run-card { margin-bottom: .9rem; }
+    .run-card > h3 { margin-bottom: .35rem; }
+    .card-meta { display: flex; flex-wrap: wrap; gap: .4rem .65rem; align-items: center; margin: .35rem 0 .65rem; }
+    .btn-group { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+    .table-wrap { overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: .55rem .75rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: #f8fafc; }
+    th { background: var(--subtle); color: var(--muted); font-size: .82rem; font-weight: 600; white-space: nowrap; }
+    td { overflow-wrap: anywhere; }
+    th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .status {
+      display: inline-block;
+      padding: .1rem .5rem;
+      border-radius: 999px;
+      font-size: .78rem;
+      font-weight: 600;
+      white-space: nowrap;
+      background: var(--off-bg);
+      color: var(--off-fg);
+    }
+    .status.ok, .status.succeeded { background: var(--ok-bg); color: var(--ok-fg); }
+    .status.running, .status.joining { background: var(--run-bg); color: var(--run-fg); }
+    .status.queued, .status.waiting_retry, .status.waiting_external, .status.waiting_members, .status.planned, .status.unknown, .status.overdue_paused, .status.version_blocked { background: var(--warn-bg); color: var(--warn-fg); }
+    .status.failed, .status.refused, .status.lost { background: var(--bad-bg); color: var(--bad-fg); }
+    .steps { list-style: none; padding: 0; margin: .75rem 0 0; display: flex; flex-direction: column; gap: .55rem; }
+    .steps > li {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: .7rem .9rem;
+      background: #fafbfd;
+    }
+    .steps > li.failed, .steps > li.failed.slowest { border-color: #fca5a5; background: #fef2f2; }
+    .steps > li.slowest { border-color: #fcd34d; background: #fffbeb; }
+    .step-top { display: flex; flex-wrap: wrap; gap: .45rem .75rem; align-items: center; margin: .25rem 0; }
+    .empty { padding: 1.75rem; text-align: center; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+    details { margin-top: .65rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: .45rem .75rem; }
+    summary { cursor: pointer; color: var(--accent); font-size: .88rem; font-weight: 500; }
+    pre { overflow: auto; padding: .75rem; margin: .5rem 0 0; background: var(--subtle); border-radius: 6px; font-size: .82rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .83rem; overflow-wrap: anywhere; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .warning { color: var(--warn-fg); background: var(--warn-bg); padding: .5rem .75rem; border-radius: 6px; margin: .5rem 0; }
+    .failed-text { color: var(--bad-fg); margin: .35rem 0; }
+    .connection { padding: .2rem 0; font-size: .86rem; color: var(--muted); }
+    .pager, .recovery-box { display: flex; flex-wrap: wrap; gap: .6rem 1rem; align-items: center; margin: .75rem 0; }
+    .recovery-box { padding: .75rem .9rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+    .foot-note { margin-top: .65rem; }
+    @media (max-width: 720px) {
+      body { padding: .75rem .65rem 2rem; }
+      .topbar, .cards > article, .run-card { padding: .75rem; }
+      th, td { padding: .45rem .5rem; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>模块与运行</h1>
-    <p class="muted">先看模块关系，再看执行步骤；失败位置和耗时都来自实际运行记录。</p>
-    <form id="access">
-      <select id="kind" aria-label="凭据类型"><option value="X-API-Key">服务密钥</option><option value="Authorization">登录令牌</option></select>
-      <input id="secret" type="password" autocomplete="off" aria-label="凭据" placeholder="输入具有系统查看权限的凭据">
-    </form>
-    <small>凭据只保留在当前页面。查看运行需要 system.diagnostics，查看操作记录需要 system.audit。</small>
+  <header class="topbar">
+    <div class="brand">
+      <h1>模块与运行</h1>
+      <p class="muted">先看模块关系，再看运行步骤与实际耗时。</p>
+    </div>
+    <div class="access-box">
+      <form id="access">
+        <select id="kind" aria-label="凭据类型">
+          <option value="X-API-Key">服务密钥</option>
+          <option value="Authorization">登录令牌</option>
+        </select>
+        <input id="secret" type="password" autocomplete="off" aria-label="凭据" placeholder="输入具有系统查看权限的凭据">
+        <button type="submit" class="primary">读取</button>
+      </form>
+      <small>凭据只留在当前页面；查看运行需要 system.diagnostics，查看操作记录需要 system.audit。</small>
+    </div>
   </header>
-  <nav aria-label="查看内容">
-    <button data-path="modules">模块关系</button><button data-path="runs">最近运行</button>
-    <button data-path="pipelines">业务流程</button><button data-path="stats">运行统计</button><button data-path="runtime">进程状态</button><button data-path="audit">操作记录</button>
-  </nav>
-  <form id="report"><input id="run" autocomplete="off" placeholder="粘贴错误响应中的运行编号" aria-label="运行编号"><button type="submit">查看运行详情</button></form>
-  <form id="filters"><input id="module" aria-label="模块筛选" placeholder="模块英文名（可选）"><select id="status" aria-label="状态筛选"><option value="">全部状态</option><option value="failed">失败</option><option value="running">执行中</option><option value="ok">已完成</option><option value="refused">被拒绝</option></select><button>筛选运行</button></form>
-  <div class="controls"><button id="refresh">刷新当前内容</button><label><input id="auto" type="checkbox">每 3 秒刷新</label></div>
-  <p id="notice" role="status">请选择要查看的内容。</p>
+
+  <div class="toolbar">
+    <nav aria-label="查看内容">
+      <button type="button" data-path="modules">模块关系</button>
+      <button type="button" data-path="runs">最近运行</button>
+      <button type="button" data-path="pipelines">业务流程</button>
+      <button type="button" data-path="stats">运行统计</button>
+      <button type="button" data-path="runtime">进程状态</button>
+      <button type="button" data-path="audit">操作记录</button>
+    </nav>
+    <div class="toolbar-right">
+      <form id="report">
+        <input id="run" autocomplete="off" placeholder="粘贴运行编号" aria-label="运行编号">
+        <button type="submit">查看运行详情</button>
+      </form>
+    </div>
+  </div>
+
+  <form id="filters" class="filters-row" hidden>
+    <input id="module" aria-label="模块筛选" placeholder="模块英文名（可选）">
+    <select id="status" aria-label="状态筛选">
+      <option value="">全部状态</option>
+      <option value="failed">失败</option>
+      <option value="running">执行中</option>
+      <option value="ok">已完成</option>
+      <option value="refused">被拒绝</option>
+    </select>
+    <button type="submit">筛选运行</button>
+  </form>
+
+  <div class="status-bar">
+    <p id="notice" role="status">请选择要查看的内容。</p>
+    <div class="controls">
+      <button type="button" id="refresh">刷新当前内容</button>
+      <label class="check-label"><input id="auto" type="checkbox">每 3 秒刷新</label>
+    </div>
+  </div>
+
   <main id="results" aria-live="polite"></main>
   <script src="/system/console.js" defer></script>
 </body>

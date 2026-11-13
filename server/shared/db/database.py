@@ -40,6 +40,8 @@ class Database:
     async def open_write(self) -> AsyncConnection:
         connection = await self.engine.connect()
         try:
+            if self.is_sqlite:
+                await connection.execution_options(sqlite_writer=True)
             await connection.begin()
         except BaseException:
             await connection.close()
@@ -48,11 +50,16 @@ class Database:
 
     @asynccontextmanager
     async def write(self) -> AsyncIterator[AsyncConnection]:
-        async with self.engine.connect() as connection:
-            if self.is_sqlite:
-                await connection.execution_options(sqlite_writer=True)
-            async with connection.begin():
-                yield connection
+        connection = await self.open_write()
+        try:
+            yield connection
+        except BaseException:
+            await connection.rollback()
+            raise
+        else:
+            await connection.commit()
+        finally:
+            await connection.close()
 
     async def ping(self) -> None:
         async with self.engine.connect() as connection:

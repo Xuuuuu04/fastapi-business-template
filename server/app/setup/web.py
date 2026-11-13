@@ -72,7 +72,7 @@ def configure_http(app: FastAPI, settings: Settings) -> None:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=settings.cors,
-            allow_methods=["GET", "POST", "PUT", "DELETE"],
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
             allow_headers=[
                 "Content-Type",
                 "Authorization",

@@ -249,7 +249,8 @@ async def completed(
 async def failed_group(
     connection: AsyncConnection, queue: "JobQueue", root: dict, row: dict, counts: dict
 ) -> None:
-    message = f"并行子任务未满足完成条件，各状态数量：{counts}"
+    summary = "、".join(f"{name}={count}" for name, count in counts.items())
+    message = f"并行子任务未满足完成条件，各状态数量：{summary}"
     now = business_now()
     await connection.execute(
         update(stages)

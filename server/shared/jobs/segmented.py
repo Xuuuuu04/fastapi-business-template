@@ -1,5 +1,4 @@
 import asyncio
-from time import perf_counter
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -13,6 +12,7 @@ from shared.jobs.checkpoint import Checkpoint
 from shared.jobs.queue import JobQueue, Ticket
 from shared.jobs.revalidation import allowed
 from shared.scenarios.observations import ObservationPosition
+from shared.timing.current import monotonic
 from shared.timing.current import now as business_now
 
 
@@ -90,11 +90,11 @@ def make_checkpoint(
 def commit_batch(
     queue: JobQueue, ticket: Ticket, checkpoint: Checkpoint, before_finish: Hook | None = None
 ) -> Hook:
-    started = perf_counter()
+    started = monotonic()
 
     async def commit(connection: AsyncConnection, result: Data, run_id: str) -> None:
         await checkpoint_store.save(
-            connection, ticket, checkpoint, run_id, (perf_counter() - started) * 1000
+            connection, ticket, checkpoint, run_id, (monotonic() - started) * 1000
         )
         if checkpoint.done and before_finish is not None:
             await before_finish(connection, result, run_id)

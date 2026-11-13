@@ -5,8 +5,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 
-from app.api.identity import CallerDep, require
+from app.api.identity import CallerDep
 from shared.errors.kinds import BusinessError, Kind
+from shared.flow.entry_errors import check_access
 
 router = APIRouter(prefix="/api/v1/stream", tags=["流式操作"])
 
@@ -25,7 +26,7 @@ async def run_stream(
     binding = runtime.catalog.find(name)
     if binding is None or not binding.contract.stream or not binding.contract.entry:
         raise StreamNotFound(f"没有可供流式执行的操作 {name}")
-    require(caller, binding.contract.access)
+    check_access(binding.contract, caller)
     try:
         input = binding.contract.input.model_validate(body)
     except ValidationError as error:
@@ -35,6 +36,7 @@ async def run_stream(
         input,
         caller=caller,
         request_id=getattr(request.state, "request_id", ""),
+        production=request.app.state.settings.env == "production",
     )
     return StreamingResponse(
         chunks, media_type="text/event-stream", headers={"X-Accel-Buffering": "no"}
