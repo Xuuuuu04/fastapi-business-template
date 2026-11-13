@@ -7,7 +7,7 @@ class LoginInput(Data):
     username: str = meaning("账号", min_length=1, max_length=64)
     password: str = meaning("密码", secret=True, min_length=1, max_length=256)
     otp_code: str = meaning(
-        "两步验证码；此账号模块暂未实现两步验证，不读取这个值",
+        "两步验证码，当前未启用两步验证",
         empty="不使用两步验证",
         default="",
         max_length=10,
@@ -51,7 +51,7 @@ class LoginWork(WorkData):
     org_code: str = meaning("组织代码")
     username: str = meaning("账号")
     password: str = meaning("密码", secret=True)
-    otp_code: str = meaning("两步验证码，此账号模块不读取这个值")
+    otp_code: str = meaning("两步验证码，当前未启用两步验证")
     account: StoredAccount | None = meaning(
         "根据组织代码和账号查到的账号信息", empty="没有这个账号", default=None
     )

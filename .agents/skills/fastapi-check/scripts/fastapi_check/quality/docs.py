@@ -15,7 +15,12 @@ BANNED_WORDS = (
     "证据",
     "账本",
     "台账",
-    "————",
+    "债务",
+    "不能据此",
+    "不代表",
+    "不能说明",
+    "不能代替",
+    "——",
     "「",
     "」",
 )
@@ -26,7 +31,11 @@ STYLE_GENERATED = ("server/out/", "server/var/")
 def check_writing_style(project: Path = PROJECT) -> list[Problem]:
     problems: list[Problem] = []
     folders = [project / ".agents" / "skills", project / "server"]
-    singles = [project / "AGENTS.md", project / "README.md"]
+    singles = [
+        project / "AGENTS.md",
+        project / "README.md",
+        project / ".github" / "pull_request_template.md",
+    ]
     for path in singles + [item for folder in folders for item in folder.rglob("*.md")]:
         if not path.exists():
             continue
