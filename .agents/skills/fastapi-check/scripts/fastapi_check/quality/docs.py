@@ -28,17 +28,33 @@ BANNED_PHRASES = ("Successful Response", "Validation Error")
 STYLE_GENERATED = ("server/out/", "server/var/")
 
 
-def check_writing_style(project: Path = PROJECT) -> list[Problem]:
-    problems: list[Problem] = []
-    folders = [project / ".agents" / "skills", project / "server"]
+def writing_targets(project: Path) -> list[Path]:
+    folders = [
+        folder
+        for folder in (
+            project / ".agents" / "skills",
+            project / "server",
+            project / "design",
+            project / "doc",
+        )
+        if folder.is_dir()
+    ]
     singles = [
         project / "AGENTS.md",
         project / "README.md",
+        project / "CONTRIBUTING.md",
+        project / "SECURITY.md",
+        project / "CODE_OF_CONDUCT.md",
         project / ".github" / "pull_request_template.md",
         project / "server" / "app" / "api" / "system" / "console.html",
         project / "server" / "app" / "api" / "system" / "console.js",
     ]
-    for path in singles + [item for folder in folders for item in folder.rglob("*.md")]:
+    return singles + [item for folder in folders for item in folder.rglob("*.md")]
+
+
+def check_writing_style(project: Path = PROJECT) -> list[Problem]:
+    problems: list[Problem] = []
+    for path in writing_targets(project):
         if not path.exists():
             continue
         relative = path.relative_to(project).as_posix()

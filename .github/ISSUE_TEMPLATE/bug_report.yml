@@ -1,0 +1,49 @@
+name: 缺陷报告（Bug Report）
+description: 反馈框架执行器、存储封装、后台任务、脚手架或运行排查台中的问题
+title: "[缺陷] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈问题。请不要在表单中粘贴生产环境的密钥、令牌或真实客户数据。
+  - type: input
+    id: version
+    attributes:
+      label: 模板版本与运行环境
+      description: 填写模板版本或 Git 提交号、Python 版本、操作系统及数据库类型（SQLite / PostgreSQL）
+      placeholder: "例如：5.1.0，Python 3.12.8，macOS 15，PostgreSQL 17"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及模块范围
+      options:
+        - 核心执行器与模块校验（shared/flow、shared/modules）
+        - SQLAlchemy 存储与迁移（shared/database、migrations）
+        - 后台任务与多阶段流程（shared/jobs、shared/pipelines）
+        - 外部调用、大模型或文件缓存（shared/remote、shared/effects、shared/model）
+        - 运行排查台与系统诊断接口（app/api/system）
+        - 脚手架生成、检查与模板升级（devtools、.agents/skills）
+        - 部署配置或文档（deploy、doc、README）
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 最小复现步骤
+      description: 按顺序列出从干净环境触发该问题的命令、代码片段或请求参数
+      placeholder: |
+        1. 在 server/ 运行 uv run dev ...
+        2. 调用操作 ...
+        3. 出现报错 ...
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 预期行为与实际报错
+      description: 写明预期应该发生什么，以及实际输出的错误码、run_id 诊断摘要或堆栈信息
+    validations:
+      required: true

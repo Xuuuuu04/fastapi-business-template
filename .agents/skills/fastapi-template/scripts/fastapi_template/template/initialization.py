@@ -29,6 +29,7 @@ IGNORED = (
     "var",
     "out",
     "template-source.json",
+    "ISSUE_TEMPLATE",
 )
 
 

@@ -7,7 +7,7 @@
 先提交产品当前的改动，并清理或确认尚未结束的外部请求和旧版流程任务：结果尚待确认的外部请求留待查询核实，不要直接重发；如果新版调整了内置 Data 的中文说明，已有的旧流程可能因格式摘要变化而暂停等待人工核对。产品根目录的 `template-source.json` 记着上次采用的模板版本和提交号，按它取出旧模板：
 
 ```bash
-git clone https://github.com/Xuuuuu04/fastapi-business-template.git /tmp/template-upgrade
+git clone https://github.com/mumuxsy/fastapi-business-template.git /tmp/template-upgrade
 git -C /tmp/template-upgrade worktree add --detach /tmp/template-old 旧模板提交
 git -C /tmp/template-upgrade worktree add --detach /tmp/template-new 新模板提交
 ```

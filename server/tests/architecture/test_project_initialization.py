@@ -24,3 +24,15 @@ def test_new_product_keeps_business_entry(tmp_path: Path) -> None:
     business = target / ".agents/skills/fastapi-business/business.md"
     assert "已对照到提交：无" in business.read_text(encoding="utf-8")
     assert not (target / ".agents/TASK.md").exists()
+    for excluded in (
+        "LICENSE",
+        "README.en.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        "CODE_OF_CONDUCT.md",
+        "design",
+        ".github/ISSUE_TEMPLATE",
+    ):
+        assert not (target / excluded).exists()
+    assert (target / ".github/workflows/check.yml").is_file()
+    assert (target / ".github/pull_request_template.md").is_file()

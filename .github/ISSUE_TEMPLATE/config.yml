@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 安全漏洞私密报告
+    url: https://github.com/mumuxsy/fastapi-business-template/security/advisories/new
+    about: 涉及认证、越权、注入或密钥泄露的问题请通过私密通道提交，不要发公开 Issue
+  - name: 配套前端模板（vue3-business-template）
+    url: https://github.com/mumuxsy/vue3-business-template
+    about: 查看与本后端模板配套的 Vue 3 企业后台前端模板
