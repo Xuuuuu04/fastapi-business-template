@@ -1,14 +1,21 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
 from app.api.identity import CallerDep, require
+from shared.errors.kinds import BusinessError, Kind
 from shared.pipelines.member_views import listing as list_members
 from shared.pipelines.recovery import resume
 from shared.pipelines.views import detail, list_runs
 
 router = APIRouter(tags=["多阶段流程"])
+
+
+class PipelineMissing(BusinessError):
+    code = "pipeline_missing"
+    kind = Kind.NOT_FOUND
+    message = "流程不存在"
 
 
 class ResumeRequest(BaseModel):
@@ -45,7 +52,7 @@ async def show(run_id: str, request: Request, caller: CallerDep) -> dict[str, An
     require(caller, "system.diagnostics")
     result = await detail(request.app.state.services.database, run_id, org_id=caller.org_id)
     if result is None:
-        raise HTTPException(status_code=404, detail="流程不存在")
+        raise PipelineMissing()
     return result
 
 

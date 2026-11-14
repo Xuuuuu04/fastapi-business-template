@@ -1,0 +1,25 @@
+name: 特性建议（Feature Request）
+description: 提议面向通用企业后端开发的框架能力、检查规则、生成器改进或文档补充
+title: "[建议] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的实际问题
+      description: 说明在开发或维护产品时遇到了什么具体痛点，为什么现有模块配置或工具包不好解决
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议的做法与接口形态
+      description: 描述你期望的声明方式、命令参数或检查规则
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: 对下游产品与框架升级的影响
+      description: 说明该改动是否会改变现有 API 约定、数据库框架表或下游产品的升级步骤
+      placeholder: "例如：新增可选参数，已有产品升级无需修改业务包"

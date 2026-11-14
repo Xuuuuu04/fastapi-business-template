@@ -78,7 +78,7 @@ class RemoteService:
         except BusinessError as error:
             if is_write(request) and record.outcome == "unknown":
                 breaker.failed()
-                message = f"写入外部系统 {target.title}后未取得确定结果，请先查询"
+                message = f"写入外部系统 {target.title} 后未取得确定结果，请先查询"
                 record.error = message
                 raise RemoteResultUnknown(message) from error
             breaker.succeeded()
@@ -107,7 +107,7 @@ class RemoteService:
                 if attempt == allowed:
                     if is_write(request) and record.outcome == "unknown":
                         raise RemoteResultUnknown(
-                            f"写入外部系统 {target.title}后未取得确定结果，请先查询"
+                            f"写入外部系统 {target.title} 后未取得确定结果，请先查询"
                         ) from None
                     raise
                 record.retries += 1
@@ -130,9 +130,9 @@ class RemoteService:
             except ResponseTooLarge as error:
                 if is_write(request):
                     raise RemoteResultUnknown(
-                        f"外部系统 {target.title}返回内容超过上限，写入结果需要确认"
+                        f"外部系统 {target.title} 返回内容超过上限，写入结果需要确认"
                     ) from error
-                raise RemoteRejected(f"外部系统 {target.title}返回内容超过上限") from error
+                raise RemoteRejected(f"外部系统 {target.title} 返回内容超过上限") from error
             except httpx2.TransportError as error:
                 raise transport_problem(
                     target, request, record, previously_unknown, error

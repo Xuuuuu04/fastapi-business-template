@@ -1,102 +1,56 @@
 ---
 name: fastapi-check
-description: 改完代码要验证、准备提交、或检查和测试报错时读，按这里选检查范围、真跑一次操作看运行报告、写测试。部署上线、查线上运行时不用读。
+description: 改完代码要验证、准备提交、或检查与测试报错时读，用来选定检查范围、真跑操作并核对报告。发布或查线上运行时不用读。
 ---
 
 # 检查和测试
 
-`uv run dev check` 只做两件事：静态检查（风格、格式、类型、接口文档、代码规则）和跑测试。命令在 `server/` 执行。
+运行静态检查、真跑操作与分层测试，让每次改动的结果和问题位置看得见、可核对。
 
-## 选范围
+## 执行步骤
+
+1. **按改动范围选命令检查**。在 `server/` 目录从最小范围开始检查，改了公共代码或准备提交前跑完整检查（发现不合规先修代码，不放宽阈值）：
 
 | 场景 | 命令 |
 | --- | --- |
-| 调试一个包 | `uv run dev check --quick --module 包` |
-| 改了几个包 | `uv run dev check --module A --module B` |
-| 按和主干的差异自动选包 | `uv run dev check --affected --base origin/main` |
-| 改了框架，或一批改动做完 | `uv run dev check`；`--group pure`（或 module、flow、framework）只跑一组 |
-| 交付前 | `uv run dev check --delivery`，额外要求没有占位和模拟步骤 |
-| 生产用 PostgreSQL | 任意一条加 `--postgres 测试库地址`，只用专门的测试库 |
+| 调试单个包（跳过类型和文档） | `uv run dev check --quick --module 包` |
+| 验证指定业务包 | `uv run dev check --module A --module B` |
+| 按主干差异自动选包 | `uv run dev check --affected --base origin/main` |
+| 改框架或批量提交前 | `uv run dev check`（可用 `--group pure` 等分组） |
+| 交付前终检（拦截占位与模拟步骤） | `uv run dev check --delivery` |
+| 验证 PostgreSQL 锁与数值精确性 | 任一检查加 `--postgres 测试库地址` |
 
-从最小范围开始，改了公共代码再跑全部。`--quick` 不跑类型检查和接口文档核对。按包检查时，测试在一个进程里跑，代码规则也只扫这几个包的文件，所以比完整检查快得多；完整检查才开多个进程并行跑测试。
+2. **真实执行一次操作核对运行报告**。在本地 `.env` 指向的可重置开发库跑通 `alembic upgrade head` 后，执行 `dev run` 检查每一步输入输出与报错：
 
-## 真跑一次看结果
+   ```bash
+   uv run dev run customer_contact.create_contact --input '{"name": "张三"}' --allow-write
+   uv run dev run --case tests/modules/包/cases/名称.json --allow-write
+   ```
 
-检查过了还要查看一次实际运行。用本地 `.env` 指定的数据库执行一次已登记的操作，打印结果和运行报告（每一步读写了什么、调了谁、停在哪）：
+   需要反复核对的场景把样例（不含真实凭据）存成 `.json` 用 `--case` 复跑；写操作必须加 `--allow-write`。
+3. **核对报错报告与代码规则**。测试或检查失败时先读报错输出的中文运行报告（完整 JSON 在 `server/var/development/failures/`），再对照下表修改源码：
 
-```bash
-uv run dev run customer_contact.create_contact --input '{"name": "张三"}' --allow-write
-uv run dev run customer_contact.create_contact --input-file 样例.json --org north --allow-write
-```
-
-只允许 local/test 环境，command 操作必须显式加 `--allow-write`，确认 `.env` 指向专门的开发数据。默认以本地开发者身份、拥有全部权限运行；`--org` 指定组织。成功退出码 0，失败 1，失败时报告写明停在哪一步、为什么。本地库要先 `uv run alembic upgrade head`。多阶段流程按阶段分别跑。
-
-## 复用样例和扩展工具
-
-优先用 `dev locate` 找代码、`dev diagnose` 查记录、生成器建包、`dev check` 验证。需要反复真跑的业务样例放在 `tests/modules/包/cases/名称.json`，用 `uv run dev run --case 文件路径`；写操作加 `--allow-write`。例如先用 `dev new-operation customer_contact normalize_text --title 整理文本` 生成样例操作，样例文件只含人工构造的测试数据，不含凭据：
-
-```json
-{"operation":"customer_contact.normalize_text","input":{"text":" 张三 "},"org":"north","permissions":["customer_contact.run"],"expected":{"text":"张三"}}
-```
-
-`operation`、`input` 按真实操作填写；`expected` 是用户确认的完整 JSON 结果，金额按接口格式写。错误字段、结果不符、权限不足都返回非零退出码；`expected` 检查发生在操作提交之后，不会回滚，涉及写入的样例只用于可重置的开发数据。省略 `expected` 只执行操作，不核对业务结果是否符合预期。
-
-- 调整产品优先用 `app/product.py`、现有命令参数和配置；配置只放数据，不执行 Python 或 shell。
-- 已有命令能做的事不另写脚本，不用临时 SQL 绕过正式操作、权限和迁移。
-- 确需复用的新工具放所属项目 Skill 的 `scripts/`，从 `dev` 明确登记，带参数校验、只读/写入说明、失败退出码和针对性测试，再在该 Skill 记录入口。先核对现有职责，不建万能脚本目录。
-- 一次性试验放系统临时目录，只使用与真实业务隔离的测试数据；有价值的反例转成回归测试，结束后清理。
-
-## 代码规则
-
-检查报出的规则名和意思：
-
-| 规则 | 意思 |
+| 规则名 | 检查要求 |
 | --- | --- |
-| `comment`、`docstring` | 代码里不写注释和文档字符串 |
-| `catch` | 业务代码不写 try/except 和 suppress，写法见 fastapi-module“出错怎么办” |
-| `file_lines`、`function_lines`、`nesting` | 文件超过 300 行、函数超过 50 行、嵌套超过 4 层，按用途拆开 |
-| `blocking_call` | 异步代码里调用了同步等待 |
-| `module_name`、`name_format`、`name_vague`、`step_name`、`condition_name` | 名字格式不对或太含糊（如 utils、helper） |
-| `not_listed`、`missing_module`、`not_exposed`、`unused` | 模块登记和实际的包、入口、调用对不上；只给别的操作调用的写 `entry=False` |
-| `import_shared`、`import_web`、`import_database`、`import_module`、`import_layer`、`import_library`、`import_relative`、`import_dynamic`、`import_direction` | 导入了不允许依赖的模块，规则见 fastapi-module“包里放什么”下的依赖方向 |
-| `calc_dependency`、`calc_purity` | calc 用了会读取外部状态或产生外部影响的导入或调用 |
-| `library_layout`、`library_exports`、`library_declaration` | 工具包的结构、`exports` 和 `__all__` 对不上 |
-| `unused_exception` | `rules.py` 里登记的例外已经用不上，删掉它 |
-| `writing_style` | Skill 文字中包含难懂的内部用语或公文表达 |
+| `comment`、`docstring` | 删除普通注释和文档字符串 |
+| `catch` | 业务代码不用 `try/except` 或 `suppress` |
+| `file_lines`、`function_lines`、`nesting` | 文件不超过 300 行、函数不超过 50 行、嵌套不超过 4 层 |
+| `blocking_call` | 异步函数里禁止调用同步阻塞接口 |
+| `module_name`、`name_format`、`name_vague`、`step_name`、`condition_name` | 避免含糊命名（如 `utils`、`helper`），遵守前缀格式 |
+| `not_listed`、`missing_module`、`not_exposed`、`unused` | 模块、入口与路由登记保持一致；非入口操作写 `entry=False` |
+| `import_*` | 遵守跨包和包内单向依赖方向 |
+| `calc_dependency`、`calc_purity` | `calc` 禁止读取外部状态或产生副作用 |
+| `library_layout`、`library_exports`、`library_declaration` | 工具包结构、`exports` 和 `__all__` 保持一致 |
+| `tools` | `--delivery` 模式下禁止保留占位或模拟步骤 |
+| `unused_exception` | 清理 `rules.py` 里已经用不上的例外项 |
+| `writing_style` | 根文档、PR 模板和 Skill 文档中不使用禁用黑话和生硬句式 |
 
-检查没过就改代码，不改阈值、不改 `tests/architecture` 和 `tests/quality` 的断言、不跳过测试。
+4. **改完接口要同步更新文档**。执行 `uv run dev docs` 更新 `doc/api/openapi.json`；需要复用的新开发工具放进对应 Skill 的 `scripts/` 并登记在 `server/devtools/src/fastapi_dev/main.py` 的 `COMMANDS` 中。
+5. **按改动涉及的风险加跑专项检查**：
+   - 改了任务领取或超时接管逻辑时跑 `uv run dev verify-model`（详见[任务状态模型](references/job-model.md)）。
+   - 需要启动隔离 HTTP 服务供前端浏览器联调时跑 `uv run dev acceptance-server --port 0 --run-id 本轮编号`（详见[前后端验收](references/acceptance.md)）。
+   - 单元测试与契约测试写法见[测试说明](references/tests.md)。
 
-## 接口文档
+## 验收与产出
 
-项目只生成一份文档 `doc/api/openapi.json`，给前端和 `dev compare-api` 用。改了接口运行 `uv run dev docs` 更新，完整检查会核对它是不是最新的。
-
-## 检查失败时
-
-1. 读输出里附带的中文运行报告，找到失败的步骤和源码行。完整报告在 `server/var/development/failures/`，不提交。
-2. 判断是哪一类：代码写错、测试安排错、缺真实数据来源、功能还没做。
-3. 修问题本身，修完重跑同一条命令。
-
-## 写测试
-
-- 预期结果来自和用户确认过的业务样例。旧系统的输出只用来比较，不当标准答案。
-- 和时间有关的样例，在执行时传入时间或用可控时钟，不放宽业务时限。
-- 权限测试用真实的应用权限。
-- 目录分组、测试准备函数、单步测试、数据库和手动测试见[测试说明](references/tests.md)。
-
-## 限定范围的状态检查
-
-修改任务领取、超时接管或事务提交方式时，单独执行 `uv run dev verify-model`。它枚举限定范围内的任务状态，确认能发现故意引入的错误，再测试真实写入是否回滚；日常 `dev check` 不执行这项检查。范围与代码对应关系见[任务状态模型](references/job-model.md)。
-
-## 前后端隔离验收
-
-浏览器需要连接真实 HTTP 后端时，用 `uv run dev acceptance-server --port 0 --run-id 本轮编号` 启动本轮服务。它不读 `.env` 或 `APP_TEST_DATABASE_URL`，只使用本轮临时 SQLite 与文件目录，不复用运行库。启动记录提供端口与目录，浏览器须等 `/health/ready` 返回成功，并核对响应头 `X-Acceptance-Run` 与本轮编号一致。
-
-由前端管理整轮服务时，加 `--lifecycle-file 本轮报告目录/backend.json`，退出后核对本轮编号与 `cleanup_complete` 状态。产品数据准备、停止与清理、外部调用限制见[前后端验收](references/acceptance.md)。空模板只能核对服务、隔离与清理；完成一个产品浏览器场景并核对后台结果后，才报告该业务的前后端验收通过。
-
-## 提交 PR
-
-提交前用 `dev check --affected --base origin/main` 判断和验证影响范围，公共代码用完整检查；可交付业务另跑 `dev check --delivery`，PR 的 CI 使用此交付检查拒绝占位/模拟步骤；本地普通检查仍可用于迭代。独立审查差异后提交任务分支，按 PR 模板连接 business.md 中的规则编号、确认样例、操作名和测试路径，记录实际命令、提交、运行编号及未验证事项。
-
-改任务领取、接管和提交所有权时，可用 `dev verify-model --jar 本地TLC路径` 追加 TLA+ 检查；无参仍运行轻量状态枚举。对应路径的 PR 会触发状态模型工作流，普通业务改动不运行 Java。模型只证明限定抽象，数据库并发仍由 PostgreSQL 测试核对。具体工具及范围见任务状态模型参考。
-
-发现可重复的问题，先补能复现错误的最小测试，再修实现；同类结构问题放到现有检查里，不复制一套提示词。业务规则变化同步修改确认样例，不能用当前错误输出充当预期。
+汇报检查结论时，分开写清实际运行了单包检查、全仓检查、PostgreSQL 测试、状态模型检查还是前后端隔离验收；CI 在 `push` 与 `pull_request` 时运行 `dev check --delivery` 与 PostgreSQL 全量测试，PR 需要全部通过并按模板写清业务规则与测试映射。

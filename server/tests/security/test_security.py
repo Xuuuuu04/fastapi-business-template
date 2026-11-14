@@ -16,6 +16,8 @@ from shared.config.settings import Settings
 from shared.errors.framework import ConfigError, NotSignedIn
 from shared.model_calls.providers import FakeModel
 from shared.public import Data, Flow, Module, WorkData, contract, meaning, remote, step
+from shared.timing.clock import FakeClock
+from shared.timing.current import use_clock
 from tests.testing_app import KEY, make_settings, reset_database_now
 
 remote_module = Module(
@@ -265,3 +267,15 @@ def test_caller_record_is_strict(change: dict[str, object]) -> None:
     del record["org_id"]
     with pytest.raises(ValueError):
         caller_from_record(record)
+
+
+def test_token_respects_business_clock() -> None:
+    secret = "clock-secret-" + "z" * 32
+    user = Caller("7", "user", "alice", frozenset({"file_library.read"}), "north")
+    clock = FakeClock(1_000.0)
+    with use_clock(clock):
+        token, _ = issue_token(user, secret, "issuer", "audience", 1)
+        assert verify_token(token, [secret], "issuer", "audience") == user
+        clock.advance(60)
+        with pytest.raises(NotSignedIn):
+            verify_token(token, [secret], "issuer", "audience")

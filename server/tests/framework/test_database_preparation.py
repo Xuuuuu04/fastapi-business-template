@@ -203,3 +203,36 @@ async def test_concurrent_new_paths_do_not_share_connections_or_data(
                 await connection.execute(text("INSERT INTO parent VALUES (1)"))
         finally:
             await database.close()
+
+
+async def test_concurrent_sqlite_open_write_and_write_serialize(
+    tmp_path: Path, schema: MetaData
+) -> None:
+    url = url_at(tmp_path / "concurrent")
+    await testing_app.prepare_test_database(url)
+    database = Database(url)
+    try:
+
+        async def insert_with_write(row_id: int) -> None:
+            async with database.write() as connection:
+                await connection.execute(text("INSERT INTO parent VALUES (:id)"), {"id": row_id})
+
+        async def insert_with_open_write(row_id: int) -> None:
+            connection = await database.open_write()
+            try:
+                await connection.scalar(text("SELECT count(*) FROM parent"))
+                await connection.execute(text("INSERT INTO parent VALUES (:id)"), {"id": row_id})
+                await connection.commit()
+            finally:
+                await connection.close()
+
+        await asyncio.gather(
+            *(
+                insert_with_open_write(i) if i % 2 == 0 else insert_with_write(i)
+                for i in range(1, 21)
+            )
+        )
+        async with database.read() as connection:
+            assert await connection.scalar(text("SELECT count(*) FROM parent")) == 20
+    finally:
+        await database.close()

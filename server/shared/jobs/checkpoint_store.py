@@ -1,7 +1,8 @@
 import json
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from shared.db.database import Database
@@ -159,33 +160,43 @@ async def may_resume(
     return not (plan.segmented and await external_pending(connection, job_id))
 
 
-async def progress(database: Database, job_id: str) -> dict[str, Any] | None:
+async def progress_map(database: Database, job_ids: Sequence[str]) -> dict[str, dict[str, Any]]:
+    ids = [job_id for job_id in dict.fromkeys(job_ids) if job_id]
+    if not ids:
+        return {}
     async with database.read() as connection:
-        row = (
-            (await connection.execute(select(checkpoints).where(checkpoints.c.job_id == job_id)))
+        rows = (
+            (await connection.execute(select(checkpoints).where(checkpoints.c.job_id.in_(ids))))
             .mappings()
-            .first()
+            .all()
         )
-        if row is None:
-            return None
-        last = (
+        if not rows:
+            return {}
+        pairs = [(row["job_id"], row["number"]) for row in rows]
+        last_rows = (
             (
                 await connection.execute(
-                    select(segments).where(
-                        segments.c.job_id == job_id, segments.c.number == row["number"]
-                    )
+                    select(segments).where(tuple_(segments.c.job_id, segments.c.number).in_(pairs))
                 )
             )
             .mappings()
-            .first()
+            .all()
         )
+    by_pair = {(row["job_id"], row["number"]): dict(row) for row in last_rows}
     return {
-        "committed_batches": row["number"],
-        "cursor": json.loads(row["cursor_json"]),
-        "total_rows": row["total_rows"],
-        "external_pending": row["external_pending"],
-        "last_batch": dict(last) if last else None,
+        row["job_id"]: {
+            "committed_batches": row["number"],
+            "cursor": json.loads(row["cursor_json"]),
+            "total_rows": row["total_rows"],
+            "external_pending": row["external_pending"],
+            "last_batch": by_pair.get((row["job_id"], row["number"])),
+        }
+        for row in rows
     }
+
+
+async def progress(database: Database, job_id: str) -> dict[str, Any] | None:
+    return (await progress_map(database, [job_id])).get(job_id)
 
 
 async def extend_lease(

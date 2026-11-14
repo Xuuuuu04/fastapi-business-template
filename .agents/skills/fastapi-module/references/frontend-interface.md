@@ -10,7 +10,7 @@
 | 登录凭据 | 请求头 `Authorization: Bearer 令牌`。前端只在页面内存里保存令牌，刷新后重新登录 |
 | 请求编号 | 前端每个请求带 `X-Request-ID`；后端响应头返回同一个 `X-Request-ID`，有运行记录时还带 `X-Run-ID` |
 | 错误响应 | JSON：`code`、`kind`、`message`、`request_id`、`run_id`、`fields`（字段问题列表）。前端显示 `message` 的前 300 个字，按 `code` 区分 |
-| 写入结果未知 | 前端把 5xx、408、499、网络中断、成功响应无法解析都当作"结果未知"，不自动重发，先查询。所以写接口要提供结果查询，重复提交同一业务请求时不能重复执行 |
+| 写入结果未知 | 前端把 5xx、408、499、网络中断和无法解析的响应都当作“结果未知”，不会自动重发，而是先调用查询接口确认是否成功。因此写接口要提供结果查询，并在重复提交同一业务请求时避免重复执行 |
 | 删除成功 | 返回 204，前端只认 204 为完成；后端写法见[框架用法](framework.md)开头 |
 | 文件下载 | 返回二进制内容；上传是 multipart，文件字段名由接口约定 |
 | 同源 | 前端开发时把 `/api` 代理到后端（默认 `http://127.0.0.1:8000`），生产由网关把前端和 `/api` 放在同一个域名下 |
@@ -22,7 +22,7 @@
 | 项目 | 约定 |
 |---|---|
 | 登录接口 | `POST /api/v1/access/login`，不需要凭据 |
-| 请求字段 | `org_code`、`username`、`password` 必填；`otp_code` 可以是空字符串，最小账号包不使用它 |
+| 请求字段 | `org_code`、`username`、`password` 必填；`otp_code` 默认为空字符串（可省略不传），最小账号包不读取它 |
 | 成功响应 | `access_token`、`token_type`（固定 `Bearer`）、`expires_in`（秒，等于 `APP_TOKEN_MINUTES` 乘 60）、`org_id` |
 | 失败响应 | 密码不对和账号不存在都是 401，`code` 为 `包名_login_failed`；失败次数超限是 429 |
 | 令牌内容 | HS256，由 `shared/access/tokens.py` 的 `issue_token` 签发；声明里有 `sub`、`name`、`org`、`permissions` 和有效期 |
@@ -34,7 +34,7 @@
 ## 改接口时
 
 1. 改完代码后运行 `uv run dev docs`，看 `doc/api/openapi.json` 的差异。
-2. 删除字段、改名、把必填改成可选、改枚举值，都会让前端运行时报"返回的数据格式不符合约定"。这类改动要同时改前端的 `api.ts`、`data.ts`。
+2. 删除字段、改名、把必填改成可选、改枚举值，都会让前端在运行时报“返回的数据格式不符合约定”。这类改动要同时改前端的 `api.ts`、`data.ts`。
 3. 新增字段不影响前端（前端只检查它声明的字段），但前端要用的话得先登记。
 4. 先 `git show HEAD:doc/api/openapi.json > /tmp/openapi-before.json` 取出改前的版本，再 `uv run dev compare-api --before /tmp/openapi-before.json --after ../doc/api/openapi.json`，把差异告诉做前端的人。
 

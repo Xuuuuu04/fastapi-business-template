@@ -252,7 +252,7 @@ def type_of(key: ColumnElement[Any]) -> Callable[[str], Any]:
         try:
             return kind(text)
         except ValueError:
-            raise InvalidInput(f"after 位置 {text} 格式不对") from None
+            raise InvalidInput(f"分页游标 {text} 格式无效") from None
 
     return convert
 

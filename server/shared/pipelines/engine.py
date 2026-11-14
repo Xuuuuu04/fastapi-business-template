@@ -23,6 +23,16 @@ if TYPE_CHECKING:
     from shared.jobs.queue import JobQueue
 
 
+def cycle_key(pipeline: Pipeline, request: StartRequest) -> str:
+    key = request.cycle_key or (request.period.isoformat() if request.period else "")
+    if not key or len(key) > 120:
+        raise InvalidInput(
+            f"流程 {pipeline.name} 必须提供 cycle_key（不超过 120 个字符的周期标识）"
+            "或 period（周期时间）"
+        )
+    return key
+
+
 class PipelineEngine:
     @property
     def clock(self) -> Clock:
@@ -43,65 +53,64 @@ class PipelineEngine:
 
     @clocked
     async def submit(
-        self, connection: AsyncConnection, item: Contract[Any, Any], input: Data, caller: Caller
+        self,
+        connection: AsyncConnection,
+        item: Contract[Any, Any],
+        input: Data,
+        caller: Caller,
+        *,
+        request_id: str = "",
     ) -> str:
         if not isinstance(input, StartInput):
             raise StepRuleBroken("流程启动操作的输入类型必须是 StartInput")
-        result = await self.start(
-            connection, self.catalog.pipeline_starts[item.name], input.request, caller
-        )
-        return result.id
+        pipeline = self.catalog.pipeline_starts[item.name]
+        view = await self.start(connection, pipeline, input.request, caller, request_id=request_id)
+        return view.id
 
     @clocked
     async def start(
-        self, connection: AsyncConnection, pipeline: Pipeline, request: StartRequest, caller: Caller
+        self,
+        connection: AsyncConnection,
+        pipeline: Pipeline,
+        request: StartRequest,
+        caller: Caller,
+        *,
+        request_id: str = "",
     ) -> PipelineView:
-        key = request.cycle_key or (request.period.isoformat() if request.period else "")
-        if not key or len(key) > 120:
-            raise InvalidInput(
-                f"流程 {pipeline.name} 必须提供 cycle_key（不超过 120 个字符的周期标识）"
-                "或 period（周期时间）"
-            )
+        key = cycle_key(pipeline, request)
         if not caller.org_id:
             raise NotAllowed("启动流程时必须指定组织")
         body = data_json(pipeline.input, request.data, "input")
         row = self.new_root(pipeline, caller, key, body)
         row["complete_by"] = deadline(pipeline, request, row["created_at"])
-        row["on_overdue"] = pipeline.on_overdue
-        row["overdue"] = False
-        existing = await self.insert_root(connection, row)
-        if existing:
+        row["on_overdue"], row["overdue"] = pipeline.on_overdue, False
+        if existing := await self.insert_root(connection, row):
             return existing
-        active = await self.active(connection, pipeline.name, caller.org_id)
-        if active is not None:
-            state = "skipped" if pipeline.overlap == "skip" else "queued"
-            await connection.execute(
-                update(runs)
-                .where(runs.c.id == row["id"])
-                .values(
-                    state=state,
-                    reason=f"上一周期 {active} 尚未结束",
-                    finished_at=business_now() if state == "skipped" else None,
-                )
+        if (active := await self.active(connection, pipeline.name, caller.org_id)) is not None:
+            return await self.defer_cycle(
+                connection, row["id"], pipeline, f"上一周期 {active} 尚未结束"
             )
-            return PipelineView(id=row["id"], state=state)
         try:
             async with connection.begin_nested():
                 await self.claim_cycle(connection, dict(row), pipeline)
         except IntegrityError:
-            state = "skipped" if pipeline.overlap == "skip" else "queued"
-            await connection.execute(
-                update(runs)
-                .where(runs.c.id == row["id"])
-                .values(
-                    state=state,
-                    reason="另一周期已取得执行名额，本周期暂不执行",
-                    finished_at=business_now() if state == "skipped" else None,
-                )
+            return await self.defer_cycle(
+                connection, row["id"], pipeline, "另一周期已取得执行名额，本周期暂不执行"
             )
-            return PipelineView(id=row["id"], state=state)
-        await self.enqueue(connection, dict(row), pipeline, 0)
+        await self.enqueue(connection, dict(row), pipeline, 0, request_id=request_id)
         return PipelineView(id=row["id"], state="running")
+
+    async def defer_cycle(
+        self, connection: AsyncConnection, run_id: str, pipeline: Pipeline, reason: str
+    ) -> PipelineView:
+        state = "skipped" if pipeline.overlap == "skip" else "queued"
+        finished_at = business_now() if state == "skipped" else None
+        await connection.execute(
+            update(runs)
+            .where(runs.c.id == run_id)
+            .values(state=state, reason=reason, finished_at=finished_at)
+        )
+        return PipelineView(id=run_id, state=state)
 
     def new_root(self, pipeline: Pipeline, caller: Caller, key: str, body: str) -> dict:
         return dict(
@@ -183,14 +192,20 @@ class PipelineEngine:
 
     @clocked
     async def enqueue(
-        self, connection: AsyncConnection, root: dict, pipeline: Pipeline, index: int
+        self,
+        connection: AsyncConnection,
+        root: dict,
+        pipeline: Pipeline,
+        index: int,
+        *,
+        request_id: str = "",
     ) -> None:
         stage = pipeline.stages[index]
         input, body = await self.stage_input(connection, root, pipeline, index)
         stage_id = secrets.token_hex(8)
         caller = caller_from_record(json.loads(root["caller_json"]))
         job_id = await self.queue.submit(
-            connection, stage.operation, input, caller, key=PREFIX + stage_id, request_id=""
+            connection, stage.operation, input, caller, key=PREFIX + stage_id, request_id=request_id
         )
         await connection.execute(
             insert(stages).values(

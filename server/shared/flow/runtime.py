@@ -182,9 +182,17 @@ class Runtime:
             raise problem from error
 
     async def stream[In: Data, Out: Data](
-        self, item: Contract[In, Out], input: In, *, caller: Caller, request_id: str = ""
+        self,
+        item: Contract[In, Out],
+        input: In,
+        *,
+        caller: Caller,
+        request_id: str = "",
+        production: bool = True,
     ) -> AsyncIterator[bytes]:
-        async for event in stream_events(self, item, input, caller=caller, request_id=request_id):
+        async for event in stream_events(
+            self, item, input, caller=caller, request_id=request_id, production=production
+        ):
             yield event
 
     async def call[In: Data, Out: Data](

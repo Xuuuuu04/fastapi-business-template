@@ -16,7 +16,13 @@ if TYPE_CHECKING:
 
 
 async def stream_events[In: Data, Out: Data](
-    runtime: "Runtime", item: Contract[In, Out], input: In, *, caller: Caller, request_id: str
+    runtime: "Runtime",
+    item: Contract[In, Out],
+    input: In,
+    *,
+    caller: Caller,
+    request_id: str,
+    production: bool = True,
 ) -> AsyncGenerator[bytes, None]:
     if not item.stream:
         raise StepRuleBroken(f"操作 {item.name} 没有声明 stream=True")
@@ -39,12 +45,7 @@ async def stream_events[In: Data, Out: Data](
         except asyncio.CancelledError:
             raise
         except Exception as error:
-            message = public_message(error)
-            problem = {
-                "code": error.code if isinstance(error, BusinessError) else "internal_error",
-                "message": message,
-                "run_id": getattr(error, "run_id", ""),
-            }
+            problem = stream_problem(error, request_id, production=production)
             await queue.put(("error", json.dumps(problem, ensure_ascii=False)))
         await queue.put(("end", ""))
 
@@ -60,6 +61,22 @@ async def stream_events[In: Data, Out: Data](
             task.cancel()
         with suppress(asyncio.CancelledError):
             await task
+
+
+def stream_problem(error: Exception, request_id: str, *, production: bool) -> dict[str, str]:
+    if isinstance(error, BusinessError):
+        message = public_message(error) if production else error.detail
+        code, kind = error.code, str(error.kind)
+    else:
+        message = public_message(error)
+        code, kind = "internal_error", "unexpected"
+    return {
+        "code": code,
+        "kind": kind,
+        "message": message,
+        "request_id": request_id,
+        "run_id": str(getattr(error, "run_id", "")),
+    }
 
 
 def event_bytes(kind: str, value: str) -> bytes:

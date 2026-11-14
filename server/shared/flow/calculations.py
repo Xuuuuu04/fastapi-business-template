@@ -15,7 +15,12 @@ def check_calculations(part: Step, module: str) -> list[str]:
             problems.append(f"{part.source}：calcs 必须引用本模块calc或已声明的纯工具包")
         elif inspect.iscoroutinefunction(func):
             problems.append(f"{source_of(func)}：纯计算必须是同步函数，只接收参数并返回结果")
-    called = direct_calculations(part.func)
+    try:
+        called = direct_calculations(part.func)
+    except (OSError, TypeError):
+        if getattr(part.func, "__module__", "").startswith(("service.", "library.")):
+            problems.append(f"{part.source}：无法读取源码，不能检查纯计算调用")
+        called = []
     for func in called:
         if func not in part.calcs:
             problems.append(
@@ -25,10 +30,7 @@ def check_calculations(part: Step, module: str) -> list[str]:
 
 
 def direct_calculations(func: Callable[..., Any]) -> list[Callable[..., Any]]:
-    try:
-        source = textwrap.dedent(inspect.getsource(func))
-    except (OSError, TypeError):
-        return []
+    source = textwrap.dedent(inspect.getsource(func))
     tree = ast.parse(source)
     found: list[Callable[..., Any]] = []
     body = tree.body[0]

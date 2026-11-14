@@ -26,8 +26,8 @@ PROBLEM_TEXT = {
     "greater_than_equal": "数值太小",
     "less_than": "数值太大",
     "less_than_equal": "数值太大",
-    "too_short": "项目太少",
-    "too_long": "项目太多",
+    "too_short": "条目数量太少",
+    "too_long": "条目数量太多",
     "literal_error": "不是允许的取值",
     "decimal_max_places": "小数位数太多",
     "json_invalid": "不是合法的 JSON",
@@ -90,7 +90,11 @@ def field_problems(entries: Iterable[tuple[str, str]]) -> list[FieldProblem]:
 async def http_error(request: Request, error: HTTPException) -> JSONResponse:
     status = error.status_code
     if status == 404:
-        text = "接口不存在，请检查地址和版本号"
+        text = (
+            error.detail
+            if isinstance(error.detail, str) and error.detail and error.detail != "Not Found"
+            else "接口不存在，请检查地址和版本号"
+        )
         return error_response(request, 404, "route_not_found", Kind.NOT_FOUND, text)
     if status == 405:
         text = "这个接口不支持该请求方法"

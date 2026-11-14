@@ -1,16 +1,16 @@
-import time
 from collections.abc import Sequence
 
 import jwt
 
 from shared.access.caller import Caller
 from shared.errors.framework import NotSignedIn
+from shared.timing.current import now as business_now
 
 
 def issue_token(
     caller: Caller, secret: str, issuer: str, audience: str, minutes: int
 ) -> tuple[str, int]:
-    now = int(time.time())
+    now = int(business_now())
     expires = now + minutes * 60
     claims = {
         "sub": caller.id,
@@ -34,12 +34,18 @@ def verify_token(token: str, secrets: Sequence[str], issuer: str, audience: str)
                 algorithms=["HS256"],
                 issuer=issuer,
                 audience=audience,
-                options={"require": ["sub", "org", "permissions", "iss", "aud", "iat", "exp"]},
+                options={
+                    "verify_exp": False,
+                    "require": ["sub", "org", "permissions", "iss", "aud", "iat", "exp"],
+                },
             )
         except jwt.InvalidSignatureError:
             continue
         except jwt.PyJWTError:
             raise NotSignedIn("登录令牌无效或已过期") from None
+        exp = claims.get("exp")
+        if isinstance(exp, bool) or not isinstance(exp, int | float) or business_now() >= exp:
+            raise NotSignedIn("登录令牌无效或已过期")
         return caller_of(claims)
     raise NotSignedIn("登录令牌无效或已过期")
 

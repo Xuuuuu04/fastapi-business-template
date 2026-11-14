@@ -25,7 +25,13 @@ async def job(job_id: str, request: Request, caller: CallerDep) -> dict[str, Any
     found = await get_job(request.app.state.services.database, job_id)
     if found is None:
         raise JobMissing()
-    if found.caller_id != caller.id and not caller.can(PERMISSION):
+    same_caller = (
+        caller.kind != "anonymous"
+        and found.caller_id == caller.id
+        and found.caller_kind == caller.kind
+        and found.org_id == caller.org_id
+    )
+    if not same_caller and not caller.can(PERMISSION):
         raise NotAllowed("只能查看自己登记的任务")
     result = asdict(found)
     checkpoint = await progress(request.app.state.services.database, job_id)

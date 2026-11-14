@@ -127,16 +127,66 @@ async def test_stream_error_is_reported(
     events = [
         event
         async for event in stream_events(
-            services.runtime, stream_contract, Nothing(), caller=SYSTEM, request_id=""
+            services.runtime,
+            stream_contract,
+            Nothing(),
+            caller=SYSTEM,
+            request_id="req-stream-1",
+            production=False,
         )
     ]
     assert len(events) == 1 and events[0].startswith(b"event: error\n")
     problem = json.loads(events[0].split(b"data: ")[1])
     assert problem == {
         "code": "internal_error",
+        "kind": "unexpected",
         "message": "服务器内部错误，请用运行编号查询排查信息",
+        "request_id": "req-stream-1",
         "run_id": "",
     }
+
+
+@pytest.mark.anyio
+async def test_stream_broken_business_error_visibility(
+    services: Services, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from shared.errors.framework import StepRuleBroken
+
+    async def broken(*args: object, **kwargs: object) -> Nothing:
+        raise StepRuleBroken("开发阶段可见的程序错误细节")
+
+    monkeypatch.setattr(services.runtime, "run", broken)
+    dev_events = [
+        event
+        async for event in stream_events(
+            services.runtime,
+            stream_contract,
+            Nothing(),
+            caller=SYSTEM,
+            request_id="req-dev",
+            production=False,
+        )
+    ]
+    dev_problem = json.loads(dev_events[0].split(b"data: ")[1])
+    assert dev_problem["kind"] == "broken"
+    assert dev_problem["message"] == "开发阶段可见的程序错误细节"
+    assert dev_problem["request_id"] == "req-dev"
+
+    prod_events = [
+        event
+        async for event in stream_events(
+            services.runtime,
+            stream_contract,
+            Nothing(),
+            caller=SYSTEM,
+            request_id="req-prod",
+            production=True,
+        )
+    ]
+    prod_problem = json.loads(prod_events[0].split(b"data: ")[1])
+    assert prod_problem["kind"] == "broken"
+    assert prod_problem["message"] == "服务器内部错误，请用运行编号查询排查信息"
+    assert prod_problem["request_id"] == "req-prod"
 
 
 class Topic(Data):

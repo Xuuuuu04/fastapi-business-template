@@ -22,7 +22,8 @@ MANUAL_FILES = (
     "AGENTS.md",
     "CLAUDE.md",
     "CHANGELOG.md",
-    ".github",
+    ".github/workflows",
+    ".github/pull_request_template.md",
 )
 
 

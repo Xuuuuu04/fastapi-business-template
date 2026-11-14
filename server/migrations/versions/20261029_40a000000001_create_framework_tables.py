@@ -1,9 +1,3 @@
-"""
-建立框架表。
-
-版本：40a000000001，全新数据库的第一个版本。
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa

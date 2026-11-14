@@ -53,7 +53,9 @@ def check_step_endpoints(module: "Module", part: "Step") -> list[str]:
 def inspect_calls(func: Any, allowed: tuple[Endpoint[Any, Any], ...], place: str) -> list[str]:
     try:
         tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
-    except (OSError, TypeError, IndentationError):
+    except (OSError, TypeError):
+        if getattr(func, "__module__", "").startswith(("service.", "library.")):
+            return [f"{place} 无法读取源码，不能检查外部接口声明"]
         return []
     problems = []
     for node in ast.walk(tree):
@@ -90,7 +92,7 @@ def resolve(node: ast.expr | None, namespace: dict[str, Any]) -> Any:
 def store_methods(func: Any) -> set[str]:
     try:
         tree = ast.parse(textwrap.dedent(inspect.getsource(func)))
-    except (OSError, TypeError, IndentationError):
+    except (OSError, TypeError):
         return set()
     return {
         node.func.attr

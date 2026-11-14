@@ -1,5 +1,4 @@
 import asyncio
-import time
 from collections import OrderedDict
 from collections.abc import Awaitable
 from typing import Protocol
@@ -10,6 +9,7 @@ from redis.backoff import NoBackoff
 from redis.exceptions import RedisError
 
 from shared.errors.framework import CacheUnavailable
+from shared.timing.current import monotonic
 
 
 class Cache(Protocol):
@@ -33,14 +33,14 @@ class MemoryCache:
         found = self.rows.get(key)
         if found is None:
             return None
-        if found[1] <= time.monotonic():
+        if found[1] <= monotonic():
             del self.rows[key]
             return None
         self.rows.move_to_end(key)
         return found[0]
 
     async def set(self, key: str, value: str, ttl: float) -> None:
-        self.rows[key] = (value, time.monotonic() + ttl)
+        self.rows[key] = (value, monotonic() + ttl)
         self.rows.move_to_end(key)
         while len(self.rows) > self.max_entries:
             self.rows.popitem(last=False)

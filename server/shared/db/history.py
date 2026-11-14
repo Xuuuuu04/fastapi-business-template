@@ -1,5 +1,4 @@
 import secrets
-import time
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -11,6 +10,7 @@ from shared.db.database import Database
 from shared.db.tables import metadata
 from shared.db.tracing import query_record
 from shared.records.models import StepRecord
+from shared.timing.current import now as business_now
 
 HIDDEN = "（已隐藏）"
 MAX_VALUE = 1000
@@ -41,7 +41,7 @@ def history_rows(
     caller: Caller,
     run_id: str,
 ) -> list[dict[str, Any]]:
-    now = time.time()
+    now = business_now()
     rows = []
     for old in before:
         for field, new in values.items():

@@ -1,5 +1,4 @@
 import secrets
-import time
 
 from sqlalchemy import Column, Float, Index, String, Table, insert, select
 from sqlalchemy.ext.asyncio import AsyncConnection
@@ -7,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from shared.access.caller import Caller
 from shared.db.database import Database
 from shared.db.tables import metadata
+from shared.timing.current import now as business_now
 
 audit_records = Table(
     "system_audit_records",
@@ -41,7 +41,7 @@ async def record(
             status=status,
             request_id=request_id,
             run_id=run_id,
-            created_at=time.time(),
+            created_at=business_now(),
         )
     )
 

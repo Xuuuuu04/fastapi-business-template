@@ -1,4 +1,3 @@
-# 项目依赖与统一检查配置。框架检查规则的阈值写在 ../.agents/skills/fastapi-check/scripts/fastapi_check/quality/rules.py。
 [project]
 name = "fastapi-server-template"
 version = "5.1.0"

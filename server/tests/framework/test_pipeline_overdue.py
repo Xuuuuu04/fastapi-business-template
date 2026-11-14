@@ -73,17 +73,15 @@ async def test_pause_after_inflight_stage_commits(piped: Services, monkeypatch) 
     import time
 
     from shared.jobs.worker import Worker, WorkerOptions
-    from tests.framework.pipeline_sample import Store
 
-    original = Store.record
+    original = piped.runtime.run
     run_id = await start_due(piped, "pause")
 
-    async def due_during(self, name, reference):
-        if name == "choose":
-            await check(piped.queue, datetime(2020, 1, 2, tzinfo=UTC).timestamp())
-        return await original(self, name, reference)
+    async def due_during(*args, **kwargs):
+        await check(piped.queue, datetime(2020, 1, 2, tzinfo=UTC).timestamp())
+        return await original(*args, **kwargs)
 
-    monkeypatch.setattr(Store, "record", due_during)
+    monkeypatch.setattr(piped.runtime, "run", due_during)
     ticket = await piped.queue.claim(time.time())
     assert ticket is not None
     await Worker(piped.runtime, piped.queue, [], WorkerOptions()).execute(ticket)
@@ -91,7 +89,7 @@ async def test_pause_after_inflight_stage_commits(piped: Services, monkeypatch) 
     assert root["state"] == "overdue_paused" and rows[0]["state"] == "succeeded"
     assert marks == {"choose": 1} and root["current_stage"] == "collect"
     await drain(piped)
-    monkeypatch.setattr(Store, "record", original)
+    monkeypatch.setattr(piped.runtime, "run", original)
     await resume(piped.database, piped.catalog, run_id)
     await drain(piped)
     assert (await snapshot(piped, run_id))[2]["choose"] == 1

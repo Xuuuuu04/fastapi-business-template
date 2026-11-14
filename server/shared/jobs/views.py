@@ -41,6 +41,8 @@ class JobView:
     error_message: str
     last_run_id: str
     result: Any
+    caller_kind: str = ""
+    org_id: str = ""
 
 
 def view_of(row: RowMapping) -> JobView:
@@ -59,6 +61,8 @@ def view_of(row: RowMapping) -> JobView:
         error_message=row["error_message"],
         last_run_id=row["last_run_id"],
         result=json.loads(row["result_json"]) if row["result_json"] else None,
+        caller_kind=str(caller.get("kind", "")),
+        org_id=str(caller.get("org_id", "")),
     )
 
 
